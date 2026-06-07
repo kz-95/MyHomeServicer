@@ -1128,6 +1128,24 @@ function extractName(message: string): string | undefined {
 }
 
 /**
+ * Extract a phone number the user typed in reply to "what's your phone number?".
+ * Assumes a Malaysian number (+60) when no country code is given — drops a leading
+ * 0 and prepends +60. Returns a full E.164-ish string or undefined. Only called
+ * while the phone card is showing, so a bare number run is safely the phone.
+ */
+function extractPhone(message: string): string | undefined {
+  const m = message.match(/(\+?\d[\d\s\-()]{6,18}\d)/);
+  if (!m) return undefined;
+  const raw = m[1].replace(/[\s\-()]/g, "");
+  if (raw.startsWith("+")) {
+    return /^\+\d{7,15}$/.test(raw) ? raw : undefined;
+  }
+  const local = raw.replace(/^0+/, "");
+  if (local.length < 7 || local.length > 12) return undefined;
+  return `+60${local}`;
+}
+
+/**
  * Once a category is confirmed, the quote flow must keep advancing. The model
  * frequently stalls — it re-emits a quote_options card (which we strip) or just
  * says "let me check..." with no action block, leaving the user stuck with no
@@ -1605,6 +1623,16 @@ export async function sendToAi(
       if (nameCard && (nameCard.data.value == null || nameCard.data.value === "")) {
         const name = extractName(message);
         if (name) nameCard.data.value = name;
+      }
+
+      // Same for the phone card — capture a number typed in text (assume Malaysia
+      // +60 when no country code). Only fills an existing empty phone card.
+      const phoneCard = outBlocks.find(
+        (b) => b.type === "quote_field" && b.data.key === "contactNumber",
+      );
+      if (phoneCard && (phoneCard.data.value == null || phoneCard.data.value === "")) {
+        const phone = extractPhone(message);
+        if (phone) phoneCard.data.value = phone;
       }
     }
   }
