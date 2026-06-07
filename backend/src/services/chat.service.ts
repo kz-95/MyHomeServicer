@@ -891,38 +891,61 @@ function noteKeyFailure(id: string, err: unknown): void {
   }
 }
 
-async function tryAiChain(
+/**
+ * Run a provider call, and if it aborts with a first-token TIMEOUT (a cold
+ * provider that didn't stream in time), retry it ONCE. The aborted attempt has
+ * usually warmed the provider up, so the immediate retry lands fast — this makes
+ * a cold DeepSeek answer the very first message after Gemini's quota runs out,
+ * instead of dropping to the manual "Try again" fallback. Quota/429/auth errors
+ * are NOT retried (they throw instantly and fail through to the next key).
+ */
+async function withColdStartRetry(fn: () => Promise<AiReply>): Promise<AiReply> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (/first.?token timeout/i.test((e as Error)?.message ?? "")) {
+      return await fn();
+    }
+    throw e;
+  }
+}
+
+/** One attempt in the failover chain — a named LLM the chain can try in order. */
+interface LlmAttempt {
+  id: string; // stable id for cooldown tracking
+  label: string; // for logs
+  run: () => Promise<AiReply>;
+}
+
+/**
+ * Build the ordered list of LLMs to try: the .env primary + fallback first
+ * (local-dev convenience; left empty on deploy), then the admin-configured keys
+ * (priority order, fallback key last). The chain treats them all the same — it
+ * does not care which vendor each one is.
+ */
+async function buildLlmChain(
   systemPrompt: string,
   message: string,
   history: HistoryMessage[],
   role: string,
-): Promise<AiReply> {
-  // 1. .env keys first — local-dev convenience. On deploy these are left empty,
-  //    so the chain falls straight through to the admin-configured keys below.
-  if (env.AICHAT_LLM_API_KEY && !isCoolingDown("env:gemini")) {
-    try {
-      return await callGemini(systemPrompt, message, history, role);
-    } catch (e) {
-      noteKeyFailure("env:gemini", e);
-      logger.warn("Gemini (.env) failed, trying next", {
-        error: (e as Error).message,
-      });
-    }
+): Promise<LlmAttempt[]> {
+  const attempts: LlmAttempt[] = [];
+
+  if (env.AICHAT_LLM_API_KEY) {
+    attempts.push({
+      id: "env:primary",
+      label: "Primary LLM (.env)",
+      run: () => callGemini(systemPrompt, message, history, role),
+    });
   }
-  if (env.AICHAT_LLM_FALLBACK_API_KEY && !isCoolingDown("env:deepseek")) {
-    try {
-      return await callDeepSeek(systemPrompt, message, history, role);
-    } catch (e) {
-      noteKeyFailure("env:deepseek", e);
-      logger.warn("DeepSeek (.env) failed, trying next", {
-        error: (e as Error).message,
-      });
-    }
+  if (env.AICHAT_LLM_FALLBACK_API_KEY) {
+    attempts.push({
+      id: "env:fallback",
+      label: "Fallback LLM (.env)",
+      run: () => callDeepSeek(systemPrompt, message, history, role),
+    });
   }
 
-  // 2. Admin-configured keys (Admin → LLM API Keys): the priority list in order
-  //    (drag-to-reorder), then the fallback key last. Each fails over fast — a
-  //    quota/dead key errors instantly; a stalled stream aborts at FIRST_TOKEN_MS.
   let llmKeys: LlmKeyEntry[] = [];
   try {
     llmKeys = await getLlmKeys();
@@ -934,29 +957,39 @@ async function tryAiChain(
     ...llmKeys.filter((k) => k.isFallback),
   ];
   for (const k of ordered) {
-    if (isCoolingDown(k.id)) continue;
+    attempts.push({
+      id: k.id,
+      label: `${k.label} (${k.provider}${k.model ? ", " + k.model : ""})`,
+      run: () =>
+        callByProvider(k.provider, k.value, systemPrompt, message, history, role, k.model),
+    });
+  }
+
+  return attempts;
+}
+
+async function tryAiChain(
+  systemPrompt: string,
+  message: string,
+  history: HistoryMessage[],
+  role: string,
+): Promise<AiReply> {
+  const chain = await buildLlmChain(systemPrompt, message, history, role);
+
+  // Try each LLM in order. Skip one that's cooling down (recent 429), give each a
+  // single cold-start retry, and on failure note it + move to the next.
+  for (const llm of chain) {
+    if (isCoolingDown(llm.id)) continue;
     try {
-      logger.info(
-        `Trying LLM key "${k.label}" (${k.provider}${k.model ? ", " + k.model : ""})`,
-      );
-      return await callByProvider(
-        k.provider,
-        k.value,
-        systemPrompt,
-        message,
-        history,
-        role,
-        k.model,
-      );
+      logger.info(`Trying ${llm.label}`);
+      return await withColdStartRetry(llm.run);
     } catch (e) {
-      noteKeyFailure(k.id, e);
-      logger.warn(`LLM key "${k.label}" failed, trying next`, {
-        error: (e as Error).message,
-      });
+      noteKeyFailure(llm.id, e);
+      logger.warn(`${llm.label} failed, trying next`, { error: (e as Error).message });
     }
   }
 
-  // 3. Nothing worked — throw to trigger local fallback
+  // Nothing worked — throw to trigger local fallback
   throw new Error("No AI provider available");
 }
 
