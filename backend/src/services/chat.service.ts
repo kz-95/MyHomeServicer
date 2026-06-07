@@ -1511,10 +1511,20 @@ export async function sendToAi(
     // SELECTION step, not field collection — never pre-fill date/time or inject the
     // next field card here (it would dump date/time/address before a service is even
     // picked). Field collection only begins once a category is settled.
+    // Field collection requires a real category context — NOT merely stale
+    // `collected` fields. A guest who finished/abandoned a prior request still
+    // carries its date/name/phone in prefillData; without this guard those stale
+    // fields would dump as cards in the middle of a brand-new service selection.
+    // Valid contexts: category locked client-side, a category_lock emitted THIS
+    // reply (the user just text-confirmed "yep"), or the model emitting a field
+    // card itself. While category cards are still showing we are selecting, not
+    // collecting, so never collect then.
     const stillChoosingCategory = outBlocks.some((b) => b.type === "quote_options");
+    const categoryLockedThisReply = outBlocks.some((b) => b.type === "category_lock");
     const collectingFields =
       !stillChoosingCategory &&
-      ((opts?.collected?.length ?? 0) > 0 ||
+      (opts?.suppressCategorySuggest === true ||
+        categoryLockedThisReply ||
         outBlocks.some(
           (b) => b.type === "quote_field" || b.type === "quote_prefill",
         ));
