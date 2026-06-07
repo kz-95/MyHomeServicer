@@ -1,3 +1,4 @@
+import * as chrono from "chrono-node";
 import { env } from "../config/env";
 import { logger } from "../lib/logger";
 import { prisma } from "../lib/prisma";
@@ -1067,6 +1068,38 @@ function linkifyServices(
 }
 
 /**
+ * Deterministic date + time-of-day extraction. The model frequently STATES a
+ * resolved date in its reply ("26 December 2026") but emits an empty date picker,
+ * forcing the user to re-pick. We parse the date out of the text ourselves so the
+ * card can be pre-filled regardless of what the model emitted. Time-of-day maps to
+ * one of the 5 slots.
+ */
+function parseDateTimeFromText(text: string): { date?: string; slot?: string } {
+  const out: { date?: string; slot?: string } = {};
+  try {
+    const results = chrono.parse(text, undefined, { forwardDate: true });
+    if (results.length > 0) {
+      const d = results[0].start.date();
+      if (!Number.isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        out.date = `${y}-${m}-${day}`;
+      }
+    }
+  } catch {
+    /* parsing is best-effort */
+  }
+  const t = text.toLowerCase();
+  if (/\b(night|tonight|midnight)\b/.test(t)) out.slot = "night";
+  else if (/\bevening\b/.test(t)) out.slot = "evening";
+  else if (/\bafternoon\b/.test(t)) out.slot = "afternoon";
+  else if (/\b(noon|midday|lunch)\b/.test(t)) out.slot = "noon";
+  else if (/\bmorning\b/.test(t)) out.slot = "morning";
+  return out;
+}
+
+/**
  * Once a category is confirmed, the quote flow must keep advancing. The model
  * frequently stalls — it re-emits a quote_options card (which we strip) or just
  * says "let me check..." with no action block, leaving the user stuck with no
@@ -1434,6 +1467,27 @@ export async function sendToAi(
         (b) => b.type === "quote_field" || b.type === "quote_prefill",
       );
     if (collectingFields) {
+      // Deterministic date/time pre-fill: the model often states a resolved date in
+      // its text but emits an empty picker. Parse the date/time out of the reply +
+      // the user message and fill the card ourselves, so it never relies on the
+      // model (or on which LLM happened to answer) emitting the value.
+      const parsed = parseDateTimeFromText(`${processed.text} ${message}`);
+      const fillField = (key: string, val?: string) => {
+        if (!val) return;
+        const existing = outBlocks.find(
+          (b) => b.type === "quote_field" && b.data.key === key,
+        );
+        if (existing) {
+          if (existing.data.value == null || existing.data.value === "") {
+            existing.data.value = val;
+          }
+        } else {
+          outBlocks.push({ type: "quote_field", data: { key, value: val } });
+        }
+      };
+      fillField("preferredDate", parsed.date);
+      fillField("timeSlot", parsed.slot);
+
       // Fields are "done" if the client already collected them OR the model just
       // pre-filled them with a value in this reply.
       const done = new Set(opts?.collected ?? []);
