@@ -409,6 +409,7 @@ interface EstimateResult {
             <div class="addr-line2">{{ [f.newAddressDistrict, f.newAddressPostcode].filter(v => v).join(', ') || '' }}</div>
           </dd>
         </dl>
+        <p class="prefill-warning">⚠️ Please double-check your contact and address above. They cannot be changed or updated once the request is sent.</p>
         <p class="looks-good muted">Looks good? Choose how you'd like to pay on the next step.</p>
 
         <div class="actions">
@@ -822,6 +823,12 @@ interface EstimateResult {
       }
       .review dt { font-weight: 600; color: var(--color-muted); min-width: 0; }
       .review dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+      .prefill-warning {
+        margin: 0.75rem 0 0.2rem; font-size: 0.82rem; font-weight: 600;
+        color: var(--color-danger); background: var(--color-danger-bg);
+        border: 1px solid var(--color-danger); border-radius: var(--radius);
+        padding: 0.5rem 0.65rem; line-height: 1.35;
+      }
       .service-details { display: inline; }
       .service-summary { cursor: pointer; list-style: none; font-weight: 600; color: var(--color-muted); user-select: none; }
       .service-summary::-webkit-details-marker { display: none; }

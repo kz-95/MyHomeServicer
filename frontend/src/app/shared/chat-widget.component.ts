@@ -295,7 +295,6 @@ interface PublicConfig {
                                 </div>
                               }
                             </div>
-                            <p class="prefill-warning">⚠️ Please double-check your contact and address above. They cannot be changed or updated once the request is sent.</p>
                             <p class="muted">Review above and submit your quote request.</p>
                             <button class="btn-primary" (click)="submitPrefill()">Review & submit</button>
                           </div>
