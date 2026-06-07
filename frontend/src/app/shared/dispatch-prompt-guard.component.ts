@@ -1,0 +1,363 @@
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ApiService } from '../core/services/api.service';
+import { SocketService } from '../core/services/socket.service';
+import { ToastService } from '../core/services/toast.service';
+import { IconComponent } from './icon.component';
+import { Subscription } from 'rxjs';
+
+interface DispatchPrompt {
+  broadcastId: string;
+  quoteId: string;
+  category: { name: string; icon: string | null };
+  timeSlot: string;
+  preferredDate: string;
+  budgetMin: number;
+  budgetMax: number;
+  propertyType: string | null;
+  customerName: string;
+  customerAvatarUrl: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  area: string | null;
+  questions: unknown;
+}
+
+@Component({
+  selector: 'app-dispatch-prompt-guard',
+  standalone: true,
+  imports: [FormsModule, IconComponent, DatePipe],
+  template: `
+    @if (prompt(); as p) {
+      <div class="dp-backdrop" (click)="$event.stopPropagation()">
+        <div class="dp-overlay" role="dialog" aria-modal="true">
+          <!-- Header -->
+          <div class="dp-hd">
+            <div class="dp-hd-left">
+              <app-icon name="bell-ringing" sizeToken="lg" strokeWidth="2" />
+              <div>
+                <strong>New dispatch: {{ p.category.name }}</strong>
+                <span class="muted small">Review the job details below</span>
+              </div>
+            </div>
+            <div class="dp-countdown" [class.urgent]="countdownSecs() <= 3">
+              <span class="dp-countdown-num">{{ countdownSecs() }}</span>
+              <span class="small">sec</span>
+            </div>
+          </div>
+
+          <div class="dp-body">
+            <!-- Customer info -->
+            <div class="dp-section">
+              <div class="dp-customer">
+                @if (p.customerAvatarUrl) {
+                  <img [src]="p.customerAvatarUrl" class="dp-avatar" alt="" />
+                } @else {
+                  <div class="dp-avatar-fallback">{{ p.customerName.charAt(0) }}</div>
+                }
+                <div>
+                  <strong>{{ p.customerName }}</strong>
+                  @if (p.area) {
+                    <span class="muted small">{{ p.area }}</span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Job details -->
+            <div class="dp-section">
+              <div class="dp-detail-grid">
+                <div class="dp-detail-item">
+                  <span class="dp-label">Service</span>
+                  <span>{{ p.category.name }}</span>
+                </div>
+                <div class="dp-detail-item">
+                  <span class="dp-label">Date</span>
+                  <span>{{ p.preferredDate | date:'mediumDate' }}</span>
+                </div>
+                <div class="dp-detail-item">
+                  <span class="dp-label">Time</span>
+                  <span>{{ p.timeSlot }}</span>
+                </div>
+                <div class="dp-detail-item">
+                  <span class="dp-label">Budget</span>
+                  <span>RM {{ p.budgetMin }} – RM {{ p.budgetMax }}</span>
+                </div>
+                @if (p.propertyType) {
+                  <div class="dp-detail-item">
+                    <span class="dp-label">Property</span>
+                    <span>{{ p.propertyType }}</span>
+                  </div>
+                }
+                @if (p.address) {
+                  <div class="dp-detail-item dp-full">
+                    <span class="dp-label">Location</span>
+                    <span>{{ p.address }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Map preview (when coordinates available) -->
+            @if (p.lat != null && p.lng != null) {
+              <div class="dp-section">
+                <div class="dp-map-placeholder" (click)="openMaps(p.lat!, p.lng!)">
+                  <app-icon name="map-pinned" sizeToken="xl" stroke="var(--color-primary)" />
+                  <span>📍 Navigate to location</span>
+                  <span class="muted small">View on Google Maps / Waze</span>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Actions -->
+          <div class="dp-actions">
+            <button class="btn-primary dp-btn-accept" (click)="accept()" [disabled]="actioning()">
+              <app-icon name="check-circle" sizeToken="sm" />
+              {{ actioning() ? 'Processing…' : 'Accept job' }}
+            </button>
+            <button class="btn-ghost dp-btn-decline" (click)="decline()" [disabled]="actioning()">
+              <app-icon name="x-circle" sizeToken="sm" />
+              Decline
+            </button>
+          </div>
+
+          @if (error()) {
+            <p class="err">{{ error() }}</p>
+          }
+        </div>
+      </div>
+    }
+  `,
+  styles: [`
+    :host { display: contents; }
+    .dp-backdrop {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .dp-overlay {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      max-width: 520px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .dp-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-primary);
+      color: #fff;
+      border-radius: 16px 16px 0 0;
+    }
+    .dp-hd-left { display: flex; align-items: center; gap: 0.6rem; }
+    .dp-hd-left .muted { color: rgba(255,255,255,0.7); }
+    .dp-countdown {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: rgba(255,255,255,0.2);
+      border-radius: 999px;
+      padding: 0.25rem 0.75rem;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .dp-countdown.urgent {
+      background: var(--color-danger);
+      animation: pulse 1s ease infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+    .dp-body { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+    .dp-section { }
+    .dp-customer {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--color-bg);
+      border-radius: var(--radius);
+      border: 1px solid var(--color-border);
+    }
+    .dp-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+    .dp-avatar-fallback {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--color-primary);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.2rem;
+    }
+    .dp-customer div { display: flex; flex-direction: column; gap: 0.1rem; }
+
+    .dp-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .dp-detail-item {
+      display: flex; flex-direction: column; gap: 0.1rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--color-bg);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+      font-size: 0.85rem;
+    }
+    .dp-full { grid-column: 1 / -1; }
+    .dp-label { font-size: 0.7rem; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+    .dp-map-placeholder {
+      display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+      padding: 1.5rem;
+      background: var(--color-bg);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .dp-map-placeholder:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+
+    .dp-actions {
+      display: flex; gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--color-border);
+    }
+    .dp-btn-accept {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      font-size: 1rem; padding: 0.75rem;
+    }
+    .dp-btn-decline {
+      flex-shrink: 0; display: flex; align-items: center; gap: 0.4rem;
+      color: var(--color-muted);
+    }
+    .dp-btn-decline:hover { color: var(--color-danger); }
+
+    .err { color: var(--color-danger); padding: 0 1.25rem 1rem; font-size: 0.85rem; }
+    .small { font-size: 0.78rem; }
+  `],
+})
+export class DispatchPromptGuardComponent implements OnInit, OnDestroy {
+  private api = inject(ApiService);
+  private socket = inject(SocketService);
+  private toast = inject(ToastService);
+
+  prompt = signal<DispatchPrompt | null>(null);
+  countdownSecs = signal<number>(10);
+  actioning = signal(false);
+  error = signal('');
+
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
+  private socketSub: Subscription | null = null;
+  private broadcastId: string | null = null;
+
+  ngOnInit(): void {
+    this.socketSub = this.socket.on<DispatchPrompt>('dispatch.prompt').subscribe((data) => {
+      this.showPrompt(data);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.socketSub?.unsubscribe();
+    this.clearTimer();
+  }
+
+  private showPrompt(data: DispatchPrompt): void {
+    this.broadcastId = data.broadcastId;
+    this.prompt.set(data);
+    this.error.set('');
+    this.actioning.set(false);
+    this.countdownSecs.set(10);
+    this.startTimer();
+  }
+
+  private startTimer(): void {
+    this.clearTimer();
+    this.timerInterval = setInterval(() => {
+      this.countdownSecs.update((s) => {
+        if (s <= 1) {
+          this.clearTimer();
+          this.handleTimeout();
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  }
+
+  private clearTimer(): void {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  private handleTimeout(): void {
+    const bid = this.broadcastId;
+    if (!bid) return;
+    this.prompt.set(null);
+    this.broadcastId = null;
+    this.toast.info('Dispatch prompt expired.');
+    // Auto-decline on timeout.
+    this.api.post(`/servicer/dispatch/${bid}/decline`, {}).subscribe({
+      error: () => {},
+    });
+  }
+
+  accept(): void {
+    const bid = this.broadcastId;
+    if (!bid || this.actioning()) return;
+    this.actioning.set(true);
+    this.error.set('');
+    this.clearTimer();
+
+    this.api.post<{ bookingId: string }>(`/servicer/dispatch/${bid}/accept`, {}).subscribe({
+      next: (r) => {
+        this.toast.success('Job accepted! Booking confirmed.');
+        this.prompt.set(null);
+        this.broadcastId = null;
+      },
+      error: (e) => {
+        this.actioning.set(false);
+        this.error.set(e.message ?? 'Failed to accept job');
+        if (e.message?.includes('already been accepted')) {
+          this.prompt.set(null);
+          this.broadcastId = null;
+        }
+      },
+    });
+  }
+
+  decline(): void {
+    const bid = this.broadcastId;
+    if (!bid || this.actioning()) return;
+    this.actioning.set(true);
+    this.error.set('');
+    this.clearTimer();
+
+    this.api.post(`/servicer/dispatch/${bid}/decline`, {}).subscribe({
+      next: () => {
+        this.toast.info('Job declined.');
+        this.prompt.set(null);
+        this.broadcastId = null;
+      },
+      error: (e) => {
+        this.actioning.set(false);
+        this.error.set(e.message ?? 'Failed to decline job');
+      },
+    });
+  }
+
+  openMaps(lat: number, lng: number): void {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    window.open(url, '_blank');
+  }
+}

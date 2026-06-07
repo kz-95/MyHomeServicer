@@ -1,0 +1,27 @@
+#!/bin/sh
+# Pre-commit hook — scans staged changes for committed secrets with gitleaks.
+#
+# One-time setup (run once per clone, from the repo root):
+#     git config core.hooksPath scripts/git-hooks
+#
+# Requires the gitleaks binary on PATH:
+#     macOS:   brew install gitleaks
+#     other:   https://github.com/gitleaks/gitleaks/releases
+#
+# If gitleaks is not installed the hook warns but does not block, so the
+# repo stays usable; CI (.github/workflows/security.yml) is the backstop.
+
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "Running gitleaks on staged changes..."
+  if ! gitleaks protect --staged --redact --config .gitleaks.toml; then
+    echo ""
+    echo "✖ gitleaks detected a potential secret in your staged changes."
+    echo "  Remove it (or add an allowlist entry in .gitleaks.toml) and re-commit."
+    exit 1
+  fi
+  echo "✓ gitleaks: no secrets detected."
+else
+  echo "⚠ gitleaks not installed — skipping local secret scan."
+  echo "  Install it so commits are checked before they leave your machine:"
+  echo "  https://github.com/gitleaks/gitleaks"
+fi

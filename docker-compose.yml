@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: hs_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: homeservices
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d homeservices"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7
+    container_name: hs_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # ── Backend API (optional — only started with the 'full' profile) ─────────────
+  # Used for fully-containerised runs and as the canonical source of truth for
+  # the backend's runtime environment (env vars, timezone, etc.).
+  #
+  # Normal dev workflow (npm run dev) is faster — use this profile for:
+  #   • CI integration tests that need the full stack in one compose invocation
+  #   • Verifying timezone-sensitive behaviour before deploying to a UTC server
+  #
+  # Usage:
+  #   docker compose --profile full up -d
+  #   docker compose --profile full logs -f backend
+  #
+  # Note: the image is built from the repo root — a Dockerfile is needed.
+  # Until one is added, this service definition serves as the authoritative
+  # record of the required environment for the backend process.
+  backend:
+    profiles: [full]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile       # add when containerising the backend
+    container_name: hs_backend
+    ports:
+      - "3001:3000"
+    env_file:
+      - backend/.env
+    environment:
+      # ── CRITICAL: pin to Malaysia time (UTC+8) ──────────────────────────────
+      # Without this, Node.js Date methods (setHours, getHours, …) use the
+      # server's local timezone. On a UTC Docker host, no-show slot-end times
+      # are computed 8 hours late (BUG-001). This env var makes the process
+      # treat local time as MYT regardless of the host OS timezone.
+      TZ: Asia/Kuala_Lumpur
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── BullMQ worker (same image, same env, different entrypoint) ────────────────
+  worker:
+    profiles: [full]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: hs_worker
+    command: ["node", "dist/worker.js"]
+    env_file:
+      - backend/.env
+    environment:
+      TZ: Asia/Kuala_Lumpur
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

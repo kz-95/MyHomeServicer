@@ -1,0 +1,110 @@
+name: CI
+
+# Manual-only: CI does not auto-run on push/PR (avoids burning Action minutes
+# on every background auto-commit to master). Trigger by hand when needed:
+# GitHub repo → Actions tab → CI → "Run workflow", or `gh workflow run CI`.
+on:
+  workflow_dispatch:
+
+jobs:
+  # ── Backend: typecheck, lint, build, unit tests ──────────────────────────────
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      # Pin to Malaysia time (UTC+8) so Date local-time methods in unit tests
+      # (slotEndTime etc.) behave correctly on GitHub's UTC runners. See BUG-004.
+      TZ: Asia/Kuala_Lumpur
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: backend
+        run: npm install --no-audit --no-fund
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
+      - name: Lint
+        working-directory: backend
+        run: npm run lint
+      - name: Build
+        working-directory: backend
+        run: npm run build
+      - name: Unit tests
+        working-directory: backend
+        run: npm test
+
+  # ── Backend: end-to-end test against a real Postgres + Redis ─────────────────
+  backend-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: homeservices
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-test-jwt-secret-value-0123456789abcdef
+      REFRESH_SECRET: ci-test-refresh-secret-value-0123456789abcdef
+      NODE_ENV: development
+      # Pin to Malaysia time (UTC+8) — GitHub runners are UTC by default.
+      # Without this, slot-end time calculations and any Date local-time methods
+      # are 8 hours off, causing timing-sensitive E2E assertions to fail.
+      # Mirrors TZ set in docker-compose.yml and backend/.env.example (BUG-001).
+      TZ: Asia/Kuala_Lumpur
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: backend
+        run: npm install --no-audit --no-fund
+      - name: Sync schema + generate
+        working-directory: backend
+        # The project's workflow is `prisma db push` (db:sync / db:reset), not
+        # migration files — db push builds the DB straight from schema.prisma
+        # so it can never drift. `migrate deploy` was replaying a stale
+        # `init` migration that lacked recently-added columns.
+        run: |
+          npx prisma db push --skip-generate
+          npx prisma generate
+      - name: Seed demo data
+        working-directory: backend
+        run: npm run seed
+      - name: Run E2E tests
+        working-directory: backend
+        run: npm test
+        env:
+          RUN_E2E: '1'
+
+  # ── Frontend: build ──────────────────────────────────────────────────────────
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Build
+        working-directory: frontend
+        run: npm run build

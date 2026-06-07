@@ -1,0 +1,658 @@
+/* ============================================================
+   Global styles - My Home Servicer
+   Design direction: Warm Editorial / Cool Technical
+   Last updated: 2026-05-25
+   ============================================================
+
+   THEME SYSTEM
+   ────────────
+   Two themes coexist via [data-theme] on <html>:
+     data-theme="warm" (default day) - terracotta + cream editorial
+     data-theme="cool" (night mode) - deep stone + copper
+
+   Both themes share the same warm character - night mode is NOT a
+   generic blue inversion, it's the same brand at low light.
+
+   Sections
+   ────────
+   1. Shared: Typography, spacing, layout, motion (theme-agnostic)
+   2. Warm theme: :root defaults
+   3. Cool theme: [data-theme="cool"] overrides
+   4. Reset, utilities, components, animation, responsive, a11y
+   ============================================================ */
+
+/* ── 1. Theme-agnostic tokens ──────────────────────────────── */
+:root {
+  /* Typography */
+  --font-display: "DM Serif Display", Georgia, serif;
+  --font-body: "Outfit", system-ui, -apple-system, sans-serif;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-base: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* Layout */
+  --radius: 10px;
+  --radius-input: 8px;
+  --radius-sm: 6px;
+  --content-max: 1100px;
+  --sidebar-width: 220px;
+  --sidebar-width-tablet: 180px;
+  --topbar-height: 56px;
+  --demo-bar-height: 28px;
+
+  /* Motion */
+  --transition: 0.25s ease;
+  --transition-fast: 0.15s ease;
+  --transition-spring: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── 2. WARM THEME (default day) ───────────────────────────
+     Terracotta editorial - welcoming, crafted, trustworthy.
+     Used for CTAs, hero, customer-facing warmth.                */
+  --color-primary: #e07a3a;
+  --color-primary-dark: #c05e28;
+  --color-primary-light: #f5e0d0;
+
+  --color-bg: #faf7f2;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1ece4;
+  --color-border: #e8e0d8;
+
+  --color-text: #2c2420;
+  --color-muted: #6b6258; /* darkened to clear 4.5:1 AA contrast */
+  --color-text-inverse: #f5f0ea;
+
+  --color-success: #4a8c5c;
+  --color-success-bg: #edf5ed;
+  --color-danger: #b9423a;
+  --color-danger-bg: #f8edec;
+  --color-warning: #c4903a;
+  --color-warning-bg: #faf3e5;
+
+  --color-promo: #7a5a8c;
+  --color-promo-bg: #f0ebf5;
+  --color-promo-text: #5a3a6c;
+  --color-promo-border: #ddd6e8;
+
+  --color-accent: #c4903a;
+  --color-accent-bg: #edf3ea;
+
+  --color-backdrop: rgba(28, 22, 18, 0.45);
+
+  --shadow: 0 1px 3px rgba(44, 36, 32, 0.06);
+  --shadow-md: 0 4px 14px rgba(44, 36, 32, 0.08);
+  --shadow-lg: 0 12px 40px rgba(44, 36, 32, 0.15);
+  --shadow-primary: 0 2px 8px rgba(201, 90, 60, 0.25);
+
+  --focus-ring: 0 0 0 3px rgba(201, 90, 60, 0.22);
+  --focus-ring-danger: 0 0 0 2px rgba(185, 66, 58, 0.2);
+
+  /* Gradient system */
+  --gradient-primary: linear-gradient(135deg, #c95a3c 0%, #d4784a 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #a8472e 0%, #c95a3c 100%);
+  --gradient-accent: linear-gradient(135deg, #c4903a 0%, #d4a84a 100%);
+  --gradient-hero: linear-gradient(
+    160deg,
+    #fdf4ee 0%,
+    #faf7f2 55%,
+    #f5ede4 100%
+  );
+  --gradient-sidebar: linear-gradient(135deg, #c95a3c 0%, #a8472e 100%);
+}
+
+/* ── 3. NIGHT THEME - Deep Stone + Copper ───────────────────
+   Warm stone-black canvas with copper primary. Earthy, premium,
+   nothing like the generic blue dark modes everywhere else.     */
+[data-theme="cool"] {
+  --color-primary: #d4884a;
+  --color-primary-dark: #b8702e;
+  --color-primary-light: #3d2a18;
+
+  --color-bg: #1c1917;
+  --color-surface: #28231e;
+  --color-surface-alt: #221d19;
+  --color-border: #3d3530;
+
+  --color-text: #f5f0e8;
+  --color-muted: #a09384; /* darkened for 4.5:1 AA on night bg */
+  --color-text-inverse: #1c1917;
+
+  --color-success: #4ade80;
+  --color-success-bg: #0e2018;
+  --color-danger: #f87171;
+  --color-danger-bg: #2e1010;
+  --color-warning: #fbbf24;
+  --color-warning-bg: #2e200a;
+
+  --color-promo: #c4a8e8;
+  --color-promo-bg: #1e1428;
+  --color-promo-text: #d4b8f8;
+  --color-promo-border: #3a2a4a;
+
+  --color-accent: #a16207;
+  --color-accent-bg: #261a08;
+
+  --color-backdrop: rgba(10, 8, 6, 0.65);
+
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.65);
+  --shadow-primary: 0 2px 8px rgba(212, 136, 74, 0.35);
+
+  --focus-ring: 0 0 0 3px rgba(212, 136, 74, 0.3);
+  --focus-ring-danger: 0 0 0 2px rgba(248, 113, 113, 0.3);
+
+  /* Stone + Copper gradients - same directional formula as warm theme */
+  --gradient-primary: linear-gradient(135deg, #d4884a 0%, #df9854 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #b8702e 0%, #d4884a 100%);
+  --gradient-accent: linear-gradient(135deg, #c4903a 0%, #d4a84a 100%);
+  --gradient-hero: linear-gradient(
+    160deg,
+    #28221a 0%,
+    #1c1917 60%,
+    #14110e 100%
+  );
+  --gradient-sidebar: linear-gradient(135deg, #d4884a 0%, #b8702e 100%);
+
+  /* Stone-status badge colours */
+  --color-status-open-bg: #2a1e14;
+  --color-status-open-text: #e8a878;
+  --color-status-open-border: #3d2a1a;
+
+  --color-status-accepted-bg: #0e2018;
+  --color-status-accepted-text: #4ade80;
+  --color-status-accepted-border: #1a3020;
+
+  --color-status-progress-bg: #241a08;
+  --color-status-progress-text: #fbbf24;
+  --color-status-progress-border: #382808;
+
+  --color-status-completed-bg: #0e2018;
+  --color-status-completed-text: #34d399;
+  --color-status-completed-border: #1a3020;
+
+  --color-status-paid-bg: #0e2018;
+  --color-status-paid-text: #4ade80;
+  --color-status-paid-border: #1a3020;
+
+  --color-status-cancelled-bg: #2e1010;
+  --color-status-cancelled-text: #f87171;
+  --color-status-cancelled-border: #4e1a1a;
+
+  --color-status-pending-bg: #241a08;
+  --color-status-pending-text: #fbbf24;
+  --color-status-pending-border: #382808;
+}
+
+/* ── Rest of :root status badges (warm defaults) ──────────── */
+:root {
+  --color-status-open-bg: #f0d6cc;
+  --color-status-open-text: #a8472e;
+  --color-status-open-border: #e3bfb3;
+
+  --color-status-accepted-bg: #e0eef5;
+  --color-status-accepted-text: #2a6b8c;
+  --color-status-accepted-border: #c5dae6;
+
+  --color-status-progress-bg: #faf0d1;
+  --color-status-progress-text: #8c6a2a;
+  --color-status-progress-border: #eddcae;
+
+  --color-status-completed-bg: #dce8dc;
+  --color-status-completed-text: #3a6c3a;
+  --color-status-completed-border: #bcd0bc;
+
+  --color-status-paid-bg: #e4f0e8;
+  --color-status-paid-text: #2e7a42;
+  --color-status-paid-border: #bcd5c0;
+
+  --color-status-cancelled-bg: #f0dcdc;
+  --color-status-cancelled-text: #8c2a2a;
+  --color-status-cancelled-border: #e3bebe;
+
+  --color-status-pending-bg: #f5ebd6;
+  --color-status-pending-text: #8c702a;
+  --color-status-pending-border: #e3d4ae;
+}
+
+/* ── 4. Function-temperature classes ─────────────────────────
+   These override theme tokens for specific functional roles.
+   They keep the same temperature regardless of current theme.   */
+
+/* Always-warm elements - CTAs, hero, customer trust signals */
+.func-warm-primary {
+  --func-bg: #c95a3c;
+  --func-text: #fff;
+  --func-hover: #a8472e;
+}
+[data-theme="cool"] .func-warm-primary {
+  --func-bg: #c95a3c;
+  --func-text: #fff;
+  --func-hover: #a8472e;
+}
+
+/* Always-cool elements - admin panels, data tables, tech bg */
+.func-cool-surface {
+  --func-bg: #eef1f5;
+  --func-border: #d5dce4;
+}
+[data-theme="cool"] .func-cool-surface {
+  --func-bg: #0d1117;
+  --func-border: #262e3a;
+}
+
+/* ── Reset ────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-body);
+  font-weight: 400;
+  background: var(--color-bg);
+  color: var(--color-text);
+  scroll-behavior: smooth;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--color-text);
+  margin: 0 0 0.6rem;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition:
+    color var(--transition),
+    opacity var(--transition);
+}
+a:hover {
+  color: var(--color-primary-dark);
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius);
+  /* §7.2 - ≥10px (0.625rem) text padding on BOTH axes */
+  padding: 0.625rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition:
+    background var(--transition),
+    color var(--transition),
+    opacity var(--transition),
+    box-shadow var(--transition),
+    border-color var(--transition);
+  background: transparent;
+  color: var(--color-text);
+}
+
+/* ── Global utility classes ───────────────────────────────── */
+
+.btn-primary {
+  background: var(--color-primary);
+  background: var(--gradient-primary);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 999px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--gradient-primary-hover);
+  box-shadow: var(--shadow-primary);
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  font-weight: 500;
+  color: var(--color-text);
+  border-radius: 999px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-bg);
+  border-color: var(--color-muted);
+}
+.btn-ghost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-status-cancelled-text);
+}
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  /* §7.1.2 - 24px bottom buffer so trailing action rows never hug the card foot */
+  padding: 1.25rem 1.25rem 1.5rem;
+  transition:
+    box-shadow var(--transition),
+    border-color var(--transition);
+}
+
+.card-hover {
+  cursor: pointer;
+  transition:
+    box-shadow var(--transition),
+    transform var(--transition),
+    border-color var(--transition);
+}
+.card-hover:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--color-primary-light);
+}
+
+input,
+select,
+textarea {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  width: 100%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+input.input-error,
+select.input-error,
+textarea.input-error {
+  border-color: var(--color-danger);
+  box-shadow: var(--focus-ring-danger);
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+.err {
+  color: var(--color-danger);
+  font-size: 0.88rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+/* ── Status badge utilities ───────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  text-transform: capitalize;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.badge-open {
+  background: var(--color-status-open-bg);
+  color: var(--color-status-open-text);
+  border-color: var(--color-status-open-border);
+}
+.badge-accepted {
+  background: var(--color-status-accepted-bg);
+  color: var(--color-status-accepted-text);
+  border-color: var(--color-status-accepted-border);
+}
+.badge-progress {
+  background: var(--color-status-progress-bg);
+  color: var(--color-status-progress-text);
+  border-color: var(--color-status-progress-border);
+}
+.badge-completed {
+  background: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
+  border-color: var(--color-status-completed-border);
+}
+.badge-paid {
+  background: var(--color-status-paid-bg);
+  color: var(--color-status-paid-text);
+  border-color: var(--color-status-paid-border);
+}
+.badge-cancelled {
+  background: var(--color-status-cancelled-bg);
+  color: var(--color-status-cancelled-text);
+  border-color: var(--color-status-cancelled-border);
+}
+.badge-pending {
+  background: var(--color-status-pending-bg);
+  color: var(--color-status-pending-text);
+  border-color: var(--color-status-pending-border);
+}
+
+/* Warning info banner - uses status-open tokens for warm amber tone */
+.card.warn {
+  background: var(--color-status-open-bg);
+  border-color: var(--color-status-open-border);
+  color: var(--color-status-open-text);
+}
+
+/* ── Theme toggle button (utility pill) ───────────────────── */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  /* ≥44px hit area */
+  position: relative;
+}
+.theme-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+}
+.theme-toggle:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.theme-toggle .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ── Page-level animation ─────────────────────────────────── */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.page-enter {
+  animation: page-enter 0.4s ease-out both;
+}
+
+/* Staggered children */
+.page-child {
+  animation: page-enter 0.4s ease-out both;
+}
+.page-child:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.page-child:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.page-child:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.page-child:nth-child(4) {
+  animation-delay: 0.2s;
+}
+.page-child:nth-child(5) {
+  animation-delay: 0.25s;
+}
+.page-child:nth-child(6) {
+  animation-delay: 0.3s;
+}
+.page-child:nth-child(7) {
+  animation-delay: 0.35s;
+}
+.page-child:nth-child(8) {
+  animation-delay: 0.4s;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Responsive utilities ─────────────────────────────────── */
+/* DISP-1/§5.1: canonical narrow-mobile breakpoint is 560px (was off-grid 640).
+   The home hero h1 is unaffected - component `.hero h1` (§16.4: 2.8→2→1.7rem)
+   outranks this global `h1` by specificity, so the hero stays large. */
+@media (max-width: 560px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
+  h1 {
+    font-size: 1.4rem;
+  }
+}
+
+/* ── Accessibility ────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── §5.4 Mobile keyboard push (safe-area + scroll margin) ── */
+.content-main,
+.page,
+[class*="pane"],
+[class*="form-body"],
+[class*="modal-body"],
+.prompt-body,
+.tp-body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+input,
+textarea,
+select {
+  scroll-margin-bottom: 80px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Google Places Autocomplete dropdown (.pac-container).
+ * Google attaches this to <body>, OUTSIDE any component's view, so
+ * component-scoped ::ng-deep styles never reach it - it must be themed
+ * globally. Without this the suggestion text is the browser default
+ * (near-white) and unreadable on the light surface. Also needs a very
+ * high z-index to sit above the chat widget panel.
+ * ------------------------------------------------------------------ */
+.pac-container {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: var(--shadow-md, 0 6px 20px rgba(0, 0, 0, 0.18));
+  font-family: var(--font-body);
+  z-index: 100000;
+}
+.pac-item {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  border-top: 1px solid var(--color-border);
+  cursor: pointer;
+}
+.pac-item:hover,
+.pac-item-selected {
+  background: var(--color-bg);
+}
+.pac-item-query,
+.pac-item span {
+  color: var(--color-text);
+}
+.pac-matched {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.pac-icon {
+  margin-right: 0.4rem;
+}

@@ -1,0 +1,131 @@
+# ── Environment ─────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+.env.dev
+.env.staging
+.env.prod
+*.env
+
+# ── Secrets & Credentials ──────────────────────────────────
+*.key
+*.pem
+*.p12
+*.pfx
+*.cert
+*.crt
+*.keystore
+**/service-account*.json
+credentials.json
+secrets/
+
+# ── Angular build output ───────────────────────────────────
+frontend/dist/
+frontend/.angular/
+frontend/node_modules/
+
+# ── Node / npm ─────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.yarn-integrity
+.pnpm-store/
+*.tsbuildinfo
+
+# ── TypeScript build output ────────────────────────────────
+backend/dist/
+backend/build/
+*.js.map
+*.d.ts.map
+
+# ── Prisma / Generated ────────────────────────────────────
+backend/prisma/seed/seeded-ids.json
+backend/prisma/migrations/**/migration.sql
+!backend/prisma/migrations/
+prisma/generated/
+**/generated/client/
+
+# ── Uploads / Media (dev) ─────────────────────────────────
+backend/uploads/
+frontend/public/uploads/
+uploads/
+media/
+storage/
+
+# ── Docker ────────────────────────────────────────────────
+docker-data/
+docker/volumes/
+pgdata/
+redis-data/
+
+# ── Logs ──────────────────────────────────────────────────
+logs/
+*.log
+*.err
+*.out
+npm-debug.log*
+yarn-debug.log*
+
+# ── OS files ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+*.swp
+*.swo
+*~
+~$*
+
+# ── IDE / Editor ──────────────────────────────────────────
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.vs/
+.vscode-server/
+
+# ── Agent / AI tools (internal state — not for public) ────
+.omc/
+.claude/
+.serena/
+.serena/cache/
+.serena/project.local.yml
+.serena/project.yml
+.kilocode/agent-manager.json
+.kilo/
+.gstack/
+.superpowers/
+ignorethis/
+
+# ── Test / Coverage ──────────────────────────────────────
+coverage/
+.nyc_output/
+**/*.test.ts.snap
+**/__snapshots__/
+test-results/
+frontend/test-results/
+
+# ── Temp / Cache ──────────────────────────────────────────
+tmp/
+temp/
+.cache/
+.turbo/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# ── Python (if any scripts) ───────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/

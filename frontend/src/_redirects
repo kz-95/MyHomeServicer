@@ -1,0 +1,6 @@
+# /api/* and /socket.io/* are reverse-proxied to the Railway backend by Pages
+# Functions (see /functions/**). Cloudflare _redirects cannot proxy to an external
+# origin, so do NOT add an /api proxy line here.
+#
+# SPA fallback - serve the Angular app for all client-side routes.
+/*    /index.html    200

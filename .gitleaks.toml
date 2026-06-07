@@ -1,0 +1,22 @@
+# gitleaks configuration — MyHomeService platform.
+# Used by the pre-commit hook (scripts/git-hooks/pre-commit) and the
+# Security CI workflow (.github/workflows/security.yml).
+
+title = "MyHomeService gitleaks config"
+
+[extend]
+# Start from gitleaks' built-in rule set (covers AWS keys, JWTs, generic
+# API keys, private keys, etc.) and layer the allowlist below on top.
+useDefault = true
+
+[allowlist]
+description = "Files that legitimately contain placeholder or non-secret tokens"
+paths = [
+  '''\.env\.example$''',          # committed template — placeholders only
+  '''package-lock\.json$''',
+  '''.*\.md$''',                  # docs reference key names, not real keys
+]
+regexes = [
+  '''Demo@2026''',                # documented demo password (seed-plan.md)
+  '''ci-test-(jwt|refresh)-secret''', # dummy secrets used only in CI
+]

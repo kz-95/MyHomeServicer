@@ -1,0 +1,21 @@
+# Keep the Docker build context lean.
+# Build context is the repo root (see docker-compose.yml).
+
+# Frontend — not needed in the backend image
+frontend/
+
+# Backend build artifacts and local dev files
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Repo-level noise
+.git/
+.github/
+.kilo/
+docs/
+scripts/
+*.md
+node_modules/

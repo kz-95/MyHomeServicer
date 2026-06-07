@@ -1,0 +1,1462 @@
+// My Home Servicer — Prisma schema
+// Single source of truth for the database. 49 models (48 domain + 1 infrastructure) across 13 domain blocks.
+// UUID PKs (gen_random_uuid()) throughout. Decimal(10,2) for all money.
+// Soft deletes on User, Servicer, MerchantService, Category.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Enums
+// ──────────────────────────────────────────────────────────────────────────────
+
+enum Role {
+  customer
+  admin
+}
+
+enum TimeSlot {
+  morning
+  noon
+  afternoon
+  evening
+  night
+}
+
+enum Weekday {
+  mon
+  tue
+  wed
+  thu
+  fri
+  sat
+  sun
+}
+
+enum DevicePlatform {
+  ios
+  android
+  web
+}
+
+enum OtpPurpose {
+  password_reset
+  phone_verify
+}
+
+enum KycStatus {
+  pending
+  approved
+  rejected
+}
+
+enum PriceType {
+  fixed
+  hourly
+  quote
+}
+
+enum TaxMode {
+  inclusive
+  exclusive
+  none
+}
+
+enum PenaltyType {
+  noshow
+  cancel
+}
+
+enum PenaltyCalcMode {
+  fixed
+  percentage
+}
+
+enum PenaltyStatus {
+  applied
+  reversed
+}
+
+enum AppealStatus {
+  pending
+  approved
+  rejected
+}
+
+enum DeadlineMode {
+  fcfs
+  fixed_time
+}
+
+enum PaymentMode {
+  pay_now
+  pay_later
+  cash
+}
+
+enum QuoteStatus {
+  open
+  matched
+  expired
+  cancelled
+  reposted
+}
+
+enum ProposalStatus {
+  submitted
+  selected
+  rejected
+}
+
+enum BookingStatus {
+  pending_confirm
+  confirmed
+  in_progress
+  completed
+  cancelled
+}
+
+enum MutualCancelStatus {
+  pending
+  accepted
+  rejected
+}
+
+enum TipStatus {
+  pending
+  paid
+}
+
+enum EscrowStatus {
+  held
+  released
+  refunded
+}
+
+enum TransactionType {
+  escrow_hold
+  escrow_release
+  refund
+  tip
+  penalty
+  deposit
+  discount
+  platform_fee
+  promo_payback
+  withdrawal
+  gateway_payment
+  deposit_topup
+}
+
+enum TransactionStatus {
+  pending
+  completed
+  failed
+}
+
+enum DiscountType {
+  percent
+  fixed
+}
+
+enum ReportStatus {
+  open
+  resolved
+}
+
+enum JobStatus {
+  queued
+  active
+  completed
+  failed
+}
+
+enum ChatContextType {
+  general
+  booking_support
+  quote_help
+}
+
+enum ChatRole {
+  user
+  assistant
+}
+
+enum CreditLogType {
+  promo_payback
+  withdrawal
+  manual_adjustment
+}
+
+enum WithdrawalStatus {
+  pending
+  approved
+  paid
+  rejected
+}
+
+enum CategoryRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum PromotionOwnerType {
+  platform
+  merchant
+}
+
+enum PromotionScope {
+  all
+  category
+  service
+}
+
+enum DocType {
+  ic_front
+  ic_back
+  selfie
+  supporting
+}
+
+enum FileStatus {
+  pending
+  confirmed
+}
+
+enum OrderHistoryType {
+  service
+  category
+}
+
+enum EntityType {
+  sole_proprietorship
+  partnership
+  enterprise
+  sdn_bhd
+}
+
+enum PaymentTiming {
+  pay_now
+  pay_later
+}
+
+enum SettlementMethod {
+  gateway
+  credit
+  cash
+}
+
+enum IdentityRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 1 — Users & auth
+// ──────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role              Role      @default(customer)
+  name              String
+  email             String    @unique
+  phone             String
+  passwordHash      String?   @map("password_hash")
+  googleId          String?   @unique @map("google_id")
+  contactName       String?   @map("contact_name")
+  contactNumber     String?   @map("contact_number")
+  preferredTimeSlot TimeSlot? @map("preferred_time_slot")
+  actionPinHash     String?   @map("action_pin_hash") // admin only
+  creditBalance     Decimal   @default(0) @map("credit_balance") @db.Decimal(10, 2)
+  // Notification settings — { types: {orders,jobs,listings,promos,...}, followedCategoryIds: [] }
+  notificationPrefs Json?     @map("notification_prefs")
+  bio              String?   @map("bio")
+  avatarUrl         String?   @map("avatar_url")
+  isDemo            Boolean   @default(false) @map("is_demo")
+  passwordChangedAt DateTime?  @map("password_changed_at")
+  backupEmail       String?    @map("backup_email")
+  failedLoginCount  Int       @default(0) @map("failed_login_count")
+  lockedUntil       DateTime? @map("locked_until")
+  chatBanned        Boolean   @default(false) @map("chat_banned")
+  chatStrikeCount   Int       @default(0) @map("chat_strike_count")
+  deletedAt         DateTime? @map("deleted_at")
+  active            Boolean   @default(true) @map("active")
+  deactivationCount Int       @default(0) @map("deactivation_count")
+  deactivatedAt     DateTime? @map("deactivated_at")
+  resetToken        String?   @unique @map("reset_token")
+  resetTokenExpiry  DateTime? @map("reset_token_expiry")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  addresses      UserAddress[]
+  quotePresets   QuotePreset[]
+  devices        UserDevice[]
+  refreshTokens  RefreshToken[]
+  otpCodes      OtpCode[]
+  notifications Notification[]
+  quoteRequests QuoteRequest[]
+  bookings      Booking[]
+  orderHistory  OrderHistory[]
+  reports       Report[]
+  chatSessions  ChatSession[]
+
+  customerPoints     CustomerPoints?
+  pointsTransactions PointsTransaction[]
+  redemptions        Redemption[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model UserAddress {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  label        String
+  address      String
+  propertyType String?  @map("property_type")
+  lat          Float?
+  lng          Float?
+  postcode     String?  @map("postcode")
+  district     String?  @map("district")
+  state        String?  @map("state")
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id])
+  quoteRequests QuoteRequest[]
+  quotePresets  QuotePreset[]
+
+  @@index([userId])
+  @@map("user_addresses")
+}
+
+// Saved quote presets — a customer keeps up to 10 reusable bundles of quote
+// details (contact, address, instruction, preferred time) to pick from when
+// submitting a quote, instead of re-entering everything each time.
+model QuotePreset {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  label             String?
+  contactName       String    @map("contact_name")
+  contactNumber     String    @map("contact_number")
+  addressId         String    @map("address_id") @db.Uuid
+  instruction       String?
+  preferredTimeSlot TimeSlot?  @map("preferred_time_slot")
+  isDefault         Boolean    @default(false) @map("is_default")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  user    User        @relation(fields: [userId], references: [id])
+  address UserAddress @relation(fields: [addressId], references: [id])
+
+  @@index([userId])
+  @@map("quote_presets")
+}
+
+model UserDevice {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  deviceToken String         @map("device_token")
+  platform    DevicePlatform
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("user_devices")
+}
+
+model RefreshToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  merchantId String?   @map("merchant_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  deviceId   String?   @map("device_id")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user     User?     @relation(fields: [userId], references: [id])
+  merchant Servicer? @relation(fields: [merchantId], references: [id])
+
+  @@index([userId])
+  @@index([merchantId])
+  @@map("refresh_tokens")
+}
+
+model OtpCode {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String     @map("user_id") @db.Uuid
+  codeHash   String     @map("code_hash")
+  purpose    OtpPurpose
+  expiresAt  DateTime   @map("expires_at")
+  consumedAt DateTime?  @map("consumed_at")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, purpose])
+  @@map("otp_codes")
+}
+
+model Notification {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // Exactly one of userId / merchantId is set — notifications now target
+  // customers, merchants and admins (admins are USER rows with role=admin).
+  userId        String?  @map("user_id") @db.Uuid
+  merchantId    String?  @map("merchant_id") @db.Uuid
+  type          String
+  message       String
+  // Generic in-app redirect target for a click (e.g. /customer/quotes/<id>).
+  linkUrl       String?  @map("link_url")
+  // Optional category tag, used by the notification list filter.
+  category      String?
+  linkQuoteList String?  @map("link_quote_list")
+  linkReorder   String?  @map("link_reorder")
+  isRead        Boolean  @default(false) @map("is_read")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user     User?     @relation(fields: [userId], references: [id])
+  merchant Servicer? @relation(fields: [merchantId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([merchantId, isRead])
+  @@map("notifications")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 2 — Servicer
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Servicer {
+  id                         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                       String
+  email                      String    @unique
+  phone                      String
+  passwordHash               String?   @map("password_hash")
+  pinHash                    String?   @map("pin_hash")
+  showEmailPublic            Boolean   @default(false) @map("show_email_public")
+  showPhonePublic            Boolean   @default(false) @map("show_phone_public")
+  invoiceContent             String?   @map("invoice_content")
+  invoiceSuffix              String?   @map("invoice_suffix")
+  googleId                   String?   @unique @map("google_id")
+  businessName               String    @map("business_name")
+  bio                        String?
+  logoUrl                    String?   @map("logo_url")
+  isCompany                  Boolean   @default(false) @map("is_company")
+  taxNumber                  String?   @map("tax_number")
+  businessRegistrationNumber String?   @map("business_registration_number")
+  entityType                 EntityType?
+  sstRegistered              Boolean   @default(false) @map("sst_registered")
+  sstNumber                  String?   @map("sst_number")
+  serviceChargeRate          Decimal   @default(0) @db.Decimal(5, 4) @map("service_charge_rate")
+  taxInclusive               Boolean   @default(false) @map("tax_inclusive")
+  serviceAreas               String[]  @map("service_areas")
+  operatingHours             Json      @default("[]") @map("operating_hours")
+  categoryId                 String    @map("category_id") @db.Uuid
+  isOnline                   Boolean   @default(true) @map("is_online")
+  kycStatus                  KycStatus @default(approved) @map("kyc_status")
+  bankName                   String?   @map("bank_name")
+  bankAccount                String?   @map("bank_account")
+  onboarded                  Boolean   @default(false) @map("onboarded")
+  creditBalance              Decimal   @default(0) @map("credit_balance") @db.Decimal(10, 2)
+  maxAutoAccepts             Int       @default(3) @map("max_auto_accepts")
+  invoicePrefix              String    @default("INV") @map("invoice_prefix")
+  invoiceYearFormat          String    @default("YYYY") @map("invoice_year_format")
+  invoiceSeparator           String    @default("-") @map("invoice_separator")
+  invoicePadding             Int       @default(4) @map("invoice_padding")
+  invoiceNextNumber          Int       @default(1) @map("invoice_next_number")
+  rating                     Float     @default(0)
+  isBanned                   Boolean   @default(false) @map("is_banned")
+  weeklyNoshow               Int       @default(0) @map("weekly_noshow")
+  consecutiveNoshow          Int       @default(0) @map("consecutive_noshow")
+  // Notification settings — same shape as User.notificationPrefs.
+  notificationPrefs          Json?     @map("notification_prefs")
+  isDemo                     Boolean   @default(false) @map("is_demo")
+  failedLoginCount           Int       @default(0) @map("failed_login_count")
+  lockedUntil                DateTime? @map("locked_until")
+  deletedAt                  DateTime? @map("deleted_at")
+  active                     Boolean   @default(true) @map("active")
+  deactivationCount          Int       @default(0) @map("deactivation_count")
+  deactivatedAt              DateTime? @map("deactivated_at")
+  resetToken                 String?   @unique @map("reset_token")
+  resetTokenExpiry           DateTime? @map("reset_token_expiry")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @updatedAt @map("updated_at")
+
+  category         Category               @relation("MerchantCategory", fields: [categoryId], references: [id])
+  deposit          MerchantDeposit?
+  documents        MerchantDocument[]
+  schedules        MerchantSchedule[]
+  services         MerchantService[]
+  refreshTokens    RefreshToken[]
+  penaltyLogs      PenaltyLog[]
+  penaltyAppeals   PenaltyAppeal[]
+  broadcasts       QuoteBroadcast[]
+  proposals        QuoteProposal[]
+  bookings         Booking[]
+  proposalPresets  MerchantProposalPreset[]
+  creditLogs       MerchantCreditLog[]
+  withdrawals      MerchantWithdrawal[]
+  categoryRequests          CategoryRequest[]
+  invoices                  Invoice[]
+  notifications             Notification[]
+  pricingModules            PricingModule[]
+  identityChangeRequests    ServicerIdentityChangeRequest[]
+
+  @@index([email])
+  @@index([isOnline, isBanned])
+  @@map("merchants")
+}
+
+model MerchantDeposit {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId      String   @unique @map("merchant_id") @db.Uuid
+  totalDeposited  Decimal  @default(0) @map("total_deposited") @db.Decimal(10, 2)
+  currentBalance  Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
+  minimumRequired Decimal  @default(100) @map("minimum_required") @db.Decimal(10, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@map("merchant_deposits")
+}
+
+model MerchantDocument {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId String    @map("merchant_id") @db.Uuid
+  docType    DocType   @map("doc_type")
+  fileId     String    @map("file_id") @db.Uuid
+  status     KycStatus @default(pending)
+  adminNote  String?   @map("admin_note")
+  verifiedAt DateTime? @map("verified_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@map("merchant_documents")
+}
+
+model MerchantSchedule {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId  String   @map("merchant_id") @db.Uuid
+  weekday     Weekday
+  timeSlot    TimeSlot @map("time_slot")
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@unique([merchantId, weekday, timeSlot])
+  @@map("merchant_schedules")
+}
+
+model MerchantService {
+  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId               String    @map("merchant_id") @db.Uuid
+  categoryId               String    @map("category_id") @db.Uuid
+  title                    String
+  description              String?
+  merchantSku              String?   @map("merchant_sku")
+  basePrice                Decimal   @map("base_price") @db.Decimal(10, 2)
+  priceType                PriceType @default(fixed) @map("price_type")
+  modifiers                Json?
+  taxMode                  TaxMode   @default(none) @map("tax_mode")
+  taxName                  String?   @map("tax_name")
+  taxRate                  Decimal?  @map("tax_rate") @db.Decimal(5, 2)
+  estimatedDurationMinutes Int       @default(60) @map("estimated_duration_minutes")
+  // Servicer's travel fee for this listing (RM). Must be >= effective category baseline.
+  travelFee                Decimal?  @map("travel_fee") @db.Decimal(10, 2)
+  // Servicer's cleaning supplies fee (RM). Used by Home Cleaning listings only.
+  suppliesFee              Decimal?  @map("supplies_fee") @db.Decimal(10, 2)
+  // When true, this listing requires an on-site inspection before a real quote is possible.
+  requiresInspection       Boolean   @default(false) @map("requires_inspection")
+  // Servicer's free-text procedure steps shown to the customer.
+  procedure                String?
+  autoAccept               Boolean   @default(false) @map("auto_accept")
+  autoAcceptConditions     Json?     @map("auto_accept_conditions")
+  autoAcceptPresetId       String?   @map("auto_accept_preset_id") @db.Uuid
+  fieldRequirements        Json?     @map("field_requirements")
+  moduleRefs               Json      @default("[]") @map("module_refs")
+  serviceChargeRate        Decimal?  @map("service_charge_rate") @db.Decimal(5, 4)
+  taxInclusive             Boolean?  @map("tax_inclusive")
+  sstApplies               Boolean?  @map("sst_applies")
+  deletedAt                DateTime? @map("deleted_at")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([merchantId, merchantSku])
+  @@index([categoryId])
+  @@map("merchant_services")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 2.5 — Pricing modules (servicer-owned reusable library, §19)
+// ──────────────────────────────────────────────────────────────────────────────
+
+model PricingModule {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId        String   @map("merchant_id") @db.Uuid
+  label             String
+  defaultPrice      Decimal  @map("default_price") @db.Decimal(10, 2)
+  taxable           Boolean  @default(true)
+  serviceChargeable Boolean  @default(true) @map("service_chargeable")
+  categoryId        String?  @map("category_id")
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@map("pricing_modules")
+}
+
+model Category {
+  id                            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                          String
+  slug                          String    @unique
+  icon                          String?
+  imageUrl                      String?   @map("image_url")
+  parentCategoryId              String?   @map("parent_category_id") @db.Uuid
+  defaultPriceSuggestion        Decimal?  @map("default_price_suggestion") @db.Decimal(10, 2)
+  defaultEstimatedDurationMinutes Int?    @map("default_estimated_duration_minutes")
+  // Per-category custom questions shown in the quote form's Details step.
+  // Array of { key, label, type: 'checkbox'|'radio'|'text', required,
+  // description?, options?: [{ value, label }], maxSelect?, minSelect?, showIf? }.
+  questionSchema                Json?     @map("question_schema")
+  allowedTimeSlots              String[]  @default(["morning","noon","afternoon","evening","night"]) @map("allowed_time_slots")
+  deletedAt                     DateTime? @map("deleted_at")
+  published                     Boolean   @default(false)
+  bannerUrl                     String?   @map("banner_url")
+  cardColor                     String?   @map("card_color")
+  description                   String?
+  // Travel fee baseline for this category (RM). Effective baseline = max(this, overall setting).
+  travelFeeBaseline             Decimal?  @map("travel_fee_baseline") @db.Decimal(10, 2)
+  // Supplies fee baseline for this category (RM). Used by Home Cleaning cleaning_supplies question.
+  suppliesFeeBaseline           Decimal?  @map("supplies_fee_baseline") @db.Decimal(10, 2)
+  // When true, a servicer listing under this category requires an on-site inspection before a real quote.
+  requiresInspection            Boolean   @default(false) @map("requires_inspection")
+  // Optional free-text procedure shown to the customer (e.g. "1. Inspect 2. Clean 3. Test").
+  procedure                     String?
+  // When true, the quote form shows the optional photo upload for this category.
+  photosEnabled                 Boolean   @default(false) @map("photos_enabled")
+  createdAt                     DateTime  @default(now()) @map("created_at")
+  updatedAt                     DateTime  @updatedAt @map("updated_at")
+
+  parent        Category?         @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id])
+  children      Category[]        @relation("CategoryHierarchy")
+  services      MerchantService[]
+  quoteRequests QuoteRequest[]
+  merchants     Servicer[]        @relation("MerchantCategory")
+
+  @@map("categories")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 3 — Penalty
+// ──────────────────────────────────────────────────────────────────────────────
+
+model PenaltyRule {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type      PenaltyType
+  calcMode  PenaltyCalcMode @default(fixed) @map("calc_mode")
+  amount    Decimal         @db.Decimal(10, 2)
+  isActive  Boolean         @default(true) @map("is_active")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  penaltyLogs PenaltyLog[]
+
+  @@map("penalty_rules")
+}
+
+model PenaltyLog {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId      String        @map("booking_id") @db.Uuid
+  merchantId     String        @map("merchant_id") @db.Uuid
+  ruleId         String?       @map("rule_id") @db.Uuid
+  type           PenaltyType
+  amountDeducted Decimal       @map("amount_deducted") @db.Decimal(10, 2)
+  customerRefund Decimal       @default(0) @map("customer_refund") @db.Decimal(10, 2)
+  transactionId  String?       @map("transaction_id") @db.Uuid
+  status         PenaltyStatus @default(applied)
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  merchant Servicer       @relation(fields: [merchantId], references: [id])
+  rule     PenaltyRule?   @relation(fields: [ruleId], references: [id])
+  booking  Booking        @relation(fields: [bookingId], references: [id])
+  appeal   PenaltyAppeal?
+
+  @@index([merchantId])
+  @@map("penalty_logs")
+}
+
+model PenaltyAppeal {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  penaltyLogId String       @unique @map("penalty_log_id") @db.Uuid
+  merchantId   String       @map("merchant_id") @db.Uuid
+  reason       String
+  status       AppealStatus @default(pending)
+  adminNote    String?      @map("admin_note")
+  reviewedAt   DateTime?    @map("reviewed_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  penaltyLog PenaltyLog @relation(fields: [penaltyLogId], references: [id])
+  merchant   Servicer   @relation(fields: [merchantId], references: [id])
+
+  @@index([status])
+  @@map("penalty_appeals")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 4 — Quote
+// ──────────────────────────────────────────────────────────────────────────────
+
+model QuoteRequest {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String       @map("user_id") @db.Uuid
+  categoryId       String       @map("category_id") @db.Uuid
+  addressId        String       @map("address_id") @db.Uuid
+  contactName      String       @map("contact_name")
+  contactNumber    String       @map("contact_number")
+  timeSlot         TimeSlot     @map("time_slot")
+  preferredDate    DateTime     @map("preferred_date")
+  propertyType     String?      @map("property_type")
+  budgetMin        Decimal?     @map("budget_min") @db.Decimal(10, 2)
+  budgetMax        Decimal?     @map("budget_max") @db.Decimal(10, 2)
+  paymentMode      PaymentMode  @map("payment_mode")
+  tipAmount        Decimal?     @map("tip_amount") @db.Decimal(10, 2)
+  deadlineMode     DeadlineMode @map("deadline_mode")
+  proposalDeadline DateTime     @map("proposal_deadline")
+  merchantDeadline DateTime     @map("merchant_deadline")
+  notes            String?
+  promoCode        String?      @map("promo_code")
+  // Answers to the category's custom questions — { [questionKey]: string | string[] }.
+  serviceDetails   Json?        @map("service_details")
+  status           QuoteStatus  @default(open)
+  parentQuoteId    String?      @map("parent_quote_id") @db.Uuid
+  lat              Float?
+  lng              Float?
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  user      User             @relation(fields: [userId], references: [id])
+  category  Category         @relation(fields: [categoryId], references: [id])
+  address   UserAddress      @relation(fields: [addressId], references: [id])
+  parent    QuoteRequest?    @relation("QuoteRepost", fields: [parentQuoteId], references: [id])
+  reposts   QuoteRequest[]   @relation("QuoteRepost")
+  proposals QuoteProposal[]
+  broadcasts QuoteBroadcast[]
+  booking   Booking?
+  discountCode DiscountCode?
+
+  @@index([userId, status])
+  @@index([categoryId, status])
+  @@map("quote_requests")
+}
+
+model QuoteProposal {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quoteRequestId String         @map("quote_request_id") @db.Uuid
+  merchantId     String         @map("merchant_id") @db.Uuid
+  proposedPrice  Decimal        @map("proposed_price") @db.Decimal(10, 2)
+  lineItems      Json           @default("[]") @map("line_items")
+  moduleRefs     Json           @default("[]") @map("module_refs")
+  message        String?
+  etaMinutes     Int?           @map("eta_minutes")
+  presetId       String?        @map("preset_id") @db.Uuid
+  isAuto         Boolean        @default(false) @map("is_auto")
+  status         ProposalStatus @default(submitted)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  quoteRequest QuoteRequest @relation(fields: [quoteRequestId], references: [id])
+  merchant     Servicer     @relation(fields: [merchantId], references: [id])
+  booking      Booking?
+
+  @@unique([quoteRequestId, merchantId])
+  @@index([merchantId])
+  @@map("quote_proposals")
+}
+
+model QuoteBroadcast {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quoteRequestId String    @map("quote_request_id") @db.Uuid
+  merchantId     String    @map("merchant_id") @db.Uuid
+  sentAt         DateTime  @default(now()) @map("sent_at")
+  openedAt       DateTime? @map("opened_at")
+  declinedAt     DateTime? @map("declined_at")
+  metadata       Json?     @map("metadata")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  quoteRequest QuoteRequest @relation(fields: [quoteRequestId], references: [id])
+  merchant     Servicer     @relation(fields: [merchantId], references: [id])
+
+  @@unique([quoteRequestId, merchantId])
+  @@index([merchantId])
+  @@map("quote_broadcasts")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 5 — Booking
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Booking {
+  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderNumber           Int                 @unique @default(autoincrement()) @map("order_number")
+  quoteRequestId        String              @unique @map("quote_request_id") @db.Uuid
+  proposalId            String              @unique @map("proposal_id") @db.Uuid
+  userId                String              @map("user_id") @db.Uuid
+  merchantId            String              @map("merchant_id") @db.Uuid
+  status                BookingStatus       @default(pending_confirm)
+  price                 Decimal             @db.Decimal(10, 2)
+  paymentMode           PaymentMode         @map("payment_mode")
+  paymentTiming         PaymentTiming?      @map("payment_timing")
+  settlementMethod      SettlementMethod?   @map("settlement_method")
+  lineItems             Json                @default("[]") @map("line_items")
+  scheduledDate         DateTime            @map("scheduled_date")
+  timeSlot              TimeSlot            @map("time_slot")
+  arrivePhotoUrl        String?             @map("arrive_photo_url")
+  donePhotoUrl          String?             @map("done_photo_url")
+  notes                 String?
+  cashConfirmed         Boolean             @default(false) @map("cash_confirmed")
+  cashConfirmedAt       DateTime?           @map("cash_confirmed_at")
+  mutualCancelRequested Boolean             @default(false) @map("mutual_cancel_requested")
+  mutualCancelStatus    MutualCancelStatus? @map("mutual_cancel_status")
+  mutualCancelReason    String?             @map("mutual_cancel_reason")
+  cancelRequestedAt     DateTime?           @map("cancel_requested_at")
+  cancelConfirmedAt     DateTime?           @map("cancel_confirmed_at")
+  cancelledBy           String?             @map("cancelled_by")
+  cancelReason          String?             @map("cancel_reason")
+  tipStatus             TipStatus?          @map("tip_status")
+  tipAmount             Decimal?            @map("tip_amount") @db.Decimal(10, 2)
+  tipPaidAt             DateTime?           @map("tip_paid_at")
+  confirmedAt           DateTime?           @map("confirmed_at")
+  arrivedAt             DateTime?           @map("arrived_at")
+  travelFee             Decimal?            @map("travel_fee") @db.Decimal(10, 2)
+  inspectionFee         Decimal?            @map("inspection_fee") @db.Decimal(10, 2)
+  isInspection          Boolean             @default(false) @map("is_inspection")
+  doneAt                DateTime?           @map("done_at")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  quoteRequest QuoteRequest  @relation(fields: [quoteRequestId], references: [id])
+  proposal     QuoteProposal @relation(fields: [proposalId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  merchant     Servicer      @relation(fields: [merchantId], references: [id])
+  escrow       Escrow?
+  invoice      Invoice?
+  reports      Report[]
+  penaltyLogs  PenaltyLog[]
+
+  @@index([userId, status])
+  @@index([merchantId, status])
+  @@map("bookings")
+}
+
+model OrderHistory {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  type       OrderHistoryType
+  bookingId  String?          @map("booking_id") @db.Uuid
+  merchantId String?          @map("merchant_id") @db.Uuid
+  categoryId String?          @map("category_id") @db.Uuid
+  snapshot   Json
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("order_history")
+}
+
+model File {
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerType          String     @map("owner_type")
+  ownerId            String?    @map("owner_id") @db.Uuid
+  uploaderUserId     String?    @map("uploader_user_id") @db.Uuid
+  uploaderMerchantId String?    @map("uploader_merchant_id") @db.Uuid
+  purpose            String
+  mimeType           String     @map("mime_type")
+  sizeBytes          Int        @map("size_bytes")
+  s3Key              String     @map("s3_key")
+  url                String?
+  status             FileStatus @default(pending)
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  @@map("files")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 6 — Payments
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Escrow {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId       String       @unique @map("booking_id") @db.Uuid
+  amount          Decimal      @db.Decimal(10, 2)
+  platformFeeBase Decimal?     @map("platform_fee_base") @db.Decimal(10, 2)
+  tipAmount       Decimal      @default(0) @map("tip_amount") @db.Decimal(10, 2)
+  status          EscrowStatus @default(held)
+  heldAt          DateTime     @default(now()) @map("held_at")
+  releasedAt      DateTime?    @map("released_at")
+  refundedAt      DateTime?    @map("refunded_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@map("escrows")
+}
+
+model Transaction {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type                  TransactionType
+  status                TransactionStatus @default(completed)
+  amount                Decimal           @db.Decimal(10, 2)
+  currency              String            @default("MYR")
+  bookingId             String?           @map("booking_id") @db.Uuid
+  merchantId            String?           @map("merchant_id") @db.Uuid
+  userId                String?           @map("user_id") @db.Uuid
+  escrowId              String?           @map("escrow_id") @db.Uuid
+  reference             String?
+  idempotencyKey        String?           @map("idempotency_key")
+  stripePaymentIntentId String?           @map("stripe_payment_intent_id")
+  stripeSessionId       String?           @map("stripe_session_id")
+  metadata              Json?
+  createdAt             DateTime          @default(now()) @map("created_at")
+
+  @@unique([stripePaymentIntentId])
+  @@unique([stripeSessionId])
+  @@index([bookingId])
+  @@index([merchantId])
+  @@index([type])
+  @@map("transactions")
+}
+
+model DiscountCode {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String       @unique
+  userId         String       @map("user_id") @db.Uuid
+  quoteRequestId String?      @unique @map("quote_request_id") @db.Uuid
+  discountType   DiscountType @map("discount_type")
+  value          Decimal      @db.Decimal(10, 2)
+  isUsed         Boolean      @default(false) @map("is_used")
+  usedAt         DateTime?    @map("used_at")
+  expiresAt      DateTime?    @map("expires_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  quoteRequest QuoteRequest? @relation(fields: [quoteRequestId], references: [id])
+
+  @@index([userId])
+  @@map("discount_codes")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 7 — Admin & ops
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Report {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId   String?      @map("booking_id") @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  subject     String
+  description String
+  status      ReportStatus @default(open)
+  adminNote   String?      @map("admin_note")
+  resolvedAt  DateTime?    @map("resolved_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  booking Booking? @relation(fields: [bookingId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@map("reports")
+}
+
+model PlatformSettings {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key             String   @unique
+  value           Json
+  updatedByUserId String?  @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
+}
+
+model AuditLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  actorType   String   @map("actor_type")
+  action      String
+  entityType  String?  @map("entity_type")
+  entityId    String?  @map("entity_id")
+  oldValue    Json?    @map("old_value")
+  newValue    Json?    @map("new_value")
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([actorUserId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model FeatureFlag {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String   @unique
+  name        String
+  isEnabled   Boolean  @default(false) @map("is_enabled")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("feature_flags")
+}
+
+// Idempotency fallback table. Written only when Redis is unavailable so
+// duplicate money operations can still be detected and reconciled later
+// (security-notes.md §6). Not a domain table — pure infrastructure.
+model IdempotencyFallback {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId        String   @map("owner_id") @db.Uuid
+  idempotencyKey String   @map("idempotency_key")
+  route          String
+  responseStatus Int?     @map("response_status")
+  responseBody   Json?    @map("response_body")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([ownerId, idempotencyKey])
+  @@map("idempotency_fallback")
+}
+
+model JobQueue {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobName     String    @map("job_name")
+  jobKey      String?   @map("job_key")
+  payload     Json
+  status      JobStatus @default(queued)
+  attempts    Int       @default(0)
+  runAt       DateTime? @map("run_at")
+  completedAt DateTime? @map("completed_at")
+  error       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([jobName, status])
+  @@map("job_queue")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 8 — AI chatbot
+// ──────────────────────────────────────────────────────────────────────────────
+
+model ChatSession {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String          @map("user_id") @db.Uuid
+  contextType         ChatContextType @map("context_type")
+  contextId           String?         @map("context_id") @db.Uuid
+  difyConversationId  String?         @map("dify_conversation_id")
+  totalTokensUsed     Int?            @map("total_tokens_used")
+  lastReadAt          DateTime?       @map("last_read_at")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  user     User          @relation(fields: [userId], references: [id])
+  messages ChatMessage[]
+
+  @@index([userId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId  String   @map("session_id") @db.Uuid
+  role       ChatRole
+  content    String
+  tokensUsed Int?     @map("tokens_used")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  session ChatSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId])
+  @@map("chat_messages")
+}
+
+model Faq {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  question    String
+  answer      String
+  category    String?
+  /// Minimum audience tier: "guest" | "customer" | "merchant" | "admin"
+  /// Hierarchical: guest < customer < merchant < admin.
+  /// A user sees entries at or below their tier (e.g. merchant sees guest+customer+merchant).
+  tier        String   @default("guest")
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("faqs")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 9 — Servicer dashboard extras
+// ──────────────────────────────────────────────────────────────────────────────
+
+model MerchantProposalPreset {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId  String   @map("merchant_id") @db.Uuid
+  name        String
+  message     String
+  priceOffset Decimal? @map("price_offset") @db.Decimal(10, 2)
+  isDefault   Boolean  @default(false) @map("is_default")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@map("merchant_proposal_presets")
+}
+
+model MerchantCreditLog {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId   String        @map("merchant_id") @db.Uuid
+  type         CreditLogType
+  amount       Decimal       @db.Decimal(10, 2)
+  balanceAfter Decimal       @map("balance_after") @db.Decimal(10, 2)
+  referenceId  String?       @map("reference_id")
+  note         String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@map("merchant_credit_logs")
+}
+
+model MerchantWithdrawal {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId     String           @map("merchant_id") @db.Uuid
+  amount         Decimal          @db.Decimal(10, 2)
+  bankName       String           @map("bank_name")
+  bankAccount    String           @map("bank_account")
+  status         WithdrawalStatus @default(pending)
+  adminNote      String?          @map("admin_note")
+  idempotencyKey String?          @map("idempotency_key")
+  approvedAt     DateTime?        @map("approved_at")
+  paidAt         DateTime?        @map("paid_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId, status])
+  @@map("merchant_withdrawals")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 10 — Category management
+// ──────────────────────────────────────────────────────────────────────────────
+
+model CategoryRequest {
+  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId        String                @map("merchant_id") @db.Uuid
+  name              String
+  parentCategoryId  String?               @map("parent_category_id") @db.Uuid
+  description       String?
+  status            CategoryRequestStatus @default(pending)
+  adminNote         String?               @map("admin_note")
+  reviewedAt        DateTime?             @map("reviewed_at")
+  createdCategoryId String?               @map("created_category_id") @db.Uuid
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@index([status])
+  @@map("category_requests")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 10.5 — Servicer identity change requests (admin review queue, §5/§17)
+// ──────────────────────────────────────────────────────────────────────────────
+
+model ServicerIdentityChangeRequest {
+  id         String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchantId String                @map("merchant_id") @db.Uuid
+  status     IdentityRequestStatus @default(pending)
+  proposed   Json
+  reviewedBy String?               @map("reviewed_by")
+  reviewedAt DateTime?             @map("reviewed_at")
+  createdAt  DateTime              @default(now()) @map("created_at")
+
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId, status])
+  @@map("servicer_identity_change_requests")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 11 — Promotions
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Promotion {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  label       String
+  description String?
+  active      Boolean   @default(true)
+
+  triggerType String
+  valueType   String
+  value       Decimal   @db.Decimal(10, 2)
+
+  conditions  Json      @default("{}")
+  targetRole  String    @default("all")
+
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+
+  maxUses     Int?      @map("max_uses")
+  usedCount   Int       @default(0) @map("used_count")
+  maxPerUser  Int?      @default(1) @map("max_per_user")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  redemptions PromotionRedemption[]
+
+  @@map("promotions")
+}
+
+model PromotionRedemption {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  promotionId             String   @map("promotion_id") @db.Uuid
+  userId                  String   @map("user_id") @db.Uuid
+  bookingId               String?  @map("booking_id") @db.Uuid
+  amountDiscounted        Decimal  @map("amount_discounted") @db.Decimal(10, 2)
+  paidToMerchantViaCredit Boolean  @default(false) @map("paid_to_merchant_via_credit")
+  paidAt                  DateTime? @map("paid_at")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  promotion Promotion @relation(fields: [promotionId], references: [id])
+
+  @@index([promotionId])
+  @@map("promotion_redemptions")
+}
+
+model PlatformMarketingBudget {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  totalBudget Decimal  @map("total_budget") @db.Decimal(10, 2)
+  spentAmount Decimal  @default(0) @map("spent_amount") @db.Decimal(10, 2)
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_marketing_budgets")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 11.5 — Loyalty & Rewards
+// ──────────────────────────────────────────────────────────────────────────────
+
+model LoyaltyTier {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String   @unique
+  minPoints    Int      @map("min_points")
+  bonusPercent Int      @default(0) @map("bonus_percent")
+  badgeColor   String?  @map("badge_color")
+  sortOrder    Int      @default(0) @map("sort_order")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("loyalty_tiers")
+}
+
+model CustomerPoints {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @unique @map("user_id") @db.Uuid
+  balance         Int       @default(0)
+  lifetimeEarned  Int       @default(0) @map("lifetime_earned")
+  lifetimeSpent   Int       @default(0) @map("lifetime_spent")
+  lastRewardsVisit DateTime? @map("last_rewards_visit")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+  @@map("customer_points")
+}
+
+model PointsTransaction {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String   // earn_booking | earn_review | earn_referral | earn_welcome | redeem | expire
+  amount    Int      // positive = earned, negative = spent
+  balance   Int      // running balance after this transaction
+  reference String?  // bookingId, reviewId, rewardId
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+  @@index([userId, createdAt])
+  @@map("points_transactions")
+}
+
+model Reward {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  description   String?
+  pointCost     Int
+  discountType  String    // topup_fixed | booking_percent | waiver
+  discountValue Decimal   @db.Decimal(10, 2)
+  maxDiscount   Decimal?  @db.Decimal(10, 2)
+  minTopup      Decimal?  @db.Decimal(10, 2)
+  active        Boolean   @default(true)
+  sortOrder     Int       @default(0) @map("sort_order")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  redemptions Redemption[]
+
+  @@map("rewards")
+}
+
+model Redemption {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  rewardId    String    @map("reward_id") @db.Uuid
+  voucherCode String    @unique @map("voucher_code")
+  status      String    @default("active") // active | used | expired
+  usedAt      DateTime? @map("used_at")
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  reward Reward @relation(fields: [rewardId], references: [id])
+
+  @@map("redemptions")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 12 — Invoicing
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Invoice {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId           String    @unique @map("booking_id") @db.Uuid
+  merchantId          String    @map("merchant_id") @db.Uuid
+  invoiceNumber       String    @unique @map("invoice_number")
+  sequenceNumber      Int       @map("sequence_number")
+  lineItems           Json      @default("[]") @map("line_items")
+  subtotal            Decimal?  @map("subtotal") @db.Decimal(10, 2)
+  promoDiscount       Decimal?  @map("promo_discount") @db.Decimal(10, 2)
+  serviceChargeRate   Decimal?  @map("service_charge_rate") @db.Decimal(5, 4)
+  serviceChargeAmount Decimal?  @map("service_charge_amount") @db.Decimal(10, 2)
+  sstApplies          Boolean?  @map("sst_applies")
+  taxInclusive        Boolean?  @map("tax_inclusive")
+  taxRate             Decimal?  @map("tax_rate") @db.Decimal(5, 4)
+  taxAmount           Decimal?  @map("tax_amount") @db.Decimal(10, 2)
+  tipAmount           Decimal?  @map("tip_amount") @db.Decimal(10, 2)
+  total               Decimal?  @map("total") @db.Decimal(10, 2)
+  platformFee         Decimal?  @map("platform_fee") @db.Decimal(10, 2)
+  currency            String    @default("MYR")
+  issuedAt            DateTime  @default(now()) @map("issued_at")
+  dueDate             DateTime? @default(dbgenerated("(now() + interval '14 days')")) @map("due_date")
+  paidAt              DateTime? @map("paid_at")
+  pdfUrl              String?   @map("pdf_url")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  booking  Booking  @relation(fields: [bookingId], references: [id])
+  merchant Servicer @relation(fields: [merchantId], references: [id])
+
+  @@map("invoices")
+}
+
+model BannedEmail {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique
+  reason       String?
+  bannedAt     DateTime @default(now()) @map("banned_at")
+  bannedBy     String?  @map("banned_by")
+  deactivations Int     @default(0)
+
+  @@map("banned_emails")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 13 — Admin (llm api keys + admin otp)
+// ──────────────────────────────────────────────────────────────────────────────
+
+model LlmApiKey {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  label          String
+  provider       String   @default("generic") @map("provider")
+  model          String   @default("") @map("model")
+  encryptedValue String   @map("encrypted_value")
+  iv             String   @map("iv")
+  authTag        String   @map("auth_tag")
+  priority       Int      @default(0) @map("priority")
+  isActive       Boolean  @default(true) @map("is_active")
+  isFallback     Boolean  @default(false) @map("is_fallback")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("llm_api_keys")
+}
+
+model AdminOtp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @map("email")
+  otpHash   String   @map("otp_hash")
+  purpose   String   @map("purpose")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false) @map("used")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("admin_otp")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 14 — Location (postcode directory)
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Postcode {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postcode  String   @unique
+  district  String
+  state     String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("postcodes")
+}
+
+// End of schema — 49 models (48 domain + IdempotencyFallback infrastructure).

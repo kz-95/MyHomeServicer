@@ -1,0 +1,804 @@
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
+
+import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ApiService } from '../../core/services/api.service';
+import { ToastService } from '../../core/services/toast.service';
+import { ModalComponent } from '../../shared/modal.component';
+
+interface CalendarDay {
+  date: Date;
+  dateStr: string;
+  day: number;
+  isToday: boolean;
+  isCurrentMonth: boolean;
+  bookings: CalendarBooking[];
+}
+
+interface CalendarBooking {
+  id: string;
+  timeSlot: string;
+  status: string;
+  price: number;
+  category: string;
+  customerName: string;
+}
+
+interface CalendarData {
+  month: string;
+  data: Record<string, CalendarBooking[]>;
+}
+
+@Component({
+    selector: 'app-servicer-calendar',
+    host: { class: 'page-enter' },
+    imports: [FormsModule, ModalComponent],
+    template: `
+    <h1>Calendar</h1>
+    <p class="muted">View your scheduled jobs and manage your working hours.</p>
+
+    <!-- Tab switcher -->
+    <div class="tabs">
+      <button class="tab" [class.active]="activeTab() === 'calendar'" (click)="activeTab.set('calendar')">
+        Calendar
+      </button>
+      <button class="tab" [class.active]="activeTab() === 'workhours'" (click)="activeTab.set('workhours')">
+        Work Hours
+      </button>
+    </div>
+
+    <!-- ───────────── CALENDAR TAB ───────────── -->
+    @if (activeTab() === 'calendar') {
+      @if (loading()) {
+        <p class="muted tab-body">Loading calendar…</p>
+      } @else if (loadFailed()) {
+        <p class="err tab-body">Could not load calendar. Please refresh.</p>
+      } @else {
+        <div class="tab-body">
+          <!-- Month navigation + status filters -->
+          <div class="cal-nav">
+            <button class="nav-btn" (click)="prevMonth()">◀</button>
+            <strong class="nav-title">{{ monthLabel() }}</strong>
+            <button class="nav-btn" (click)="nextMonth()">▶</button>
+
+            <div class="status-filters">
+              <button type="button" class="sf-all" [class.on]="allStatusOn()" (click)="toggleAllStatus()">All</button>
+              @for (s of STATUS_FILTERS; track s.key) {
+                <button type="button" class="sf-btn" [class.off]="!statusFilter()[s.key]"
+                        (click)="toggleStatus(s.key)" [title]="s.label">
+                  <span class="sf-dot" [class]="statusFilter()[s.key] ? s.cls : 'sf-dot-off'"></span>
+                  <span class="sf-label">{{ s.label }}</span>
+                </button>
+              }
+            </div>
+
+            <button class="btn-ghost btn-today" (click)="goToday()">Today</button>
+          </div>
+
+          <!-- Day-of-week header -->
+          <div class="cal-header">
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span>
+            <span>Fri</span><span>Sat</span><span>Sun</span>
+          </div>
+
+          <!-- Calendar grid -->
+          <div class="cal-grid">
+            @for (day of days(); track day.dateStr) {
+              <div class="cal-cell"
+                   [class.other-month]="!day.isCurrentMonth"
+                   [class.today]="day.isToday"
+                   (click)="openDay(day)">
+                <span class="day-num">{{ day.day }}</span>
+                @if (day.bookings.length > 0) {
+                  <div class="day-bookings">
+                    @for (b of day.bookings.slice(0, 3); track b.id) {
+                      <div class="day-booking"
+                           [class.bg-completed]="b.status === 'completed'"
+                           [class.bg-active]="b.status === 'in_progress'"
+                           [class.bg-confirmed]="b.status === 'confirmed'"
+                           [class.bg-pending]="b.status === 'pending_confirm'"
+                           [class.bg-cancelled]="b.status === 'cancelled'">
+                        <span class="bk-cat">{{ b.category }}</span>
+                        <span class="bk-time">{{ b.timeSlot }}</span>
+                      </div>
+                    }
+                    @if (day.bookings.length > 3) {
+                      <span class="bk-more">+{{ day.bookings.length - 3 }} more</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+        </div>
+      }
+    }
+
+    <!-- ───────────── WORK HOURS TAB ───────────── -->
+    @if (activeTab() === 'workhours') {
+      <div class="tab-body">
+        <p class="muted wh-desc">Toggle the time slots you are available to accept bookings.</p>
+
+        @if (loadingSchedule()) {
+          <p class="muted">Loading schedule…</p>
+        } @else {
+          <div class="schedule-grid">
+            <div class="schedule-header">
+              <button type="button" class="schedule-corner" (click)="toggleAll()"
+                      [class.on]="allOn()"
+                      title="Select or clear every slot">
+                {{ allOn() ? 'Clear all' : 'Select all' }}
+              </button>
+              @for (day of WEEKDAYS; track day) {
+                <button type="button" class="schedule-col-head" (click)="toggleColumn(day)"
+                        [class.on]="columnOn()[day]"
+                        title="Toggle the whole {{ DAY_LABELS[day] }} column">{{ DAY_LABELS[day] }}</button>
+              }
+            </div>
+            @for (slot of TIME_SLOTS; track slot) {
+              <div class="schedule-row">
+                <button type="button" class="schedule-row-label" (click)="toggleRow(slot)"
+                        [class.on]="rowOn()[slot]"
+                        title="Toggle the whole {{ SLOT_LABELS[slot] }} row">{{ SLOT_LABELS[slot] }}</button>
+                @for (day of WEEKDAYS; track day) {
+                  <button
+                    type="button"
+                    class="schedule-cell"
+                    [class.on]="scheduleGrid()[day + '-' + slot]"
+                    (click)="toggleCell(day, slot)"
+                  >{{ scheduleGrid()[day + '-' + slot] ? '✓' : '' }}</button>
+                }
+              </div>
+            }
+          </div>
+
+          @if (scheduleError()) {
+            <p class="err">{{ scheduleError() }}</p>
+          }
+          <div class="wh-actions">
+            <button class="btn-primary" (click)="openSaveSchedule()" [disabled]="savingSchedule()">
+              {{ savingSchedule() ? 'Saving…' : 'Save schedule' }}
+            </button>
+          </div>
+        }
+      </div>
+
+      @if (saveScheduleOpen()) {
+        <app-modal [open]="true" title="Confirm schedule" (closed)="saveScheduleOpen.set(false)">
+          <form class="pin-form" (ngSubmit)="doSaveSchedule()">
+            <p class="muted">Enter your PIN to save working hours.</p>
+            <label>PIN
+              <input type="password" maxlength="6" pattern="[0-9]{6}" inputmode="numeric"
+                     [(ngModel)]="scheduleConfirmPin" name="schpin" />
+            </label>
+            @if (scheduleError()) {
+              <p class="err">{{ scheduleError() }}</p>
+            }
+            <div class="modal-actions">
+              <button type="button" class="btn-ghost" (click)="saveScheduleOpen.set(false)">Cancel</button>
+              <button type="submit" class="btn-primary" [disabled]="savingSchedule()">
+                {{ savingSchedule() ? 'Saving…' : 'Confirm' }}
+              </button>
+            </div>
+          </form>
+        </app-modal>
+      }
+    }
+
+    <!-- ───────────── DAY DETAIL OVERLAY ───────────── -->
+    @if (dayModalOpen()) {
+      <app-modal [open]="true" [title]="selectedDayTitle()" (closed)="dayModalOpen.set(false)">
+        @if (selectedDay()?.bookings?.length) {
+          <div class="day-modal-list">
+            @for (b of selectedDay()!.bookings; track b.id) {
+              <div class="dm-item">
+                <div class="dm-head">
+                  <span class="dm-status-dot" [class]="statusCls(b.status)"></span>
+                  <span class="dm-status-label">{{ statusLabel(b.status) }}</span>
+                  <span class="dm-price">RM {{ b.price.toFixed(2) }}</span>
+                </div>
+                <div class="dm-cat">{{ b.category }}</div>
+                <div class="dm-meta">
+                  <span>🕑 {{ slotLabelFor(b.timeSlot) }}</span>
+                  <span class="dm-sep">·</span>
+                  <span>👤 {{ b.customerName }}</span>
+                </div>
+                <button type="button" class="btn-outline dm-link" (click)="openJob(b)">View job →</button>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="muted">No bookings on this day.</p>
+        }
+      </app-modal>
+    }
+  `,
+    styles: [`
+    :host { display: block; }
+    h1 { margin-bottom: 0.2rem; }
+    .err { color: var(--color-danger); }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid var(--color-border);
+      margin: 1rem 0 0;
+    }
+    .tab {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      padding: 0.55rem 1.2rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--color-muted);
+      cursor: pointer;
+      transition: color var(--transition), border-color var(--transition);
+    }
+    .tab.active {
+      color: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+      font-weight: 600;
+    }
+    .tab:hover:not(.active) { color: var(--color-text); }
+
+    .tab-body { margin-top: 1.25rem; }
+
+    /* ── Calendar ── */
+    .cal-nav {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Status filter buttons (in nav) ── */
+    .status-filters {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+    .sf-all {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text);
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .sf-all:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .sf-all.on { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    .sf-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: 999px;
+      font-size: 0.72rem;
+      color: var(--color-text);
+      padding: 0.2rem 0.6rem 0.2rem 0.4rem;
+      cursor: pointer;
+      transition: opacity 0.15s, border-color 0.15s;
+    }
+    .sf-btn:hover { border-color: var(--color-primary); }
+    .sf-btn.off { opacity: 0.45; }
+    .sf-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .sf-dot-off { background: var(--color-border); }
+    .nav-btn {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 0.3rem 0.7rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      color: var(--color-text);
+      transition: background var(--transition);
+    }
+    .nav-btn:hover { background: var(--color-bg); }
+    .nav-title { font-size: 1.05rem; min-width: 130px; text-align: center; }
+    .btn-today { font-size: 0.78rem; padding: 0.625rem 0.7rem; margin-left: auto; }
+
+    .cal-header {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--color-muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      background: var(--color-border);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .cal-cell {
+      background: var(--color-bg);
+      min-height: 100px;
+      padding: 0.3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      transition: background var(--transition);
+    }
+    .cal-cell:hover { background: var(--color-surface); }
+    .cal-cell:not(.other-month) { cursor: pointer; }
+    .cal-cell.other-month { opacity: 0.3; pointer-events: none; }
+
+    /* ── Day detail overlay ── */
+    .day-modal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      max-height: 60vh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .dm-item {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 0.7rem;
+      background: var(--color-bg);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .dm-head { display: flex; align-items: center; gap: 0.5rem; }
+    .dm-status-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .dm-status-label { font-size: 0.78rem; font-weight: 600; color: var(--color-muted); }
+    .dm-price { margin-left: auto; font-weight: 600; }
+    .dm-cat { font-weight: 600; font-size: 0.95rem; }
+    .dm-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 0.82rem; color: var(--color-muted); }
+    .dm-sep { opacity: 0.5; }
+    .dm-link { align-self: flex-start; margin-top: 0.2rem; font-size: 0.82rem; padding: 0.35rem 0.7rem; }
+    .cal-cell.today .day-num {
+      background: var(--color-primary);
+      color: #fff;
+      border-radius: 999px;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .day-num { font-size: 0.82rem; font-weight: 600; margin-bottom: 2px; }
+    .day-bookings { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+    .day-booking {
+      font-size: 0.65rem;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+      color: #fff;
+      cursor: default;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bk-cat { font-weight: 600; }
+    .bk-time { opacity: 0.85; margin-left: 0.2rem; }
+    .bk-more { font-size: 0.65rem; color: var(--color-muted); text-align: center; }
+
+    .bg-completed { background: #16a34a; }
+    .bg-active     { background: #2563eb; }
+    .bg-confirmed  { background: #9333ea; }
+    .bg-pending    { background: #d97706; }
+    .bg-cancelled  { background: #6b7280; }
+
+    /* ── Work Hours ── */
+    .wh-desc { margin: 0 0 1rem; }
+
+    .schedule-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow-x: auto;
+      margin-bottom: 0.8rem;
+    }
+    .schedule-header {
+      display: grid;
+      grid-template-columns: 132px repeat(7, minmax(40px, 1fr));
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+    /* Select-all toggle (top-left corner) */
+    .schedule-corner {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--color-text);
+      cursor: pointer;
+      padding: 0.25rem 0.3rem;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .schedule-corner:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .schedule-corner.on { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    /* Day column headers - click toggles the whole column */
+    .schedule-col-head {
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--color-muted);
+      padding: 0.25rem 0;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .schedule-col-head:hover { background: var(--color-bg); color: var(--color-text); }
+    .schedule-col-head.on { color: var(--color-primary); text-decoration: underline; }
+    .schedule-row {
+      display: grid;
+      grid-template-columns: 132px repeat(7, minmax(40px, 1fr));
+      gap: 2px;
+    }
+    /* Slot row labels - click toggles the whole row */
+    .schedule-row-label {
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--color-muted);
+      display: flex;
+      align-items: center;
+      text-align: left;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 0 0.3rem;
+      transition: background 0.15s, color 0.15s;
+    }
+    .schedule-row-label:hover { background: var(--color-bg); color: var(--color-text); }
+    .schedule-row-label.on { color: var(--color-primary); }
+    .schedule-cell {
+      height: 61px;
+      background: var(--color-border);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: transparent;
+      transition: background 0.15s, color 0.15s;
+    }
+    .schedule-cell.on { background: var(--color-primary); color: #fff; }
+    .schedule-cell:hover { opacity: 0.75; }
+
+    .wh-actions { margin-top: 0.5rem; }
+
+    .pin-form { display: flex; flex-direction: column; gap: 0.6rem; }
+    .pin-form label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.88rem; font-weight: 500; }
+    .pin-form input { max-width: 180px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+
+    @media (max-width: 700px) {
+      .cal-cell { min-height: 60px; }
+      .day-booking { font-size: 0.58rem; }
+    }
+  `]
+})
+export class ServicerCalendarComponent implements OnInit {
+  private api    = inject(ApiService);
+  private toast  = inject(ToastService);
+  private router = inject(Router);
+
+  activeTab = signal<'calendar' | 'workhours'>('calendar');
+
+  // ── Calendar ────────────────────────────────────────────────────────────────
+  viewYear  = signal(new Date().getFullYear());
+  viewMonth = signal(new Date().getMonth()); // 0-indexed
+  loading      = signal(true);
+  loadFailed   = signal(false);
+  calendarData = signal<CalendarData | null>(null);
+
+  // ── Status filters (nav row) ─────────────────────────────────────────────────
+  readonly STATUS_FILTERS = [
+    { key: 'pending_confirm', label: 'Pending',     cls: 'bg-pending' },
+    { key: 'confirmed',       label: 'Confirmed',   cls: 'bg-confirmed' },
+    { key: 'in_progress',     label: 'In progress', cls: 'bg-active' },
+    { key: 'completed',       label: 'Completed',   cls: 'bg-completed' },
+    { key: 'cancelled',       label: 'Cancelled',   cls: 'bg-cancelled' },
+  ] as const;
+
+  statusFilter = signal<Record<string, boolean>>(
+    Object.fromEntries(this.STATUS_FILTERS.map(s => [s.key, true])),
+  );
+
+  allStatusOn = computed(() => {
+    const f = this.statusFilter();
+    return this.STATUS_FILTERS.every(s => f[s.key]);
+  });
+
+  toggleStatus(key: string): void {
+    this.statusFilter.update(f => ({ ...f, [key]: !f[key] }));
+  }
+
+  toggleAllStatus(): void {
+    const turnOn = !this.allStatusOn();
+    this.statusFilter.set(
+      Object.fromEntries(this.STATUS_FILTERS.map(s => [s.key, turnOn])),
+    );
+  }
+
+  // ── Day detail overlay ───────────────────────────────────────────────────────
+  dayModalOpen = signal(false);
+  selectedDay  = signal<CalendarDay | null>(null);
+
+  selectedDayTitle = computed(() => {
+    const d = this.selectedDay();
+    return d
+      ? d.date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
+      : '';
+  });
+
+  openDay(day: CalendarDay): void {
+    this.selectedDay.set(day);
+    this.dayModalOpen.set(true);
+  }
+
+  /** Booking status -> human label (reuses the filter definitions). */
+  statusLabel(status: string): string {
+    return this.STATUS_FILTERS.find(s => s.key === status)?.label ?? status;
+  }
+
+  /** Booking status -> colour-box class. */
+  statusCls(status: string): string {
+    return this.STATUS_FILTERS.find(s => s.key === status)?.cls ?? 'sf-dot-off';
+  }
+
+  /** Time slot key -> readable label (falls back to the raw value). */
+  slotLabelFor(slot: string): string {
+    return this.SLOT_LABELS[slot] ?? slot;
+  }
+
+  /** Redirect to the jobs page for this booking, closing the overlay. */
+  openJob(b: CalendarBooking): void {
+    this.dayModalOpen.set(false);
+    this.router.navigate(['/servicer/jobs'], { queryParams: { focus: b.id } });
+  }
+
+  private readonly weekdayOffset = 1; // Monday-first
+
+  monthLabel = computed(() => {
+    const d = new Date(this.viewYear(), this.viewMonth(), 1);
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  });
+
+  days = computed(() => {
+    const year  = this.viewYear();
+    const month = this.viewMonth();
+    const data  = this.calendarData()?.data ?? {};
+    const today    = new Date();
+    const todayStr = this.localDateStr(today);
+
+    const first = new Date(year, month, 1);
+    const last  = new Date(year, month + 1, 0);
+
+    let startDow = first.getDay() - this.weekdayOffset;
+    if (startDow < 0) startDow += 7;
+
+    const days: CalendarDay[] = [];
+
+    const prevLast = new Date(year, month, 0);
+    for (let i = startDow - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1, prevLast.getDate() - i);
+      days.push(this.makeDay(d, false, data, todayStr));
+    }
+    for (let i = 1; i <= last.getDate(); i++) {
+      const d = new Date(year, month, i);
+      days.push(this.makeDay(d, true, data, todayStr));
+    }
+    while (days.length < 42) {
+      const lastDay = days[days.length - 1]?.date ?? last;
+      const next = new Date(lastDay);
+      next.setDate(next.getDate() + 1);
+      days.push(this.makeDay(next, false, data, todayStr));
+    }
+
+    return days;
+  });
+
+  /**
+   * Local (browser-timezone) YYYY-MM-DD. Never use toISOString() here - that is
+   * UTC, and for a KL (+8) browser a local-midnight Date serialises to the
+   * PREVIOUS day, shifting the "today" marker and every booking by one cell.
+   */
+  private localDateStr(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  private makeDay(
+    date: Date,
+    isCurrentMonth: boolean,
+    data: Record<string, CalendarBooking[]>,
+    todayStr: string,
+  ): CalendarDay {
+    const dateStr = this.localDateStr(date);
+    const filter = this.statusFilter();
+    return {
+      date,
+      dateStr,
+      day: date.getDate(),
+      isToday: dateStr === todayStr,
+      isCurrentMonth,
+      bookings: (data[dateStr] ?? []).filter(b => filter[b.status] !== false),
+    };
+  }
+
+  // ── Work Hours ──────────────────────────────────────────────────────────────
+  readonly WEEKDAYS  = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  readonly TIME_SLOTS = ['morning', 'noon', 'afternoon', 'evening', 'night'];
+  readonly DAY_LABELS: Record<string, string> = {
+    mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu',
+    fri: 'Fri', sat: 'Sat', sun: 'Sun',
+  };
+  readonly SLOT_LABELS: Record<string, string> = {
+    morning: 'Morning (9:00–11:00)', noon: 'Noon (11:00–13:00)', afternoon: 'Afternoon (13:00–15:00)', evening: 'Evening (15:00–17:00)', night: 'Night (17:00–22:00)',
+  };
+
+  scheduleGrid    = signal<Record<string, boolean>>({});
+  loadingSchedule = signal(false);
+  savingSchedule  = signal(false);
+  scheduleError   = signal('');
+  saveScheduleOpen   = signal(false);
+  scheduleConfirmPin = '';
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
+  ngOnInit(): void {
+    this.loadMonth();
+    this.loadSchedule();
+  }
+
+  // ── Calendar methods ─────────────────────────────────────────────────────────
+  prevMonth(): void {
+    const m = this.viewMonth() - 1;
+    if (m < 0) { this.viewMonth.set(11); this.viewYear.update(y => y - 1); }
+    else        { this.viewMonth.set(m); }
+    this.loadMonth();
+  }
+
+  nextMonth(): void {
+    const m = this.viewMonth() + 1;
+    if (m > 11) { this.viewMonth.set(0); this.viewYear.update(y => y + 1); }
+    else         { this.viewMonth.set(m); }
+    this.loadMonth();
+  }
+
+  goToday(): void {
+    const now = new Date();
+    this.viewYear.set(now.getFullYear());
+    this.viewMonth.set(now.getMonth());
+    this.loadMonth();
+  }
+
+  private loadMonth(): void {
+    this.loading.set(true);
+    this.loadFailed.set(false);
+    const monthStr = `${this.viewYear()}-${String(this.viewMonth() + 1).padStart(2, '0')}`;
+    this.api.get<CalendarData>(`/servicer/calendar?month=${monthStr}`).subscribe({
+      next:  r  => { this.calendarData.set(r); this.loading.set(false); },
+      error: () => { this.loading.set(false); this.loadFailed.set(true); },
+    });
+  }
+
+  // ── Work Hours methods ───────────────────────────────────────────────────────
+  private loadSchedule(): void {
+    this.loadingSchedule.set(true);
+    this.api.get<{ data: { weekday: string; timeSlot: string; isAvailable: boolean }[] }>(
+      '/servicer/me/schedule',
+    ).subscribe({
+      next: r => {
+        const grid: Record<string, boolean> = {};
+        for (const e of r.data ?? []) {
+          grid[`${e.weekday}-${e.timeSlot}`] = e.isAvailable;
+        }
+        this.scheduleGrid.set(grid);
+        this.loadingSchedule.set(false);
+      },
+      error: () => this.loadingSchedule.set(false),
+    });
+  }
+
+  toggleCell(day: string, slot: string): void {
+    const key = `${day}-${slot}`;
+    this.scheduleGrid.update(g => ({ ...g, [key]: !g[key] }));
+  }
+
+  /** All grid keys (day-slot). */
+  private allKeys(): string[] {
+    return this.WEEKDAYS.flatMap(d => this.TIME_SLOTS.map(s => `${d}-${s}`));
+  }
+
+  /**
+   * Set every given key on, unless they are ALL already on - then turn them off.
+   * Drives the column / row / select-all toggles.
+   */
+  private toggleKeys(keys: string[]): void {
+    this.scheduleGrid.update(g => {
+      const allOn = keys.every(k => g[k]);
+      const next = { ...g };
+      for (const k of keys) next[k] = !allOn;
+      return next;
+    });
+  }
+
+  toggleColumn(day: string): void {
+    this.toggleKeys(this.TIME_SLOTS.map(s => `${day}-${s}`));
+  }
+
+  toggleRow(slot: string): void {
+    this.toggleKeys(this.WEEKDAYS.map(d => `${d}-${slot}`));
+  }
+
+  toggleAll(): void {
+    this.toggleKeys(this.allKeys());
+  }
+
+  /** True when every slot is selected (drives the Select all / Clear all label). */
+  allOn = computed(() => {
+    const g = this.scheduleGrid();
+    return this.allKeys().every(k => g[k]);
+  });
+
+  /** Per-day: true when all slots in that column are on (highlights the day head). */
+  columnOn = computed(() => {
+    const g = this.scheduleGrid();
+    const out: Record<string, boolean> = {};
+    for (const d of this.WEEKDAYS) out[d] = this.TIME_SLOTS.every(s => g[`${d}-${s}`]);
+    return out;
+  });
+
+  /** Per-slot: true when all days in that row are on (highlights the slot label). */
+  rowOn = computed(() => {
+    const g = this.scheduleGrid();
+    const out: Record<string, boolean> = {};
+    for (const s of this.TIME_SLOTS) out[s] = this.WEEKDAYS.every(d => g[`${d}-${s}`]);
+    return out;
+  });
+
+  openSaveSchedule(): void {
+    this.scheduleConfirmPin = '';
+    this.scheduleError.set('');
+    this.saveScheduleOpen.set(true);
+  }
+
+  doSaveSchedule(): void {
+    if (!this.scheduleConfirmPin) { this.scheduleError.set('PIN is required.'); return; }
+    this.savingSchedule.set(true);
+    this.scheduleError.set('');
+    const grid  = this.scheduleGrid();
+    const slots = this.WEEKDAYS.flatMap(day =>
+      this.TIME_SLOTS.map(slot => ({
+        weekday:   day,
+        timeSlot:  slot,
+        available: !!grid[`${day}-${slot}`],
+      })),
+    );
+    this.api.patch('/servicer/me/schedule', { slots }, { 'x-action-pin': this.scheduleConfirmPin }).subscribe({
+      next: () => {
+        this.savingSchedule.set(false);
+        this.saveScheduleOpen.set(false);
+        this.toast.success('Working hours saved.');
+      },
+      error: (e: any) => {
+        this.savingSchedule.set(false);
+        this.scheduleError.set(e.message ?? 'Could not save schedule');
+      },
+    });
+  }
+}
