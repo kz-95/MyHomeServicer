@@ -905,15 +905,20 @@ function noteKeyFailure(id: string, err: unknown): void {
  * instead of dropping to the manual "Try again" fallback. Quota/429/auth errors
  * are NOT retried (they throw instantly and fail through to the next key).
  */
+const COLD_START_MAX_ATTEMPTS = 3; // initial + 2 retries (each up to FIRST_TOKEN_MS)
 async function withColdStartRetry(fn: () => Promise<AiReply>): Promise<AiReply> {
-  try {
-    return await fn();
-  } catch (e) {
-    if (/first.?token timeout/i.test((e as Error)?.message ?? "")) {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < COLD_START_MAX_ATTEMPTS; attempt++) {
+    try {
       return await fn();
+    } catch (e) {
+      lastErr = e;
+      // Only a first-token TIMEOUT (still warming up) is worth retrying. Anything
+      // else (quota/auth/network error) throws immediately so the chain moves on.
+      if (!/first.?token timeout/i.test((e as Error)?.message ?? "")) throw e;
     }
-    throw e;
   }
+  throw lastErr;
 }
 
 /** One attempt in the failover chain — a named LLM the chain can try in order. */

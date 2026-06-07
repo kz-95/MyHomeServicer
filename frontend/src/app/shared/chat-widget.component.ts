@@ -1395,15 +1395,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   /** Record a date pick (no send) - the Confirm button advances the flow. */
   onDateSelected(value: string): void {
+    // Local only — do NOT commit to prefillData until Confirm, so an unconfirmed
+    // edit can't block the assistant from filling a value it resolves from text.
     this.prefillDate.set(value);
-    this.onPrefillField('preferredDate', value);
   }
 
   /** Confirm the picked date: lock it in and tell the assistant to continue. */
   confirmDate(): void {
     const value = this.prefillDate();
     if (!value) return;
-    this.onPrefillField('preferredDate', value);
+    this.widget.accumulatePrefill({ preferredDate: value });
     this.dateConfirmed.set(value);
     this.draft = `My preferred date is ${value}.`;
     this.send();
@@ -1411,8 +1412,8 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   /** Record a time-slot selection (no send) - Confirm advances the flow. */
   onTimeSlotSelected(value: string): void {
+    // Local only — committed on Confirm (see onDateSelected).
     this.prefillTimeSlot.set(value);
-    this.onPrefillField('timeSlot', value);
   }
 
   /** Confirm the picked time slot and tell the assistant to continue. */
@@ -1422,7 +1423,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     const label = this.timeSlotOptions.find((o) => o.value === value)?.label ?? value;
     this.timeConfirmed.set(value);
     this.timeConfirmedLabel.set(label);
-    this.onPrefillField('timeSlot', value);
+    this.widget.accumulatePrefill({ timeSlot: value });
     this.draft = `My preferred time is ${label}.`;
     this.send();
   }
@@ -1753,12 +1754,12 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     return labels[key] || key;
   }
 
-  onPrefillField(key: string, value: string): void {
-    // Mirror into prefillText so the generic text card's Confirm button (bound to
-    // prefillText) enables as the user types. Date/time/address/contact use their
-    // own dedicated signals and do not route through here.
+  onPrefillField(_key: string, value: string): void {
+    // Local only — mirror into prefillText so the generic text card's Confirm
+    // button enables as the user types. Do NOT commit to prefillData until Confirm
+    // (confirmText does that), so an unconfirmed edit can't block an assistant-
+    // resolved value via the clobber guard.
     this.prefillText.set(value);
-    this.widget.accumulatePrefill({ [key]: value });
   }
 
   editProfileField(data: Record<string, unknown>): void {
