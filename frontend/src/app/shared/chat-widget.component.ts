@@ -177,34 +177,24 @@ interface PublicConfig {
                                 </div>
                                 <button type="button" class="btn-primary ac-confirm" [disabled]="!addrStreet().trim() || addrValidating() || locatingGps()" (click)="confirmAddress()">Confirm</button>
                               }
-                            } @else if (getStr(b.data, 'key') === 'contact') {
-                              @if (contactConfirmed()) {
+                            } @else if (getStr(b.data, 'key') === 'contactNumber') {
+                              @if (valueCollected('contactNumber')) {
                                 <div class="field-confirmed">
-                                  <span class="field-confirmed-value">✅ {{ contactNameDraft() }} · {{ fullPhone() }}</span>
+                                  <span class="field-confirmed-value">✅ {{ widget.prefillData()['contactNumber'] }}</span>
                                 </div>
                               } @else {
-                                <p class="muted contact-prompt">May I know your contact?</p>
-                                <div class="contact-fields">
-                                  <label class="contact-col">
-                                    <span class="contact-label">Your Name</span>
-                                    <input type="text" [ngModel]="contactNameDraft()" (ngModelChange)="contactNameDraft.set($event)" name="pf_cname" placeholder="Name" />
-                                  </label>
-                                  <label class="contact-col">
-                                    <span class="contact-label">Phone No.</span>
-                                    <div class="phone-row">
-                                      <select class="phone-prefix" [ngModel]="phonePrefix()" (ngModelChange)="phonePrefix.set($event)" name="pf_cprefix">
-                                        @for (c of phonePrefixes; track c.code) {
-                                          <option [value]="c.code">{{ c.label }}</option>
-                                        }
-                                      </select>
-                                      <input type="tel" inputmode="tel" [ngModel]="contactPhoneLocal()" (ngModelChange)="contactPhoneLocal.set($event)" name="pf_cphone" placeholder="12 345 6789" />
-                                    </div>
-                                  </label>
+                                <div class="phone-row">
+                                  <select class="phone-prefix" [ngModel]="phonePrefix()" (ngModelChange)="phonePrefix.set($event)" name="pf_cprefix">
+                                    @for (c of phonePrefixes; track c.code) {
+                                      <option [value]="c.code">{{ c.label }}</option>
+                                    }
+                                  </select>
+                                  <input type="tel" inputmode="tel" [ngModel]="contactPhoneLocal()" (ngModelChange)="contactPhoneLocal.set($event)" name="pf_cphone" placeholder="12 345 6789" />
                                 </div>
                                 @if (contactPhoneLocal() && !phoneValid()) {
                                   <span class="addr-invalid">Enter a valid phone number.</span>
                                 }
-                                <button type="button" class="btn-primary ac-confirm" [disabled]="!contactNameDraft().trim() || !phoneValid()" (click)="confirmContact()">Confirm</button>
+                                <button type="button" class="btn-primary ac-confirm" [disabled]="!phoneValid()" (click)="confirmPhone()">Confirm</button>
                               }
                             } @else if ((getStr(b.data, 'key') === 'budgetMax' || getStr(b.data, 'key') === 'budgetMin') && budgetRanges().length > 0) {
                               <div class="ac-budget">
@@ -1589,6 +1579,21 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.contactConfirmed.set(true);
     this.draft = `My name is ${name} and my phone number is ${phone}.`;
     this.send();
+  }
+
+  /** Confirm the phone-only card (name is collected separately as a text card). */
+  confirmPhone(): void {
+    if (!this.phoneValid()) return;
+    const phone = this.fullPhone();
+    this.widget.accumulatePrefill({ contactNumber: phone });
+    this.draft = `My phone number is ${phone}.`;
+    this.send();
+  }
+
+  /** True when a field already holds a non-empty value in prefillData (public for templates). */
+  valueCollected(key: string): boolean {
+    const v = this.widget.prefillData()[key];
+    return v !== undefined && v !== null && v !== '';
   }
 
   // ─── Service questionSchema answers (quote_question cards) ───────────────────

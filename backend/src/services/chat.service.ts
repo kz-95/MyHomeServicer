@@ -350,7 +350,7 @@ export async function buildAssistantPrompt(
     extra +=
       "\n### Step 5: Budget — EMIT [action:quote_field] key=budgetMax (ask the budget BEFORE contact details)";
     extra +=
-      "\n### Step 6: Contact — EMIT ONE [action:quote_field] key=contact (collects name + phone together in a single card; do NOT emit contactName/contactNumber separately)";
+      "\n### Step 6: Contact — name and phone are SEPARATE cards (like date + time). EMIT [action:quote_field] key=contactName and key=contactNumber. If the user already gave their name in the chat (e.g. \"I'm Zedd\"), emit contactName WITH a value: line to capture it, so only the phone card remains.";
     extra +=
       '\n### Step 7: Service questions — after the base fields, the app supplies the category\'s questionSchema questions and shows a [action:quote_question] card for each, ONE at a time. Open with a short warm lead-in the FIRST time, e.g. "Thanks for confirming your details. Before we proceed, just a few quick questions about the job." Then ask each question CONVERSATIONALLY, weaving its options in as natural examples (broken TV: "What is going on with it? No power? No sound? Lines on the screen? And what kind of TV is it?"). The user can answer in plain words; MAP their answer to the closest option and emit [action:quote_question]key: <questionKey>\\nvalue: <optionValue or their words>[/action] to record it. If they are unsure (e.g. cannot tell the screen type), reassure them, let them pick "I do not know", or help them figure it out. Never invent questions; only the real ones the app provides. Ask optional ones briefly too, the user may skip them.';
     extra += "\n### Step 8: Notes — EMIT [action:quote_field] key=notes";
@@ -398,7 +398,7 @@ export async function buildAssistantPrompt(
   extra +=
     "\n[action:quote_options] — suggest a category. Include category, categoryId.";
   extra +=
-    "\n[action:quote_field] — collect one field. Keys: preferredDate, timeSlot, address, contact (name + phone in one card), notes, budgetMin, budgetMax.";
+    "\n[action:quote_field] — collect one field. Keys: preferredDate, timeSlot, address, contactName, contactNumber, notes, budgetMin, budgetMax.";
   extra +=
     "\n[action:category_lock] — silently lock the confirmed service. Include categoryId (the exact UUID). Emit the moment the user confirms a service by card OR in text. No visible card.";
   extra +=
@@ -1089,8 +1089,12 @@ function nextStepBlocks(collected: string[]): ActionBlock[] {
   if (!has("budgetMax"))
     return [{ type: "quote_field", data: { key: "budgetMax" } }];
   if (!has("contactName") || !has("contactNumber")) {
-    // Name + phone are collected together in ONE combined contact card.
-    return [{ type: "quote_field", data: { key: "contact" } }];
+    // Name and phone are SEPARATE cards (like date + time): emit whichever is
+    // still missing, so a name already given in text leaves only the phone card.
+    const blocks: ActionBlock[] = [];
+    if (!has("contactName")) blocks.push({ type: "quote_field", data: { key: "contactName" } });
+    if (!has("contactNumber")) blocks.push({ type: "quote_field", data: { key: "contactNumber" } });
+    return blocks;
   }
   return [{ type: "quote_prefill", data: {} }];
 }
@@ -1402,30 +1406,6 @@ export async function sendToAi(
   // "Is this the service?" card and lets the user loop forever. Stripping the
   // block here makes the card physically un-repeatable regardless of model output.
   let outBlocks = processed.actionBlocks;
-
-  // Collapse a name + phone step into ONE combined contact card (the UI shows
-  // both inputs together with a single Confirm). Carries any pre-filled values.
-  {
-    const nameB = outBlocks.find(
-      (b) => b.type === "quote_field" && b.data.key === "contactName",
-    );
-    const phoneB = outBlocks.find(
-      (b) => b.type === "quote_field" && b.data.key === "contactNumber",
-    );
-    if (nameB || phoneB) {
-      outBlocks = outBlocks.filter(
-        (b) =>
-          !(
-            b.type === "quote_field" &&
-            (b.data.key === "contactName" || b.data.key === "contactNumber")
-          ),
-      );
-      const data: Record<string, unknown> = { key: "contact" };
-      if (nameB?.data.value) data.name = nameB.data.value;
-      if (phoneB?.data.value) data.phone = phoneB.data.value;
-      outBlocks.push({ type: "quote_field", data });
-    }
-  }
 
   if (opts?.formAssist) {
     // On the real /quote/new form: the assistant may fill fields (form_fill) but
