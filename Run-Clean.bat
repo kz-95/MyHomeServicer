@@ -239,6 +239,20 @@ if errorlevel 1 (
     echo [WARN] Admin seed had an issue — continuing anyway.
 )
 echo [OK] Admin account ready.
+
+REM --- Seed platform settings (budget ranges, chat config, greeting tiers) ---
+REM Clean mode skips the demo seed, so these would otherwise be missing and the
+REM chat (budget brackets, greetings) would fall back to bare defaults.
+echo.
+echo ============================================
+echo  Seeding platform settings...
+echo ============================================
+echo [INFO] Budget ranges + chat config + greeting tiers (non-destructive)...
+call npm run seed:settings
+if errorlevel 1 (
+    echo [WARN] Settings seed had an issue - continuing anyway.
+)
+echo [OK] Platform settings ready.
 echo.
 
 call npx ts-node-dev --respawn --transpile-only src/index.ts

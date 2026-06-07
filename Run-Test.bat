@@ -156,6 +156,13 @@ if errorlevel 1 (
     exit /b 1
 )
 echo [OK] Test seed complete.
+
+REM --- Refresh platform settings (budget ranges, chat config, greeting tiers) ---
+echo [INFO] Refreshing platform settings (non-destructive)...
+call npm run seed:settings
+if errorlevel 1 (
+    echo [WARN] Settings refresh had an issue - continuing anyway.
+)
 echo.
 echo ============================================
 echo  Starting backend server...

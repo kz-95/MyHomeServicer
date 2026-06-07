@@ -1131,7 +1131,7 @@ function extractName(message: string, replyText = ""): string | undefined {
   // Brian"). The next word MUST be Capitalised — names are, mid-sentence stopwords
   // are not — which keeps "Thanks for"/"Got it now" from matching.
   const echo = replyText.match(
-    /\b(?:got it|thanks|thank you|alright|welcome|noted|sure|okay|ok)[,!]?\s+([A-Z][a-z'-]{1,20})\b/,
+    /\b(?:got it|thanks|thank you|alright|welcome|welcome back|noted|sure|okay|ok|perfect|awesome|excellent|wonderful|nice|lovely|congrats|congratulations|hi|hey|hello|(?:great|good)(?:\s+choice)?)[,!]?\s+([A-Z][a-z'-]{1,20})\b/,
   );
   if (echo && !NON_NAME_WORDS.has(echo[1].toLowerCase())) return cap(echo[1]);
   // Bare one-word reply — ONLY the user's message (the reply is long prose).
@@ -1618,7 +1618,11 @@ export async function sendToAi(
       // returns undefined when its field isn't present, so partial input still flows
       // normally (only the fields actually given get pre-filled).
       if (hasDateIntent || hasTimeIntent) {
-        const parsed = parseDateTimeFromText(`${userConvo}\n${processed.text}`);
+        // Parse the assistant's RESOLVED wording first ("Sunday, 27 December 2026"),
+        // then the user's raw phrasing. A vague "last sunday of dec 2026" makes chrono
+        // grab the next bare "sunday" (wrong year/month); the assistant's explicit
+        // date is unambiguous, so it wins.
+        const parsed = parseDateTimeFromText(`${processed.text}\n${userConvo}`);
         if (hasDateIntent) fillField("preferredDate", parsed.date);
         if (hasTimeIntent) fillField("timeSlot", parsed.slot);
       }
