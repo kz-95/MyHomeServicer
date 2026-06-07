@@ -102,7 +102,7 @@ async function main(): Promise<void> {
     'sofa-mattress-cleaning': [{ min: 30, max: 80 },  { min: 80, max: 150 },  { min: 150, max: 250 }, { min: 250, max: null }],
     'carpet-cleaning':        [{ min: 30, max: 80 },  { min: 80, max: 150 },  { min: 150, max: 250 }, { min: 250, max: null }],
     'curtain-cleaning':       [{ min: 20, max: 60 },  { min: 60, max: 120 },  { min: 120, max: 200 }, { min: 200, max: null }],
-    'event-planner':          [{ min: 1000, max: 3000 }, { min: 3000, max: 6000 }, { min: 6000, max: 10000 }, { min: 10000, max: null }],
+    'event-planner':          [{ min: 500, max: 1000 }, { min: 1000, max: 2000 }, { min: 1500, max: 2500 }, { min: 2500, max: 5000 }, { min: 5000, max: null }],
     'catering':               [{ min: 100, max: 300 }, { min: 300, max: 600 }, { min: 600, max: 1000 }, { min: 1000, max: null }],
     'professional-organizer': [{ min: 50, max: 120 }, { min: 120, max: 250 }, { min: 250, max: 400 }, { min: 400, max: null }],
     'aircond-installer':      [{ min: 200, max: 500 }, { min: 500, max: 1000 }, { min: 1000, max: 2000 }, { min: 2000, max: null }],

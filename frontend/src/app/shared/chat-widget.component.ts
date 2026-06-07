@@ -1129,14 +1129,15 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.addrStreet.set(value);
         this.addressConfirmed.set(true);
       } else if (key === 'budgetMax' || key === 'budgetMin') {
-        // Pre-select the slider bracket containing the stated amount (the user still
-        // reviews + taps Confirm). If ranges aren't loaded yet, loadBudgetRanges
-        // applies the same pre-select from prefillData once they arrive.
+        // The stated amount is the user's CEILING - pick the lowest bracket whose
+        // top covers it (never a bracket that starts above their budget). If ranges
+        // aren't loaded yet, loadBudgetRanges applies the same rule from prefillData.
         const n = Number(value);
         const ranges = this.budgetRanges();
         if (!Number.isNaN(n) && ranges.length) {
-          const idx = ranges.findIndex((r) => n >= r.min && (r.max == null || n <= r.max));
-          if (idx >= 0) this.budgetSliderIdx.set(idx);
+          let idx = ranges.findIndex((r) => r.max == null || n <= r.max);
+          if (idx < 0) idx = ranges.length - 1;
+          this.budgetSliderIdx.set(idx);
         }
       } else {
         // contactName / contactNumber / notes etc. - show as confirmed text.
@@ -1348,11 +1349,13 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       next: (r) => {
         const ranges = r.ranges ?? [];
         this.budgetRanges.set(ranges);
-        // Preselect the range that contains an already-extracted budget, if any.
+        // Preselect by the user's CEILING: the lowest bracket whose top covers their
+        // stated budget (never one that starts above it).
         const pre = Number(this.widget.prefillData()['budgetMax']);
         if (ranges.length && !Number.isNaN(pre) && pre > 0) {
-          const idx = ranges.findIndex((rg) => pre >= rg.min && (rg.max == null || pre <= rg.max));
-          if (idx >= 0) this.budgetSliderIdx.set(idx);
+          let idx = ranges.findIndex((rg) => rg.max == null || pre <= rg.max);
+          if (idx < 0) idx = ranges.length - 1;
+          this.budgetSliderIdx.set(idx);
         }
       },
       error: () => { this.budgetRanges.set([]); },
