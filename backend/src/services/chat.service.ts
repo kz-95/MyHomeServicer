@@ -897,30 +897,6 @@ function noteKeyFailure(id: string, err: unknown): void {
   }
 }
 
-/**
- * Run a provider call, and if it aborts with a first-token TIMEOUT (a cold
- * provider that didn't stream in time), retry it ONCE. The aborted attempt has
- * usually warmed the provider up, so the immediate retry lands fast — this makes
- * a cold DeepSeek answer the very first message after Gemini's quota runs out,
- * instead of dropping to the manual "Try again" fallback. Quota/429/auth errors
- * are NOT retried (they throw instantly and fail through to the next key).
- */
-const COLD_START_MAX_ATTEMPTS = 3; // initial + 2 retries (each up to FIRST_TOKEN_MS)
-async function withColdStartRetry(fn: () => Promise<AiReply>): Promise<AiReply> {
-  let lastErr: unknown;
-  for (let attempt = 0; attempt < COLD_START_MAX_ATTEMPTS; attempt++) {
-    try {
-      return await fn();
-    } catch (e) {
-      lastErr = e;
-      // Only a first-token TIMEOUT (still warming up) is worth retrying. Anything
-      // else (quota/auth/network error) throws immediately so the chain moves on.
-      if (!/first.?token timeout/i.test((e as Error)?.message ?? "")) throw e;
-    }
-  }
-  throw lastErr;
-}
-
 /** One attempt in the failover chain — a named LLM the chain can try in order. */
 interface LlmAttempt {
   id: string; // stable id for cooldown tracking
@@ -979,29 +955,46 @@ async function buildLlmChain(
   return attempts;
 }
 
+// Total time the user waits (typing animation) before we give up and show the
+// local fallback. Each LLM gets ONE cold-start attempt (up to FIRST_TOKEN_MS); we
+// rotate through the whole chain and keep re-rotating cold (non-quota) LLMs until
+// one answers or this budget runs out.
+const TOTAL_BUDGET_MS = 60_000;
+
 async function tryAiChain(
   systemPrompt: string,
   message: string,
   history: HistoryMessage[],
   role: string,
 ): Promise<AiReply> {
-  const chain = await buildLlmChain(systemPrompt, message, history, role);
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  let lastErr: unknown;
 
-  // Try each LLM in order. Skip one that's cooling down (recent 429), give each a
-  // single cold-start retry, and on failure note it + move to the next.
-  for (const llm of chain) {
-    if (isCoolingDown(llm.id)) continue;
-    try {
-      logger.info(`Trying ${llm.label}`);
-      return await withColdStartRetry(llm.run);
-    } catch (e) {
-      noteKeyFailure(llm.id, e);
-      logger.warn(`${llm.label} failed, trying next`, { error: (e as Error).message });
+  // Rotate through the LLMs; if all cold-time-out (no quota cooldown) and we still
+  // have budget, rotate again — a backup that was cold on the first pass is warm on
+  // the next, so the retry lands without making the user wait on one slow provider.
+  while (Date.now() < deadline) {
+    const chain = await buildLlmChain(systemPrompt, message, history, role);
+    let triedAny = false;
+    for (const llm of chain) {
+      if (isCoolingDown(llm.id)) continue;
+      if (Date.now() >= deadline) break;
+      triedAny = true;
+      try {
+        logger.info(`Trying ${llm.label}`);
+        return await llm.run(); // one cold-start attempt per LLM
+      } catch (e) {
+        lastErr = e;
+        noteKeyFailure(llm.id, e);
+        logger.warn(`${llm.label} failed, trying next`, { error: (e as Error).message });
+      }
     }
+    // No LLM was even tried (all cooling down / none configured) — stop, don't spin.
+    if (!triedAny) break;
   }
 
-  // Nothing worked — throw to trigger local fallback
-  throw new Error("No AI provider available");
+  // Budget exhausted or nothing available — throw to trigger the local fallback.
+  throw (lastErr instanceof Error ? lastErr : new Error("No AI provider available"));
 }
 
 function buildBannedWordsReplacer(
