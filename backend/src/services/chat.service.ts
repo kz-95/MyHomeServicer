@@ -379,6 +379,10 @@ export async function buildAssistantPrompt(
     extra +=
       '\n- NAME-MISMATCH GUIDANCE: customers often ask for a service by a name that is not a catalog category but IS covered by one (e.g. "wedding planner" is covered by Event Planner; "movers", "pest control", "handyman" map to the closest real service). If they ask again or seem unsure that we offer it (e.g. "you don\'t have a wedding planner?"), do NOT just silently re-show the same card. GUIDE them: reassure them yes we do, and explain the connection in one short friendly sentence ("Our Event Planner handles weddings and private celebrations like that."), THEN emit the [action:quote_options] for that service. The goal is to teach them which real service covers their need so they feel confident, not to make them guess.';
     extra +=
+      '\n- NEVER PROMISE A CARD WITHOUT EMITTING IT. If your text says or implies a card is coming ("Let me check", "here is the service that fits", "pick the one you want"), you MUST include the actual [action:quote_options] (or the relevant action block) in that SAME reply. Ending a turn having promised a card but emitting none strands the user with nothing to tap. If you can name the service, emit its card now.';
+    extra +=
+      '\n- SELF-RECOVERY: if you look back and your previous turn slipped (you said you would show a service or card but emitted none, or repeated yourself without progressing), do NOT just repeat the same line. Briefly own it and apologise in a warm human way ("Sorry, that did not come through properly"), clarify what you meant, and THEN emit the correct card or next step. Always move the user forward with a real update, never leave them stuck on the same spot.';
+    extra +=
       "\n- When you mention a service in your text, write its EXACT catalog name in plain words with NO bold, NO asterisks, NO markdown. The app automatically turns service names into clickable links, so never format them yourself.";
     extra +=
       '\n- NEVER use markdown anywhere: no bullet lists, no "*" or "-" bullets, no "#" headings, no bold/italics. The chat renders plain text, so markdown shows as ugly raw symbols. When you recap collected details (date, time, address, budget), write them in ONE short natural sentence (e.g. "So that is Sunday 14 June, night, at 42 Jalan SS2/72."), not as a bulleted list.';
@@ -1563,7 +1567,7 @@ export async function sendToAi(
   if (answer.length === 0 && outBlocks.length === 0) {
     return {
       answer:
-        "I'm getting a lot of requests right now and couldn't answer that one. Tap Try again, the backup assistant is usually warmed up by then. Or request a service directly and a local pro will help.",
+        "I'm getting a lot of requests right now and couldn't answer that one. You may please tap Try Again or Request a Service directly to get your servicer quote.",
       tokensUsed: raw.tokensUsed,
       actionBlocks: [
         { type: "retry", data: { label: "Try again" } },

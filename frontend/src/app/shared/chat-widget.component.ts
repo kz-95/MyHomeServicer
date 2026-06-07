@@ -907,6 +907,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       clearTimeout(this.replyTimeoutId);
       this.replyTimeoutId = null;
     }
+    this.clearStuckTimer();
     this.sending.set(false);
   }
 
@@ -1110,6 +1111,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   send(): void {
+    this.clearStuckTimer();
     const text = this.draft.trim();
     // Guard double-submit: input stays enabled while a reply is in flight (so
     // keyboard focus is never lost), but we must not fire a second request.
@@ -1354,6 +1356,38 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         return;
       }
     }
+  }
+
+  // ─── Stuck-flow watchdog ─────────────────────────────────────────────────────
+  private stuckTimer: ReturnType<typeof setTimeout> | null = null;
+  private stuckRecoveryDone = false;
+
+  /**
+   * Self-heal a stranded quote flow. If the assistant PROMISED a card ("let me
+   * check", "here is the service that fits") but emitted none, mid quote-flow, and
+   * the user just sits there, after 5s we re-fire their last message once. The
+   * backend's self-recovery prompt rule makes the model apologise, clarify, and
+   * show the card. Capped to one auto-recovery per stuck point (resets when a real
+   * card arrives) so it can never loop.
+   */
+  private armStuckWatchdog(replyText: string, isGuest: boolean, forSessionId: string | undefined): void {
+    this.clearStuckTimer();
+    if (this.stuckRecoveryDone) return;
+    const promisedCard = /let me check|here (is|are) the service|the service that fits|pick the one|take a look/i.test(replyText);
+    if (!promisedCard) return;
+    const inQuoteFlow = this.messages().some((m) => m.actionBlocks?.some((b) => b.type.startsWith('quote_')));
+    if (!inQuoteFlow) return;
+    this.stuckTimer = setTimeout(() => {
+      this.stuckTimer = null;
+      if (this.sending() || this.connecting()) return;
+      if (isGuest ? this.sessionId() !== null : this.sessionId() !== forSessionId) return;
+      this.stuckRecoveryDone = true;
+      this.retryLastMessage();
+    }, 5000);
+  }
+
+  private clearStuckTimer(): void {
+    if (this.stuckTimer) { clearTimeout(this.stuckTimer); this.stuckTimer = null; }
   }
 
   /** Record a date pick (no send) - the Confirm button advances the flow. */
@@ -1901,11 +1935,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         else this.authMsgs.update((m) => [...m, cardMsg]);
         this.scrollBottom = true;
         this.sending.set(false);
+        // A real card arrived — flow progressed, re-enable the stuck watchdog.
+        this.stuckRecoveryDone = false;
+        this.clearStuckTimer();
       }, gap);
       return;
     }
 
     this.sending.set(false);
+    // No card in this reply — if it promised one and stranded the user, self-heal.
+    this.armStuckWatchdog(parts.join(' '), isGuest, forSessionId);
   }
 
   /**
