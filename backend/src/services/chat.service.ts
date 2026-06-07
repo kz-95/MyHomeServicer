@@ -1111,12 +1111,15 @@ const NON_NAME_WORDS = new Set([
  * empty name field. Only called while the name card is showing, so a bare one-word
  * reply is safely treated as the name.
  */
-function extractName(message: string): string | undefined {
+function extractName(message: string, replyText = ""): string | undefined {
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-  const m = message.match(
-    /(?:my name(?:'?s| is)?|i'?m|i am|call me|name(?:'?s| is)?|it'?s|this is)\s+([A-Za-z][A-Za-z'-]{1,30})/i,
-  );
-  if (m) return cap(m[1]);
+  // Explicit patterns, checked on the user message AND the assistant's echo (the
+  // model often confirms "I have your name as Brian" when the user gave it earlier).
+  const explicit =
+    /(?:my name(?:'?s| is| as)?|i'?m|i am|call me|name(?:'?s| is| as|d)?|name as|it'?s|this is|you(?:'?re| are)|speaking (?:with|to)|your name as)\s+([A-Za-z][A-Za-z'-]{1,30})/i;
+  const m = `${message} ${replyText}`.match(explicit);
+  if (m && !NON_NAME_WORDS.has(m[1].toLowerCase())) return cap(m[1]);
+  // Bare one-word reply — ONLY the user's message (the reply is long prose).
   const trimmed = message.trim();
   if (
     /^[A-Za-z][A-Za-z'-]{1,30}$/.test(trimmed) &&
@@ -1143,6 +1146,21 @@ function extractPhone(message: string): string | undefined {
   const local = raw.replace(/^0+/, "");
   if (local.length < 7 || local.length > 12) return undefined;
   return `+60${local}`;
+}
+
+/**
+ * Extract a budget amount (RM) the user stated, so the budget slider can pre-select
+ * the matching bracket instead of defaulting to the lowest. Matches "RM999", "999
+ * budget", "budget of 1000", "around 1500". Returns the first plausible amount.
+ */
+function extractBudget(text: string): number | undefined {
+  const m = text.match(
+    /(?:rm|myr|\$)\s*([0-9][0-9,]{0,7})|([0-9][0-9,]{1,7})\s*(?:budget|ringgit|bucks)|budget(?:\s+(?:of|is|around|about|approx\.?|~))?\s*(?:rm|myr|\$)?\s*([0-9][0-9,]{0,7})/i,
+  );
+  if (!m) return undefined;
+  const raw = (m[1] ?? m[2] ?? m[3] ?? "").replace(/,/g, "");
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 10 && n <= 10_000_000 ? n : undefined;
 }
 
 /**
@@ -1631,7 +1649,7 @@ export async function sendToAi(
         (b) => b.type === "quote_field" && b.data.key === "contactName",
       );
       if (nameCard && (nameCard.data.value == null || nameCard.data.value === "")) {
-        const name = extractName(message);
+        const name = extractName(message, processed.text);
         if (name) nameCard.data.value = name;
       }
 
@@ -1641,8 +1659,18 @@ export async function sendToAi(
         (b) => b.type === "quote_field" && b.data.key === "contactNumber",
       );
       if (phoneCard && (phoneCard.data.value == null || phoneCard.data.value === "")) {
-        const phone = extractPhone(message);
+        const phone = extractPhone(`${message} ${processed.text}`);
         if (phone) phoneCard.data.value = phone;
+      }
+
+      // Budget card — capture a stated amount so the slider pre-selects the right
+      // bracket instead of defaulting to the lowest. Only fills an existing card.
+      const budgetCard = outBlocks.find(
+        (b) => b.type === "quote_field" && (b.data.key === "budgetMax" || b.data.key === "budgetMin"),
+      );
+      if (budgetCard && (budgetCard.data.value == null || budgetCard.data.value === "")) {
+        const budget = extractBudget(`${message} ${processed.text}`);
+        if (budget) budgetCard.data.value = String(budget);
       }
     }
   }

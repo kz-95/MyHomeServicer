@@ -1128,7 +1128,17 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       } else if (key === 'address') {
         this.addrStreet.set(value);
         this.addressConfirmed.set(true);
-      } else if (key !== 'budgetMin' && key !== 'budgetMax') {
+      } else if (key === 'budgetMax' || key === 'budgetMin') {
+        // Pre-select the slider bracket containing the stated amount (the user still
+        // reviews + taps Confirm). If ranges aren't loaded yet, loadBudgetRanges
+        // applies the same pre-select from prefillData once they arrive.
+        const n = Number(value);
+        const ranges = this.budgetRanges();
+        if (!Number.isNaN(n) && ranges.length) {
+          const idx = ranges.findIndex((r) => n >= r.min && (r.max == null || n <= r.max));
+          if (idx >= 0) this.budgetSliderIdx.set(idx);
+        }
+      } else {
         // contactName / contactNumber / notes etc. - show as confirmed text.
         this.confirmedTextValues.update((m) => ({ ...m, [key]: value }));
       }
