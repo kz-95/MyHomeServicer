@@ -338,6 +338,8 @@ export async function buildAssistantPrompt(
     extra +=
       "\nAfter the user CONFIRMS a category, NEVER emit [action:quote_options] again. Move directly to Step 3.";
     extra +=
+      "\nUSE THEIR NAME: the moment the user tells you their name (or you already know it), warmly confirm it once (\"Got it, Brian!\") and then address them by their first name naturally throughout the chat - a friendly \"Sure, Brian\" / \"Thanks, Brian\" here and there, NOT in every single line (that feels robotic). Always write the name capitalised. If the user asks you to stop using their name, stop immediately.";
+    extra +=
       "\nThe MOMENT the user confirms a service by ANY means (tapping the card, OR replying yes/yep/correct/that one/sure in text), IMMEDIATELY emit [action:category_lock]categoryId: <the exact categoryId UUID for that service>[/action] in that same reply. This silently records the choice (no visible card) and is REQUIRED for the rest of the flow, especially the service questions, to work. Emit it once, only the real UUID from the catalog.";
     extra +=
       '\nThe card has two buttons: "Yes, that\'s it" (confirm) and "Not this service" (reject). If the user clicks Not this service or otherwise says your guess is wrong, do NOT give up and do NOT send them to the services page. Ask ONE short, friendly question about what they are actually trying to get done (the item, room, event, or problem involved), then suggest a DIFFERENT, better-fitting catalog service with a fresh [action:quote_options]. If they are not sure which service they need, help them narrow it down from their goal. Keep trying to match a real catalog service; only conclude we do not offer it after you have genuinely tried and nothing fits.';
@@ -1102,7 +1104,11 @@ function parseDateTimeFromText(text: string): { date?: string; slot?: string } {
 const NON_NAME_WORDS = new Set([
   "yeah", "yes", "yep", "no", "nope", "ok", "okay", "sure", "hi", "hello", "hey",
   "thanks", "thank", "morning", "noon", "afternoon", "evening", "night", "today",
-  "tomorrow", "tonight", "correct", "right", "nope", "yup", "cool", "great",
+  "tomorrow", "tonight", "correct", "right", "yup", "cool", "great",
+  // common words that follow "name"/"you are" but are NOT names
+  "and", "a", "an", "the", "your", "my", "our", "or", "number", "contact",
+  "is", "are", "was", "to", "for", "at", "on", "in", "of", "with", "you", "we",
+  "it", "that", "this", "please", "here", "there", "name", "phone", "details",
 ]);
 
 /**
@@ -1116,9 +1122,16 @@ function extractName(message: string, replyText = ""): string | undefined {
   // Explicit patterns, checked on the user message AND the assistant's echo (the
   // model often confirms "I have your name as Brian" when the user gave it earlier).
   const explicit =
-    /(?:my name(?:'?s| is| as)?|i'?m|i am|call me|name(?:'?s| is| as|d)?|name as|it'?s|this is|you(?:'?re| are)|speaking (?:with|to)|your name as)\s+([A-Za-z][A-Za-z'-]{1,30})/i;
+    /(?:my name(?:'?s| is| as)|i'?m|i am|call me|name(?:'?s| is| as)|it'?s|this is|you(?:'?re| are)|speaking (?:with|to))\s+([A-Za-z][A-Za-z'-]{1,30})/i;
   const m = `${message} ${replyText}`.match(explicit);
   if (m && !NON_NAME_WORDS.has(m[1].toLowerCase())) return cap(m[1]);
+  // Personalised-address echo in the assistant's reply ("Got it, Brian!", "Thanks,
+  // Brian"). The next word MUST be Capitalised — names are, mid-sentence stopwords
+  // are not — which keeps "Thanks for"/"Got it now" from matching.
+  const echo = replyText.match(
+    /\b(?:got it|thanks|thank you|alright|welcome|noted|sure|okay|ok)[,!]?\s+([A-Z][a-z'-]{1,20})\b/,
+  );
+  if (echo && !NON_NAME_WORDS.has(echo[1].toLowerCase())) return cap(echo[1]);
   // Bare one-word reply — ONLY the user's message (the reply is long prose).
   const trimmed = message.trim();
   if (
