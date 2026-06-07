@@ -1123,8 +1123,11 @@ function extractName(message: string, replyText = ""): string | undefined {
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   // Explicit patterns, checked on the user message AND the assistant's echo (the
   // model often confirms "I have your name as Brian" when the user gave it earlier).
+  // Only UNAMBIGUOUS name lead-ins. Dropped "you are / it's / this is" — they
+  // matched the assistant's prose ("you are comfortable spending", "it's fine")
+  // and captured a junk name ("Comfortable").
   const explicit =
-    /(?:my name(?:'?s| is| as)|i'?m|i am|call me|name(?:'?s| is| as)|it'?s|this is|you(?:'?re| are)|speaking (?:with|to))\s+([A-Za-z][A-Za-z'-]{1,30})/i;
+    /(?:my name(?:'?s| is| as)|i'?m|i am|call me|name(?:'?s| is| as)|speaking (?:with|to))\s+([A-Za-z][A-Za-z'-]{1,30})/i;
   const m = `${message} ${replyText}`.match(explicit);
   if (m && !NON_NAME_WORDS.has(m[1].toLowerCase())) return cap(m[1]);
   // Personalised-address echo in the assistant's reply ("Got it, Brian!", "Thanks,

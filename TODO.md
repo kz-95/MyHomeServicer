@@ -23,6 +23,18 @@ whether it skipped a word.
   covers the stated amount (RM999 → 500-1000, never 1000-3000).
 - **No repeated cards:** confirmed field/question cards show once, then are
   suppressed (unless the user asks to change/edit). Phone normalised to +60.
+- **Service-question text answers captured:** a number/option typed in chat (e.g.
+  "50" for attendees) is recorded so the question isn't re-asked.
+- **Name false-positives killed:** dropped the "you are / it's / this is" lead-ins
+  that matched the assistant's prose ("you are comfortable spending" → junk name
+  "Comfortable"); only unambiguous lead-ins + a capitalised echo remain.
+- **Prefill → quote handoff (no redundant re-entry):** "Review & submit" carries
+  ALL collected data to the quote form, and the guest quote form ALSO reads the
+  chat's `sessionStorage` prefill as a fallback, so the data prefills even if the
+  user reached the form another way (e.g. tapped a service link mid-chat). Guest
+  ingestion now maps budget + service-question answers too (budget applied after
+  the category resolves so it isn't reset), and chat prefill wins over older saved
+  guest data.
 - **questionSchema-in-chat** (5 card types, serviceDetails, "I'm not sure").
 - **Session isolation + guest persistence:** guest chat + prefill in sessionStorage
   (survives refresh, clears on tab close); returning guest greeted by name with a

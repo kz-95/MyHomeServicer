@@ -702,28 +702,32 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // AI Smart Assistant prefill: base64-encoded JSON from chat widget
+    // AI Smart Assistant prefill: from the ?prefill= param (Review & submit) OR the
+    // chat's own sessionStorage, so the collected details carry over even if the
+    // user reached this page another way (e.g. tapped a service link mid-chat).
+    // Never make the user re-enter what they already told the assistant.
     const prefillParam = this.route.snapshot.queryParamMap.get('prefill');
     if (prefillParam) {
-      try {
-        const chatPrefill = JSON.parse(atob(prefillParam)) as Record<string, unknown>;
-        if (typeof chatPrefill['contactName'] === 'string') this.f.contactName = chatPrefill['contactName'];
-        if (typeof chatPrefill['contactNumber'] === 'string') this.f.contactNumber = chatPrefill['contactNumber'];
-        if (typeof chatPrefill['address'] === 'string') this.f.streetDetails = chatPrefill['address'];
-        if (typeof chatPrefill['timeSlot'] === 'string') this.f.timeSlot = chatPrefill['timeSlot'];
-        if (typeof chatPrefill['preferredDate'] === 'string') this.f.preferredDate = chatPrefill['preferredDate'];
-        if (typeof chatPrefill['notes'] === 'string') this.f.notes = chatPrefill['notes'];
-        if (typeof chatPrefill['categoryId'] === 'string') this.f.categoryId = chatPrefill['categoryId'];
-      } catch { /* ignore invalid prefill */ }
+      try { this.chatPrefillData = JSON.parse(atob(prefillParam)) as Record<string, unknown>; }
+      catch { /* ignore invalid prefill */ }
     }
+    if (!this.chatPrefillData) {
+      try {
+        const raw = sessionStorage.getItem('msvc_guest_prefill');
+        if (raw) this.chatPrefillData = JSON.parse(raw) as Record<string, unknown>;
+      } catch { /* ignore */ }
+    }
+    if (this.chatPrefillData) this.applyChatPrefill(this.chatPrefillData);
 
     // Direct service link from the chat (e.g. ?category=<childId>): preselect the
     // category. load() then resolves its parent + child dropdowns.
     const categoryParam = this.route.snapshot.queryParamMap.get('category');
     if (categoryParam) this.f.categoryId = categoryParam;
 
+    // Chat prefill is the most recent intent — let it win over older saved guest
+    // data so we never overwrite what the assistant just collected.
     const saved = this.auth.getGuestData();
-    if (saved) this.restoreForm(saved);
+    if (saved && !this.chatPrefillData) this.restoreForm(saved);
     this.load();
   }
 
@@ -747,6 +751,37 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Chat-assistant prefill (param or sessionStorage), kept so budget can be applied
+   *  AFTER the category resolves (onCategoryChange resets the budget). */
+  private chatPrefillData: Record<string, unknown> | null = null;
+
+  /** Apply every field the chat collected. Budget is applied later (load()), after
+   *  onCategoryChange has reset it. */
+  private applyChatPrefill(p: Record<string, unknown>): void {
+    const str = (k: string) => (typeof p[k] === 'string' && p[k] ? (p[k] as string) : undefined);
+    if (str('categoryId')) this.f.categoryId = str('categoryId')!;
+    if (str('contactName')) this.f.contactName = str('contactName')!;
+    if (str('contactNumber')) this.f.contactNumber = str('contactNumber')!;
+    if (str('address')) this.f.streetDetails = str('address')!;
+    if (str('newAddressPostcode')) this.f.newAddressPostcode = str('newAddressPostcode')!;
+    if (typeof p['newAddressLat'] === 'number') this.f.newAddressLat = p['newAddressLat'] as number;
+    if (typeof p['newAddressLng'] === 'number') this.f.newAddressLng = p['newAddressLng'] as number;
+    if (str('timeSlot')) this.f.timeSlot = str('timeSlot')!;
+    if (str('preferredDate')) this.f.preferredDate = str('preferredDate')!;
+    if (str('notes')) this.f.notes = str('notes')!;
+    if (p['serviceDetails'] && typeof p['serviceDetails'] === 'object') {
+      this.f.answers = { ...(p['serviceDetails'] as Record<string, unknown>) };
+    }
+  }
+
+  /** Apply the chat's budget bracket after the category (and its ranges) resolve. */
+  private applyChatBudget(): void {
+    const bi = this.chatPrefillData?.['budgetIndex'];
+    if (bi == null || bi === '') return;
+    const idx = Number(bi);
+    if (!Number.isNaN(idx)) { this.f.budgetIndex = String(idx); this.budgetSlider = idx; }
+  }
+
   load(): void {
     this.loadError.set(false);
     this.api.get<{ data: Category[] }>('/categories', { scope: 'all' }).subscribe({
@@ -756,6 +791,8 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
           const child = (r.data ?? []).find((c) => c.id === this.f.categoryId);
           if (child) this.parentId.set(child.parentCategoryId ?? '');
           this.onCategoryChange(this.f.categoryId);
+          // After onCategoryChange (which clears budget), restore the chat's bracket.
+          this.applyChatBudget();
         }
       },
       error: () => this.loadError.set(true),
