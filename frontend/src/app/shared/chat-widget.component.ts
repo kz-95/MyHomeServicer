@@ -1127,6 +1127,9 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   clear(): void {
     this.clearing.set(true);
+    // Wipe any in-progress quote data too (name/phone/date/category etc.) so a
+    // cleared chat doesn't keep remembering "Brian" from the old conversation.
+    this.resetQuoteFlowState();
     const sid = this.sessionId();
     if (sid) {
       this.api.delete(`/chat/session/${sid}/messages`).subscribe({
