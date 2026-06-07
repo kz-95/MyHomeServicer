@@ -325,6 +325,8 @@ export async function buildAssistantPrompt(
       '\nDo NOT ask "what problem or issue are you facing". Instead, acknowledge warmly in ONE short sentence, then figure out which service fits.';
     extra +=
       '\nIf the service is obvious from their message, skip straight to Step 2 and suggest that ONE category. If a message could map to SEVERAL services (e.g. a party could need catering, event planning, or cleaning), do NOT guess one and do NOT just list them in text — emit a SEPARATE [action:quote_options] card for EACH likely service (2 to 3 max) in the same reply, with a short lead-in like "A few could fit, pick the one you want:". The user then picks the right card directly instead of rejecting a wrong guess.';
+    extra +=
+      '\nCRITICAL: if you offered the user a choice between 2+ services (e.g. "catering OR a full Event Planner?") and they reply AMBIGUOUSLY ("yeah", "yes", "sure", "ok", "both") without clearly naming ONE, you MUST emit a card for EVERY option you offered — never pick one for them. A customer who does not know the difference could otherwise be handed the wrong service. When the options are easily confused, add ONE short line explaining the difference (e.g. "Catering just handles the food; an Event Planner coordinates the whole wedding.") so they can choose correctly.';
 
     extra +=
       "\n\n### Step 2: Suggest category — EMIT [action:quote_options] (one card per candidate service)";
