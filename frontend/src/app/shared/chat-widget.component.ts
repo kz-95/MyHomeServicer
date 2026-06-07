@@ -1380,7 +1380,13 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   private armStuckWatchdog(replyText: string, isGuest: boolean, forSessionId: string | undefined): void {
     this.clearStuckTimer();
     if (this.stuckRecoveryDone) return;
-    const promisedCard = /let me check|here (is|are) the service|the service that fits|pick the one|take a look/i.test(replyText);
+    const txt = replyText.trim();
+    // The reply promised a card/service but emitted none. Match common "card coming"
+    // phrasings, OR any reply that ends with a colon ("Here you go:") which always
+    // promises something next.
+    const promisedCard =
+      /let me check|here (you go|it is|'?s|is |are )|the service that fits|pick the one|take a look|let me share|that('?s| is) the right|this is the|we (do|can) (offer|help)|right one for you/i.test(txt) ||
+      /[:：]\s*$/.test(txt);
     if (!promisedCard) return;
     const inQuoteFlow = this.messages().some((m) => m.actionBlocks?.some((b) => b.type.startsWith('quote_')));
     if (!inQuoteFlow) return;
