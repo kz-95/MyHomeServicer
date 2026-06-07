@@ -111,6 +111,10 @@ export const budgetRangesSchema = z.object({
 });
 
 const greetingArray = z.array(z.string().min(1).max(500)).min(10).max(50);
+// Per-tier greeting pools (returning guest, customer, servicer, admin). Fewer
+// required than the anonymous pool, and the returning pool may use a {name}
+// placeholder that the client fills in (e.g. "Hello, is this {name}?").
+const tierGreetingArray = z.array(z.string().min(1).max(500)).min(1).max(50);
 
 const chatServiceKeywordsSchema = z.record(
   z.string().uuid(),
@@ -147,6 +151,10 @@ export const settingsSchemas: Record<string, z.ZodTypeAny> = {
   chat_assistant_prompt: z.string().max(2000),
   chat_assistant_tone: z.enum(['friendly', 'professional', 'casual']),
   chat_greetings: greetingArray,
+  chat_greetings_returning: tierGreetingArray,
+  chat_greetings_customer: tierGreetingArray,
+  chat_greetings_servicer: tierGreetingArray,
+  chat_greetings_admin: tierGreetingArray,
   chat_service_keywords: chatServiceKeywordsSchema,
   chat_banned_words: z.array(z.string().min(1)).max(200),
   dispatch_prompt_timeout_seconds: z.object({ seconds: z.number().int().positive() }),

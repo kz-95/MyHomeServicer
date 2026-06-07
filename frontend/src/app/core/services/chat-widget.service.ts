@@ -42,11 +42,11 @@ export class ChatWidgetService {
   /** Whether a greeting has been shown in this session. */
   private greetingSeen = false;
 
-  /** Preset greetings loaded from admin settings. */
-  private greetingPool: string[] = [];
+  /** Preset greetings per tier (anonymous / returning / customer / servicer / admin). */
+  private greetingPools: Record<string, string[]> = {};
 
-  /** Track used greeting indices for round-robin. */
-  private usedGreetingIndices = new Set<number>();
+  /** Track used greeting indices for round-robin, per tier. */
+  private usedByTier: Record<string, Set<number>> = {};
 
   open(): void {
     this.isOpenSig.set(true);
@@ -75,35 +75,58 @@ export class ChatWidgetService {
     }
   }
 
+  /** Load the anonymous greeting pool (backward-compatible). */
   setGreetings(greetings: string[]): void {
-    if (greetings.length >= 10) {
-      this.greetingPool = greetings;
+    if (greetings.length >= 10) this.greetingPools['anonymous'] = greetings;
+  }
+
+  /** Load every tier's pool at once. Anonymous keeps its >=10 requirement. */
+  setGreetingTiers(pools: Record<string, string[]>): void {
+    if ((pools['anonymous']?.length ?? 0) >= 10) this.greetingPools['anonymous'] = pools['anonymous'];
+    for (const tier of ['returning', 'customer', 'servicer', 'admin']) {
+      if (Array.isArray(pools[tier])) this.greetingPools[tier] = pools[tier];
     }
   }
 
+  /**
+   * Pick a greeting for a tier, filling the {name} placeholder. Falls back to the
+   * anonymous pool when a tier is empty so behaviour never regresses.
+   */
+  getGreeting(tier: string, name?: string): string {
+    let pool = this.greetingPools[tier] ?? [];
+    let poolTier = tier;
+    if (pool.length === 0) { pool = this.greetingPools['anonymous'] ?? []; poolTier = 'anonymous'; }
+    if (pool.length === 0) return '';
+    return this.applyName(pool[this.pickIndex(poolTier, pool.length)], name);
+  }
+
+  /** Anonymous-pool greeting (legacy callers). */
   getNextGreeting(): string {
-    if (this.greetingPool.length === 0) return '';
-    // Round-robin: find first unused index
-    for (let i = 0; i < this.greetingPool.length; i++) {
-      if (!this.usedGreetingIndices.has(i)) {
-        this.usedGreetingIndices.add(i);
-        return this.greetingPool[i];
-      }
-    }
-    // All used - reset and use the first one
-    this.usedGreetingIndices.clear();
-    this.usedGreetingIndices.add(0);
-    return this.greetingPool[0];
+    return this.getGreeting('anonymous');
   }
 
-  getRandomGreeting(): string {
-    if (this.greetingPool.length === 0) return '';
-    const idx = Math.floor(Math.random() * this.greetingPool.length);
-    return this.greetingPool[idx];
+  /** Round-robin index within a tier. */
+  private pickIndex(tier: string, len: number): number {
+    const used = this.usedByTier[tier] ?? new Set<number>();
+    for (let i = 0; i < len; i++) {
+      if (!used.has(i)) { used.add(i); this.usedByTier[tier] = used; return i; }
+    }
+    used.clear(); used.add(0); this.usedByTier[tier] = used;
+    return 0;
+  }
+
+  /** Fill {name}; if no name, drop the placeholder and tidy stray punctuation. */
+  private applyName(text: string, name?: string): string {
+    if (name && name.trim()) return text.replace(/\{name\}/gi, name.trim());
+    return text
+      .replace(/,?\s*\{name\}/gi, '')
+      .replace(/\{name\}/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
   }
 
   hasGreeting(): boolean {
-    return this.greetingPool.length > 0;
+    return (this.greetingPools['anonymous']?.length ?? 0) > 0;
   }
 
   markGreetingSeen(): void {

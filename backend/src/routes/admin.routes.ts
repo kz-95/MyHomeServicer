@@ -1189,7 +1189,9 @@ adminRouter.get(
       'chat_assistant_enabled', 'chat_quote_enabled', 'chat_profile_enabled',
       'chat_guest_enabled', 'chat_history_limit', 'chat_guest_auto_open',
       'chat_guest_auto_open_delay', 'chat_assistant_prompt', 'chat_assistant_tone',
-      'chat_greetings', 'chat_service_keywords', 'chat_banned_words',
+      'chat_greetings', 'chat_greetings_returning', 'chat_greetings_customer',
+      'chat_greetings_servicer', 'chat_greetings_admin',
+      'chat_service_keywords', 'chat_banned_words',
     ];
     const rows = await prisma.platformSettings.findMany({
       where: { key: { in: keys } },

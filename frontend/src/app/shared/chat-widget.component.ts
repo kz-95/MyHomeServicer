@@ -6,7 +6,7 @@ import { Subscription, filter } from 'rxjs';
 import { AuthService } from '../core/services/auth.service';
 import { ApiService } from '../core/services/api.service';
 import { SocketService } from '../core/services/socket.service';
-import { ChatWidgetService } from '../core/services/chat-widget.service';
+import { ChatWidgetService, PrefillData } from '../core/services/chat-widget.service';
 import { PinService } from '../core/services/pin.service';
 import { QuoteAssistBridge } from '../core/services/quote-assist-bridge.service';
 import { PlacesAutocompleteComponent, PlaceResult } from './places-autocomplete.component';
@@ -24,6 +24,10 @@ interface PublicConfig {
   chatGuestAutoOpen?: boolean;
   chatGuestAutoOpenDelay?: number;
   chatGreetings?: string[];
+  chatGreetingsReturning?: string[];
+  chatGreetingsCustomer?: string[];
+  chatGreetingsServicer?: string[];
+  chatGreetingsAdmin?: string[];
 }
 
 @Component({
@@ -328,6 +332,16 @@ interface PublicConfig {
                               <button class="btn-primary" [disabled]="sending() || connecting()" (click)="retryLastMessage()">{{ getStr(b.data, 'label') || 'Try again' }}</button>
                             </div>
                           }
+                        }
+                        @case ('identity_confirm') {
+                          <div class="ac-link">
+                            @if (identityConfirmed() === null) {
+                              <button class="btn-primary" (click)="confirmIdentity(true)">Yes, it's me</button>
+                              <button class="btn-outline" (click)="confirmIdentity(false)">No, not me</button>
+                            } @else {
+                              <span class="muted" style="font-size:0.82rem">{{ identityConfirmed() ? '✅ Confirmed' : 'Starting fresh' }}</span>
+                            }
+                          </div>
                         }
                       }
                     </div>
@@ -835,6 +849,18 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         try { sessionStorage.setItem(this.GUEST_CHAT_KEY, JSON.stringify(msgs)); } catch { /* quota/private mode */ }
       }
     }, opts);
+    // Persist guest quote prefill (name/phone/address) so a refresh can greet the
+    // returning guest by name. Only WRITE when there's data — never overwrite the
+    // stored prefill with the empty initial state on load (that race would erase
+    // the very data we want to restore). Clearing is explicit (clearGuestPrefill).
+    effect(() => {
+      const data = this.widget.prefillData();
+      if (this.auth.principal()) return;
+      const hasData = Object.values(data).some((v) => v !== undefined && v !== null && v !== '');
+      if (hasData) {
+        try { sessionStorage.setItem(this.GUEST_PREFILL_KEY, JSON.stringify(data)); } catch { /* quota/private mode */ }
+      }
+    }, opts);
 
     // Auto-send: when a pendingQuestion is set and the chat panel is open and ready,
     // fire the question as if the user typed it.
@@ -912,8 +938,14 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   private loadChatSettings(): void {
     this.api.get<PublicConfig>('/config/public').subscribe({
       next: (r) => {
-        // Greetings
-        if (Array.isArray(r.chatGreetings)) this.widget.setGreetings(r.chatGreetings);
+        // Greetings (all tiers)
+        this.widget.setGreetingTiers({
+          anonymous: r.chatGreetings ?? [],
+          returning: r.chatGreetingsReturning ?? [],
+          customer: r.chatGreetingsCustomer ?? [],
+          servicer: r.chatGreetingsServicer ?? [],
+          admin: r.chatGreetingsAdmin ?? [],
+        });
 
         // Guest auto-open (only for unauthenticated users)
         if (this.auth.principal()) return;
@@ -1127,9 +1159,13 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   clear(): void {
     this.clearing.set(true);
-    // Wipe any in-progress quote data too (name/phone/date/category etc.) so a
-    // cleared chat doesn't keep remembering "Brian" from the old conversation.
+    // Wipe EVERYTHING: in-progress quote data (name/phone/date/category), the
+    // persisted guest prefill, and the archived prior thread — a cleared chat must
+    // not keep remembering "Brian" or offer to continue an old session.
     this.resetQuoteFlowState();
+    this.clearGuestPrefill();
+    this.archivedGuestMsgs = null;
+    this.identityConfirmed.set(null);
     const sid = this.sessionId();
     if (sid) {
       this.api.delete(`/chat/session/${sid}/messages`).subscribe({
@@ -1144,6 +1180,46 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       this.clearGuestStorage();
       this.clearing.set(false);
     }
+  }
+
+  /** null = not asked / unanswered; true/false once the returning guest replies. */
+  identityConfirmed = signal<boolean | null>(null);
+
+  /** Returning-guest identity confirm. Yes keeps the remembered contact + address;
+   *  No wipes them so the next quote starts clean. */
+  confirmIdentity(yes: boolean): void {
+    this.identityConfirmed.set(yes);
+    const name = (this.widget.prefillData()['contactName'] as string | undefined)?.trim() ?? '';
+    if (yes) {
+      this.appendAssistantBubble(name ? `Great, welcome back ${name}! How can I help you today?` : 'Welcome back! How can I help you today?');
+    } else {
+      // Drop the remembered identity + address; keep nothing personal.
+      this.widget.accumulatePrefill({ contactName: '', contactNumber: '', address: '' });
+      this.contactNameDraft.set('');
+      this.contactPhoneLocal.set('');
+      this.addrStreet.set('');
+      this.addressConfirmed.set(false);
+      this.clearGuestPrefill();
+      this.appendAssistantBubble('No problem, let\'s start fresh. How can I help you today?');
+    }
+  }
+
+  /** Append an assistant bubble to whichever buffer is active. */
+  private appendAssistantBubble(content: string): void {
+    const msg: ChatMessage = { role: 'assistant', content, createdAt: new Date().toISOString() };
+    if (this.sessionId()) this.authMsgs.update((m) => [...m, msg]);
+    else this.guestMsgs.update((m) => [...m, msg]);
+    this.scrollBottom = true;
+  }
+
+  /** Greeting tier + display name for the signed-in user. */
+  private roleGreeting(): { tier: string; name: string } {
+    const p = this.auth.principal();
+    if (!p) return { tier: 'anonymous', name: '' };
+    const name = ((p as { name?: string }).name ?? '').trim();
+    if (p.role === 'admin') return { tier: 'admin', name };
+    if (p.role === 'servicer') return { tier: 'servicer', name };
+    return { tier: 'customer', name };
   }
 
   /** Prefill input signals for chat-based quote field collection. */
@@ -1813,6 +1889,27 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   private sendGuest(text: string): void {
+    // "Continue last session": pull the archived prior thread back instead of
+    // starting fresh from the returning-guest greeting. Only when there's something
+    // archived (set by the returning greeting in loadGuest).
+    if (
+      this.archivedGuestMsgs && this.archivedGuestMsgs.length > 0 &&
+      (/\b(continue|resume|carry on|pick up|go back)\b/i.test(text) &&
+        /\b(last|previous|prior|earlier|where|session|chat|conversation|left off)\b/i.test(text) ||
+        /what (did |were )?we (talk|talked|discuss|discussed|chat|chatted|saying|said)/i.test(text))
+    ) {
+      const archived = this.archivedGuestMsgs;
+      this.archivedGuestMsgs = null;
+      this.identityConfirmed.set(true);
+      this.guestMsgs.set([
+        ...archived,
+        { role: 'user', content: text, createdAt: new Date().toISOString() },
+        { role: 'assistant', content: 'Sure, here\'s where we left off. How can I help you continue?', createdAt: new Date().toISOString() },
+      ]);
+      this.draft = '';
+      this.scrollBottom = true;
+      return;
+    }
     const userMsg: ChatMessage = { role: 'user', content: text, createdAt: new Date().toISOString() };
     this.guestMsgs.update((m) => [...m, userMsg]);
     this.draft = '';
@@ -2004,6 +2101,24 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     try { sessionStorage.removeItem(this.GUEST_CHAT_KEY); } catch { /* private mode */ }
   }
 
+  /** sessionStorage key for the guest quote prefill (name/phone/address/etc.). */
+  private readonly GUEST_PREFILL_KEY = 'msvc_guest_prefill';
+  /** Prior-session messages archived behind the returning greeting, restored on
+   *  "continue last session". */
+  private archivedGuestMsgs: ChatMessage[] | null = null;
+
+  private readGuestPrefill(): PrefillData | null {
+    try {
+      const raw = sessionStorage.getItem(this.GUEST_PREFILL_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === 'object' ? (parsed as PrefillData) : null;
+    } catch { return null; }
+  }
+
+  private clearGuestPrefill(): void {
+    try { sessionStorage.removeItem(this.GUEST_PREFILL_KEY); } catch { /* private mode */ }
+  }
+
   /**
    * Clear ALL accumulated quote-flow state - the shared prefillData plus every
    * local card signal. Called on any identity change so a previous user's or
@@ -2046,13 +2161,26 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.sessionId.set(null);
     this.initError.set('');
     if (this.guestMsgs().length === 0) {
-      // Restore a refresh-persisted guest conversation; else start with a greeting.
       const restored = this.readGuestStorage();
-      if (restored && restored.length > 0) {
+      const savedPrefill = this.readGuestPrefill();
+      const name = (savedPrefill?.['contactName'] as string | undefined)?.trim();
+      if (name && this.widget.hasGreeting()) {
+        // Returning guest: restore their prefill, archive the old thread for
+        // "continue last session", and greet by name with a yes/no identity confirm.
+        this.widget.resetPrefill();
+        this.widget.accumulatePrefill(savedPrefill ?? {});
+        this.archivedGuestMsgs = restored && restored.length > 0 ? restored : null;
+        this.identityConfirmed.set(null);
+        this.guestMsgs.set([{
+          role: 'assistant',
+          content: this.widget.getGreeting('returning', name),
+          createdAt: new Date().toISOString(),
+          actionBlocks: [{ type: 'identity_confirm', data: { name } }],
+        }]);
+      } else if (restored && restored.length > 0) {
         this.guestMsgs.set(restored);
       } else if (this.widget.hasGreeting()) {
-        const greeting = this.widget.getNextGreeting();
-        this.guestMsgs.set([{ role: 'assistant', content: greeting, createdAt: new Date().toISOString() }]);
+        this.guestMsgs.set([{ role: 'assistant', content: this.widget.getGreeting('anonymous'), createdAt: new Date().toISOString() }]);
       }
     }
   }
@@ -2122,7 +2250,8 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
           // Ignore a late response if the session changed or the user logged out.
           if (this.sessionId() !== sid) return;
           if (r.data.length === 0 && this.widget.hasGreeting()) {
-            const greeting = this.widget.getNextGreeting();
+            const rg = this.roleGreeting();
+            const greeting = this.widget.getGreeting(rg.tier, rg.name);
             this.authMsgs.set([{ role: 'assistant', content: greeting, createdAt: new Date().toISOString() }]);
           } else {
             this.authMsgs.set(r.data);

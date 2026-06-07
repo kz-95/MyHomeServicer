@@ -141,6 +141,29 @@ function emptyForm(tier: string): FaqForm {
           @if (greetingsMsg(); as m) { <p [class.err]="m.error" class="row-msg">{{ m.text }}</p> }
         </section>
 
+        @for (tier of greetingTiers; track tier.key) {
+          <section class="card page-child">
+            <h2>{{ tier.label }} greetings</h2>
+            <p class="muted small">{{ tier.hint }} Use <code>&#123;name&#125;</code> for the person's name. Min 1, max 50. Falls back to the anonymous pool if empty.</p>
+            <div class="greeting-list">
+              @for (g of (tierGreetings()[tier.key] ?? []); track i; let i = $index) {
+                <div class="greeting-row">
+                  <span class="greeting-idx">{{ i + 1 }}</span>
+                  <input type="text" [ngModel]="g" (ngModelChange)="updateTierGreeting(tier.key, i, $event)" name="{{tier.key}}_{{i}}" placeholder="Enter greeting (use &#123;name&#125;)" maxlength="500" />
+                  <button class="icon-btn" (click)="removeTierGreeting(tier.key, i)" title="Remove greeting">&times;</button>
+                </div>
+              }
+            </div>
+            @if ((tierGreetings()[tier.key] ?? []).length < 50) {
+              <button class="btn-outline" (click)="addTierGreeting(tier.key)">+ Add greeting</button>
+            }
+            <div class="actions">
+              <button class="btn-primary" (click)="saveTier(tier.key)" [disabled]="savingTier() === tier.key">{{ savingTier() === tier.key ? 'Saving…' : 'Save ' + tier.label.toLowerCase() + ' greetings' }}</button>
+            </div>
+            @if (tierMsg(); as m) { @if (m.key === tier.key) { <p [class.err]="m.error" class="row-msg">{{ m.text }}</p> } }
+          </section>
+        }
+
         <section class="card page-child">
           <h2>Banned Words</h2>
           <p class="muted small">Words or characters the AI must never use in responses. The AI is instructed to avoid them, and they are filtered server-side as a safety net.</p>
@@ -400,6 +423,17 @@ export class AdminAiChatSettingsComponent implements OnInit {
   });
   savingGreetings = signal(false);
   greetingsMsg = signal<{ text: string; error: boolean } | null>(null);
+
+  /** Per-tier greeting pools (anonymous pool stays the `greetings` signal above). */
+  readonly greetingTiers = [
+    { key: 'chat_greetings_returning', label: 'Returning guest', hint: 'Shown on refresh when a guest is remembered (the "is this you?" greeting).' },
+    { key: 'chat_greetings_customer', label: 'Logged-in customer', hint: 'Shown to signed-in customers.' },
+    { key: 'chat_greetings_servicer', label: 'Servicer', hint: 'Shown to signed-in servicers.' },
+    { key: 'chat_greetings_admin', label: 'Admin', hint: 'Shown to signed-in admins.' },
+  ];
+  tierGreetings = signal<Record<string, string[]>>({});
+  savingTier = signal<string | null>(null);
+  tierMsg = signal<{ key: string; text: string; error: boolean } | null>(null);
   bannedWords = signal<string[]>([]);
   bannedWordSearch = signal('');
   filteredBannedWords = computed(() => {
@@ -500,6 +534,11 @@ export class AdminAiChatSettingsComponent implements OnInit {
         if (d['chat_assistant_prompt'] != null) this.customPrompt.set(d['chat_assistant_prompt'] as string);
         if (d['chat_assistant_tone'] != null) this.tone.set(d['chat_assistant_tone'] as string);
         if (d['chat_greetings'] != null) this.greetings.set(d['chat_greetings'] as string[]);
+        const tiers: Record<string, string[]> = {};
+        for (const t of this.greetingTiers) {
+          if (d[t.key] != null) tiers[t.key] = d[t.key] as string[];
+        }
+        this.tierGreetings.set(tiers);
         if (d['chat_banned_words'] != null) this.bannedWords.set(d['chat_banned_words'] as string[]);
         this.loading.set(false);
       },
@@ -561,6 +600,30 @@ export class AdminAiChatSettingsComponent implements OnInit {
     if (g.length < 10) { this.greetingsMsg.set({ text: 'At least 10 greetings are required.', error: true }); return; }
     if (g.length > 50) { this.greetingsMsg.set({ text: 'Maximum 50 greetings allowed.', error: true }); return; }
     this.persist('chat_greetings', g, this.savingGreetings, this.greetingsMsg);
+  }
+
+  addTierGreeting(key: string): void {
+    this.tierGreetings.update((m) => ({ ...m, [key]: [...(m[key] ?? []), ''] }));
+  }
+  removeTierGreeting(key: string, idx: number): void {
+    this.tierGreetings.update((m) => ({ ...m, [key]: (m[key] ?? []).filter((_, i) => i !== idx) }));
+  }
+  updateTierGreeting(key: string, idx: number, val: string): void {
+    this.tierGreetings.update((m) => ({ ...m, [key]: (m[key] ?? []).map((g, i) => (i === idx ? val : g)) }));
+  }
+  saveTier(key: string): void {
+    const g = (this.tierGreetings()[key] ?? []).map((x) => x.trim()).filter((x) => x.length > 0);
+    if (g.length < 1) { this.tierMsg.set({ key, text: 'At least 1 greeting is required.', error: true }); return; }
+    if (g.length > 50) { this.tierMsg.set({ key, text: 'Maximum 50 greetings allowed.', error: true }); return; }
+    this.pin.requirePin().subscribe((pin) => {
+      if (!pin) return;
+      this.savingTier.set(key);
+      this.tierMsg.set(null);
+      this.api.patch('/admin/settings', { key, value: g }, { 'x-action-pin': pin }).subscribe({
+        next: () => { this.savingTier.set(null); this.tierMsg.set({ key, text: 'Saved.', error: false }); },
+        error: (e) => { this.savingTier.set(null); this.tierMsg.set({ key, text: e.message ?? 'Save failed', error: true }); },
+      });
+    });
   }
 
   saveBannedWords(): void {

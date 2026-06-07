@@ -1484,6 +1484,32 @@ export const platformSettings: { key: string; value: unknown }[] = [
       'Looking to book a service? I\'m here to help.',
       'Hi! Whether you need a quote or just have a question, I\'m here.',
     ] },
+  // Returning guest — {name} is filled by the client with the remembered name.
+  { key: 'chat_greetings_returning', value: [
+      'Hello there, is this {name}? How can I help you today?',
+      'Welcome back! Is this {name}? What can I do for you?',
+      'Hi again! Am I speaking with {name}? How can I help?',
+      'Good to see you back, {name}! Is that you? What do you need today?',
+    ] },
+  // Logged-in customer — {name} is the account holder.
+  { key: 'chat_greetings_customer', value: [
+      'Welcome back, {name}! How can I help you today?',
+      'Hi {name}! Need a quote, a booking, or have a question?',
+      'Hello {name}! What can I do for you today?',
+      'Good to see you, {name}! How can I make your day easier?',
+    ] },
+  // Servicer / merchant.
+  { key: 'chat_greetings_servicer', value: [
+      'Hi {name}! Need help with your jobs, schedule, or account?',
+      'Hello {name}! How can I help you with your services today?',
+      'Welcome back, {name}! Any questions about orders or payouts?',
+    ] },
+  // Admin.
+  { key: 'chat_greetings_admin', value: [
+      'Hi {name}! What would you like to look into today?',
+      'Hello {name}! Need help with settings, users, or reports?',
+      'Welcome back, {name}! How can I assist with the platform?',
+    ] },
   { key: 'chat_service_keywords', value: {} },
 ];
 

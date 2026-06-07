@@ -67,7 +67,11 @@ apiRouter.get(
 apiRouter.get(
   '/config/public',
   asyncHandler(async (_req, res) => {
-    const keys = ['condo_entry_note', 'chat_guest_auto_open', 'chat_guest_auto_open_delay', 'chat_greetings'];
+    const keys = [
+      'condo_entry_note', 'chat_guest_auto_open', 'chat_guest_auto_open_delay',
+      'chat_greetings', 'chat_greetings_returning', 'chat_greetings_customer',
+      'chat_greetings_servicer', 'chat_greetings_admin',
+    ];
     const rows = await prisma.platformSettings.findMany({
       where: { key: { in: keys } },
       select: { key: true, value: true },
@@ -79,7 +83,13 @@ apiRouter.get(
       condoEntryNote: (byKey['condo_entry_note'] as string) ?? '',
       chatGuestAutoOpen: (byKey['chat_guest_auto_open'] as boolean) ?? true,
       chatGuestAutoOpenDelay: (byKey['chat_guest_auto_open_delay'] as number) ?? 3000,
+      // Tiered greeting pools. Anonymous = chat_greetings; the rest fall back to it
+      // when a tier is unset so behaviour never regresses.
       chatGreetings: (byKey['chat_greetings'] as string[]) ?? [],
+      chatGreetingsReturning: (byKey['chat_greetings_returning'] as string[]) ?? [],
+      chatGreetingsCustomer: (byKey['chat_greetings_customer'] as string[]) ?? [],
+      chatGreetingsServicer: (byKey['chat_greetings_servicer'] as string[]) ?? [],
+      chatGreetingsAdmin: (byKey['chat_greetings_admin'] as string[]) ?? [],
     });
   }),
 );
