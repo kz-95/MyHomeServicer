@@ -1194,6 +1194,36 @@ function extractAddress(text: string): string | undefined {
 }
 
 /**
+ * Match a bare answer the user typed against a pending service question, so an
+ * answer given in text (e.g. "50" for an attendees question) is captured and the
+ * question is never re-asked. Only the unambiguous types: number/quantity (a
+ * bare-ish number) and radio (a matched option). Free text + checkbox are left to
+ * the model so we never capture an unrelated message as the answer.
+ */
+function matchQuestionAnswer(
+  q: { type: string; options?: Array<{ value: string; label: string }> },
+  message: string,
+): string | undefined {
+  const text = message.trim();
+  if (!text || text.length > 40) return undefined;
+  if (q.type === "number" || q.type === "quantity") {
+    const m = text.match(/^\D{0,8}(\d{1,7})\D{0,8}$/);
+    return m ? m[1] : undefined;
+  }
+  if (q.type === "radio" && q.options?.length) {
+    const lower = text.toLowerCase();
+    const hit = q.options.find(
+      (o) =>
+        lower === o.value.toLowerCase() ||
+        lower === o.label.toLowerCase() ||
+        lower.includes(o.label.toLowerCase()),
+    );
+    return hit ? hit.value : undefined;
+  }
+  return undefined;
+}
+
+/**
  * Once a category is confirmed, the quote flow must keep advancing. The model
  * frequently stalls — it re-emits a quote_options card (which we strip) or just
  * says "let me check..." with no action block, leaving the user stuck with no
@@ -1665,9 +1695,32 @@ export async function sendToAi(
           .filter((b) => b.type === "quote_question")
           .map((b) => b.data.key as string),
       );
-      const unansweredQ = categoryQuestions.filter(
+      let unansweredQ = categoryQuestions.filter(
         (q) => !answeredQ.has(q.key),
       );
+      // Capture a bare answer the user typed for the question asked last turn (the
+      // first unanswered one), so it's marked answered and not re-asked.
+      if (unansweredQ.length > 0) {
+        const q = unansweredQ[0];
+        const ans = matchQuestionAnswer(q, message);
+        if (ans) {
+          // Fill the model's existing (empty) card, else push a new filled one — so
+          // the answer shows once as confirmed and the question is never re-asked.
+          const existing = outBlocks.find(
+            (b) => b.type === "quote_question" && b.data.key === q.key,
+          );
+          if (existing) {
+            if (existing.data.value == null || existing.data.value === "") existing.data.value = ans;
+          } else {
+            outBlocks.push({
+              type: "quote_question",
+              data: { key: q.key, label: q.label, qtype: q.type, value: ans },
+            });
+          }
+          answeredQ.add(q.key);
+          unansweredQ = categoryQuestions.filter((qq) => !answeredQ.has(qq.key));
+        }
+      }
 
       for (const nb of nextStepBlocks([...done])) {
         if (nb.type === "quote_prefill") {
