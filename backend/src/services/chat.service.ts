@@ -1099,6 +1099,34 @@ function parseDateTimeFromText(text: string): { date?: string; slot?: string } {
   return out;
 }
 
+const NON_NAME_WORDS = new Set([
+  "yeah", "yes", "yep", "no", "nope", "ok", "okay", "sure", "hi", "hello", "hey",
+  "thanks", "thank", "morning", "noon", "afternoon", "evening", "night", "today",
+  "tomorrow", "tonight", "correct", "right", "nope", "yup", "cool", "great",
+]);
+
+/**
+ * Extract a person's name the user typed in reply to "what name should I put the
+ * booking under?" — the model often acknowledges it ("Thanks Hugo!") but emits an
+ * empty name field. Only called while the name card is showing, so a bare one-word
+ * reply is safely treated as the name.
+ */
+function extractName(message: string): string | undefined {
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const m = message.match(
+    /(?:my name(?:'?s| is)?|i'?m|i am|call me|name(?:'?s| is)?|it'?s|this is)\s+([A-Za-z][A-Za-z'-]{1,30})/i,
+  );
+  if (m) return cap(m[1]);
+  const trimmed = message.trim();
+  if (
+    /^[A-Za-z][A-Za-z'-]{1,30}$/.test(trimmed) &&
+    !NON_NAME_WORDS.has(trimmed.toLowerCase())
+  ) {
+    return cap(trimmed);
+  }
+  return undefined;
+}
+
 /**
  * Once a category is confirmed, the quote flow must keep advancing. The model
  * frequently stalls — it re-emits a quote_options card (which we strip) or just
@@ -1503,6 +1531,7 @@ export async function sendToAi(
         if (hasTimeIntent) fillField("timeSlot", parsed.slot);
       }
 
+
       // Fields are "done" if the client already collected them OR the model just
       // pre-filled them with a value in this reply.
       const done = new Set(opts?.collected ?? []);
@@ -1564,6 +1593,18 @@ export async function sendToAi(
         } else if (!present.has(nb.data.key as string)) {
           outBlocks.push(nb);
         }
+      }
+
+      // Now that the contact step's cards are present, capture a name the user typed
+      // into an empty contactName card — the model often acknowledges "Thanks Hugo!"
+      // but emits an empty name field. Fills only an EXISTING empty card (we're at
+      // the name step), so a one-word reply is safely treated as the name.
+      const nameCard = outBlocks.find(
+        (b) => b.type === "quote_field" && b.data.key === "contactName",
+      );
+      if (nameCard && (nameCard.data.value == null || nameCard.data.value === "")) {
+        const name = extractName(message);
+        if (name) nameCard.data.value = name;
       }
     }
   }
