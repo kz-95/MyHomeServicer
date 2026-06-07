@@ -1468,25 +1468,34 @@ export async function sendToAi(
       );
     if (collectingFields) {
       // Deterministic date/time pre-fill: the model often states a resolved date in
-      // its text but emits an empty picker. Parse the date/time out of the reply +
-      // the user message and fill the card ourselves, so it never relies on the
-      // model (or on which LLM happened to answer) emitting the value.
-      const parsed = parseDateTimeFromText(`${processed.text} ${message}`);
-      const fillField = (key: string, val?: string) => {
-        if (!val) return;
-        const existing = outBlocks.find(
-          (b) => b.type === "quote_field" && b.data.key === key,
+      // its text but emits an empty picker. Parse it ourselves so it never relies on
+      // the model (or which LLM answered) emitting the value. ONLY when the USER's
+      // own message expresses date/time intent — otherwise an incidental word in the
+      // assistant's prose ("how can I help you today?") would wrongly fill a date.
+      const userText = message.toLowerCase();
+      const hasDateIntent =
+        /\b(today|tomorrow|tonight|tmr|tmrw|mon|tues?|wed|thu(rs)?|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?|weekend|next (week|month|year)|[0-3]?\d[-/][01]?\d)\b/i.test(
+          userText,
         );
-        if (existing) {
-          if (existing.data.value == null || existing.data.value === "") {
-            existing.data.value = val;
+      const hasTimeIntent = /\b(morning|noon|midday|afternoon|evening|night|tonight)\b/i.test(userText);
+      if (hasDateIntent || hasTimeIntent) {
+        const parsed = parseDateTimeFromText(`${message} ${processed.text}`);
+        const fillField = (key: string, val?: string) => {
+          if (!val) return;
+          const existing = outBlocks.find(
+            (b) => b.type === "quote_field" && b.data.key === key,
+          );
+          if (existing) {
+            if (existing.data.value == null || existing.data.value === "") {
+              existing.data.value = val;
+            }
+          } else {
+            outBlocks.push({ type: "quote_field", data: { key, value: val } });
           }
-        } else {
-          outBlocks.push({ type: "quote_field", data: { key, value: val } });
-        }
-      };
-      fillField("preferredDate", parsed.date);
-      fillField("timeSlot", parsed.slot);
+        };
+        if (hasDateIntent) fillField("preferredDate", parsed.date);
+        if (hasTimeIntent) fillField("timeSlot", parsed.slot);
+      }
 
       // Fields are "done" if the client already collected them OR the model just
       // pre-filled them with a value in this reply.
