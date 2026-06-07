@@ -1037,6 +1037,9 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         if (cid && !this.widget.prefillData()['categoryId']) {
           this.widget.accumulatePrefill({ categoryId: cid });
         }
+        // Collapse the matching quote_options card so a text-confirm ("yep") shows
+        // as resolved just like tapping "Yes, that's it".
+        if (cid) this.markCardResolved(cid);
       } else {
         rest.push(b);
       }
@@ -1147,6 +1150,10 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     // Guard double-submit: input stays enabled while a reply is in flight (so
     // keyboard focus is never lost), but we must not fire a second request.
     if (!text || this.connecting() || this.sending()) return;
+
+    // Deterministically confirm a single pending service card on an affirmation,
+    // before sending, so categoryLocked/categoryId go out with this request.
+    this.maybeTextConfirmCategory(text);
 
     // Mode is decided solely by whether a JWT session is live, so the buffer we
     // write to always matches the buffer the computed renders.
@@ -1550,6 +1557,31 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   private markCardResolved(categoryId: string): void {
     if (categoryId && !this.resolvedCards().includes(categoryId)) {
       this.resolvedCards.update((ids) => [...ids, categoryId]);
+    }
+  }
+
+  /**
+   * Deterministic text-confirm: when the user types an affirmation and exactly ONE
+   * service card is still pending, lock that category and collapse the card right
+   * away — no waiting on the model to emit category_lock (which it often forgets).
+   * Ambiguous cases (0 or 2+ pending cards) are left to the assistant.
+   */
+  private maybeTextConfirmCategory(text: string): void {
+    if (this.widget.prefillData()['categoryId']) return;
+    if (!/^\s*(yep|yes|yeah|yup|sure|ok(ay)?|correct|right|that('?s| is)?( it| the one)?|the first( one)?|do it|proceed|go ahead|confirm(ed)?|let'?s go|sounds good)\b/i.test(text)) return;
+    const resolved = new Set(this.resolvedCards());
+    const pending: string[] = [];
+    for (const m of this.messages()) {
+      for (const b of (m.actionBlocks ?? [])) {
+        if (b.type === 'quote_options') {
+          const cid = b.data['categoryId'] as string | undefined;
+          if (cid && !resolved.has(cid) && !pending.includes(cid)) pending.push(cid);
+        }
+      }
+    }
+    if (pending.length === 1) {
+      this.widget.accumulatePrefill({ categoryId: pending[0] });
+      this.markCardResolved(pending[0]);
     }
   }
 
