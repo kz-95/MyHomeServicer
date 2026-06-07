@@ -1654,25 +1654,26 @@ export async function sendToAi(
         }
       }
 
-      // Now that the contact step's cards are present, capture a name the user typed
-      // into an empty contactName card — the model often acknowledges "Thanks Hugo!"
-      // but emits an empty name field. Fills only an EXISTING empty card (we're at
-      // the name step), so a one-word reply is safely treated as the name.
+      // Capture contact + budget the user may have given EARLIER (e.g. all in the
+      // first message "...Brian, 0111123456...") — scan the whole conversation, not
+      // just this turn, so the cards fill instead of the model "already have your
+      // name/phone" while the empty cards keep showing. Fills only EXISTING empty
+      // cards (we're at that step).
+      const convoText = history.map((h) => h.content).join("\n");
+
       const nameCard = outBlocks.find(
         (b) => b.type === "quote_field" && b.data.key === "contactName",
       );
       if (nameCard && (nameCard.data.value == null || nameCard.data.value === "")) {
-        const name = extractName(message, processed.text);
+        const name = extractName(message, `${processed.text}\n${convoText}`);
         if (name) nameCard.data.value = name;
       }
 
-      // Same for the phone card — capture a number typed in text (assume Malaysia
-      // +60 when no country code). Only fills an existing empty phone card.
       const phoneCard = outBlocks.find(
         (b) => b.type === "quote_field" && b.data.key === "contactNumber",
       );
       if (phoneCard && (phoneCard.data.value == null || phoneCard.data.value === "")) {
-        const phone = extractPhone(`${message} ${processed.text}`);
+        const phone = extractPhone(`${message}\n${processed.text}\n${convoText}`);
         if (phone) phoneCard.data.value = phone;
       }
 
@@ -1682,7 +1683,7 @@ export async function sendToAi(
         (b) => b.type === "quote_field" && (b.data.key === "budgetMax" || b.data.key === "budgetMin"),
       );
       if (budgetCard && (budgetCard.data.value == null || budgetCard.data.value === "")) {
-        const budget = extractBudget(`${message} ${processed.text}`);
+        const budget = extractBudget(`${message}\n${processed.text}\n${convoText}`);
         if (budget) budgetCard.data.value = String(budget);
       }
     }
