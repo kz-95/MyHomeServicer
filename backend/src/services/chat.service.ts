@@ -1582,14 +1582,22 @@ export async function sendToAi(
       // the model (or which LLM answered) emitting the value. ONLY when the USER's
       // own message expresses date/time intent — otherwise an incidental word in the
       // assistant's prose ("how can I help you today?") would wrongly fill a date.
-      const userText = message.toLowerCase();
+      // Scan ALL the USER's messages (not just this turn) so a date/time given
+      // earlier in a one-line dump still triggers the fill even when the current
+      // message is just a category confirm ("yes, Event Planner"). Only the user's
+      // own words - never the assistant's prose ("how can I help you today?").
+      const userConvo = `${history
+        .filter((h) => h.role === "user")
+        .map((h) => h.content)
+        .join("\n")}\n${message}`;
+      const userText = userConvo.toLowerCase();
       const hasDateIntent =
         /\b(today|tomorrow|tonight|tmr|tmrw|mon|tues?|wed|thu(rs)?|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?|weekend|next (week|month|year)|[0-3]?\d[-/][01]?\d)\b/i.test(
           userText,
         );
       const hasTimeIntent = /\b(morning|noon|midday|afternoon|evening|night|tonight)\b/i.test(userText);
       if (hasDateIntent || hasTimeIntent) {
-        const parsed = parseDateTimeFromText(`${message} ${processed.text}`);
+        const parsed = parseDateTimeFromText(`${userConvo}\n${processed.text}`);
         const fillField = (key: string, val?: string) => {
           if (!val) return;
           const existing = outBlocks.find(
