@@ -1461,11 +1461,17 @@ export async function sendToAi(
     // the card, in which case categoryLocked stays false but the flow is very much
     // underway. Without this the next missing card (e.g. address) is never injected
     // and the flow dead-ends.
+    // While the assistant is still offering category cards, we are at the service-
+    // SELECTION step, not field collection — never pre-fill date/time or inject the
+    // next field card here (it would dump date/time/address before a service is even
+    // picked). Field collection only begins once a category is settled.
+    const stillChoosingCategory = outBlocks.some((b) => b.type === "quote_options");
     const collectingFields =
-      (opts?.collected?.length ?? 0) > 0 ||
-      outBlocks.some(
-        (b) => b.type === "quote_field" || b.type === "quote_prefill",
-      );
+      !stillChoosingCategory &&
+      ((opts?.collected?.length ?? 0) > 0 ||
+        outBlocks.some(
+          (b) => b.type === "quote_field" || b.type === "quote_prefill",
+        ));
     if (collectingFields) {
       // Deterministic date/time pre-fill: the model often states a resolved date in
       // its text but emits an empty picker. Parse it ourselves so it never relies on

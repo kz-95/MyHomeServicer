@@ -1477,6 +1477,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   continueQuoteInChat(data: Record<string, unknown>): void {
     const category = data['category'] as string || '';
+    // Confirming a service starts a fresh booking — clear any stale field data left
+    // over from an earlier topic in this session (date/address/etc.), then set the
+    // chosen category. Safe: the backend never pre-fills fields before a category is
+    // picked, so nothing collected-this-flow is lost.
+    this.resetQuoteFlowState();
     this.markCardResolved(data['categoryId'] as string);
     this.widget.accumulatePrefill({ categoryId: data['categoryId'] as string });
     // Send a follow-up message to advance the conversational flow. categoryLocked
