@@ -1,6 +1,43 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-07 (AI-chat quote flow: outstanding fixes + questionSchema-in-chat spec)
+> **State: 🟢 ACTIVE** — 2026-06-08 (AI-chat quote flow hardened end-to-end; greeting tiers; services card scan-load)
+
+---
+
+## ✅ RESOLVED — AI-chat quote flow hardening (2026-06-08)
+
+The chat quote flow is now deterministically backstopped so a one-line dump
+(e.g. `"wedding last sunday of dec 2026 night No.18, Jalan Tempua 5, 47100, Brian,
+0111123456 RM1500"`) captures **every** field, regardless of which LLM answered or
+whether it skipped a word.
+
+- **Deterministic field capture — all six fields scan the WHOLE conversation
+  (history), not just the current turn** (`chat.service.ts`): date + time (chrono,
+  intent gated on the user's own messages), address (`extractAddress`, street
+  keyword → 5-digit postcode), budget (`extractBudget`), name (`extractName`,
+  connector-required + stopwords + capitalised echo), phone (`extractPhone`, → +60).
+- **One-shot fill / no stalling:** all fields are captured + pushed as pre-filled
+  cards BEFORE the next step is computed, so a full dump advances straight to the
+  questions/review instead of one field per turn (fixed the "stops after budget").
+- **Budget = the user's ceiling:** the slider picks the lowest bracket whose top
+  covers the stated amount (RM999 → 500-1000, never 1000-3000).
+- **No repeated cards:** confirmed field/question cards show once, then are
+  suppressed (unless the user asks to change/edit). Phone normalised to +60.
+- **questionSchema-in-chat** (5 card types, serviceDetails, "I'm not sure").
+- **Session isolation + guest persistence:** guest chat + prefill in sessionStorage
+  (survives refresh, clears on tab close); returning guest greeted by name with a
+  Yes/No identity confirm; Clear wipes everything.
+- **Greeting tiers (admin-managed):** anonymous / returning / customer / servicer /
+  admin, with a `{name}` placeholder. Edited in Admin → AI Chat Settings.
+- **Event Planner budget ranges:** 500-1000, 1000-2000, 1500-2500, 2500-5000, 5000+.
+- **Services browse cards** (`/services/:parentSlug`) scan-load thumbnails one by
+  one; photo reveals only when its image is decoded; scan line sweeps from outside
+  the left edge.
+
+> **Settings drift fix:** budget ranges + chat settings (incl. greeting tiers) are
+> upserted by `npm run seed:settings` — **non-destructive** (no data wipe). Run it
+> after a settings default changes instead of a full `db:reset`, then restart the
+> backend.
 
 ---
 

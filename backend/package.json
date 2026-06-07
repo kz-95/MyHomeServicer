@@ -17,6 +17,7 @@
     "seed": "ts-node --transpile-only prisma/seed/seed.ts",
     "seed:admin": "ts-node --transpile-only prisma/seed/seed-admin.ts",
     "seed:test": "ts-node --transpile-only prisma/seed/seed-test.ts",
+    "seed:settings": "ts-node --transpile-only prisma/seed/seed-settings.ts",
     "unseed": "ts-node --transpile-only prisma/seed/unseed.ts",
     "reseed": "ts-node --transpile-only prisma/seed/unseed.ts && ts-node --transpile-only prisma/seed/seed.ts",
     "reseed:test": "ts-node --transpile-only prisma/seed/unseed.ts && ts-node --transpile-only prisma/seed/seed-test.ts",

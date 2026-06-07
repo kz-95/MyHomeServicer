@@ -1596,24 +1596,37 @@ export async function sendToAi(
           userText,
         );
       const hasTimeIntent = /\b(morning|noon|midday|afternoon|evening|night|tonight)\b/i.test(userText);
+      const convoText = history.map((h) => h.content).join("\n");
+      const allText = `${message}\n${processed.text}\n${convoText}`;
+      const fillField = (key: string, val?: string) => {
+        if (!val) return;
+        const existing = outBlocks.find(
+          (b) => b.type === "quote_field" && b.data.key === key,
+        );
+        if (existing) {
+          if (existing.data.value == null || existing.data.value === "") {
+            existing.data.value = val;
+          }
+        } else {
+          outBlocks.push({ type: "quote_field", data: { key, value: val } });
+        }
+      };
+      // Capture EVERY field the user already gave, scanning the WHOLE conversation,
+      // and push each as a pre-filled card BEFORE the next step is computed. This is
+      // what lets a one-line dump fill all fields at once and advance straight to
+      // the questions/review, instead of stalling one field per turn. Each extractor
+      // returns undefined when its field isn't present, so partial input still flows
+      // normally (only the fields actually given get pre-filled).
       if (hasDateIntent || hasTimeIntent) {
         const parsed = parseDateTimeFromText(`${userConvo}\n${processed.text}`);
-        const fillField = (key: string, val?: string) => {
-          if (!val) return;
-          const existing = outBlocks.find(
-            (b) => b.type === "quote_field" && b.data.key === key,
-          );
-          if (existing) {
-            if (existing.data.value == null || existing.data.value === "") {
-              existing.data.value = val;
-            }
-          } else {
-            outBlocks.push({ type: "quote_field", data: { key, value: val } });
-          }
-        };
         if (hasDateIntent) fillField("preferredDate", parsed.date);
         if (hasTimeIntent) fillField("timeSlot", parsed.slot);
       }
+      fillField("address", extractAddress(`${message}\n${convoText}`));
+      const budgetN = extractBudget(allText);
+      if (budgetN) fillField("budgetMax", String(budgetN));
+      fillField("contactName", extractName(message, `${processed.text}\n${convoText}`));
+      fillField("contactNumber", extractPhone(allText));
 
 
       // Fields are "done" if the client already collected them OR the model just
@@ -1679,48 +1692,6 @@ export async function sendToAi(
         }
       }
 
-      // Capture contact + budget the user may have given EARLIER (e.g. all in the
-      // first message "...Brian, 0111123456...") — scan the whole conversation, not
-      // just this turn, so the cards fill instead of the model "already have your
-      // name/phone" while the empty cards keep showing. Fills only EXISTING empty
-      // cards (we're at that step).
-      const convoText = history.map((h) => h.content).join("\n");
-
-      const nameCard = outBlocks.find(
-        (b) => b.type === "quote_field" && b.data.key === "contactName",
-      );
-      if (nameCard && (nameCard.data.value == null || nameCard.data.value === "")) {
-        const name = extractName(message, `${processed.text}\n${convoText}`);
-        if (name) nameCard.data.value = name;
-      }
-
-      const phoneCard = outBlocks.find(
-        (b) => b.type === "quote_field" && b.data.key === "contactNumber",
-      );
-      if (phoneCard && (phoneCard.data.value == null || phoneCard.data.value === "")) {
-        const phone = extractPhone(`${message}\n${processed.text}\n${convoText}`);
-        if (phone) phoneCard.data.value = phone;
-      }
-
-      // Budget card — capture a stated amount so the slider pre-selects the right
-      // bracket instead of defaulting to the lowest. Only fills an existing card.
-      const budgetCard = outBlocks.find(
-        (b) => b.type === "quote_field" && (b.data.key === "budgetMax" || b.data.key === "budgetMin"),
-      );
-      if (budgetCard && (budgetCard.data.value == null || budgetCard.data.value === "")) {
-        const budget = extractBudget(`${message}\n${processed.text}\n${convoText}`);
-        if (budget) budgetCard.data.value = String(budget);
-      }
-
-      // Address card — the LLM sometimes skips the address in a one-line dump. Pull
-      // it from the conversation so the card fills instead of asking again.
-      const addressCard = outBlocks.find(
-        (b) => b.type === "quote_field" && b.data.key === "address",
-      );
-      if (addressCard && (addressCard.data.value == null || addressCard.data.value === "")) {
-        const addr = extractAddress(`${message}\n${convoText}`);
-        if (addr) addressCard.data.value = addr;
-      }
     }
   }
 
