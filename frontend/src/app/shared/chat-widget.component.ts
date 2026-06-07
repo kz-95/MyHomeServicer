@@ -334,9 +334,11 @@ interface PublicConfig {
                           </div>
                         }
                         @case ('retry') {
-                          <div class="ac-link">
-                            <button class="btn-primary" [disabled]="sending() || connecting()" (click)="retryLastMessage()">{{ getStr(b.data, 'label') || 'Try again' }}</button>
-                          </div>
+                          @if (mi === messages().length - 1 && retryCount() < 3) {
+                            <div class="ac-link">
+                              <button class="btn-primary" [disabled]="sending() || connecting()" (click)="retryLastMessage()">{{ getStr(b.data, 'label') || 'Try again' }}</button>
+                            </div>
+                          }
                         }
                       }
                     </div>
@@ -1346,11 +1348,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * the first failover attempt usually warms up the backup LLM, so a second try a
    * moment later goes through (the exhausted primary stays in its 429 cooldown).
    */
+  /** Consecutive Try-again attempts. After 3 the button is hidden (Request a
+   *  service only); reset when a real (non-fallback) reply lands. */
+  retryCount = signal(0);
+
   retryLastMessage(): void {
     if (this.sending() || this.connecting()) return;
     const msgs = this.messages();
     for (let i = msgs.length - 1; i >= 0; i--) {
       if (msgs[i].role === 'user') {
+        this.retryCount.update((n) => n + 1);
         this.draft = msgs[i].content;
         this.send();
         return;
@@ -1859,6 +1866,9 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * so a logged-in reply never lands in guest view and vice versa.
    */
   private delayedReply(content: string, createdAt?: string, forSessionId?: string, actionBlocks?: Array<{ type: string; data: Record<string, unknown> }>): void {
+    // A reply without a retry action = a real answer (not the failure fallback) →
+    // reset the Try-again counter so the next genuine failure starts fresh.
+    if (!actionBlocks?.some((b) => b.type === 'retry')) this.retryCount.set(0);
     const reply = content || this.fallbackReply;
     const isGuest = forSessionId === undefined;
     const parts = this.splitReply(reply);
