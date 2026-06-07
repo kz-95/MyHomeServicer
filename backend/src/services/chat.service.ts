@@ -311,6 +311,8 @@ export async function buildAssistantPrompt(
     extra +=
       '\nBefore asking anything, scan the WHOLE conversation for details the user already gave: date, time of day, budget, name, phone, address. For each one present, emit its [action:quote_field] WITH a "value:" line pre-filled, and NEVER ask for it again.';
     extra +=
+      '\nGo through that list ONE BY ONE, in order, and do not skip any — in a long one-line dump it is easy to miss one (the ADDRESS especially). After you think you are done, re-read the user\'s message and check each field again before moving on.';
+    extra +=
       '\ntimeSlot values: morning (9-11), noon (11-13), afternoon (13-15), evening (15-17), night (17-22). "night"/"tonight" => night. preferredDate => YYYY-MM-DD. budgetMax => the number in RM (e.g. "RM600" => 600).';
     extra +=
       '\nExample: user said "catering next sunday night budget RM600" => after the category is confirmed emit: [action:quote_field]key: preferredDate\nvalue: ' +
@@ -1177,6 +1179,21 @@ function extractBudget(text: string): number | undefined {
 }
 
 /**
+ * Extract a Malaysian street address the user gave (the LLM sometimes skips it
+ * while parsing a one-line dump). Anchors on a street keyword (Jalan/No./Lorong/
+ * Taman...) running up to the 5-digit postcode, so "Jalan Tempua 5 No.18, 47100"
+ * is captured without grabbing the name/phone that follow it.
+ */
+function extractAddress(text: string): string | undefined {
+  const m = text.match(
+    /((?:no\.?\s*\d+[a-z]?|jalan|jln|lorong|lrg|persiaran|lebuh|lengkok|taman|tmn|kampung|kg|seksyen|block|blok)\b[^\n]*?\b\d{5})\b/i,
+  );
+  if (!m) return undefined;
+  const addr = m[1].replace(/\s{2,}/g, " ").replace(/[,\s]+$/, "").trim();
+  return addr.length >= 8 ? addr : undefined;
+}
+
+/**
  * Once a category is confirmed, the quote flow must keep advancing. The model
  * frequently stalls — it re-emits a quote_options card (which we strip) or just
  * says "let me check..." with no action block, leaving the user stuck with no
@@ -1685,6 +1702,16 @@ export async function sendToAi(
       if (budgetCard && (budgetCard.data.value == null || budgetCard.data.value === "")) {
         const budget = extractBudget(`${message}\n${processed.text}\n${convoText}`);
         if (budget) budgetCard.data.value = String(budget);
+      }
+
+      // Address card — the LLM sometimes skips the address in a one-line dump. Pull
+      // it from the conversation so the card fills instead of asking again.
+      const addressCard = outBlocks.find(
+        (b) => b.type === "quote_field" && b.data.key === "address",
+      );
+      if (addressCard && (addressCard.data.value == null || addressCard.data.value === "")) {
+        const addr = extractAddress(`${message}\n${convoText}`);
+        if (addr) addressCard.data.value = addr;
       }
     }
   }
