@@ -1689,6 +1689,25 @@ export async function sendToAi(
     }
   }
 
+  // Never REPEAT a card the user already confirmed in a PRIOR turn — show each once.
+  // Fields/questions captured THIS turn aren't in collected/answered yet, so they
+  // still appear once; from the next turn on they're suppressed. Exception: if the
+  // user asks to change something, keep the cards so they can edit.
+  {
+    const confirmedFields = new Set(opts?.collected ?? []);
+    const answeredQs = new Set(opts?.answeredQuestions ?? []);
+    const wantsEdit =
+      /\b(change|edit|update|correct|fix|wrong|different|instead|actually|amend|re-?do|re-?enter|modify)\b/i.test(message);
+    if (!wantsEdit && (confirmedFields.size || answeredQs.size)) {
+      outBlocks = outBlocks.filter((b) => {
+        const k = typeof b.data.key === "string" ? b.data.key : "";
+        if (b.type === "quote_field" && confirmedFields.has(k)) return false;
+        if (b.type === "quote_question" && answeredQs.has(k)) return false;
+        return true;
+      });
+    }
+  }
+
   // Allow several DISTINCT category cards so the user can pick directly when more
   // than one service fits (e.g. a party → Catering OR Event Planner), instead of
   // guessing one and forcing a reject. Dedupe by categoryId and cap at 3 so the

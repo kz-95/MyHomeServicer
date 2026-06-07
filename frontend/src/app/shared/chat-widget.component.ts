@@ -1117,7 +1117,10 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       if (!key) continue;
       // Don't let a stale re-extracted value overwrite what the user already set.
       if (this.fieldAlreadySet(key)) continue;
-      this.widget.accumulatePrefill({ [key]: value });
+      // Normalise a phone (model/extractor may store "0111123456" or "111123456")
+      // into a proper +60 number for display + submit.
+      const storeValue = key === 'contactNumber' ? this.normalizePhone(value) : value;
+      this.widget.accumulatePrefill({ [key]: storeValue });
       if (key === 'preferredDate') {
         this.prefillDate.set(value);
         this.dateConfirmed.set(value);
@@ -1731,6 +1734,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   valueCollected(key: string): boolean {
     const v = this.widget.prefillData()[key];
     return v !== undefined && v !== null && v !== '';
+  }
+
+  /** Normalise a phone into a +60 Malaysian number (drop spaces/dashes + leading
+   *  0, prepend +60) unless it already carries a country code. */
+  private normalizePhone(v: string): string {
+    const raw = (v ?? '').replace(/[\s\-()]/g, '');
+    if (!raw) return v;
+    if (raw.startsWith('+')) return raw;
+    const local = raw.replace(/^0+/, '');
+    return local ? `+60${local}` : v;
   }
 
   // ─── Service questionSchema answers (quote_question cards) ───────────────────
