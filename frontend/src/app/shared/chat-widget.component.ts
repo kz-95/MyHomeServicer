@@ -1072,7 +1072,15 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       }
       const raw = b.data['value'];
       const value = raw != null && raw !== '' ? String(raw) : '';
-      if (!key || !value) continue;
+      if (!value) {
+        // A fresh card with no value OVERWRITES any prior UNCONFIRMED draft: the
+        // user edited the date/time but messaged again without confirming, so the
+        // new card must not stay stuck showing that stale local edit — reset it.
+        if (key === 'preferredDate' && !this.dateConfirmed()) this.prefillDate.set('');
+        else if (key === 'timeSlot' && !this.timeConfirmed()) this.prefillTimeSlot.set('');
+        continue;
+      }
+      if (!key) continue;
       // Don't let a stale re-extracted value overwrite what the user already set.
       if (this.fieldAlreadySet(key)) continue;
       this.widget.accumulatePrefill({ [key]: value });
