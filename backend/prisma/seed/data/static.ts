@@ -1551,6 +1551,30 @@ export const chatKnowledge: { category: string; question: string; answer: string
       'Browse by parent category on the home page or search for your specific service.',
     sortOrder: 10,
   },
+  {
+    category: 'categories',
+    question: 'What\'s the difference between Aircond Servicer and Aircond Repair?',
+    answer:
+      '"Not cold" is usually an Aircond Servicer issue — dirty filter or low gas causes this most of the time. ' +
+      'Aircond Servicer is routine maintenance: cleaning the filters, gas top-up and leak check, pipe inspection, ' +
+      'and a full general check-up. A service visit can resolve 90% of common problems. ' +
+      'Aircond Servicer cannot replace the motor, PCB, compressor, or do electrical component repair. ' +
+      'Aircond Repair is for hardcore issues: PCB repair/replacement, motor repair, compressor work, ' +
+      'and electrical component fixes. ' +
+      'If the servicer diagnoses a motor, PCB, or compressor issue, they will recommend escalating to Aircond Repair.',
+    sortOrder: 11,
+  },
+  {
+    category: 'categories',
+    question: 'My aircond is not cold — which service should I pick?',
+    answer:
+      'Start with Aircond Servicer. Low gas or a dirty filter causes "not cold" 90% of the time. ' +
+      'A routine service includes checking gas levels, cleaning filters, inspecting drip tray and drainage, ' +
+      'and checking pipes for leaks. Most aircond problems are fixed at the service level — no need to jump to Repair. ' +
+      'If the servicer finds a deeper problem (dead motor, burnt PCB, compressor failure), ' +
+      'they will tell you and recommend Aircond Repair for the specialised fix.',
+    sortOrder: 12,
+  },
 
   // ── Quote requests (tier: customer) ────────────────────────────────────
   {
