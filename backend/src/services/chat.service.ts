@@ -1348,6 +1348,7 @@ export async function sendToAi(
         published: true,
       },
       select: {
+        id: true,
         name: true,
         slug: true,
         description: true,
@@ -1374,7 +1375,7 @@ export async function sendToAi(
       for (const [parent, subs] of byParent) {
         categoryCatalog += `\n### ${parent}`;
         for (const c of subs) {
-          categoryCatalog += `\n- **${c.name}** (slug: \`${c.slug}\`)`;
+          categoryCatalog += `\n- **${c.name}** (id: \`${c.id}\`, slug: \`${c.slug}\`)`;
           if (c.description) categoryCatalog += ` — ${c.description}`;
           if (c.defaultPriceSuggestion) {
             const price = Number(c.defaultPriceSuggestion);
