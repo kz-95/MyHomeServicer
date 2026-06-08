@@ -447,6 +447,8 @@ export async function buildAssistantPrompt(
           prisma.user.findUnique({
             where: { id: userId },
             select: {
+              name: true,
+              contactName: true,
               creditBalance: true,
               customerPoints: { select: { balance: true } },
             },
@@ -499,6 +501,11 @@ export async function buildAssistantPrompt(
         "\n\n## User Account Context (live data — use to answer account questions accurately)";
 
       if (userAccount) {
+        const fullName = (userAccount.name || userAccount.contactName || "").trim();
+        const firstName = fullName.split(/\s+/)[0];
+        if (firstName) {
+          extra += `\n- Customer name: ${fullName}. This is a LOGGED-IN customer, so you ALREADY KNOW their name — greet them by their first name "${firstName}" warmly at the start (e.g. "Hi ${firstName}!") and use it naturally now and then through the chat, not in every line. Always capitalise it. NEVER ask a logged-in customer for their name, and when collecting contact details, pre-fill contactName with "${fullName}" instead of asking.`;
+        }
         const balance = Number(userAccount.creditBalance).toFixed(2);
         const points = userAccount.customerPoints?.balance ?? 0;
         extra += `\n- Credit wallet balance: RM ${balance}`;
