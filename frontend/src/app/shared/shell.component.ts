@@ -2012,9 +2012,9 @@ export class ShellComponent implements OnInit, OnDestroy {
       });
   }
 
-  /** The logo title returns to the public home page. */
+  /** The logo title does a full page reload to the public home page. */
   goHome(): void {
-    this.router.navigate(["/"]);
+    window.location.href = "/";
   }
 
   /** Label of the page currently shown - the deepest matching nav item. */
