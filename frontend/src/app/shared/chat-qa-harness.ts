@@ -406,7 +406,9 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promi
     await sleep(250);
   };
 
-  // Append any new transcript messages to the log.
+  // Append any new transcript messages to the log. Every new message produces a line
+  // (even an empty bot reply) so the judge always reviews the REAL conversation and
+  // can't hallucinate from a blank transcript.
   let logged = host.messages().length;
   const flush = () => {
     const msgs = host.messages();
@@ -414,8 +416,8 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promi
       const m = msgs[i];
       const tag = m.role === "user" ? "USER" : "BOT ";
       const txt = (m.content || "").replace(/\n+/g, " ").trim();
-      if (txt) h.log(`${tag}: ${txt}`);
-      else if (m.blocks?.length) h.log(`${tag}: [${m.blocks.map((b) => b.type).join(", ")}]`);
+      const blocks = m.blocks?.length ? ` [${m.blocks.map((b) => b.type).join(", ")}]` : "";
+      h.log(`${tag}: ${txt || (blocks ? "" : "(empty reply)")}${blocks}`.trimEnd());
     }
     logged = msgs.length;
   };
@@ -635,7 +637,17 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     // LLM judge — catch logical/conversational issues the heuristic checker can't see
     // (wrong reply language, assumed data, contradictions, ignored input, bad flow).
     if (host.judge && !judgeUnavailable) {
-      const transcript = log.slice(startLen).join("\n");
+      const transcriptLines = log.slice(startLen);
+      const hasConversation = transcriptLines.some((l) => /^(USER|BOT)\b/.test(l));
+      if (!hasConversation) {
+        // No real exchange was captured — don't let the judge fabricate findings from
+        // the RESULT line alone. Flag the run for investigation instead.
+        push("JUDGE: (no transcript captured — review skipped; conversation did not run)");
+        if (!res.issues.includes("no-transcript")) res.issues.push("no-transcript: conversation produced no messages");
+        await sleep(600);
+        continue;
+      }
+      const transcript = transcriptLines.join("\n");
       try {
         const verdict = (await host.judge(transcript, "run")).trim();
         if (verdict.startsWith("JUDGE_UNAVAILABLE")) {
