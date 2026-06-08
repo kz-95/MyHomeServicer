@@ -1057,6 +1057,14 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         if (this.prefillSeen) continue; // dedup — show once
         this.prefillSeen = true;
       }
+      if (b.type === 'quote_field') {
+        const qk = typeof b.data['key'] === 'string' ? (b.data['key'] as string) : '';
+        if (qk === 'addressNo' || qk === 'streetDetails' || qk === 'postcode' || qk === 'propertyType') {
+          const qv = b.data['value'];
+          if (qv != null && String(qv) !== '') this.widget.accumulatePrefill({ [qk]: String(qv) });
+          continue; // silently stored, no visible card
+        }
+      }
       if (b.type === 'form_fill') {
         const key = typeof b.data['key'] === 'string' ? (b.data['key'] as string) : '';
         const value = b.data['value'] != null ? String(b.data['value']) : '';
