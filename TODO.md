@@ -1,6 +1,6 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-08 (route redesign spec drafted; calendar day-click Decimal fix)
+> **State: 🟢 ACTIVE** — 2026-06-08 (route redesign Phase 1 done — servicer jobs sub-routes; Phase 2 next)
 
 ---
 
@@ -11,11 +11,18 @@
 Restructure all portal URLs from flat/in-component-tab patterns to RESTful,
 hierarchical paths with tabs as URL segments and filters as query params.
 
-### Phase 1 — Servicer jobs (next)
-- [ ] `servicer.routes.ts` — add `jobs/pending`, `jobs/active`, `jobs/history`, `jobs/history/:id`, `jobs/:id`
-- [ ] `jobs.component.ts` — replace signal tabs with URL segment reading + queryParam filters
-- [ ] `servicer-shell.component.ts` — update sidebar routerLink
-- [ ] `calendar.component.ts` — change `openJob()` path
+### Phase 1 — Servicer jobs ✅ (2026-06-08)
+- [x] `servicer.routes.ts` — `jobs` parent + `pending`/`active`/`history` children (each
+      `ServicerJobsComponent` with `data.tab`), `'' → pending` redirect, and `:id`
+      (opens dispatch overlay via `data.detail`). `jobs/history/:id` deferred to Phase 5.
+- [x] `jobs.component.ts` — tab read from route `data.tab`; tab buttons use `routerLink`;
+      filter/sort/search hydrate from query params on init and an `effect()` mirrors them
+      back to the URL (`?filter=`, `?sort=`, `?search=`, history `?days=`). `:id` deep
+      link opens the overlay.
+- [x] `servicer-shell.component.ts` — left at `/servicer/jobs` (redirects to pending;
+      non-exact `routerLinkActive` keeps "My Jobs" lit across all `/jobs/*`).
+- [x] `calendar.component.ts` — `viewJob()` already navigates to `/servicer/jobs/:id`
+      (done in the calendar-card commit). Both `tsc` + `ng build` pass.
 
 ### Phase 2 — Customer bookings
 - [ ] Restructure bookings + history under `/customer/bookings/*`

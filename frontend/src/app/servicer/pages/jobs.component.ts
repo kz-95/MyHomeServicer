@@ -4,13 +4,14 @@ import {
   OnInit,
   OnDestroy,
   computed,
+  effect,
   inject,
   signal,
   ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subscription, switchMap } from 'rxjs';
 import { statusBadgeClass } from '../../shared/status-badge.util';
@@ -113,13 +114,13 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
     imports: [CommonModule, FormsModule, RouterLink, IconComponent, CountdownComponent, ModalComponent, DispatchOverlayComponent, ListToolbarComponent, MapViewComponent],
     template: `
     <div class="tabs">
-      <button class="tab" [class.active]="tab() === 'pending'" (click)="tab.set('pending')">
+      <button class="tab" [class.active]="tab() === 'pending'" [routerLink]="['/servicer/jobs', 'pending']">
         Pending <span class="n">{{ quotes().length }}</span>
       </button>
-      <button class="tab" [class.active]="tab() === 'active'" (click)="tab.set('active')">
+      <button class="tab" [class.active]="tab() === 'active'" [routerLink]="['/servicer/jobs', 'active']">
         Active <span class="n">{{ activeJobs().length }}</span>
       </button>
-      <button class="tab" [class.active]="tab() === 'history'" (click)="tab.set('history')">
+      <button class="tab" [class.active]="tab() === 'history'" [routerLink]="['/servicer/jobs', 'history']">
         History <span class="n">{{ historyJobs().length }}</span>
       </button>
     </div>
@@ -997,6 +998,8 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   private socket = inject(SocketService);
   private dialog = inject(DialogService);
   private toast = inject(ToastService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   @ViewChild('fileInput') fileInputRef?: ElementRef<HTMLInputElement>;
 
@@ -1198,7 +1201,87 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
 
   private sub?: Subscription;
 
+  /** True until the route's query params have hydrated the local signals, so the
+   *  sync effect does not write back a half-built URL during init. */
+  private hydrated = false;
+
+  constructor() {
+    // OUT: mirror filter / sort / search signal state into the URL query params
+    // so the view is bookmarkable and shareable. Reads run on every signal change.
+    effect(() => {
+      const params = this.computeQueryParams();
+      if (!this.hydrated) return;
+      const current = this.route.snapshot.queryParams;
+      if (this.sameParams(current, params)) return;
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: params,
+        replaceUrl: true,
+      });
+    });
+  }
+
+  /** Build the query-param object from current signal state for the active tab.
+   *  Default values (all / date / 30) are omitted so they drop out of the URL. */
+  private computeQueryParams(): Params {
+    const t = this.tab();
+    const p: Params = {};
+    const s = this.search().trim();
+    if (s) p['search'] = s;
+    if (this.sortBy() !== 'date') p['sort'] = this.sortBy();
+    if (t === 'pending' && this.pendingFilter() !== 'all') p['filter'] = this.pendingFilter();
+    if (t === 'active' && this.activeFilter() !== 'all') p['filter'] = this.activeFilter();
+    if (t === 'history') {
+      if (this.historyFilter() !== 'all') p['filter'] = this.historyFilter();
+      if (this.earningsDays() !== 30) p['days'] = String(this.earningsDays());
+    }
+    return p;
+  }
+
+  private sameParams(a: Params, b: Params): boolean {
+    const ak = Object.keys(a);
+    const bk = Object.keys(b);
+    if (ak.length !== bk.length) return false;
+    return ak.every((k) => String(a[k]) === String(b[k]));
+  }
+
+  /** IN: seed the local signals from the route's segment (tab) + query params. */
+  private hydrateFromRoute(): void {
+    const t = (this.route.snapshot.data['tab'] as 'pending' | 'active' | 'history') ?? 'pending';
+    this.tab.set(t);
+
+    const qp = this.route.snapshot.queryParamMap;
+    const search = qp.get('search');
+    if (search) this.search.set(search);
+    const sort = qp.get('sort');
+    if (sort === 'price_high' || sort === 'price_low') this.sortBy.set(sort);
+
+    const filter = qp.get('filter');
+    if (t === 'pending' && (filter === 'new' || filter === 'responded')) {
+      this.pendingFilter.set(filter);
+    } else if (
+      t === 'active' &&
+      (filter === 'pending_confirm' || filter === 'confirmed' || filter === 'in_progress')
+    ) {
+      this.activeFilter.set(filter);
+    } else if (t === 'history' && (filter === 'completed' || filter === 'cancelled')) {
+      this.historyFilter.set(filter);
+    }
+    if (t === 'history' && qp.get('days') === '7') this.earningsDays.set(7);
+
+    this.hydrated = true;
+  }
+
   ngOnInit(): void {
+    // Seed state from the URL before loading so loaders (e.g. earnings) honour it.
+    this.hydrateFromRoute();
+
+    // Deep link /servicer/jobs/:id — open the dispatch overlay for that job.
+    if (this.route.snapshot.data['detail']) {
+      const id = this.route.snapshot.paramMap.get('id');
+      if (id) this.openOverlay(id);
+    }
+
     this.loadQuotes();
     this.loadJobs();
     this.loadHistoryJobs();

@@ -13,7 +13,35 @@ export const servicerRoutes: Routes = [
       },
       {
         path: 'jobs',
-        loadComponent: () => import('./pages/jobs.component').then((m) => m.ServicerJobsComponent),
+        children: [
+          { path: '', redirectTo: 'pending', pathMatch: 'full' },
+          {
+            path: 'pending',
+            loadComponent: () =>
+              import('./pages/jobs.component').then((m) => m.ServicerJobsComponent),
+            data: { tab: 'pending' },
+          },
+          {
+            path: 'active',
+            loadComponent: () =>
+              import('./pages/jobs.component').then((m) => m.ServicerJobsComponent),
+            data: { tab: 'active' },
+          },
+          {
+            path: 'history',
+            loadComponent: () =>
+              import('./pages/jobs.component').then((m) => m.ServicerJobsComponent),
+            data: { tab: 'history' },
+          },
+          // Deep link from calendar / notifications: open the dispatch overlay
+          // for a single active job. (history/:id detail page is Phase 5.)
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./pages/jobs.component').then((m) => m.ServicerJobsComponent),
+            data: { tab: 'active', detail: true },
+          },
+        ],
       },
       {
         path: 'services',
