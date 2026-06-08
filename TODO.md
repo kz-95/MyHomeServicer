@@ -4,6 +4,55 @@
 
 ---
 
+## 🔨 Chat QA harness + booking-flow hardening (2026-06-09)
+
+Driven by automated chat-QA runs (`chat-qa-harness.ts`, logs in `logs/ChatQA_*.log`).
+All items below: `tsc` + `ng build` pass. **Not yet runtime-verified / not committed** —
+test before commit.
+
+### Done — LLM / DeepSeek
+- [x] DeepSeek `first-token timeout` root cause: `deepseek-v4-*` are **reasoning models**
+      (stream `reasoning_content` before `content`); `streamLlm` now clears the first-token
+      timer on reasoning so a working model isn't aborted. Reasoning is not added to the answer.
+- [x] Live `/v1/models` = `deepseek-v4-flash`, `deepseek-v4-pro` only (chat/reasoner gone).
+      Demo seed chain reordered: Gemini ×4 → DS v4-flash → DS v4-pro (fallback); default model
+      + valid-models list updated.
+- [x] QA judge pinned to `deepseek-v4-flash`; judge never substitutes the customer-facing
+      `localFallback` (was polluting QA logs as fake verdicts) — `noFallback` flag threaded.
+
+### Done — bot booking flow
+- [x] Phone-loop: `extractPhone` matched the booking date (`2026-06-19`) → false `contactNumber`;
+      now strips date tokens + tightens length.
+- [x] Hallucinated final recap: prompt no longer re-lists collected values in text (the review
+      card is the source of truth); `collectedData` (exact values) sent so any recap is grounded.
+- [x] Repeat cards: front-loaded/text-extracted fields now counted via `collectedData` so the
+      bot stops re-showing filled field cards every turn.
+- [x] Re-ask loop (e.g. Tamil): strip `quote_question` cards whose key isn't a real schema key
+      (LLM invented `whatDoYouNeed`/`serviceType` variants → answered-tracking never matched).
+- [x] Reject-recovery: prompt — ask a clarifying question once; on re-stated need, re-offer the
+      best-fit service instead of looping.
+- [x] Language pin (`lang`) + strict reply-language directive; convoLang detection made sticky
+      (a Latin field value / phone digits no longer flips an established ms/zh/ta to English);
+      synthetic button-echo drafts localized.
+- [x] `questionSchema` auto-translate on save (`labelI18n`/`descriptionI18n`) + chat resolves
+      to conversation lang; `POST /admin/categories/backfill-translations` for existing rows.
+- [x] Service-name links carry the in-progress prefill (wired `goToQuoteForm`); gated
+      "clear my quote" (2-confirmation count) via chat.
+
+### Done — QA harness
+- [x] Human-like answers, info-count distribution (0–7), free-text field answers, repeat-info
+      (idempotency) test, refresh/"is this {name}?" restore test, 0.5–1s reply delay.
+- [x] Checks: `language` / `duplicate` / `redundant` / `unconfirmed` / `flow` (out-of-order) /
+      `refresh`; text-only replies tolerated (re-state need, not auto-fail); keyed transcript +
+      backend decision log. Conclusion honesty: structural pass/fail + judge coverage fed to the
+      conclude (no more "excellent" when the judge was down).
+
+### Pending — operational (not code)
+- [ ] Restart BE + reload FE; re-seed demo keys (chain order); run `backfill-translations` once.
+- [ ] Runtime-verify via a QA run, then commit the 8 touched files + docs.
+
+---
+
 ## 🔨 IN PROGRESS — App-Wide Route Redesign (2026-06-08)
 
 **Specs:** `docs/superpowers/specs/2026-06-08-route-redesign.md` (frontend route map)

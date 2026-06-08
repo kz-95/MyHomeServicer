@@ -43,6 +43,9 @@ export interface QaAddress {
  */
 export interface QaHost {
   clear(): void;
+  /** Reload state from storage WITHOUT wiping it — simulates a page refresh, so the
+   *  returning-guest "is this {name}?" restore flow can be tested (vs clear()). */
+  refresh(): void;
   /** Full transcript snapshot (oldest first). */
   messages(): QaMsg[];
   /** True while a reply is in flight. */
@@ -71,8 +74,8 @@ export interface QaHost {
   confirmTextField(key: string, value: string): void;
   /** Confirm the phone card with a local digit string (no +60). */
   confirmPhone(localDigits: string): void;
-  /** Answer a service-question card (any qtype) with a valid value. */
-  answerQuestion(b: QaBlock): void;
+  /** Answer a service-question card by applying the harness-computed human answer. */
+  answerQuestion(b: QaBlock, answer: QaAnswer): void;
   /** Accept a returning-guest identity confirm. */
   confirmIdentity(yes: boolean): void;
   /** LLM review of a transcript ('run') or batch of findings ('conclude'). Optional. */
@@ -139,6 +142,10 @@ const QA_ADDRESSES: QaAddress[] = [
   { no: "3", street: "Jalan Telawi, Bangsar", postcode: "59100", propertyType: "shop" },
   { no: "27", street: "Persiaran Surian, Mutiara Damansara", postcode: "47810", propertyType: "office" },
   { no: "6", street: "Jalan SS15/4, Subang Jaya", postcode: "47500", propertyType: "apartment" },
+  // Near MMU Cyberjaya campus.
+  { no: "10", street: "Persiaran Multimedia, Cyberjaya", postcode: "63100", propertyType: "apartment" },
+  { no: "2", street: "Jalan Teknokrat 3, Cyberjaya", postcode: "63000", propertyType: "office" },
+  { no: "15", street: "Persiaran APEC, Cyberjaya", postcode: "63000", propertyType: "house" },
 ];
 
 const QA_NAMES = ["Brian", "Sarah", "Daniel", "Aaron", "Mei", "Aisha", "Kumar", "Wei Jie", "Farah", "Hafiz", "Nadia", "Chong", "Priya", "Zack", "Lina"];
@@ -202,6 +209,14 @@ export interface QaScenario {
   notes: string;
   preset?: QaPreset;
   openingTurns: string[];
+  /** How many info pieces the opening front-loaded (0 = vague greeting only). */
+  infoCount: number;
+  /** Whether the opening actually stated the service need. */
+  needIncluded: boolean;
+  /** The styled service need, sent later if the opening withheld it (0-info case). */
+  needPhrase: string;
+  /** When true, this customer re-states info already given mid-flow (idempotency test). */
+  repeats: boolean;
   label: string;
 }
 
@@ -301,43 +316,120 @@ export function qaAffirm(lang: QaLang): string {
   }
 }
 
-/** Compose the customer's opening turn(s) from persona + sorting + language. */
-function composeOpening(p: QaPersona, s: QaService, name: string, phone: string, addr: QaAddress, budgetWord: string, dateWords: string): string[] {
+/**
+ * Apply this persona's language + typing + tone styling to one line. Malay gets SMS
+ * shortcuts on the short typing styles; Chinese and Tamil are already localised (no
+ * English transforms); rojak mixes English with Malay particles; English gets the
+ * tone + typing colour. Shared by the opening turns and the question answers so a
+ * customer "sounds" the same all the way through a run.
+ */
+function styleLine(p: QaPersona, text: string): string {
+  switch (p.language) {
+    case "ms":
+      return ["slang", "abbrev", "terse"].includes(p.typing) ? malayShortcut(text) : text;
+    case "zh":
+    case "ta":
+      return text;
+    case "rojak":
+      return rojakify(applyTyping(text, p.typing));
+    case "en":
+    default:
+      return applyTone(applyTyping(text, p.typing), p.tone);
+  }
+}
+
+/**
+ * How many distinct info pieces the customer volunteers in the opening message. Real
+ * people usually lead with one thing (the problem) and only sometimes dump several at
+ * once — and occasionally open with nothing actionable ("hi, can you help?"). Weighted:
+ *   0:10%  1:60%  2:10%  3:10%  4:4%  5:3%  6:2%  7(all):1%
+ */
+function pickInfoCount(): number {
+  const r = randInt(1, 100);
+  if (r <= 10) return 0;
+  if (r <= 70) return 1;
+  if (r <= 80) return 2;
+  if (r <= 90) return 3;
+  if (r <= 94) return 4;
+  if (r <= 97) return 5;
+  if (r <= 99) return 6;
+  return 7;
+}
+
+/**
+ * Compose the opening turn from a target info count. The service need (the anchor the
+ * bot turns into a category) leads when present; up to six extra details — date, time,
+ * address, budget, name, phone — are mixed in to reach the count. count 0 = a vague
+ * greeting with nothing actionable, so the bot must ask and the engine supplies the
+ * need on its next turn (see driveScenario's needSent recovery).
+ */
+function composeOpening(
+  p: QaPersona,
+  s: QaService,
+  name: string,
+  phone: string,
+  addr: QaAddress,
+  budgetWord: string,
+  dateWords: string,
+  timeSlot: string,
+  count: number,
+): { turns: string[]; needIncluded: boolean } {
+  if (count <= 0) {
+    const greet = pick(["hi", "hello, you there?", "hi, i need some help", "hey, got a minute?", "hello"]);
+    return { turns: [styleLine(p, greet)], needIncluded: false };
+  }
   const need = s.needs[p.language] ?? s.needs.en;
   const addrStr = `${addr.no} ${addr.street}, ${addr.postcode}`;
-  // Per-language styling: Malay gets SMS shortcuts on the short typing styles; Chinese
-  // and Tamil are already localised (no English transforms); rojak mixes English with
-  // Malay particles; English gets the tone + typing colour.
-  const style = (t: string): string => {
-    switch (p.language) {
-      case "ms":
-        return ["slang", "abbrev", "terse"].includes(p.typing) ? malayShortcut(t) : t;
-      case "zh":
-      case "ta":
-        return t;
-      case "rojak":
-        return rojakify(applyTyping(t, p.typing));
-      case "en":
-      default:
-        return applyTone(applyTyping(t, p.typing), p.tone);
-    }
-  };
+  const extras = [
+    dateWords,
+    `in the ${timeSlot}`,
+    `I'm at ${addrStr}`,
+    `budget around rm${budgetWord}`,
+    `I'm ${name}`,
+    `reach me at ${phone}`,
+  ].sort(() => Math.random() - 0.5);
+  const chosen = extras.slice(0, Math.min(count - 1, extras.length));
+  return { turns: [styleLine(p, [need, ...chosen].join(", "))], needIncluded: true };
+}
 
-  switch (p.sorting) {
-    case "dump_all":
-      return [style(`${need}, ${dateWords} ${pick(QA_TIME_SLOTS)}, I'm at ${addrStr}, budget around rm${budgetWord}, I'm ${name} call ${phone}`)];
-    case "address_first":
-      return [style(`I'm at ${addrStr}`), style(need)];
-    case "budget_first":
-      return [style(`I've got about rm${budgetWord} to spend`), style(need)];
-    case "contact_first":
-      return [style(`I'm ${name}, reach me at ${phone}`), style(need)];
-    case "vague_first":
-      return [style(s.vague), style(need)];
-    case "service_first":
+/**
+ * A plain-text answer for a field card, the way a customer who ignores the picker would
+ * type it (e.g. "budget around rm500", "this saturday", the address). Returns null for
+ * fields the backend does NOT extract from free text (name, property type, etc.) — those
+ * must use the card, so we never free-text them.
+ */
+function freeTextForField(key: string, scn: QaScenario): string | null {
+  const a = scn.addr;
+  switch (key) {
+    case "budgetMin":
+    case "budgetMax": {
+      const n =
+        scn.budget === "low" ? randInt(80, 200) : scn.budget === "mid" ? randInt(250, 600) : randInt(800, 2000);
+      return styleLine(scn.persona, pick([`budget around rm${n}`, `i can spend about ${n}`, `rm${n}`, `${n} max`]));
+    }
+    case "preferredDate":
+      return styleLine(scn.persona, pick([scn.dateWords, `${scn.dateWords} works`, `let's do ${scn.dateWords}`]));
+    case "timeSlot":
+      return styleLine(scn.persona, pick([scn.timeSlot, `${scn.timeSlot} please`, `in the ${scn.timeSlot}`]));
+    case "address":
+      return styleLine(scn.persona, `${a.no} ${a.street}, ${a.postcode}`);
+    case "contactNumber":
+      return styleLine(scn.persona, pick([`0${scn.phoneLocal}`, `my number is 0${scn.phoneLocal}`, `call me at 0${scn.phoneLocal}`]));
     default:
-      return [style(need)];
+      return null;
   }
+}
+
+/** A natural re-statement of info the customer already gave, for the idempotency test. */
+function repeatPhrase(scn: QaScenario): string {
+  const choices = [
+    scn.service.needs[scn.persona.language] ?? scn.service.needs.en,
+    `oh and my name is ${scn.name}`,
+    `the date i wanted is ${scn.dateWords}`,
+    `just to confirm, ${scn.timeSlot} works for me`,
+    `i'm at ${scn.addr.no} ${scn.addr.street}`,
+  ];
+  return styleLine(scn.persona, pick(choices));
 }
 
 /** Build one random scenario. In customer mode a preset supplies the identity. */
@@ -362,6 +454,9 @@ export function makeScenario(customerMode = false): QaScenario {
   const timeSlot = pick(QA_TIME_SLOTS);
   const notes = pick(["please call before arriving", "gate code is 1234", "", "park at the visitor bay", "ring the doorbell twice"]);
 
+  const infoCount = pickInfoCount();
+  const opening = composeOpening(persona, service, name, phoneLocal, addr, budgetWord, dateWords, timeSlot, infoCount);
+
   return {
     persona,
     service,
@@ -374,8 +469,14 @@ export function makeScenario(customerMode = false): QaScenario {
     phoneLocal,
     notes,
     preset,
-    openingTurns: composeOpening(persona, service, name, phoneLocal, addr, budgetWord, dateWords),
-    label: `${persona.typing}/${persona.tone}/${persona.behavior}/${persona.sorting}/${persona.language}${preset ? `/preset:${preset.name}` : ""} — ${service.needs.en}`,
+    openingTurns: opening.turns,
+    infoCount,
+    needIncluded: opening.needIncluded,
+    needPhrase: styleLine(persona, service.needs[persona.language] ?? service.needs.en),
+    // ~30% of customers re-state info they already gave — exercises the bot's
+    // dedup/idempotency (does it duplicate a card, re-ask, or absorb it cleanly?).
+    repeats: Math.random() < 0.3,
+    label: `${persona.typing}/${persona.tone}/${persona.behavior}/${persona.sorting}/${persona.language}${preset ? `/preset:${preset.name}` : ""} — ${service.needs.en} [infos:${infoCount}]`,
   };
 }
 
@@ -399,6 +500,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Human-like pause (0.5–1s) before the customer responds — replying instantly raced
+ *  the UI/backend and caused flaky stalls. Varied per turn so it isn't robotic. */
+function replyDelay(): Promise<void> {
+  return sleep(randInt(500, 1000));
+}
+
 /**
  * All action blocks from the trailing run of assistant messages (since the last user
  * turn). The bot reveals cards one-per-message, so a single reply can be several
@@ -416,6 +523,43 @@ function latestBlocks(host: QaHost): QaBlock[] {
   return blocks;
 }
 
+/** Trailing assistant message text since the last user turn (lowercased, joined). */
+function latestAssistantText(host: QaHost): string {
+  const msgs = host.messages();
+  const parts: string[] = [];
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === "user") break;
+    if (msgs[i].role === "assistant" && msgs[i].content) parts.unshift(msgs[i].content);
+  }
+  return parts.join(" ").toLowerCase();
+}
+
+/** The bot's "I can't proceed" fallback (LLM failover exhausted / backend error). */
+const OUT_OF_SERVICE_RE = /out of service|assistant is (currently )?(out|unavailable)|try again later|something went wrong/i;
+
+/**
+ * Whether a rendered card label is in the customer's language. Script-based, so only
+ * reliable for the non-Latin languages (Chinese, Tamil); en/ms/rojak share the Latin
+ * alphabet and can't be told apart this way, so we don't flag them. Catches the common
+ * real bug: an English question-schema label shown in a Chinese/Tamil conversation.
+ */
+function labelMatchesLang(label: string, lang: QaLang): boolean {
+  if (!label) return true;
+  if (lang === "zh") return /[一-鿿]/.test(label);
+  if (lang === "ta") return /[஀-௿]/.test(label);
+  return true;
+}
+
+/** Compact tag for a transcript card: "quote_field:contactNumber" — surfaces WHICH
+ *  card so stuck/duplicated cards are visible in the log, not just the type. */
+function blockTag(b: QaBlock): string {
+  const id =
+    (b.data?.["key"] as string) ||
+    (b.data?.["qtype"] as string) ||
+    (b.data?.["categoryId"] ? "cat" : "");
+  return id ? `${b.type}:${id}` : b.type;
+}
+
 export interface QaRunResult {
   label: string;
   ok: boolean;
@@ -429,7 +573,7 @@ interface RunHandle {
 }
 
 /** Drive ONE scenario to the review card. Returns the result + appends transcript. */
-async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promise<QaRunResult> {
+async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refreshed = false): Promise<QaRunResult> {
   const issues: string[] = [];
   const MAX_STEPS = 40;
   let steps = 0;
@@ -439,6 +583,25 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promi
   let emptyTurns = 0;
   let redundantNudges = 0;
   let success = false;
+  let sawAnyCard = false;
+  // Set when the run ends in a terminal/unsupported state — suppresses the redundant
+  // "incomplete prefill: missing …" dump that would otherwise bury the real reason.
+  let terminal = false;
+  // False when the opening withheld the service need (0-info case) — the engine states
+  // it the first time the bot stalls, instead of a meaningless affirmation.
+  let needSent = scn.needIncluded;
+  // Field keys actually confirmed on a card this run — lets the final checker catch a
+  // field that reached the review WITHOUT ever being collected on screen.
+  const confirmedKeys = new Set<string>();
+  // Card labels already flagged for wrong language (report each at most once).
+  const langFlagged = new Set<string>();
+  // Card signatures already flagged as duplicated (report each at most once).
+  const dupFlagged = new Set<string>();
+  // Out-of-order flow flagged once per run.
+  let flowFlagged = false;
+  const lang = scn.persona.language;
+  // How many times this customer will re-state already-given info (0 = never).
+  let repeatsLeft = scn.repeats ? randInt(1, 2) : 0;
 
   // waitIdle — block until the in-flight reply lands. Some confirms (address geocode)
   // start their request a beat later, so also give a short window for sending to rise.
@@ -462,15 +625,36 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promi
       const m = msgs[i];
       const tag = m.role === "user" ? "USER" : "BOT ";
       const txt = (m.content || "").replace(/\n+/g, " ").trim();
-      const blocks = m.blocks?.length ? ` [${m.blocks.map((b) => b.type).join(", ")}]` : "";
+      const blocks = m.blocks?.length ? ` [${m.blocks.map(blockTag).join(", ")}]` : "";
       h.log(`${tag}: ${txt || (blocks ? "" : "(empty reply)")}${blocks}`.trimEnd());
     }
     logged = msgs.length;
   };
 
+  // Refresh restore check: a reload (instead of clear) should bring a returning guest
+  // back with an "is this {name}?" identity confirm + their saved details, and the flow
+  // must CONTINUE from there. Done before the opening so the new booking resumes cleanly.
+  if (refreshed) {
+    const priorName = (host.prefill()["contactName"] as string) || "";
+    const idBlocks = latestBlocks(host).filter((b) => ACTIONABLE.has(b.type));
+    const hasIdentity = idBlocks.some((b) => b.type === "identity_confirm");
+    if (priorName && !hasIdentity) {
+      issues.push(`refresh: returning guest "${priorName}" not asked "is this ${priorName}?" after reload`);
+    }
+    if (hasIdentity) {
+      host.confirmIdentity(true);
+      await waitIdle();
+      flush();
+      if (!host.prefill()["contactName"]) {
+        issues.push("refresh: saved contact not restored after identity confirm");
+      }
+    }
+  }
+
   // Opening turn(s).
   for (const turn of scn.openingTurns) {
     if (h.cancelled()) return { label: scn.label, ok: false, steps, issues: ["cancelled"] };
+    await replyDelay();
     host.sendText(turn);
     await waitIdle();
     flush();
@@ -479,17 +663,88 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promi
   while (steps < MAX_STEPS) {
     if (h.cancelled()) { issues.push("cancelled"); break; }
     steps++;
-    const blocks = latestBlocks(host).filter((b) => ACTIONABLE.has(b.type));
+    // Pause like a human before reading the bot's reply and responding — replying
+    // instantly raced the UI/backend and produced flaky stalls.
+    await replyDelay();
+    const rawBlocks = latestBlocks(host);
+    const blocks = rawBlocks.filter((b) => ACTIONABLE.has(b.type));
+    if (blocks.length) sawAnyCard = true;
+
+    // Correct-language check: each visible card's rendered label must be in the
+    // customer's language. Catches untranslated question-schema labels shown in a
+    // Chinese/Tamil conversation (a real bug a type-only check is blind to).
+    for (const bk of blocks) {
+      // Skip quote_options: the card shows the catalog SERVICE NAME, which is kept in
+      // its original form on purpose (not a translation defect).
+      if (bk.type === "quote_options") continue;
+      const label = String(bk.data["renderedLabel"] ?? "");
+      if (label && !langFlagged.has(label) && !labelMatchesLang(label, lang)) {
+        langFlagged.add(label);
+        issues.push(`language: card label not in ${lang}: "${label}"`);
+      }
+    }
+
+    // Duplicate-card check: the SAME field/question shown more than once in one reply.
+    const seenSig = new Set<string>();
+    for (const bk of blocks) {
+      const s = `${bk.type}:${(bk.data["key"] as string) ?? (bk.data["qtype"] as string) ?? ""}`;
+      if (seenSig.has(s) && !dupFlagged.has(s)) {
+        dupFlagged.add(s);
+        issues.push(`duplicate: card "${s}" shown more than once in one reply`);
+      }
+      seenSig.add(s);
+    }
+
+    // Flow-order check: before a service is locked, only the service card (quote_options)
+    // belongs on screen. A detail field/question with no category yet — and no service
+    // card offered — means the bot jumped ahead ("Hi I'm Josh" → "give me your address"),
+    // i.e. broken conversational guidance.
+    if (!flowFlagged && !host.prefill()["categoryId"]) {
+      const hasServiceCard = blocks.some((b) => b.type === "quote_options");
+      const premature = blocks.find((b) => b.type === "quote_field" || b.type === "quote_question");
+      if (premature && !hasServiceCard) {
+        flowFlagged = true;
+        issues.push(`flow: asked for "${blockTag(premature)}" before any service was offered/locked`);
+      }
+    }
 
     if (blocks.length === 0) {
-      // No card to act on — the bot replied with text only.
-      emptyTurns++;
-      if (emptyTurns >= 2) {
-        issues.push(`stalled: bot showed no card for ${emptyTurns} turns (stuck on text)`);
+      // No actionable card. First decide if this is a TERMINAL state (the bot can't
+      // continue) rather than a transient text-only turn worth nudging through.
+      const hasLink = rawBlocks.some((b) => b.type === "link");
+      if (hasLink || OUT_OF_SERVICE_RE.test(latestAssistantText(host))) {
+        // Backend LLM failover exhausted → the bot drops to its out-of-service link.
+        issues.push("assistant-error: bot dropped to out-of-service/link fallback (LLM failover exhausted)");
+        terminal = true;
         break;
       }
-      // One nudge: affirm + restate the need, the way a confused customer would.
-      host.sendText(qaAffirm(scn.persona.language));
+      if (!needSent) {
+        // 0-info opening: nothing for the bot to act on yet. State the real need now,
+        // the way a customer answers "what do you need?" — not a blank affirmation.
+        needSent = true;
+        emptyTurns = 0;
+        host.sendText(scn.needPhrase);
+        await waitIdle();
+        flush();
+        continue;
+      }
+      emptyTurns++;
+      // A clarifying TEXT question is NOT a failure — real users don't expect a card for
+      // every question, and the engine answers in text below. Only fail after several
+      // unproductive turns where the bot never advances the booking to the next card.
+      if (emptyTurns >= 3) {
+        issues.push(
+          sawAnyCard
+            ? `stalled: bot stayed on text for ${emptyTurns} turns without advancing the booking`
+            : "unsupported: bot never produced a service card (service not in catalog or LLM declined)",
+        );
+        terminal = !sawAnyCard;
+        break;
+      }
+      // Answer the bot's text question the way a real customer would — re-state what
+      // they actually want (not a bare "yes"). This is what nudges the bot back to the
+      // next card after a rejection or a clarifying question.
+      host.sendText(scn.needPhrase);
       await waitIdle();
       flush();
       continue;
@@ -540,8 +795,27 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promi
       lastSig = sig;
     }
 
+    // ~35% of the time, answer a field in PLAIN TEXT instead of using the card — tests
+    // the bot's free-text extraction (budget/date/time/address/phone). Counts as
+    // collected (the customer DID provide it, just by typing) so it isn't mis-flagged
+    // unconfirmed. Fields with no text extractor (name, property type) always use the card.
+    if (b.type === "quote_field" && Math.random() < 0.35) {
+      const key = (b.data["key"] as string) ?? "";
+      const text = freeTextForField(key, scn);
+      if (text) {
+        confirmedKeys.add(key);
+        host.sendText(text);
+        await waitIdle();
+        flush();
+        continue;
+      }
+    }
+
     try {
       await actOnCard(host, b, scn, { rejectedOnce });
+      if (b.type === "quote_field" && typeof b.data["key"] === "string") {
+        confirmedKeys.add(b.data["key"] as string);
+      }
       if (b.type === "quote_options" && scn.persona.behavior === "reject_first" && !rejectedOnce) {
         rejectedOnce = true;
       }
@@ -550,21 +824,134 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promi
     }
     await waitIdle();
     flush();
+
+    // Idempotency probe: a repeating customer occasionally re-states something already
+    // given. A healthy bot absorbs it (no new/duplicate card); if it re-asks or dupes,
+    // the redundant/duplicate checks above catch it on the next turn.
+    if (repeatsLeft > 0 && confirmedKeys.size > 0 && Math.random() < 0.4) {
+      repeatsLeft--;
+      host.sendText(repeatPhrase(scn));
+      await waitIdle();
+      flush();
+    }
   }
 
   if (!success && steps >= MAX_STEPS) issues.push(`timeout: review card not reached in ${MAX_STEPS} steps`);
 
   // ─── Checker — what landed in the final prefill vs what was expected. ───
+  // Skip when the run ended terminal (out-of-service / unsupported service): listing
+  // every missing field there is noise that buries the actual cause.
   const pf = host.prefill();
   const missing: string[] = [];
-  if (!pf["categoryId"]) missing.push("categoryId (no service locked)");
-  for (const k of ["preferredDate", "timeSlot", "address", "budgetMax", "contactName", "contactNumber"]) {
-    const v = pf[k];
-    if (v === undefined || v === null || v === "") missing.push(k);
+  if (!terminal) {
+    if (!pf["categoryId"]) missing.push("categoryId (no service locked)");
+    for (const k of ["preferredDate", "timeSlot", "address", "budgetMax", "contactName", "contactNumber"]) {
+      const v = pf[k];
+      if (v === undefined || v === null || v === "") missing.push(k);
+    }
+    if (missing.length) issues.push(`incomplete prefill: missing ${missing.join(", ")}`);
   }
-  if (missing.length) issues.push(`incomplete prefill: missing ${missing.join(", ")}`);
 
-  return { label: scn.label, ok: success && missing.length === 0, steps, issues };
+  // Reached the review with a single-card field present that we never actually confirmed
+  // on screen → the bot assumed/fabricated it (e.g. asked for phone in text and moved
+  // on). A structural PASS would otherwise hide this. (Budget/address use multiple or
+  // aliased cards, so they're excluded to avoid false positives.)
+  if (success && !terminal) {
+    for (const k of ["preferredDate", "timeSlot", "contactName", "contactNumber"]) {
+      const v = pf[k];
+      const has = v !== undefined && v !== null && v !== "";
+      if (has && !confirmedKeys.has(k)) {
+        issues.push(`unconfirmed: "${k}" is in the review but was never collected via a card`);
+      }
+    }
+  }
+
+  // Quality defects (wrong language, duplicate/redundant re-asks, fabricated fields,
+  // loops) must FAIL the run — a structural prefill alone is not "good".
+  const qualityFail = issues.some(
+    (i) =>
+      i.startsWith("language:") ||
+      i.startsWith("redundant:") ||
+      i.startsWith("duplicate:") ||
+      i.startsWith("unconfirmed:") ||
+      i.startsWith("refresh:") ||
+      i.startsWith("flow:") ||
+      i.startsWith("stuck") ||
+      i.startsWith("looping"),
+  );
+
+  return { label: scn.label, ok: success && !terminal && missing.length === 0 && !qualityFail, steps, issues };
+}
+
+/**
+ * A human-style answer the harness computes for a service-question card. The harness
+ * owns the persona/language/service, so it decides WHAT to answer; the host just
+ * applies it to the right control (radio/checkbox/number/quantity/free text).
+ */
+export interface QaAnswer {
+  qtype: "radio" | "checkbox" | "number" | "quantity" | "text";
+  radio?: string;
+  checkbox?: string[];
+  number?: number;
+  quantity?: Record<string, number>;
+  text?: string;
+}
+
+/** Option labels/values a real customer would skip past unless nothing else fits. */
+const GENERIC_OPT = /^(other|none|no\s*preference|not\s*sure|n\/?a|skip|unknown)\b/i;
+function plausibleOptions(
+  opts: Array<{ value: string; label: string }>,
+): Array<{ value: string; label: string }> {
+  const real = opts.filter((o) => !GENERIC_OPT.test(o.label || "") && !GENERIC_OPT.test(o.value || ""));
+  return real.length ? real : opts;
+}
+
+/** A short, believable free-text answer in the customer's own language + style. */
+function humanAnswerText(scn: QaScenario): string {
+  const p = scn.persona;
+  // Non-Latin scripts: keep it coherent by reusing the localised problem phrase
+  // instead of styling English text into the wrong script.
+  if (p.language === "zh" || p.language === "ta") {
+    return scn.service.needs[p.language] ?? scn.service.vague;
+  }
+  const base = pick([
+    scn.service.vague,
+    "not too sure exactly, just need someone to take a look",
+    "it started a few days ago and keeps getting worse",
+    "fairly urgent, hoping to get it sorted soon",
+    "nothing fancy, just the standard job",
+  ]);
+  return styleLine(p, base);
+}
+
+/** Pick a human-like answer for a service-question card from its qtype + options. */
+function answerForQuestion(b: QaBlock, scn: QaScenario): QaAnswer {
+  const qtype = ((b.data["qtype"] as string) || (b.data["type"] as string) || "text");
+  const options = (b.data["options"] as Array<{ value: string; label: string }>) || [];
+  const real = plausibleOptions(options);
+  switch (qtype) {
+    case "radio":
+      // A person scans the choices and picks one that fits — not always the first.
+      return real.length ? { qtype: "radio", radio: pick(real).value } : { qtype: "text", text: humanAnswerText(scn) };
+    case "checkbox": {
+      if (!real.length) return { qtype: "text", text: humanAnswerText(scn) };
+      const n = Math.min(real.length, randInt(1, 2));
+      const chosen = [...real].sort(() => Math.random() - 0.5).slice(0, n);
+      return { qtype: "checkbox", checkbox: chosen.map((o) => o.value) };
+    }
+    case "number":
+      return { qtype: "number", number: randInt(1, 4) };
+    case "quantity": {
+      if (!real.length) return { qtype: "number", number: randInt(1, 3) };
+      const n = Math.min(real.length, randInt(1, 2));
+      const chosen = [...real].sort(() => Math.random() - 0.5).slice(0, n);
+      const q: Record<string, number> = {};
+      for (const o of chosen) q[o.value] = randInt(1, 3);
+      return { qtype: "quantity", quantity: q };
+    }
+    default:
+      return { qtype: "text", text: humanAnswerText(scn) };
+  }
 }
 
 /** Map a card to the right host action, filling it with the scenario's data. */
@@ -579,7 +966,7 @@ async function actOnCard(host: QaHost, b: QaBlock, scn: QaScenario, st: { reject
     return;
   }
   if (b.type === "quote_question") {
-    host.answerQuestion(b);
+    host.answerQuestion(b, answerForQuestion(b, scn));
     return;
   }
   if (b.type === "quote_field") {
@@ -674,6 +1061,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
 
   const judgeFindings: string[] = [];
   let judgeIssueRuns = 0;
+  let judgeErrorRuns = 0;
   let judgeUnavailable = false;
 
   for (let i = 0; i < scenarios.length; i++) {
@@ -684,12 +1072,23 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     push(`## ${i + 1}. ${scn.label}`);
     push(`persona: ${JSON.stringify(scn.persona)}`);
     const startLen = log.length;
-    host.clear();
+    // ~30% of guest runs (after the first, which seeds saved state) REFRESH instead of
+    // clearing — reloading from storage to exercise the returning-guest "is this {name}?"
+    // restore flow and confirm the booking continues after a reload.
+    const doRefresh = i > 0 && opts.customerMode !== true && Math.random() < 0.3;
+    if (doRefresh) {
+      host.refresh();
+      push("(refresh: reloaded from storage instead of clearing — testing returning-guest restore)");
+    } else {
+      host.clear();
+    }
     await sleep(700);
-    const res = await driveScenario(host, scn, {
-      log: push,
-      cancelled,
-    });
+    const res = await driveScenario(
+      host,
+      scn,
+      { log: push, cancelled },
+      doRefresh,
+    );
     results.push(res);
     push(`RESULT: ${res.ok ? "PASS" : "FAIL"} (${res.steps} steps)${res.issues.length ? " — " + res.issues.join("; ") : ""}`);
 
@@ -713,6 +1112,10 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
         if (verdict.startsWith("JUDGE_UNAVAILABLE")) {
           judgeUnavailable = true;
           push("JUDGE: (no LLM key configured — logical review skipped)");
+        } else if (verdict.startsWith("JUDGE_ERROR")) {
+          // Judge LLM returned nothing (empty/failed) — a review gap, not a bot finding.
+          judgeErrorRuns++;
+          push("JUDGE: (no reply from judge LLM — review skipped this run)");
         } else if (verdict && verdict.toUpperCase() !== "OK") {
           judgeIssueRuns++;
           push("JUDGE:");
@@ -729,21 +1132,9 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     await sleep(600);
   }
 
-  // ─── Final conclusion — one LLM pass over all findings. ───
-  let conclusion = "";
-  if (host.judge && !judgeUnavailable && results.length) {
-    const findingsText = judgeFindings.length
-      ? judgeFindings.join("\n\n")
-      : "All conversations passed the LLM logical review with no findings.";
-    try {
-      const c = (await host.judge(findingsText, "conclude")).trim();
-      if (c && !c.startsWith("JUDGE_UNAVAILABLE")) conclusion = c;
-    } catch {
-      /* conclusion optional */
-    }
-  }
-
-  // ─── Summary first-page report. ───
+  // ─── Structural tally — computed BEFORE the conclusion so the judge sees the real
+  //      pass/fail, not just findings. Without this it called a 0-pass run "excellent"
+  //      whenever the judge happened to return no findings (e.g. it was offline). ───
   const pass = results.filter((r) => r.ok).length;
   const fail = results.length - pass;
   const issueTally = new Map<string, number>();
@@ -753,15 +1144,40 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
       issueTally.set(kind, (issueTally.get(kind) ?? 0) + 1);
     }
   }
+  const reviewedRuns = Math.max(0, results.length - judgeErrorRuns);
+
+  // ─── Final conclusion — one LLM pass over the structural facts + findings. ───
+  let conclusion = "";
+  if (host.judge && !judgeUnavailable && results.length) {
+    const structural =
+      `Structural results: ${pass}/${results.length} runs completed the booking, ${fail} failed. ` +
+      `Issue breakdown: ${[...issueTally.entries()].map(([k, n]) => `${k}=${n}`).join(", ") || "none"}. ` +
+      `The LLM judge reviewed ${reviewedRuns}/${results.length} runs (${judgeErrorRuns} returned no judge reply).`;
+    const findingsText = judgeFindings.length
+      ? `${structural}\n\nPer-conversation findings:\n${judgeFindings.join("\n\n")}`
+      : `${structural}\n\nThe judge surfaced no logical findings${judgeErrorRuns ? " on the runs it could review" : ""}. Base the conclusion on the STRUCTURAL results above — do NOT call the system healthy if runs failed.`;
+    try {
+      const c = (await host.judge(findingsText, "conclude")).trim();
+      if (c && !c.startsWith("JUDGE_UNAVAILABLE") && !c.startsWith("JUDGE_ERROR")) conclusion = c;
+    } catch {
+      /* conclusion optional */
+    }
+  }
+
+  // ─── Summary first-page report. ───
   const summary: string[] = [
     "",
     "---",
     "## CONCLUSION",
-    conclusion || (judgeUnavailable ? "(LLM judge unavailable — structural checks only.)" : "(no conclusion)"),
+    conclusion ||
+      (judgeUnavailable || judgeErrorRuns === results.length
+        ? `(LLM judge unavailable — structural checks only: ${pass}/${results.length} completed, ${fail} failed.)`
+        : "(no conclusion)"),
     "",
     "## SUMMARY",
     `Ran: ${results.length}   Structurally complete: ${pass}   Incomplete: ${fail}`,
-    `Logical issues flagged by LLM judge: ${judgeIssueRuns}/${results.length} runs`,
+    `LLM judge: reviewed ${reviewedRuns}/${results.length} runs, flagged issues in ${judgeIssueRuns}` +
+      (judgeErrorRuns ? `, no reply on ${judgeErrorRuns}` : ``),
     "Structural issue breakdown:",
     ...[...issueTally.entries()].map(([k, n]) => `  - ${k}: ${n}`),
     "",

@@ -178,10 +178,27 @@ export function validateSettingValue(key: string, value: unknown): unknown {
  */
 export const RESERVED_QUESTION_KEYS = ['property_type'] as const;
 
+/**
+ * Per-language label translations. `en` mirrors the canonical label and is set by the
+ * auto-translator so a later save can tell whether the source text changed (and the
+ * other languages need refreshing). ms/zh/ta are filled on save; any value an admin
+ * supplies is preserved (manual override). All optional — absent = fall back to the
+ * canonical `label`.
+ */
+export const localizedSchema = z
+  .object({
+    en: z.string(),
+    ms: z.string(),
+    zh: z.string(),
+    ta: z.string(),
+  })
+  .partial();
+
 /** One option inside a radio/checkbox question. `value` is immutable after first save. */
 export const questionOptionSchema = z.object({
   value: z.string().min(1),
   label: z.string().min(1),
+  labelI18n: localizedSchema.optional(),
   sortOrder: z.number().int().nonnegative().optional(),
   active: z.boolean().optional(),
 });
@@ -203,6 +220,7 @@ export const questionItemSchema = z.object({
     { message: `Question key is reserved and cannot be used in a category schema (reserved: ${RESERVED_QUESTION_KEYS.join(', ')})` },
   ),
   label: z.string().min(1),
+  labelI18n: localizedSchema.optional(),
   /**
    * Input types:
    *  - checkbox  — multi-select from a fixed option list (answer: string[])
@@ -215,6 +233,7 @@ export const questionItemSchema = z.object({
   required: z.boolean().optional(),
   priced: z.boolean().optional(),
   description: z.string().optional(),
+  descriptionI18n: localizedSchema.optional(),
   sortOrder: z.number().int().nonnegative().optional(),
   active: z.boolean().optional(),
   /** Maximum number of selections (checkbox only). Unset = unlimited. */
@@ -228,6 +247,7 @@ export const questionItemSchema = z.object({
 
 export const questionSchemaSchema = z.array(questionItemSchema);
 
+export type Localized = z.infer<typeof localizedSchema>;
 export type QuestionOption = z.infer<typeof questionOptionSchema>;
 export type ShowIf = z.infer<typeof showIfSchema>;
 export type QuestionItem = z.infer<typeof questionItemSchema>;

@@ -1,9 +1,24 @@
 import * as chrono from "chrono-node";
-import { env } from "../config/env";
 import { logger } from "../lib/logger";
 import { prisma } from "../lib/prisma";
 import { configVault } from "../lib/config-vault";
 import { formatOrderId } from "../lib/order-id";
+import type { QuestionItem, Localized } from "../lib/json-schemas";
+
+/** Compact tag for a card block, for decision logs, e.g. "quote_field:contactNumber". */
+function blockTag(b: { type: string; data?: Record<string, unknown> }): string {
+  const d = b.data ?? {};
+  const id = (d["key"] as string) || (d["qtype"] as string) || (d["categoryId"] ? "cat" : "");
+  return id ? `${b.type}:${id}` : b.type;
+}
+
+/** Resolve a localized label to the target language, falling back to the canonical text
+ *  (also for English and rojak, which is English-based). */
+function pickI18n(base: string, i18n: Localized | undefined, lang?: string): string {
+  if (!lang || lang === "en" || lang === "rojak") return base;
+  const v = i18n?.[lang as keyof Localized];
+  return v && v.trim() ? v : base;
+}
 
 const TIER_ORDER = ["admin", "servicer", "customer", "guest"] as const;
 
@@ -82,8 +97,8 @@ function buildPrompt(role: string): string {
       : role === "customer"
         ? `When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [view your bookings](/customer/bookings), [check rewards](/customer/rewards). Use relative paths starting with /.`
         : role === "servicer"
-          ? `When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [view your proposals](/servicer/quotes), [manage your jobs](/servicer/jobs). Use relative paths starting with /.`
-          : `When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [admin dashboard](/admin/dashboard), [manage users](/admin/users). Use relative paths starting with /.`;
+          ? `When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [view your jobs](/servicer/jobs/pending), [manage your jobs](/servicer/jobs/pending). Use relative paths starting with /.`
+          : `When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [admin home](/admin), [manage users](/admin/users). Use relative paths starting with /.`;
 
   const report =
     role === "guest"
@@ -96,10 +111,10 @@ function buildPrompt(role: string): string {
 - "where is my booking / upcoming booking" → [My Bookings](/customer/bookings)
 - "where is my order / order history / past booking" → [Order History](/customer/history)
 - "where is my quote / current quote" → [My Quotes](/customer/quotes)
-- "where is my proposal" → [Proposals](/customer/proposals)
+- "where is my proposal" → [My Quotes](/customer/quotes)
 - "where are my rewards / points / vouchers" → [Rewards](/customer/rewards)
 - "where is my account / profile / settings" → [Account](/customer/account)
-- "where is my wallet / credit / balance" → [Deposit & Credit](/customer/deposit) — but answer balance from the account context above; do NOT link to external bank or card pages
+- "where is my wallet / credit / balance" → [Payments](/customer/transactions) — but answer balance from the account context above; do NOT link to external bank or card pages
 - Credit card or transaction enquiries: give a SHORT text-only guide ("use the secure payment page inside the app"); NEVER provide a link to an external bank, card network, or payment portal`
       : "";
 
@@ -347,6 +362,8 @@ export async function buildAssistantPrompt(
       "\nThe MOMENT the user confirms a service by ANY means (tapping the card, OR replying yes/yep/correct/that one/sure in text), IMMEDIATELY emit [action:category_lock]categoryId: <the exact categoryId UUID for that service>[/action] in that same reply. This silently records the choice (no visible card) and is REQUIRED for the rest of the flow, especially the service questions, to work. Emit it once, only the real UUID from the catalog.";
     extra +=
       '\nThe card has two buttons: "Yes, that\'s it" (confirm) and "Not this service" (reject). If the user clicks Not this service or otherwise says your guess is wrong, do NOT give up and do NOT send them to the services page. Ask ONE short, friendly question about what they are actually trying to get done (the item, room, event, or problem involved), then suggest a DIFFERENT, better-fitting catalog service with a fresh [action:quote_options]. If they are not sure which service they need, help them narrow it down from their goal. Keep trying to match a real catalog service; only conclude we do not offer it after you have genuinely tried and nothing fits.';
+    extra +=
+      '\n- AFTER A REJECTION, NEVER LOOP: ask your clarifying question at most ONCE. If the user then re-states the SAME need (e.g. repeats "my house is dirty" / "roof leak") or gives no new distinguishing detail, STOP asking and ACT — emit a fresh [action:quote_options] for the best-fitting catalog service with a ONE-LINE reason it fits (e.g. "Home Cleaning covers exactly that — floors, kitchen, bathrooms, the lot."). The rejected service may well BE the right one; if nothing else fits, re-offer it and explain why. NEVER ask the same clarifying question twice or leave the user stuck repeating themselves in text.';
 
     extra +=
       "\n\n### Step 3: Date + time — EMIT [action:quote_field] for preferredDate AND timeSlot";
@@ -363,7 +380,8 @@ export async function buildAssistantPrompt(
     extra +=
       '\n### Step 7: Service questions — after the base fields, the app supplies the category\'s questionSchema questions and shows a [action:quote_question] card for each, ONE at a time. Open with a short warm lead-in the FIRST time, e.g. "Thanks for confirming your details. Before we proceed, just a few quick questions about the job." Then ask each question CONVERSATIONALLY, weaving its options in as natural examples (broken TV: "What is going on with it? No power? No sound? Lines on the screen? And what kind of TV is it?"). The user can answer in plain words; MAP their answer to the closest option and emit [action:quote_question]key: <questionKey>\\nvalue: <optionValue or their words>[/action] to record it. If they are unsure (e.g. cannot tell the screen type), reassure them, let them pick "I do not know", or help them figure it out. Never invent questions; only the real ones the app provides. Ask optional ones briefly too, the user may skip them.';
     extra += "\n### Step 8: Notes — EMIT [action:quote_field] key=notes";
-    extra += "\n### Step 9: Summary — text only. Confirm with user.";
+    extra +=
+      "\n### Step 9: Summary — the review CARD (Step 10) lists EVERY field on screen. Do NOT re-list the collected values in text — you will sometimes get them wrong. Just confirm warmly in ONE short line (e.g. \"Great, that's everything — here's your summary, tap to confirm.\") and emit the review.";
     extra +=
       "\n### Step 10: Submit — EMIT [action:quote_prefill] with ALL fields";
     extra +=
@@ -372,6 +390,8 @@ export async function buildAssistantPrompt(
     extra += "\n\n### STRICT RULES (obey these or the UI breaks):";
     extra +=
       "\n- NEVER ask date/time/address/name/phone in text alone. ALWAYS emit the [action:quote_field] block.";
+    extra +=
+      "\n- NEVER state a date, time, address, budget, phone, or name the user did not explicitly give in THIS conversation, and never alter a value they gave. Echo back ONLY the exact value just provided. The review card is the single source of truth for the full summary — do not reproduce, re-list, or 'tidy up' all the fields in prose (that is where wrong/invented values creep in).";
     extra +=
       "\n- Do not repeat the SAME [action:quote_options] suggestion in a loop, and never emit it again once the user has CONFIRMED a category. You MAY emit a fresh [action:quote_options] for a DIFFERENT category if the user rejected your previous suggestion.";
     extra += "\n- NEVER skip steps. Step 3 MUST come before Step 4.";
@@ -394,7 +414,7 @@ export async function buildAssistantPrompt(
     extra +=
       "\n- When you mention a service in your text, write its EXACT catalog name in plain words with NO bold, NO asterisks, NO markdown. The app automatically turns service names into clickable links, so never format them yourself.";
     extra +=
-      '\n- NEVER use markdown anywhere: no bullet lists, no "*" or "-" bullets, no "#" headings, no bold/italics. The chat renders plain text, so markdown shows as ugly raw symbols. When you recap collected details (date, time, address, budget), write them in ONE short natural sentence (e.g. "So that is Sunday 14 June, night, at 42 Jalan SS2/72."), not as a bulleted list.';
+      '\n- NEVER use markdown anywhere: no bullet lists, no "*" or "-" bullets, no "#" headings, no bold/italics. The chat renders plain text, so markdown shows as ugly raw symbols. When you acknowledge a detail the user JUST gave, echo back only THAT one value in a short phrase (e.g. "Got it, Sunday 14 June."). NEVER re-list all the collected fields in prose — the review card shows the full summary.';
   }
 
   // --- Reference data below — informative, not action-driving ---
@@ -603,16 +623,7 @@ export function invalidateLlmKeyCache(): void {
   _llmKeysCache = null;
 }
 
-export function isGeminiConfigured(): boolean {
-  return Boolean(env.AICHAT_LLM_API_KEY);
-}
-
-export function isDeepSeekConfigured(): boolean {
-  return Boolean(env.AICHAT_LLM_FALLBACK_API_KEY);
-}
-
 export async function isAnyLlmConfigured(): Promise<boolean> {
-  if (isGeminiConfigured() || isDeepSeekConfigured()) return true;
   try {
     const keys = await getLlmKeys();
     return keys.length > 0;
@@ -622,7 +633,8 @@ export async function isAnyLlmConfigured(): Promise<boolean> {
 }
 
 export function isAiConfigured(): boolean {
-  return isGeminiConfigured() || isDeepSeekConfigured();
+  // Synchronous check — relies on previously cached keys.
+  return _llmKeysCache !== null && _llmKeysCache.length > 0;
 }
 
 // Per-provider request timeout. Without this, a stalled provider connection
@@ -650,6 +662,12 @@ async function streamLlm(
   extractFinish: (evt: unknown) => string | undefined,
   extractTokens: (evt: unknown) => number | undefined,
   label: string,
+  // Reasoning models (deepseek-v4-*, o-series) stream THINKING (reasoning_content)
+  // before any answer (content). Pass an extractor for it so the first-token timer
+  // clears on the thinking phase — otherwise the model is mid-reasoning when the
+  // 8.8s cap fires and we wrongly abort a working model. Reasoning is NOT added to
+  // the answer; only `content` is.
+  extractReasoning?: (evt: unknown) => string,
 ): Promise<{ answer: string; truncated: boolean; tokensUsed: number | null }> {
   const ac = new AbortController();
   let firstTimer: ReturnType<typeof setTimeout> | null = setTimeout(
@@ -698,13 +716,14 @@ async function streamLlm(
           continue;
         }
         const delta = extractDelta(evt);
-        if (delta) {
-          if (!gotFirst) {
-            gotFirst = true;
-            clearFirst();
-          }
-          answer += delta;
+        // Any output — content OR reasoning — means the model is alive, so clear the
+        // first-token timer. Only `content` accumulates into the answer.
+        const reasoning = extractReasoning ? extractReasoning(evt) : "";
+        if ((delta || reasoning) && !gotFirst) {
+          gotFirst = true;
+          clearFirst();
         }
+        if (delta) answer += delta;
         const fin = extractFinish(evt);
         if (fin === "length" || fin === "MAX_TOKENS") truncated = true;
         const tok = extractTokens(evt);
@@ -725,8 +744,10 @@ async function callGemini(
   role: string = "customer",
   apiKey?: string,
   model?: string,
+  noFallback = false,
 ): Promise<AiReply> {
-  const key = apiKey || env.AICHAT_LLM_API_KEY;
+  const key = apiKey;
+  if (!key) throw new Error('Gemini: no API key provided');
   const modelName = model || "gemini-2.0-flash";
   const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
   for (const h of history) {
@@ -766,7 +787,7 @@ async function callGemini(
   );
 
   return {
-    answer: answer || (await localFallback(message, role)),
+    answer: answer || (noFallback ? "" : await localFallback(message, role)),
     tokensUsed,
     truncated,
   };
@@ -779,9 +800,11 @@ async function callDeepSeek(
   role: string = "customer",
   apiKey?: string,
   model?: string,
+  noFallback = false,
 ): Promise<AiReply> {
-  const key = apiKey || env.AICHAT_LLM_FALLBACK_API_KEY;
-  const modelName = model || "deepseek-chat";
+  const key = apiKey;
+  if (!key) throw new Error('DeepSeek: no API key provided');
+  const modelName = model || "deepseek-v4-flash";
   const messages: Array<{ role: string; content: string }> = [
     { role: "system", content: systemPrompt },
   ];
@@ -814,10 +837,14 @@ async function callDeepSeek(
         ?.finish_reason ?? undefined,
     (evt) => (evt as { usage?: { total_tokens?: number } }).usage?.total_tokens,
     "DeepSeek",
+    // deepseek-v4-* stream reasoning_content (thinking) before the answer content.
+    (evt) =>
+      (evt as { choices?: Array<{ delta?: { reasoning_content?: string } }> })
+        .choices?.[0]?.delta?.reasoning_content ?? "",
   );
 
   return {
-    answer: answer || (await localFallback(message, role)),
+    answer: answer || (noFallback ? "" : await localFallback(message, role)),
     tokensUsed,
     truncated,
   };
@@ -830,6 +857,7 @@ async function callOpenAi(
   role: string = "customer",
   apiKey: string,
   model?: string,
+  noFallback = false,
 ): Promise<AiReply> {
   const modelName = model || "gpt-4o-mini";
   const messages: Array<{ role: string; content: string }> = [
@@ -867,7 +895,7 @@ async function callOpenAi(
   );
 
   return {
-    answer: answer || (await localFallback(message, role)),
+    answer: answer || (noFallback ? "" : await localFallback(message, role)),
     tokensUsed,
     truncated,
   };
@@ -881,7 +909,13 @@ Find LOGICAL and conversational problems a structural checker cannot see, includ
 - contradictions, or the bot repeating/re-asking something already answered;
 - the bot ignored or misunderstood what the user actually said;
 - wrong service chosen for the stated need;
-- illogical, out-of-order, or broken flow; tone that is rude or robotic.
+- illogical, out-of-order, or broken flow; tone that is rude or robotic;
+- OUT-OF-ORDER / non-sequitur guidance: the bot jumps to collecting a detail (address, date,
+  time, budget, phone, name) BEFORE a service/need is established. The correct order is:
+  understand the need -> confirm the service -> date & time -> address -> budget -> contact ->
+  service-specific questions -> review. Flag any abrupt jump, e.g. user says "Hi I'm Josh" and
+  the bot replies "give me your address" with no service yet — that is broken flow;
+- the bot fails to acknowledge or build on what the user just said (no conversational guidance).
 Output ONLY a compact list, one finding per line as: SEVERITY | short location | the problem.
 SEVERITY is HIGH, MED, or LOW. If the conversation is genuinely fine, output exactly: OK.
 Do not restate the transcript or add commentary.`;
@@ -902,10 +936,130 @@ export async function judgeConversation(
   mode: "run" | "conclude",
 ): Promise<string> {
   const system = mode === "conclude" ? QA_CONCLUDE_SYSTEM : QA_JUDGE_SYSTEM;
-  const chain = await buildLlmChain(system, text, [], "guest");
+  // QA always uses deepseek-v4-flash when a DeepSeek key is configured — keeps the
+  // judge off the quota-limited Gemini keys and consistent across runs. noFallback so
+  // an empty reply never becomes the customer-facing localFallback boilerplate.
+  try {
+    const dsKey = (await getLlmKeys()).find((k) => k.provider === "deepseek");
+    if (dsKey) {
+      const reply = await callDeepSeek(system, text, [], "guest", dsKey.value, "deepseek-v4-flash", true);
+      const answer = (reply.answer || "").trim();
+      if (answer) return answer;
+    }
+  } catch {
+    /* fall through to the generic chain below */
+  }
+  // Fallback: run the normal chain ourselves (still noFallback) so an empty/failed key
+  // moves to the next, then to a clear JUDGE_ERROR.
+  const chain = await buildLlmChain(system, text, [], "guest", true);
   if (chain.length === 0) return "JUDGE_UNAVAILABLE: no LLM key configured";
-  const reply = await tryAiChain(system, text, [], "guest");
-  return (reply.answer || "").trim();
+  for (const llm of chain) {
+    if (isCoolingDown(llm.id)) continue;
+    try {
+      const reply = await llm.run();
+      const answer = (reply.answer || "").trim();
+      if (answer) return answer;
+    } catch (e) {
+      noteKeyFailure(llm.id, e);
+    }
+  }
+  return "JUDGE_ERROR: no judge reply";
+}
+
+// ─── Question-schema auto-translation ──────────────────────────────────────────────
+// When an admin saves a category's questionSchema, fill the per-language label
+// translations (labelI18n) so the in-chat quote flow can show each question/option in
+// the customer's language. Any translation an admin supplied is preserved; only missing
+// languages are generated, and stale ones (source `en` changed) are refreshed.
+
+const TRANSLATE_TARGETS: Array<{ code: "ms" | "zh" | "ta"; name: string }> = [
+  { code: "ms", name: "Malay (Bahasa Malaysia)" },
+  { code: "zh", name: "Simplified Chinese" },
+  { code: "ta", name: "Tamil" },
+];
+
+/** Extract the first JSON string-array from an LLM reply (tolerating ``` fences). */
+function parseJsonStringArray(s: string): string[] | null {
+  const m = s.replace(/```json|```/gi, "").match(/\[[\s\S]*\]/);
+  if (!m) return null;
+  try {
+    const arr = JSON.parse(m[0]);
+    return Array.isArray(arr) && arr.every((x) => typeof x === "string") ? (arr as string[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Translate a batch of UI labels to one language via the LLM chain. Returns a same-order
+ * array, or [] when no LLM is reachable / the reply can't be parsed — the caller then
+ * leaves those labels untranslated (the QA harness flags any that stay in English).
+ */
+async function translateBatch(texts: string[], targetLangName: string): Promise<string[]> {
+  if (!texts.length) return [];
+  const system =
+    `You are a professional UI-string translator for a home-services booking app. ` +
+    `Translate each English label in the JSON array to ${targetLangName}. Keep them short and ` +
+    `natural for a chat UI. Preserve emojis, numbers, and RM amounts; do not add commentary. ` +
+    `Return ONLY a JSON array of translated strings, the same length and order as the input.`;
+  const message = JSON.stringify(texts);
+  const chain = await buildLlmChain(system, message, [], "guest", true);
+  if (chain.length === 0) return [];
+  for (const llm of chain) {
+    if (isCoolingDown(llm.id)) continue;
+    try {
+      const reply = await llm.run();
+      const parsed = parseJsonStringArray((reply.answer || "").trim());
+      if (parsed && parsed.length === texts.length) return parsed;
+    } catch (e) {
+      noteKeyFailure(llm.id, e);
+    }
+  }
+  return [];
+}
+
+/**
+ * Fill missing/stale ms/zh/ta translations across a question schema's labels, option
+ * labels and descriptions, preserving any admin-provided values. Returns a new schema;
+ * if the LLM is unavailable the schema is returned with whatever was already present.
+ */
+export async function autoTranslateQuestionSchema(schema: QuestionItem[]): Promise<QuestionItem[]> {
+  const out: QuestionItem[] = JSON.parse(JSON.stringify(schema ?? []));
+
+  // Every translatable slot points at a live i18n object inside `out`. A slot whose
+  // stored `en` marker no longer matches its source text is reset to {en: source} so the
+  // edited text gets re-translated; otherwise existing languages are kept.
+  const slots: Array<{ base: string; i18n: Localized }> = [];
+  const addSlot = (base: string | undefined, get: () => Localized | undefined, put: (v: Localized) => void) => {
+    if (!base) return;
+    let i18n = get();
+    if (!i18n || i18n.en !== base) i18n = { en: base };
+    put(i18n);
+    slots.push({ base, i18n });
+  };
+
+  for (const q of out) {
+    addSlot(q.label, () => q.labelI18n, (v) => { q.labelI18n = v; });
+    addSlot(q.description, () => q.descriptionI18n, (v) => { q.descriptionI18n = v; });
+    for (const o of q.options ?? []) {
+      addSlot(o.label, () => o.labelI18n, (v) => { o.labelI18n = v; });
+    }
+  }
+  if (!slots.length) return out;
+
+  for (const { code, name } of TRANSLATE_TARGETS) {
+    const missing = slots.filter((s) => !s.i18n[code]);
+    if (!missing.length) continue;
+    const uniqueBases = [...new Set(missing.map((s) => s.base))];
+    const translated = await translateBatch(uniqueBases, name);
+    if (translated.length !== uniqueBases.length) continue; // LLM down — leave untranslated
+    const map = new Map(uniqueBases.map((b, i) => [b, translated[i]]));
+    for (const s of missing) {
+      const t = map.get(s.base);
+      if (t) s.i18n[code] = t;
+    }
+  }
+  return out;
 }
 
 async function callByProvider(
@@ -916,17 +1070,18 @@ async function callByProvider(
   history: HistoryMessage[],
   role: string,
   model?: string,
+  noFallback = false,
 ): Promise<AiReply> {
   switch (provider) {
     case "gemini":
-      return callGemini(systemPrompt, message, history, role, apiKey, model);
+      return callGemini(systemPrompt, message, history, role, apiKey, model, noFallback);
     case "deepseek":
-      return callDeepSeek(systemPrompt, message, history, role, apiKey, model);
+      return callDeepSeek(systemPrompt, message, history, role, apiKey, model, noFallback);
     case "openai":
     case "generic":
-      return callOpenAi(systemPrompt, message, history, role, apiKey, model);
+      return callOpenAi(systemPrompt, message, history, role, apiKey, model, noFallback);
     default:
-      return callOpenAi(systemPrompt, message, history, role, apiKey, model);
+      return callOpenAi(systemPrompt, message, history, role, apiKey, model, noFallback);
   }
 }
 
@@ -956,33 +1111,18 @@ interface LlmAttempt {
 }
 
 /**
- * Build the ordered list of LLMs to try: the .env primary + fallback first
- * (local-dev convenience; left empty on deploy), then the admin-configured keys
- * (priority order, fallback key last). The chain treats them all the same — it
- * does not care which vendor each one is.
+ * Build the ordered list of LLMs to try from the admin-configured DB keys
+ * (priority order, fallback key last). The chain treats them all the same —
+ * it does not care which vendor each one is.
  */
 async function buildLlmChain(
   systemPrompt: string,
   message: string,
   history: HistoryMessage[],
   role: string,
+  noFallback = false,
 ): Promise<LlmAttempt[]> {
   const attempts: LlmAttempt[] = [];
-
-  if (env.AICHAT_LLM_API_KEY) {
-    attempts.push({
-      id: "env:primary",
-      label: "Primary LLM (.env)",
-      run: () => callGemini(systemPrompt, message, history, role),
-    });
-  }
-  if (env.AICHAT_LLM_FALLBACK_API_KEY) {
-    attempts.push({
-      id: "env:fallback",
-      label: "Fallback LLM (.env)",
-      run: () => callDeepSeek(systemPrompt, message, history, role),
-    });
-  }
 
   let llmKeys: LlmKeyEntry[] = [];
   try {
@@ -999,7 +1139,7 @@ async function buildLlmChain(
       id: k.id,
       label: `${k.label} (${k.provider}${k.model ? ", " + k.model : ""})`,
       run: () =>
-        callByProvider(k.provider, k.value, systemPrompt, message, history, role, k.model),
+        callByProvider(k.provider, k.value, systemPrompt, message, history, role, k.model, noFallback),
     });
   }
 
@@ -1189,14 +1329,22 @@ function parseDateTimeFromText(text: string): { date?: string; slot?: string } {
  * while the phone card is showing, so a bare number run is safely the phone.
  */
 function extractPhone(message: string): string | undefined {
-  const m = message.match(/(\+?\d[\d\s\-()]{6,18}\d)/);
+  // Strip date-shaped tokens FIRST so "2026-06-19" / "19/06/2026" are never read as a
+  // phone number — the old loose match grabbed the booking date and falsely filled
+  // contactNumber, which skipped the phone card and looped the assistant.
+  const cleaned = message
+    .replace(/\b\d{4}-\d{1,2}-\d{1,2}\b/g, " ")
+    .replace(/\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b/g, " ");
+  // Phone-plausible digit run only (9–17 chars incl. separators); a 4-digit year or a
+  // 5-digit postcode can't match.
+  const m = cleaned.match(/(\+?\d[\d\s\-()]{7,15}\d)/);
   if (!m) return undefined;
   const raw = m[1].replace(/[\s\-()]/g, "");
   if (raw.startsWith("+")) {
-    return /^\+\d{7,15}$/.test(raw) ? raw : undefined;
+    return /^\+\d{9,15}$/.test(raw) ? raw : undefined;
   }
-  const local = raw.replace(/^0+/, "");
-  if (local.length < 7 || local.length > 12) return undefined;
+  const local = raw.replace(/^(?:60|0)+/, "");
+  if (local.length < 8 || local.length > 11) return undefined;
   return `+60${local}`;
 }
 
@@ -1322,6 +1470,11 @@ export async function sendToAi(
     collected?: string[];
     categoryId?: string;
     answeredQuestions?: string[];
+    /** Client-detected conversation language to pin replies to (see chat-widget). */
+    lang?: "en" | "ms" | "zh" | "ta" | "rojak";
+    /** Exact confirmed field values (key -> value) so the model recaps real data,
+     *  never invented. From the client's prefill — see chat-widget collectedValues(). */
+    collectedData?: Record<string, string>;
     formAssist?: boolean;
     formContext?: {
       step: number;
@@ -1464,6 +1617,27 @@ export async function sendToAi(
   let systemPrompt =
     (await buildAssistantPrompt(role, categories, userId)) + categoryCatalog;
 
+  // Pin the reply language to the client-detected conversation language. This OVERRIDES
+  // the generic per-turn matching: card confirmations send templated English ("My budget
+  // is RM150"), which must NOT flip the bot to English. Without this the reply language
+  // flip-flops mid-flow and the very first turn is guessed (often wrongly).
+  if (opts?.lang) {
+    const LANG_NAME: Record<string, string> = {
+      en: "English",
+      ms: "Malay (Bahasa Malaysia)",
+      zh: "Chinese",
+      ta: "Tamil",
+      rojak: "Manglish/rojak (English mixed with Malay particles)",
+    };
+    const name = LANG_NAME[opts.lang] ?? "English";
+    systemPrompt +=
+      `\n\n## REPLY LANGUAGE (STRICT — overrides all other language guidance)` +
+      `\nThe customer is conversing in ${name}. Reply ONLY in ${name} for this and every following turn.` +
+      `\nForm-style confirmations like "My budget is RM150", "My preferred date is 2026-06-20", or "Yes, let's proceed with X" are UI BUTTON CLICKS, not a language switch — keep replying in ${name} regardless of their wording.` +
+      (opts.lang === "rojak" ? ` Mirror the English-Malay rojak mix.` : ``) +
+      `\nService names from the catalog stay in their original form.`;
+  }
+
   // Form-assist mode: the user is filling the real /quote/new form. Guide them by
   // the current step and fill fields via [action:form_fill]; do NOT drive the
   // in-chat quote flow (quote_options/quote_field/quote_prefill).
@@ -1483,24 +1657,53 @@ export async function sendToAi(
     // confirmed cards and re-asks for date/time/etc. it already has. The
     // deterministic next-card logic still shows the right next card; this stops
     // the model's TEXT from re-asking and contradicting the on-screen state.
-    const friendly: Record<string, string> = {
-      preferredDate: "date",
-      timeSlot: "time of day",
-      address: "address",
-      contactName: "name",
-      contactNumber: "phone",
-      contact: "name and phone",
-      notes: "notes",
-      budgetMin: "budget",
-      budgetMax: "budget",
+    // Prefer the EXACT confirmed values (so any recap is grounded in real data, never
+    // invented). Fall back to friendly field names when the client sent only the keys.
+    const valueLabels: Record<string, string> = {
+      preferredDate: "Date",
+      timeSlot: "Time",
+      address: "Address",
+      budgetMin: "Budget (min)",
+      budgetMax: "Budget (max)",
+      contactName: "Name",
+      contactNumber: "Phone",
+      notes: "Notes",
+      propertyType: "Property type",
     };
-    const done = [
-      ...new Set(opts.collected.map((k) => friendly[k]).filter(Boolean)),
-    ];
-    if (done.length > 0) {
+    const cd = opts.collectedData ?? {};
+    const valueLines = opts.collected
+      .map((k) => {
+        const label = valueLabels[k];
+        const v = cd[k];
+        return label && typeof v === "string" && v.trim() !== "" ? `- ${label}: ${v.trim()}` : null;
+      })
+      .filter((l): l is string => l !== null);
+
+    if (valueLines.length > 0) {
       systemPrompt +=
-        `\n\n## ALREADY COLLECTED — do not ask again` +
-        `\nThe user has already provided: ${done.join(", ")}. These are captured and shown as confirmed on screen. NEVER ask for any of them again and never re-show them as a question. Briefly acknowledge in a few words at most, then ask ONLY for the next missing detail.`;
+        `\n\n## CONFIRMED DETAILS — exact values, never alter or invent` +
+        `\n${valueLines.join("\n")}` +
+        `\nThese are captured and shown on screen. NEVER ask for any of them again. If you reference or recap any, use these EXACT values verbatim — NEVER state a value that is not in this list. The review card shows the full summary, so do NOT re-list these in prose. Acknowledge briefly, then ask ONLY for the next missing detail.`;
+    } else {
+      const friendly: Record<string, string> = {
+        preferredDate: "date",
+        timeSlot: "time of day",
+        address: "address",
+        contactName: "name",
+        contactNumber: "phone",
+        contact: "name and phone",
+        notes: "notes",
+        budgetMin: "budget",
+        budgetMax: "budget",
+      };
+      const done = [
+        ...new Set(opts.collected.map((k) => friendly[k]).filter(Boolean)),
+      ];
+      if (done.length > 0) {
+        systemPrompt +=
+          `\n\n## ALREADY COLLECTED — do not ask again` +
+          `\nThe user has already provided: ${done.join(", ")}. These are captured and shown as confirmed on screen. NEVER ask for any of them again and never re-show them as a question. Briefly acknowledge in a few words at most, then ask ONLY for the next missing detail.`;
+      }
     }
   }
 
@@ -1525,10 +1728,12 @@ export async function sendToAi(
   let categoryQuestions: Array<{
     key: string;
     label: string;
+    labelI18n?: Localized;
     type: string;
     required: boolean;
-    options?: Array<{ value: string; label: string }>;
+    options?: Array<{ value: string; label: string; labelI18n?: Localized }>;
     description?: string;
+    descriptionI18n?: Localized;
   }> = [];
   if (opts?.categoryId) {
     try {
@@ -1545,11 +1750,13 @@ export async function sendToAi(
             ): q is {
               key: string;
               label: string;
+              labelI18n?: Localized;
               type: string;
               required?: boolean;
               active?: boolean;
-              options?: Array<{ value: string; label: string }>;
+              options?: Array<{ value: string; label: string; labelI18n?: Localized }>;
               description?: string;
+              descriptionI18n?: Localized;
             } =>
               !!q &&
               typeof q.key === "string" &&
@@ -1560,10 +1767,12 @@ export async function sendToAi(
           .map((q) => ({
             key: q.key,
             label: q.label,
+            labelI18n: q.labelI18n,
             type: q.type,
             required: q.required === true,
             options: q.options,
             description: q.description,
+            descriptionI18n: q.descriptionI18n,
           }));
       }
     } catch {
@@ -1618,6 +1827,10 @@ export async function sendToAi(
   // "Is this the service?" card and lets the user loop forever. Stripping the
   // block here makes the card physically un-repeatable regardless of model output.
   let outBlocks = processed.actionBlocks;
+  // Snapshot what the LLM ITSELF emitted (before the server adds/strips cards), so the
+  // decision log below shows whether a stuck/duplicated card came from the model or
+  // from the deterministic next-step logic.
+  const llmEmittedTags = processed.actionBlocks.map(blockTag);
 
   // category_lock sanity check: the model sometimes hallucinates a wrong UUID
   // (e.g. Interior Design's when the user confirmed Event Planner). Validate the
@@ -1671,6 +1884,18 @@ export async function sendToAi(
     // Once a category is locked client-side, never re-suggest it.
     if (opts?.suppressCategorySuggest) {
       outBlocks = outBlocks.filter((b) => b.type !== "quote_options");
+    }
+    // Strip any quote_question whose key is NOT in the category's real questionSchema.
+    // The model frequently invents key variants (what_do_you_need vs whatDoYouNeed vs
+    // serviceType), and those cards carry no options — so they break answered-tracking
+    // (the real key never gets marked answered) and the bot re-asks the same question
+    // forever. Only the deterministic injection below (real key + options) should drive
+    // question cards.
+    if (categoryQuestions.length > 0) {
+      const validKeys = new Set(categoryQuestions.map((q) => q.key));
+      outBlocks = outBlocks.filter(
+        (b) => b.type !== "quote_question" || validKeys.has(b.data.key as string),
+      );
     }
     // Field-collection safety net. Runs whenever the conversation is collecting
     // quote fields — the client reports collected fields OR this reply emits a
@@ -1827,7 +2052,7 @@ export async function sendToAi(
           } else {
             outBlocks.push({
               type: "quote_question",
-              data: { key: q.key, label: q.label, qtype: q.type, value: ans },
+              data: { key: q.key, label: pickI18n(q.label, q.labelI18n, opts?.lang), qtype: q.type, value: ans },
             });
           }
           answeredQ.add(q.key);
@@ -1846,11 +2071,16 @@ export async function sendToAi(
                 type: "quote_question",
                 data: {
                   key: q.key,
-                  label: q.label,
+                  label: pickI18n(q.label, q.labelI18n, opts?.lang),
                   qtype: q.type,
                   required: q.required,
-                  options: q.options ?? [],
-                  ...(q.description ? { description: q.description } : {}),
+                  options: (q.options ?? []).map((o) => ({
+                    ...o,
+                    label: pickI18n(o.label, o.labelI18n, opts?.lang),
+                  })),
+                  ...(q.description
+                    ? { description: pickI18n(q.description, q.descriptionI18n, opts?.lang) }
+                    : {}),
                 },
               });
             }
@@ -1871,6 +2101,10 @@ export async function sendToAi(
   // user asks to change something, keep the cards so they can edit.
   {
     const confirmedFields = new Set(opts?.collected ?? []);
+    // A field that already holds a VALUE on the client (collectedData) is collected too,
+    // even if the user never tapped its card — this stops front-loaded / text-extracted
+    // details from being re-shown as cards every turn (the "repeat cards" bug).
+    for (const k of Object.keys(opts?.collectedData ?? {})) confirmedFields.add(k);
     const answeredQs = new Set(opts?.answeredQuestions ?? []);
     const wantsEdit =
       /\b(change|edit|update|correct|fix|wrong|different|instead|actually|amend|re-?do|re-?enter|modify)\b/i.test(message);
@@ -1943,6 +2177,17 @@ export async function sendToAi(
       ],
     };
   }
+
+  // Decision log: what the model emitted vs the cards actually sent, plus the flow
+  // context. Lets us see WHY a card appeared (model choice vs deterministic next-step)
+  // and catch stuck/duplicated cards from the server console. Reply text is logged
+  // trimmed so the model's stated reasoning is visible without flooding the log.
+  logger.info(
+    `[chat] decision lang=${opts?.lang ?? "-"} cat=${opts?.categoryId ? "locked" : "-"} ` +
+      `llm_emitted=[${llmEmittedTags.join(", ")}] sent=[${outBlocks.map(blockTag).join(", ")}] ` +
+      `collected=[${(opts?.collected ?? []).join(",")}] answeredQ=[${(opts?.answeredQuestions ?? []).join(",")}] ` +
+      `reply="${answer.replace(/\s+/g, " ").slice(0, 200)}"`,
+  );
 
   return {
     answer,

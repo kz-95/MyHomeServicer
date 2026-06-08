@@ -29,7 +29,7 @@ import {
   PlaceResult,
 } from "./places-autocomplete.component";
 import { ChatQaService } from "./chat-qa.service";
-import { QaHost, QaBlock } from "./chat-qa-harness";
+import { QaHost, QaBlock, QaAnswer } from "./chat-qa-harness";
 import { environment } from "../../environments/environment";
 
 /** PIN that unlocks the dev-only automated chat QA run. */
@@ -102,6 +102,9 @@ const CARD_T: Record<string, Record<CardLang, string>> = {
   notes: { en: "Notes", ms: "Nota", zh: "备注", ta: "குறிப்புகள்" },
   budgetMin: { en: "Min budget", ms: "Bajet minimum", zh: "最低预算", ta: "குறைந்தபட்ச பட்ஜெட்" },
   budgetMax: { en: "Max budget", ms: "Bajet maksimum", zh: "最高预算", ta: "அதிகபட்ச பட்ஜெட்" },
+  propertyType: { en: "Property type", ms: "Jenis hartanah", zh: "房产类型", ta: "சொத்து வகை" },
+  service: { en: "Service", ms: "Perkhidmatan", zh: "服务", ta: "சேவை" },
+  svcReject: { en: "Not this service", ms: "Bukan perkhidmatan ini", zh: "不是这个服务", ta: "இந்த சேவை அல்ல" },
   // Summary labels
   sDate: { en: "Date", ms: "Tarikh", zh: "日期", ta: "தேதி" },
   sTime: { en: "Time", ms: "Masa", zh: "时间", ta: "நேரம்" },
@@ -994,7 +997,7 @@ interface PublicConfig {
           }
         </div>
 
-        <form class="composer" (ngSubmit)="send()">
+        <form class="composer" (ngSubmit)="sendTyped()">
           <input
             [(ngModel)]="draft"
             name="draft"
@@ -1860,6 +1863,57 @@ export class ChatWidgetComponent
   draft = "";
   sending = signal(false);
   connecting = signal(false);
+
+  /**
+   * The language the customer is actually conversing in, detected from their REAL
+   * typed turns only (composer / suggestion tap / QA free-text) — never from a card
+   * confirmation, whose text is templated English ("My budget is RM150"). Sent to the
+   * backend as `lang` so replies stay pinned to it instead of flip-flopping when a
+   * button click injects an English sentence. Follows a genuine switch when the user
+   * actually types in another language.
+   */
+  readonly convoLang = signal<"en" | "ms" | "zh" | "ta" | "rojak">("en");
+
+  /** Detect the conversation language from a free-text human message. */
+  private detectLang(text: string): "en" | "ms" | "zh" | "ta" | "rojak" | null {
+    if (/[一-鿿]/.test(text)) return "zh";
+    if (/[஀-௿]/.test(text)) return "ta";
+    const t = text.toLowerCase();
+    const ms =
+      /\b(saya|aku|tak|tidak|nak|hendak|boleh|rumah|macam|dengan|untuk|tolong|perlu|sangat|sudah|dah|kenapa|bocor|rosak|pasang|kipas|pintu|kunci|cuci|kereta|bilik|kotor|nombor|sila|ada|esok|kena|prlu|blh|umah)\b/.test(t);
+    const en =
+      /\b(the|is|are|need|want|my|i|please|can|could|help|service|fix|install|leaking|broken|book|booking|quote|today|tomorrow|name|phone|address)\b/.test(t);
+    const manglish = /\b(lah|lor|leh|mah|sia|liao|anot|meh)\b/.test(t);
+    if (ms && (en || manglish)) return "rojak";
+    if (manglish && en) return "rojak";
+    if (ms) return "ms";
+    if (en) return "en";
+    return null; // no language signal (bare digits, an address, a budget) — keep current
+  }
+
+  /**
+   * Update the pinned conversation language from a message, STICKILY: a non-English
+   * positive signal (script / Malay markers) always wins, but a Latin field value with
+   * no real signal (a phone number, an address, "in the night") must NOT flip an
+   * already-established ms/zh/ta/rojak conversation back to English.
+   */
+  private updateConvoLang(text: string): void {
+    const d = this.detectLang(text);
+    if (!d) return;
+    if (d !== "en") {
+      this.convoLang.set(d);
+      return;
+    }
+    // English: adopt only while no non-English language has been locked yet.
+    if (this.convoLang() === "en") this.convoLang.set("en");
+  }
+
+  /** Composer submit: detect the human's language, then send. */
+  protected sendTyped(): void {
+    const t = this.draft.trim();
+    if (t) this.updateConvoLang(t);
+    this.send();
+  }
   clearing = signal(false);
   initError = signal("");
 
@@ -2009,6 +2063,7 @@ export class ChatWidgetComponent
       this.widget.pendingQuestion.set("");
       // Dispatch the question as a user-typed message.
       this.draft = q;
+      this.updateConvoLang(q);
       this.send();
     }, opts);
   }
@@ -2135,8 +2190,17 @@ export class ChatWidgetComponent
     if (!anchor) return;
     const href = anchor.getAttribute("href");
     if (!href) return;
-    // target="_blank" links (service mentions, external) open in a new tab - let
-    // the browser handle them instead of routing in-app and closing the chat.
+    // Internal quote-form links (service mentions → /quote/new?category=…): carry the
+    // in-progress prefill so the user keeps everything the chat already collected,
+    // instead of landing on a blank form. goToQuoteForm encodes prefillData + category.
+    const m = href.match(/\/(?:guest|customer)\/quote\/new\?category=([0-9a-fA-F-]+)/);
+    if (m) {
+      event.preventDefault();
+      this.goToQuoteForm({ categoryId: m[1] });
+      return;
+    }
+    // target="_blank" links (other external) open in a new tab - let the browser handle
+    // them instead of routing in-app and closing the chat.
     if (anchor.getAttribute("target") === "_blank") return;
     if (href.startsWith("/")) {
       event.preventDefault();
@@ -2330,12 +2394,42 @@ export class ChatWidgetComponent
     });
   }
 
+  /** Exact confirmed field VALUES sent to the backend so the assistant recaps real
+   *  data (never invented). Only the base quote fields the bot narrates. */
+  private collectedValues(): Record<string, string> {
+    const d = this.widget.prefillData();
+    const keys = [
+      "preferredDate",
+      "timeSlot",
+      "address",
+      "budgetMin",
+      "budgetMax",
+      "contactName",
+      "contactNumber",
+      "notes",
+      "propertyType",
+    ];
+    const out: Record<string, string> = {};
+    for (const k of keys) {
+      const v = d[k];
+      if (v !== undefined && v !== null && String(v).trim() !== "") out[k] = String(v).trim();
+    }
+    return out;
+  }
+
   send(): void {
     this.clearStuckTimer();
     const text = this.draft.trim();
     // Guard double-submit: input stays enabled while a reply is in flight (so
     // keyboard focus is never lost), but we must not fire a second request.
     if (!text || this.connecting() || this.sending()) return;
+
+    // Gated "clear my quote": handled locally with a 2-confirmation gate; never reaches
+    // the backend until confirmed, so an offhand "reset" can't wipe a half-finished quote.
+    if (this.maybeClearQuote(text)) {
+      this.draft = "";
+      return;
+    }
 
     // Deterministically confirm a single pending service card on an affirmation,
     // before sending, so categoryLocked/categoryId go out with this request.
@@ -2418,21 +2512,49 @@ export class ChatWidgetComponent
     this.qa.start(this.buildQaHost(), { count, customerMode });
   }
 
+  /** The label text the UI actually renders for a card (localized), for QA checks. */
+  private qaRenderedLabel(b: { type: string; data: Record<string, unknown> }): string {
+    switch (b.type) {
+      case "quote_field":
+        return this.fieldLabel(this.getStr(b.data, "key"));
+      case "quote_question":
+        return this.qLabel(b.data);
+      case "quote_options":
+        return this.getStr(b.data, "category") || this.getStr(b.data, "label");
+      default:
+        return this.getStr(b.data, "label");
+    }
+  }
+
   /** Adapter: maps the harness's card actions onto this component's handlers/signals. */
   private buildQaHost(): QaHost {
     return {
       clear: () => this.clear(),
+      // Simulate a page refresh: drop the in-memory thread and re-run guest load, which
+      // restores prefill + the returning-guest "is this {name}?" identity confirm from
+      // storage (NOT wiped). Guest mode only — the QA refresh test runs as guest.
+      refresh: () => {
+        this.guestMsgs.set([]);
+        this.loadGuest();
+      },
       messages: () =>
         this.messages().map((m) => ({
           role: m.role,
           content: m.content,
-          blocks: (m.actionBlocks ?? []).map((b) => ({ type: b.type, data: b.data })),
+          // Enrich each block with what the UI actually RENDERS — the localized label
+          // and the card language — so the harness can check correct-language + dupes,
+          // not just the raw block type.
+          blocks: (m.actionBlocks ?? []).map((b) => ({
+            type: b.type,
+            data: { ...b.data, renderedLabel: this.qaRenderedLabel(b), cardLang: this.cardLang() },
+          })),
         })),
       sending: () => this.sending(),
       prefill: () => this.widget.prefillData(),
       budgetRangeCount: () => this.budgetRanges().length,
       sendText: (t) => {
         this.draft = t;
+        this.updateConvoLang(t);
         this.send();
       },
       lockCategory: (b) => this.continueQuoteInChat(b.data),
@@ -2468,7 +2590,7 @@ export class ChatWidgetComponent
         this.contactPhoneLocal.set(local);
         this.confirmPhone();
       },
-      answerQuestion: (b) => this.qaAnswerQuestion(b),
+      answerQuestion: (b, answer) => this.qaAnswerQuestion(b, answer),
       confirmIdentity: (yes) => this.confirmIdentity(yes),
       judge: (text, mode) =>
         firstValueFrom(
@@ -2483,40 +2605,48 @@ export class ChatWidgetComponent
   }
 
   /** Answer a service-question card with a valid value for its type. */
-  private qaAnswerQuestion(b: QaBlock): void {
+  /**
+   * Apply the human-style answer the harness computed for a service-question card.
+   * The harness owns the persona/language/service, so it decides WHAT to say; this
+   * just drives the matching control (radio/checkbox/number/quantity/free text).
+   */
+  private qaAnswerQuestion(b: QaBlock, answer: QaAnswer): void {
     const data = b.data;
-    const qtype = (data["qtype"] as string) || (data["type"] as string) || "text";
-    const options = (data["options"] as Array<{ value: string; label: string }>) || [];
-    switch (qtype) {
+    switch (answer.qtype) {
       case "radio":
-        if (options.length) {
-          this.answerRadio(data, options[Math.floor(Math.random() * options.length)].value);
+        if (answer.radio) {
+          this.answerRadio(data, answer.radio);
         } else {
-          this.qText.set("no preference");
+          this.qText.set(answer.text || "not sure, please advise");
           this.confirmQText(data);
         }
         break;
       case "checkbox":
-        if (options.length) {
-          this.qCheckbox.set([options[0].value]);
+        if (answer.checkbox?.length) {
+          this.qCheckbox.set(answer.checkbox);
           this.confirmQCheckbox(data);
+        } else {
+          this.qText.set(answer.text || "not sure, please advise");
+          this.confirmQText(data);
         }
         break;
       case "number":
-        this.qNumber.set(Math.floor(Math.random() * 8) + 1);
+        this.qNumber.set(answer.number ?? 1);
         this.confirmQNumber(data);
         break;
       case "quantity":
-        if (options.length) {
-          this.incQ(options[0].value);
+        if (answer.quantity && Object.keys(answer.quantity).length) {
+          for (const [value, n] of Object.entries(answer.quantity)) {
+            for (let i = 0; i < n; i++) this.incQ(value);
+          }
           this.confirmQQuantity(data);
         } else {
-          this.qNumber.set(2);
+          this.qNumber.set(answer.number ?? 2);
           this.confirmQNumber(data);
         }
         break;
       default:
-        this.qText.set("no specific preference");
+        this.qText.set(answer.text || "not sure, please advise");
         this.confirmQText(data);
         break;
     }
@@ -2567,6 +2697,71 @@ export class ChatWidgetComponent
     if (this.sessionId()) this.authMsgs.update((m) => [...m, msg]);
     else this.guestMsgs.update((m) => [...m, msg]);
     this.scrollBottom = true;
+  }
+
+  /** Append a user bubble locally (used when the chat handles a message itself, e.g. the
+   *  gated "clear my quote" flow, instead of round-tripping to the backend). */
+  private appendUserBubble(content: string): void {
+    const msg: ChatMessage = {
+      role: "user",
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    if (this.sessionId()) this.authMsgs.update((m) => [...m, msg]);
+    else this.guestMsgs.update((m) => [...m, msg]);
+    this.scrollBottom = true;
+  }
+
+  /**
+   * Conversational "clear my quote" with a confirmation GATE: after the user asks, they
+   * must confirm TWICE more before anything is wiped, so an offhand "reset" never nukes a
+   * half-finished quote. Counts the turns with an if/else; returns true when it handled
+   * the message (so send() skips the backend). Only clears the QUOTE data — the chat
+   * thread stays.
+   */
+  private clearQuoteAsks = 0;
+  private maybeClearQuote(text: string): boolean {
+    const t = text.toLowerCase();
+    const wantsClear =
+      /\b(clear|reset|wipe|delete|cancel|discard|scrap|start over|start again|start fresh)\b/.test(t) &&
+      /\b(quote|booking|order|detail|details|everything|data|form|all)\b|\bstart (over|again|fresh)\b/.test(t);
+    const confirming =
+      /\b(yes|yep|yeah|ya|confirm|sure|ok|okay|go ahead|do it|please|correct|betul|ye|是的|对|ஆம்)\b/.test(t);
+    const hasData =
+      this.collectedKeys().length > 0 || !!this.widget.prefillData()["categoryId"];
+
+    // Nothing to clear → not our concern.
+    if (!hasData) {
+      this.clearQuoteAsks = 0;
+      return false;
+    }
+    // Not a clear request and no clear pending → let the message flow normally.
+    if (this.clearQuoteAsks === 0 && !wantsClear) return false;
+    // Mid-confirmation but they changed the subject → abort the clear, let it flow.
+    if (this.clearQuoteAsks > 0 && !confirming && !wantsClear) {
+      this.clearQuoteAsks = 0;
+      return false;
+    }
+
+    this.appendUserBubble(text);
+    this.clearQuoteAsks++;
+    if (this.clearQuoteAsks <= 2) {
+      // Request (1) and first confirm (2): keep gating — need 2 confirmations after asking.
+      this.appendAssistantBubble(
+        this.clearQuoteAsks === 1
+          ? "Just to be sure — clear your current quote and start fresh? Your saved details will be wiped. Reply yes to confirm."
+          : "This erases everything you've entered so far. Are you sure? Reply yes once more to clear.",
+      );
+    } else {
+      // Second confirm (3): actually clear the quote data (conversation stays).
+      this.clearQuoteAsks = 0;
+      this.resetQuoteFlowState();
+      this.clearGuestPrefill();
+      this.appendAssistantBubble(
+        "Done — your quote details have been cleared. What would you like to book?",
+      );
+    }
+    return true;
   }
 
   /** Greeting tier + display name for the signed-in user. */
@@ -2726,7 +2921,7 @@ export class ChatWidgetComponent
       budgetMin: r.min,
       budgetMax: r.max ?? r.min,
     });
-    this.draft = `My budget is ${this.rangeLabel(r)}.`;
+    this.draft = `${this.t("budgetMax")}: ${this.rangeLabel(r)}`;
     this.send();
   }
 
@@ -2876,7 +3071,7 @@ export class ChatWidgetComponent
     if (!value) return;
     this.widget.accumulatePrefill({ preferredDate: value });
     this.dateConfirmed.set(value);
-    this.draft = `My preferred date is ${value}.`;
+    this.draft = `${this.t("preferredDate")}: ${value}`;
     this.send();
   }
 
@@ -2894,7 +3089,7 @@ export class ChatWidgetComponent
     this.timeConfirmed.set(value);
     this.timeConfirmedLabel.set(label);
     this.widget.accumulatePrefill({ timeSlot: value });
-    this.draft = `My preferred time is ${label}.`;
+    this.draft = `${this.t("timeSlot")}: ${label}`;
     this.send();
   }
 
@@ -2913,9 +3108,9 @@ export class ChatWidgetComponent
   private fieldSendPhrase(key: string, value: string): string {
     switch (key) {
       case "contactName":
-        return `My name is ${value}.`;
+        return `${this.t("contactName")}: ${value}`;
       case "contactNumber":
-        return `My phone number is ${value}.`;
+        return `${this.t("contactNumber")}: ${value}`;
       case "notes":
         return value;
       default:
@@ -2990,8 +3185,8 @@ export class ChatWidgetComponent
     // (set from prefillData above) tells the backend to suppress further category
     // suggestion cards, so confirming can't loop back to the same prompt.
     this.draft = category
-      ? `Yes, let's proceed with ${category}.`
-      : "Yes, that's the service I need. Let's proceed.";
+      ? `${this.t("service")}: ${category}`
+      : this.t("service");
     this.send();
   }
 
@@ -3004,8 +3199,8 @@ export class ChatWidgetComponent
     const category = (data["category"] as string) || "";
     this.markCardResolved(data["categoryId"] as string);
     this.draft = category
-      ? `No, ${category} isn't the service I'm looking for.`
-      : `No, that's not the service I'm looking for.`;
+      ? `${this.t("svcReject")}: ${category}`
+      : this.t("svcReject");
     this.send();
   }
 
@@ -3092,7 +3287,7 @@ export class ChatWidgetComponent
               propertyType: this.addrPropertyType(),
             });
             this.addressConfirmed.set(true);
-            this.draft = `My address is ${r.formattedAddress}.`;
+            this.draft = `${this.t("address")}: ${r.formattedAddress}`;
             this.send();
           } else {
             this.addrError.set(
@@ -3111,7 +3306,7 @@ export class ChatWidgetComponent
     const pt = this.addrPropertyType();
     if (!pt) return;
     this.widget.accumulatePrefill({ propertyType: pt });
-    this.draft = `Building type is ${pt}.`;
+    this.draft = `${this.t("propertyType")}: ${pt}`;
     this.send();
   }
 
@@ -3122,7 +3317,7 @@ export class ChatWidgetComponent
     if (!name || !this.phoneValid()) return;
     this.widget.accumulatePrefill({ contactName: name, contactNumber: phone });
     this.contactConfirmed.set(true);
-    this.draft = `My name is ${name} and my phone number is ${phone}.`;
+    this.draft = `${this.t("contactName")}: ${name}, ${this.t("contactNumber")}: ${phone}`;
     this.send();
   }
 
@@ -3131,7 +3326,7 @@ export class ChatWidgetComponent
     if (!this.phoneValid()) return;
     const phone = this.fullPhone();
     this.widget.accumulatePrefill({ contactNumber: phone });
-    this.draft = `My phone number is ${phone}.`;
+    this.draft = `${this.t("contactNumber")}: ${phone}`;
     this.send();
   }
 
@@ -3463,7 +3658,7 @@ export class ChatWidgetComponent
         reply: string;
         createdAt?: string;
         actionBlocks?: { type: string; data: Record<string, unknown> }[];
-      }>("/chat/guest", { message: text, history, role, categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() })
+      }>("/chat/guest", { message: text, history, role, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() })
       .subscribe({
         next: (r) => {
           const mapped = r.actionBlocks?.map((b) => ({
@@ -3507,7 +3702,7 @@ export class ChatWidgetComponent
         createdAt?: string;
         actions?: ChatMessage["actions"];
         actionBlocks?: { type: string; data: Record<string, unknown> }[];
-      }>(`/chat/session/${sessionAtSend}/message`, { message: text, categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() })
+      }>(`/chat/session/${sessionAtSend}/message`, { message: text, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() })
       .subscribe({
         next: (r) => {
           const mapped = r.actionBlocks?.map((b) => ({

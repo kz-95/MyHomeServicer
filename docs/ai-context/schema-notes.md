@@ -79,6 +79,7 @@ Additional question item fields:
 - `minSelect?: number` — checkbox/quantity; minimum required selections
 - `showIf?: { questionKey, includesAny }` — conditional visibility; hidden questions skipped in validation and pricing
 - `property_type` is a **reserved global key** — may never appear in a category's `questionSchema`; rendered as a built-in field on every quote form writing to `QuoteRequest.property_type`
+- `labelI18n?`, `descriptionI18n?` (question) and `labelI18n?` (option) — per-language label translations `{ en?, ms?, zh?, ta? }`. Filled automatically on admin save (`autoTranslateQuestionSchema` in `chat.service.ts`, via the LLM chain) so the in-chat quote flow renders each question/option card in the customer's language; admin-supplied values are preserved (manual override), only missing/stale languages (source `en` changed) are regenerated. `en` mirrors the canonical `label` as the staleness marker. Absent = fall back to `label`. The in-chat card resolves to the conversation `lang` (passed from the client) via `pickI18n`; `en`/`rojak` use the canonical label. Existing categories gain translations the next time they're saved (no backfill yet). The on-screen quote forms (quote-form/guest-quote/listing-wizard) do **not** yet localize these labels.
 
 **Per-category photo toggle**
 `Category.photos_enabled` (boolean, default false) — when true, the quote form shows the optional photo upload for this category. Admin Category Settings → Dispatch tab has a "Request photos" toggle. Set true for repair/install/site categories; false for cleaning, classes, catering.
@@ -251,7 +252,7 @@ There is no `DepositTopup` model — top-up requests are tracked as a `PLATFORM_
 
 | Table | What it stores | Key notes |
 |---|---|---|
-| CHAT_SESSION | One conversation per context | Created when customer opens chat. `context_type` distinguishes general/booking_support/quote_help. `total_tokens_used` nullable. |
+| CHAT_SESSION | One conversation per context | Polymorphic owner: `user_id` for customers/admins, `servicer_id` for merchant accounts. Exactly one is set. `context_type` distinguishes general/booking_support/quote_help. `total_tokens_used` nullable. |
 | CHAT_MESSAGE | Individual messages | One row per message. Last 10 fetched as history on each AI call. `tokens_used` nullable. |
 | FAQ | Static FAQ entries | Admin-managed knowledge base fed into the AI chatbot system prompt. `tier` — single-value String, default `"guest"`. Hierarchical access: guest < customer < servicer < admin. `TIER_ORDER` in `chat.service.ts` maps each role to allowed tiers: admin sees all 4, servicer sees 3 (servicer/customer/guest), customer sees 2 (customer/guest), guest sees 1 (guest). `buildSystemPrompt(role)` filters via `prisma.faq.findMany({ where: { tier: { in: allowedTiers } } })`. `localFallback()` uses the same tier filtering. `isPublished` gates inclusion. |
 

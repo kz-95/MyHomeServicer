@@ -3,6 +3,7 @@ import { body } from 'express-validator';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { questionSchemaSchema, checkQuestionSchemaImmutability } from '../lib/json-schemas';
+import { autoTranslateQuestionSchema } from '../services/chat.service';
 import { asyncHandler } from '../lib/async-handler';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { requirePin } from '../middleware/pin';
@@ -306,7 +307,10 @@ adminRouter.patch(
         const err = checkQuestionSchemaImmutability(existingParsed.data, parsed.data);
         if (err) throw badRequest(err);
       }
-      data.questionSchema = parsed.data;
+      // Fill per-language label translations (labelI18n) for the in-chat quote flow.
+      // Preserves any admin-supplied translation; only missing/stale languages are
+      // generated. Falls back to the parsed schema if the LLM is unavailable.
+      data.questionSchema = await autoTranslateQuestionSchema(parsed.data);
     }
 
     const updated = await prisma.category.update({ where: { id: req.params.id }, data });
@@ -335,6 +339,37 @@ adminRouter.patch(
       ipAddress: ip(req),
     });
     res.json(updated);
+  }),
+);
+
+/**
+ * POST /admin/categories/backfill-translations — fill labelI18n across EVERY category's
+ * questionSchema in one pass, for categories saved before auto-translate-on-save landed.
+ * PIN-gated. Idempotent: only missing/stale languages are generated, so it's safe to
+ * re-run. Makes LLM calls per category — a one-off admin migration, not a hot path.
+ */
+adminRouter.post(
+  '/categories/backfill-translations',
+  requirePin,
+  asyncHandler(async (_req, res) => {
+    const cats = await prisma.category.findMany({
+      where: { deletedAt: null },
+      select: { id: true, questionSchema: true },
+    });
+    let scanned = 0;
+    let updated = 0;
+    for (const cat of cats) {
+      const parsed = questionSchemaSchema.safeParse(cat.questionSchema);
+      if (!parsed.success || parsed.data.length === 0) continue;
+      scanned++;
+      const translated = await autoTranslateQuestionSchema(parsed.data);
+      await prisma.category.update({
+        where: { id: cat.id },
+        data: { questionSchema: translated },
+      });
+      updated++;
+    }
+    res.json({ ok: true, scanned, updated });
   }),
 );
 
