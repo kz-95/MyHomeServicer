@@ -1332,6 +1332,13 @@ export async function sendToAi(
     };
   },
 ): Promise<AiReply> {
+  // Drop automated "Admin notice:" diagnostics from the history fed to the LLM. They
+  // are persisted in the thread (so the admin sees them) but are NOT conversation — if
+  // left in, the model copies them verbatim on the next turn even after the key is set.
+  history = history.filter(
+    (h) => !(h.role === "assistant" && h.content.startsWith("Admin notice:")),
+  );
+
   // Load banned words for server-side filtering (safety net)
   let bannedWords: string[] = [];
   try {
