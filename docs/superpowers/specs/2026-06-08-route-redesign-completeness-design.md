@@ -15,6 +15,12 @@ This spec is the **completeness layer**: it enumerates *every* navigation refere
 the app (changed and unchanged, so coverage is auditable), picks a reroute strategy,
 and adds the pieces the original spec omitted.
 
+> ⚠️ **Line numbers are indicative (snapshot 2026-06-08) — match by route string + file,
+> not by line.** `shared/chat-widget.component.ts` in particular is under active edit (the
+> AI-chat bugfix work), so its cites drift quickly (e.g. `navigateByUrl` has moved from
+> ~1971/3074 → ~2144/3393 within a day). The file + the literal route string are the
+> stable keys; grep the string to find the current line before editing.
+
 ## Strategy (decided)
 
 **Redirects + fix sources** (belt-and-suspenders):
@@ -94,9 +100,9 @@ layer a permanent crutch and leaves the AI's dead links broken. Do both.
 | `customer/pages/proposals.component.ts:466` | `['/customer/bookings']` `?id=` | `['/customer/bookings/active']` (or `/:id`) | 2 (spec covered) |
 | `customer/pages/my-bookings.component.ts:724` | `['/customer/chat']` (dead) | remove — open widget via `ChatWidgetService` | 4 (spec covered) |
 | `admin/pages/setup-wizard.component.ts:99` | `['/admin/dashboard']` (dead) | `['/admin']` | 3 (spec covered) |
-| `shared/chat-widget.component.ts:2477` | `['/customer/bookings']` (`report_booking`) | `['/customer/bookings/active']` | 4 (spec covered) |
-| `shared/chat-widget.component.ts:2480` | `['/contact']` (dead) | remove / replace action | 4 (spec covered) |
-| `shared/chat-widget.component.ts:1971,3074` | `navigateByUrl(href)` — AI-emitted href | fixed at source via chat.service prompt (§5) | 6 |
+| `shared/chat-widget.component.ts` (~2784, `navigate(["/customer/bookings"])`) | `['/customer/bookings']` (`report_booking`) | `['/customer/bookings/active']` | 4 (spec covered) |
+| `shared/chat-widget.component.ts` (~2787, `navigate(["/contact"])`) | `['/contact']` (dead) | remove / replace action | 4 (spec covered) |
+| `shared/chat-widget.component.ts` (~2144, ~3393, `navigateByUrl(href)`) | AI-emitted href | fixed at source via chat.service prompt (§5) | 6 |
 
 ### 3b. NO CHANGE (verified)
 `setup-wizard:102` (`/login`), `chat-widget:3012,3024` (`${base}/quote/new`), `demo-bar`
@@ -208,7 +214,8 @@ The original spec lists these in backward-compat *tables* but omits them from th
 ```typescript
 // customer.routes.ts
 { path: 'history', redirectTo: 'bookings/history', pathMatch: 'full' },
-{ path: 'bookings', redirectTo: 'bookings/active', pathMatch: 'full' }, // '' child already covers
+// NOTE: bare /customer/bookings is handled by the bookings parent's own
+// `{ path: '', redirectTo: 'active' }` child — do NOT add a sibling `bookings` redirect.
 { path: 'notification-settings', redirectTo: 'notifications/settings', pathMatch: 'full' },
 
 // servicer.routes.ts
