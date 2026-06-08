@@ -405,7 +405,7 @@ export async function buildAssistantPrompt(
   extra +=
     "\n[action:quote_options] — suggest a category. Include category, categoryId.";
   extra +=
-    "\n[action:quote_field] — collect one field. Keys: preferredDate, timeSlot, address, contactName, contactNumber, notes, budgetMin, budgetMax.";
+    "\n[action:quote_field] — collect one field. Keys: preferredDate, timeSlot, address, addressNo, propertyType, streetDetails, postcode, contactName, contactNumber, notes, budgetMin, budgetMax.";
   extra +=
     "\n[action:category_lock] — silently lock the confirmed service. Include categoryId (the exact UUID). Emit the moment the user confirms a service by card OR in text. No visible card.";
   extra +=
@@ -1205,6 +1205,19 @@ function extractAddress(text: string): string | undefined {
   return addr.length >= 8 ? addr : undefined;
 }
 
+function extractAddressNo(text: string): string | undefined {
+  const m = text.match(/(?:no\.?\s*|unit\s*|blok\s*|block\s*)(\d+[a-z]?(?:\s*[-–]\s*\d+)?)/i);
+  if (m) return m[1].trim();
+  const first = text.split(",")[0].trim();
+  if (/^\d+[a-z]?$/.test(first)) return first;
+  return undefined;
+}
+
+function extractPostcode(text: string): string | undefined {
+  const m = text.match(/\b(\d{5})\b/);
+  return m ? m[1] : undefined;
+}
+
 /**
  * Match a bare answer the user typed against a pending service question, so an
  * answer given in text (e.g. "50" for an attendees question) is captured and the
@@ -1250,8 +1263,13 @@ function nextStepBlocks(collected: string[]): ActionBlock[] {
       { type: "quote_field", data: { key: "timeSlot" } },
     ];
   }
-  if (!has("address"))
-    return [{ type: "quote_field", data: { key: "address" } }];
+  if (!has("address")) {
+    const addrBlocks: ActionBlock[] = [
+      { type: "quote_field", data: { key: "address" } },
+    ];
+    if (!has("propertyType")) addrBlocks.push({ type: "quote_field", data: { key: "propertyType" } });
+    return addrBlocks;
+  }
   // Budget BEFORE contact — it reads more naturally (know the budget, then take
   // contact details last) and matches the order the model narrates, so the card
   // shown lines up with the question the assistant asks.
@@ -1438,7 +1456,7 @@ export async function sendToAi(
       `\nCurrent step: ${c.stepName} (step ${c.step}). Selected service: ${c.categoryName ?? "none yet"}.` +
       `\nAlready filled: ${c.filled.length ? c.filled.join(", ") : "nothing"}. Still needed this step: ${c.missing.length ? c.missing.join(", ") : "nothing"}.` +
       `\nHelp them with THIS step in 1-3 short sentences. To fill a field for them, emit [action:form_fill]key: <key>\nvalue: <value>[/action].` +
-      `\nValid keys: categoryId (a UUID from the catalog), preferredDate (YYYY-MM-DD), timeSlot (morning|noon|afternoon|evening|night), contactName, contactNumber, address, notes.` +
+      `\nValid keys: categoryId (a UUID from the catalog), preferredDate (YYYY-MM-DD), timeSlot (morning|noon|afternoon|evening|night), contactName, contactNumber, address, addressNo, propertyType, streetDetails, postcode, notes.` +
       `\nOnly fill a field when the user gave the value. NEVER emit quote_options, quote_field, or quote_prefill in this mode — the on-screen form already has those controls.`;
   } else if (opts?.collected && opts.collected.length > 0) {
     // In-chat quote flow: tell the model which fields the user has ALREADY given
@@ -1708,7 +1726,11 @@ export async function sendToAi(
         if (hasDateIntent) fillField("preferredDate", parsed.date);
         if (hasTimeIntent) fillField("timeSlot", parsed.slot);
       }
-      fillField("address", extractAddress(`${message}\n${convoText}`));
+      const addrText = `${message}\n${convoText}`;
+      fillField("address", extractAddress(addrText));
+      fillField("addressNo", extractAddressNo(addrText));
+      fillField("streetDetails", extractAddress(addrText));
+      fillField("postcode", extractPostcode(addrText));
       const budgetN = extractBudget(allText);
       if (budgetN) fillField("budgetMax", String(budgetN));
       fillField("contactName", extractName(message, `${processed.text}\n${convoText}`));

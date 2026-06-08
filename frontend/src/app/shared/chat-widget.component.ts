@@ -158,9 +158,15 @@ interface PublicConfig {
                                   <span class="field-confirmed-note">You can change it later if needed.</span>
                                 </div>
                               } @else {
-                                <div class="addr-fields">
+                                 <div class="addr-fields">
                                   <div class="addr-row">
                                     <input class="addr-no" type="text" [ngModel]="addrNo()" (ngModelChange)="addrNo.set($event)" name="pf_addr_no" placeholder="No. / Unit" />
+                                    <select class="ptype-select" [ngModel]="addrPropertyType()" (ngModelChange)="addrPropertyType.set($event)">
+                                      <option value="">Type*</option>
+                                      <option value="landed">Landed</option>
+                                      <option value="condo">Condo</option>
+                                      <option value="commercial">Commercial</option>
+                                    </select>
                                     <button type="button" class="gps-btn" [disabled]="locatingGps()" (click)="locateViaGps()" title="Use my current location">📍</button>
                                   </div>
                                   <app-places-autocomplete
@@ -180,6 +186,22 @@ interface PublicConfig {
                                   }
                                 </div>
                                 <button type="button" class="btn-primary ac-confirm" [disabled]="!addrStreet().trim() || addrValidating() || locatingGps()" (click)="confirmAddress()">Confirm</button>
+                              }
+                            } @else if (getStr(b.data, 'key') === 'propertyType') {
+                              @if (valueCollected('propertyType')) {
+                                <div class="field-confirmed">
+                                  <span class="field-confirmed-value">✅ {{ widget.prefillData()['propertyType'] }}</span>
+                                </div>
+                              } @else {
+                                <div class="ac-budget">
+                                  <select [ngModel]="addrPropertyType()" (ngModelChange)="addrPropertyType.set($event)" name="pf_property_type">
+                                    <option value="">Select building type…</option>
+                                    <option value="landed">Landed</option>
+                                    <option value="condo">Condo</option>
+                                    <option value="commercial">Commercial</option>
+                                  </select>
+                                  <button type="button" class="btn-primary ac-confirm" [disabled]="!addrPropertyType()" (click)="confirmPropertyType()">Confirm</button>
+                                </div>
                               }
                             } @else if (getStr(b.data, 'key') === 'contactNumber') {
                               @if (valueCollected('contactNumber')) {
@@ -1252,6 +1274,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   addrNo = signal('');
   addrStreet = signal('');
   addrPostcode = signal('');
+  addrPropertyType = signal('');
   private addrLat: number | null = null;
   private addrLng: number | null = null;
   addressConfirmed = signal(false);
@@ -1696,6 +1719,12 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
           if (r.lat != null && r.lng != null) {
             this.widget.accumulatePrefill({ lat: r.lat, lng: r.lng });
           }
+          this.widget.accumulatePrefill({
+            addressNo: this.addrNo().trim(),
+            streetDetails: this.addrStreet().trim(),
+            postcode: this.addrPostcode().trim(),
+            propertyType: this.addrPropertyType(),
+          });
           this.addressConfirmed.set(true);
           this.draft = `My address is ${r.formattedAddress}.`;
           this.send();
@@ -1708,6 +1737,14 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.addrError.set('Address check failed, please try again.');
       },
     });
+  }
+
+  confirmPropertyType(): void {
+    const pt = this.addrPropertyType();
+    if (!pt) return;
+    this.widget.accumulatePrefill({ propertyType: pt });
+    this.draft = `Building type is ${pt}.`;
+    this.send();
   }
 
   /** Confirm the combined contact card: store name + phone and advance the flow. */
@@ -2195,6 +2232,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.addrNo.set('');
     this.addrStreet.set('');
     this.addrPostcode.set('');
+    this.addrPropertyType.set('');
     this.addressConfirmed.set(false);
     this.addressFormatted.set('');
     this.addrError.set('');
