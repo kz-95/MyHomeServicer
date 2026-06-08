@@ -96,7 +96,7 @@ export class SetupWizardComponent {
     this.http.patch('/api/v1/admin/me/password', { oldPassword: 'Demo@2026', newPassword: this.newPassword }).subscribe({
       next: () => {
         this.auth.refresh().subscribe({
-          next: () => this.router.navigate(['/admin/dashboard']),
+          next: () => this.router.navigate(['/admin']),
           error: () => {
             this.auth.logout();
             this.router.navigate(['/login']);
