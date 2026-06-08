@@ -1,6 +1,17 @@
 # App-Wide Route Redesign — RESTful URL Restructuring
 
-> 2026-06-08 · Specification · Phase 0 complete, Phase 1–5 pending
+> 2026-06-08 · Specification · Phase 1 complete, Phase 2–6 pending
+>
+> ⚠️ **Read alongside the completeness companion:**
+> `2026-06-08-route-redesign-completeness-design.md`. This spec is the frontend route
+> map; the companion audits the FULL reroute surface (backend `linkUrl`/Stripe/search/
+> chat-AI emitters, seed FAQ, dynamic routes) and adds a **new Phase 6**. Two things in
+> THIS doc's example route configs are deliberately incomplete and MUST NOT be copied
+> verbatim — see the companion:
+> 1. The `Routes` examples omit backward-compat **`redirectTo` entries** (companion §6).
+> 2. The admin `Routes` example omits **`canActivate: [adminActionPinGuard]`** on
+>    `users`, `queues` (→ parent), and `settings/api-keys` — copying it verbatim removes
+>    the admin PIN gate (companion §9f). Carry every guard onto its renamed/nested route.
 
 ## Brainstorm Decisions (Session 2026-06-08)
 

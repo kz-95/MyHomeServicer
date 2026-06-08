@@ -35,6 +35,21 @@ There are two distinct PINs, verified by different endpoints:
 
 2. **Action PIN — `1234`** (per-account: `User.actionPinHash` for admin/customer, `Servicer.pinHash` for servicer). The real second credential for sensitive operations. Also gates **viewing** the Admin → Accounts (`/admin/users`) and Review Queues (`/admin/queues`) pages via `adminActionPinGuard`, which prompts (and `clear()`s first so each open re-prompts) before the page activates; cancel → `/admin`. Verified by `POST /admin/verify-pin` (`x-action-pin` header, admin) or `POST /chat/verify-pin` (body; servicer reads `Servicer.pinHash`, admin/customer read `User.actionPinHash`). Cached per session for in-page sensitive saves. The change-PIN / rescue-reset flows enforce exactly 6 digits (`/^\d{6}$/`); `1234` and `5201314` are both seed/demo conveniences set directly (bypassing those validators).
 
+**Route guards must follow renamed routes (route redesign)**
+`adminActionPinGuard` (`canActivate`) protects `/admin/users`, `/admin/queues`, and
+`/admin/settings/api-keys` in `admin.routes.ts`. The 2026-06 route redesign restructures
+`queues` into parent+children and nests settings — when those routes move, the guard MUST
+move with them (queues guard → the **parent** node so all four sub-routes inherit it; add
+the guard to the new `users/:id` detail route too). Dropping a `canActivate` during the
+refactor is an auth-bypass. See `specs/2026-06-08-route-redesign-completeness-design.md` §9f.
+
+**Client navigation is not an access boundary**
+New `:id` detail routes (`/servicer/jobs/:id`, `/customer/bookings/:id`, `/admin/users/:id`,
+`/admin/merchants/:id`) must enforce ownership/role on the **backing API**, not the route
+param (IDOR). Notification `linkUrl` (→ `notification.service.routeFor()` →
+`navigateByUrl`) must stay backend-controlled and start with a single `/` (reject `//` —
+defense-in-depth against open-redirect); never build `linkUrl` from user input.
+
 **OTP as hash only**
 OTP codes for password reset and phone verification are never stored in plaintext. Store bcrypt or SHA-256 hash. Expire after 10 minutes. Invalidate all previous OTPs for the same user and purpose when a new one is requested.
 

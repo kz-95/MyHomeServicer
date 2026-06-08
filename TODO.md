@@ -6,10 +6,17 @@
 
 ## 🔨 IN PROGRESS — App-Wide Route Redesign (2026-06-08)
 
-**Spec:** `docs/superpowers/specs/2026-06-08-route-redesign.md`
+**Specs:** `docs/superpowers/specs/2026-06-08-route-redesign.md` (frontend route map)
++ `docs/superpowers/specs/2026-06-08-route-redesign-completeness-design.md` (full reroute
+surface: backend emitters, seed FAQ, redirects, dynamic routes, **security review**).
 
 Restructure all portal URLs from flat/in-component-tab patterns to RESTful,
 hierarchical paths with tabs as URL segments and filters as query params.
+
+> ⚠️ Two gaps in the original spec's route-config examples (completeness §6/§9f): add
+> backward-compat `redirectTo` entries, and carry `adminActionPinGuard` (`canActivate`)
+> onto the restructured `queues`/`users`/`api-keys` routes — copying the examples
+> verbatim drops the admin PIN gate (auth-bypass regression).
 
 ### Phase 1 — Servicer jobs ✅ (2026-06-08)
 - [x] `servicer.routes.ts` — `jobs` parent + `pending`/`active`/`history` children (each
@@ -32,10 +39,26 @@ hierarchical paths with tabs as URL segments and filters as query params.
 
 ### Phase 4 — Shared links + dead link fixes
 - [ ] Fix `/customer/chat`, `/contact`, `/admin/dashboard` dead links
-- [ ] Update notification service routes
+- [ ] Update notification service routes (`linkReorder` → `/customer/bookings/history`)
 
 ### Phase 5 — New detail pages (stretch)
 - [ ] Job history detail, booking detail, user detail, merchant detail
+- [ ] Each `:id` detail route enforces server-side ownership/role (IDOR — completeness §9d)
+
+### Phase 6 — Backend & dynamic links (NEW, from completeness audit)
+- [ ] Backend `linkUrl` emitters → new routes: `booking.service` (5), `quote.service` (3),
+      `dispatch.service` (2, incl. dead `/bookings`), `stripe.routes` (1)
+- [ ] Stripe return URLs (`booking.service` 839/840, `stripe.routes` 93/94) → `/bookings/active`
+- [ ] Global-search `route` fields (`index.ts` 390/421)
+- [ ] Chat AI prompt (`chat.service` 83-102,518) → new routes + fix 4 dead links
+- [ ] Seed FAQ knowledge base (`static.ts` ~5 lines, incl. dead `/admin/money`) + reseed
+- [ ] Servicer dashboard quickLinks (`dashboard.component.ts` 93/294/295/296, incl. dead
+      `/servicer/history`)
+- [ ] `routeFor()` relative-path guard (`notification.service`) — defense-in-depth
+
+### 🔴 Dead-link hotfix (broken NOW, optional ahead of Phase 6)
+- [ ] `/servicer/history`, `/bookings`, `/customer/chat`, `/contact`, `/customer/proposals`,
+      `/customer/deposit`, `/servicer/quotes`, `/admin/dashboard`, `/admin/money`
 
 ---
 
@@ -55,18 +78,31 @@ From real transcript. 3 root causes — all fixed; `tsc` backend + frontend pass
       `quote_field`/`quote_prefill` cards stripped until a service is settled.
       (`chat.service.ts` `collectingFields` gate.)
 
-### Chat QA harness (2026-06-08)
-- [x] **QA button** added left of Clear in the chat header. Runs `runQa()` — drives the
-      live bot through 30 scripted human-style customer conversations (`QA_SCRIPTS`),
-      each giving details in a different order/way (service-first, dump-all, address-
-      first, budget-first, vague, wrong-then-corrected, mixed CN/MY/EN, ramble, reject-
-      retry, absurd-but-serviceable). Types natural text only, no card clicks; awaits
-      each reply via the `sending` signal. Click again = Stop/cancel.
-- [x] Transcript logged live to console and downloaded as
-      `ChatQA_Log_<HHMMDDMMYYXX>.md` (clock-stamped: hour, min, day, month, 2-digit
-      year, 2-digit run seq — e.g. `ChatQA_Log_041808062601`).
+### Chat QA harness — card-driving E2E (2026-06-08)
+Standalone, shared, dev-only automated QA that completes a FULL quote to the review card.
+- [x] **Architecture (separated for tidiness):**
+      - `frontend/src/app/shared/chat-qa-harness.ts` — pure engine: persona model, data
+        pools, procedural scenario generator, card-driving loop + per-run checker.
+      - `frontend/src/app/shared/chat-qa.service.ts` — `@Injectable({providedIn:root})`
+        shared runner (run state signals, log-name, POSTs the log). Reusable by any component.
+      - `chat-widget.component.ts` — only the `QaHost` adapter (`buildQaHost`) mapping
+        harness card actions onto the real handlers (continueQuoteInChat, confirmDate,
+        confirmBudget, answerRadio, submitPrefill…), plus `qaAnswerQuestion`.
+- [x] **Card-driving:** inspects the card the bot shows and calls the real handler →
+      goes through base fields AND the service question schema → success = the
+      `quote_prefill` review card appears (does NOT navigate away). Fixes the old
+      text-only harness that could never finish a card-driven flow.
+- [x] **Persona model (per run):** {Typing}{Tone}{Behavior}{Sorting}{Language} +
+      **Customer Preset** (customer-mode 6th axis — named test customers). 100 random
+      runs per click (procedural).
+- [x] **Guest + customer mode** (adapter uses mode-agnostic send/clear/messages).
+- [x] **Checker** logs per run: missing fields / loop / stall / timeout; SUMMARY block
+      at top (pass/fail + issue tally + failure list).
+- [x] **PIN-gated** (`5201314`) on press; **dev-build only** (`!environment.production`).
+- [x] **Log output:** `POST /chat/qa-log` writes `<repo-root>/logs/ChatQA_Log_<HHMMDDMMYYXX>.log`
+      (name sanitised, write confined to logs/). `logs/` git-kept, `*.log` ignored.
 
-Committed together on `feat/ux-polish` with the name/budget/flow fixes.
+Verified: backend tsc + frontend tsc clean, ng build green.
 
 ---
 

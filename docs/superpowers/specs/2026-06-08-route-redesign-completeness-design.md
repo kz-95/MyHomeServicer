@@ -269,8 +269,68 @@ These are broken **now**, independent of the redesign — split into a standalon
 | Seed AI FAQ knowledge base | `prisma/seed/data/static.ts` | 5 lines, incl. 1 dead `/admin/money`; needs reseed (Phase 6) |
 | Backend tests | `backend/tests/**` | all `/api/v1/*` endpoints (unchanged); `MANUAL-TEST-PLAN.md` stale prose only (non-runtime) |
 | Redirect scaffolding | `customer/servicer/admin.routes` | added §6 |
+| Route guards (`canActivate`) | `admin.routes` users/queues/api-keys | 🔴 must carry onto restructured routes — §9f |
+| Security review | navigateByUrl / routeFor / `:id` IDOR / guards | §9 |
+| Docs sync | TODO.md, original spec, security-notes, ceo-run-roadmap | updated same session |
 
-## 9. Non-goals (unchanged)
+## 9. Security & data-leak review
+
+The reroute touches navigation primitives, so it was reviewed for open-redirect, unsafe
+navigation, IDOR, and cross-portal/data leaks.
+
+### 9a. Dynamic route construction — clean
+All concatenated/template routes resolve to server-derived, redesign-unchanged targets:
+`/${role}` / `portalPath()` / `createUrlTree(['/'+role])` (`role` from server `Principal`),
+`${base}/quote/new` (`base` ∈ {customer, guest}). `api.service`/`auth.service`
+`${base}${path}` are API calls (`/api/v1`), not routes. **No renamed route hides in a
+concatenation; no user input flows into a route path.**
+
+### 9b. `navigateByUrl(href)` — harden the relative-path guard (low severity)
+`chat-widget.component.ts:1997,3220` guard `href.startsWith("/")`, which also admits the
+protocol-relative `//evil.com`. Not exploitable (Angular router is same-origin and cannot
+perform a cross-origin redirect), but as defense-in-depth the guard should reject `//`
+and `/\`. Mitigating: AI markdown links all render `target="_blank"` (`:1981`) and
+`handleThreadClick` returns early on `_blank`, so AI-controlled hrefs never reach
+`navigateByUrl` in-app — only app-authored relative links do.
+
+### 9c. `routeFor()` returns `linkUrl` unguarded — keep `linkUrl` backend-controlled
+`core/services/notification.service.ts:184` returns `n.linkUrl` verbatim, then
+panel/snackbar/notifications `navigateByUrl()` it. Safe today because every emitter sets
+`linkUrl` to a static literal (§5) — **never** built from user input. Rule for Phase 6:
+keep `linkUrl` server-controlled, and add a `startsWith('/') && !startsWith('//')` guard
+in `routeFor()` so a future bad emitter can't become an open-redirect.
+
+### 9d. New `:id` detail routes are IDOR surfaces — enforce server-side authz
+`/servicer/jobs/:id`, `/customer/bookings/:id`, `/admin/users/:id`, `/admin/merchants/:id`
+(Phase 5) must rely on **server-side ownership/role checks on the backing endpoint**, not
+on the route. The existing `GET /servicer/jobs/:id` overlay already authorizes — replicate
+that for every new detail page. The route param is not an access-control boundary.
+
+### 9f. 🔴 Route guards must be carried onto restructured routes (HIGH — regression risk)
+`adminActionPinGuard` (`canActivate`) currently protects three flat admin routes
+(`admin.routes.ts`): `users` (L27), `queues` (L32), `settings/api-keys` (L68). The
+**original spec's example `adminRoutes` config omits every `canActivate`** — implementing
+it verbatim would silently remove the admin action-PIN gate from Accounts, Review Queues,
+and API Keys (a real auth bypass introduced by the refactor). Required:
+- `queues` becomes a parent with children → put `canActivate: [adminActionPinGuard]` on the
+  **parent** `queues` node so all four sub-routes inherit it (a guard on `''`-redirect alone
+  does not cover siblings).
+- `users` keeps its guard; the **new `users/:id` detail route also needs it** (it shows
+  sensitive account data).
+- `settings/api-keys` keeps its guard after nesting under `settings`.
+- Re-verify after each phase: `adminActionPinGuard` still fires on every renamed admin page.
+
+This generalizes: **any guard attached to a renamed/nested route must move with it.** Audit
+`canActivate`/`canMatch` on every route a phase touches.
+
+### 9e. No routing data-leak found
+Notification `linkUrl`s embed only the recipient's own resource IDs (server-scoped to the
+authed user); role guards (`auth.guards.ts`) block cross-portal navigation; the redesign
+weakens neither. Redirect routes (`redirectTo`) carry no params and add no surface.
+
+---
+
+## 10. Non-goals (unchanged)
 
 Guest routes, public/auth roots, `/services/:slug`, demo-bar dynamic redirects,
 `shell.component` hard navigations, external URLs (Stripe, Google Maps), the

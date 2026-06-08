@@ -131,7 +131,8 @@ Kilo dispatch-table format (per `.kilo/agents/ceo-orchestrator.md`):
   disclosure on confirm + bill step; add `wa.me/<phone>` deep-link button on
   dispatch overlay / job card.
 - Proposal-arrival banner if the new quote already has proposals on confirm:
-  "You got N proposal(s) for #<short-id>" → link `/customer/proposals`.
+  "You got N proposal(s) for #<short-id>" → link `/customer/quotes/<quoteId>/proposals`
+  (NOT `/customer/proposals` — that route does not exist; see route-redesign completeness §5d).
 
 **Track 3 — Frontend**
 - STYLE-RULES §15.4 sidebar verify: `shell.component.ts` sidebar fits viewport
