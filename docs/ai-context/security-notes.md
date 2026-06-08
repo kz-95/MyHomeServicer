@@ -35,13 +35,15 @@ There are two distinct PINs, verified by different endpoints:
 
 2. **Action PIN — `1234`** (per-account: `User.actionPinHash` for admin/customer, `Servicer.pinHash` for servicer). The real second credential for sensitive operations. Also gates **viewing** the Admin → Accounts (`/admin/users`) and Review Queues (`/admin/queues`) pages via `adminActionPinGuard`, which prompts (and `clear()`s first so each open re-prompts) before the page activates; cancel → `/admin`. Verified by `POST /admin/verify-pin` (`x-action-pin` header, admin) or `POST /chat/verify-pin` (body; servicer reads `Servicer.pinHash`, admin/customer read `User.actionPinHash`). Cached per session for in-page sensitive saves. The change-PIN / rescue-reset flows enforce exactly 6 digits (`/^\d{6}$/`); `1234` and `5201314` are both seed/demo conveniences set directly (bypassing those validators).
 
-**Route guards must follow renamed routes (route redesign)**
-`adminActionPinGuard` (`canActivate`) protects `/admin/users`, `/admin/queues`, and
-`/admin/settings/api-keys` in `admin.routes.ts`. The 2026-06 route redesign restructures
-`queues` into parent+children and nests settings — when those routes move, the guard MUST
-move with them (queues guard → the **parent** node so all four sub-routes inherit it; add
-the guard to the new `users/:id` detail route too). Dropping a `canActivate` during the
-refactor is an auth-bypass. See `specs/2026-06-08-route-redesign-completeness-design.md` §9f.
+**Demo PIN gate should follow renamed routes (route redesign) — convenience, not security**
+`adminActionPinGuard` (`canActivate`) is a **demo safeguard** on `/admin/users`,
+`/admin/queues`, `/admin/settings/api-keys` — prompts for `1234` so a stray click during a
+presentation doesn't burn tokens or let someone edit admin settings and break the live
+site. It is intentionally NOT a hardened auth control. When the 2026-06 redesign restructures
+`queues`/settings, carry the guard onto the new routes (queues → **parent** node; new
+`users/:id` too) so the prompt keeps firing. If it's ever dropped, just re-add the one
+`canActivate` line — there's no auth state to corrupt. See
+`specs/2026-06-08-route-redesign-completeness-design.md` §9f.
 
 **Client navigation is not an access boundary**
 New `:id` detail routes (`/servicer/jobs/:id`, `/customer/bookings/:id`, `/admin/users/:id`,

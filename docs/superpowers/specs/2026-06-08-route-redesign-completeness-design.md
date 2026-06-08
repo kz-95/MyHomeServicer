@@ -306,12 +306,17 @@ in `routeFor()` so a future bad emitter can't become an open-redirect.
 on the route. The existing `GET /servicer/jobs/:id` overlay already authorizes — replicate
 that for every new detail page. The route param is not an access-control boundary.
 
-### 9f. 🔴 Route guards must be carried onto restructured routes (HIGH — regression risk)
-`adminActionPinGuard` (`canActivate`) currently protects three flat admin routes
-(`admin.routes.ts`): `users` (L27), `queues` (L32), `settings/api-keys` (L68). The
-**original spec's example `adminRoutes` config omits every `canActivate`** — implementing
-it verbatim would silently remove the admin action-PIN gate from Accounts, Review Queues,
-and API Keys (a real auth bypass introduced by the refactor). Required:
+### 9f. ⚠️ Carry the admin PIN guard onto restructured routes (don't drop it in the refactor)
+`adminActionPinGuard` (`canActivate`) is attached to three flat admin routes
+(`admin.routes.ts`): `users` (L27), `queues` (L32), `settings/api-keys` (L68). It is a
+**demo safeguard** (prompts for `1234` so that during a presentation a stray click
+doesn't (a) burn LLM tokens or (b) let someone edit admin settings and break the live
+site) — not a hardened auth control, and that's by design.
+
+The risk is purely mechanical: the **original spec's example `adminRoutes` config omits the
+`canActivate`s**, so copying it verbatim would silently *stop the PIN prompt from firing* on
+Queues / Accounts / API Keys after the refactor. Not an attacker bypass — just the demo
+gate quietly disappearing. To preserve current behaviour:
 - `queues` becomes a parent with children → put `canActivate: [adminActionPinGuard]` on the
   **parent** `queues` node so all four sub-routes inherit it (a guard on `''`-redirect alone
   does not cover siblings).

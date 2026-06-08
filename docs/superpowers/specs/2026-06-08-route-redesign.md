@@ -10,8 +10,9 @@
 > verbatim — see the companion:
 > 1. The `Routes` examples omit backward-compat **`redirectTo` entries** (companion §6).
 > 2. The admin `Routes` example omits **`canActivate: [adminActionPinGuard]`** on
->    `users`, `queues` (→ parent), and `settings/api-keys` — copying it verbatim removes
->    the admin PIN gate (companion §9f). Carry every guard onto its renamed/nested route.
+>    `users`, `queues` (→ parent), and `settings/api-keys` — copying it verbatim makes the
+>    demo PIN gate (token + accidental-edit safeguard) stop firing on those pages
+>    (companion §9f). Carry every guard onto its renamed/nested route.
 
 ## Brainstorm Decisions (Session 2026-06-08)
 

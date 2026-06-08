@@ -15,8 +15,8 @@ hierarchical paths with tabs as URL segments and filters as query params.
 
 > ⚠️ Two gaps in the original spec's route-config examples (completeness §6/§9f): add
 > backward-compat `redirectTo` entries, and carry `adminActionPinGuard` (`canActivate`)
-> onto the restructured `queues`/`users`/`api-keys` routes — copying the examples
-> verbatim drops the admin PIN gate (auth-bypass regression).
+> onto the restructured `queues`/`users`/`api-keys` routes — copying the examples verbatim
+> makes the demo PIN gate (token + accidental-admin-edit safeguard) stop firing.
 
 ### Phase 1 — Servicer jobs ✅ (2026-06-08)
 - [x] `servicer.routes.ts` — `jobs` parent + `pending`/`active`/`history` children (each
