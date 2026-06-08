@@ -171,6 +171,25 @@ Two problems: redesign-stale routes **and** routes that are already dead today.
 > `/admin/dashboard`) are broken in production **now**, independent of the redesign.
 > Candidate for a hotfix ahead of the rest of Phase 6.
 
+### 5f. Seed AI-chat FAQ knowledge base — NEEDS CHANGE + BUG FIX
+`backend/prisma/seed/data/static.ts` holds FAQ/knowledge-base entries the chatbot
+serves to users as navigation instructions ("go to …"). These are seeded into the DB
+and surfaced by the AI — same user-facing risk as the chat prompt (§5d). The route
+strings live inside prose answer text.
+
+| File:line | Current | New |
+|-----------|---------|-----|
+| `static.ts:2891` | `/admin/queues` | `/admin/queues/withdrawals` |
+| `static.ts:2931` | `/admin/ai-chat-settings` | `/admin/settings/ai-chat` |
+| `static.ts:2956,2967` | `/admin/category-settings` | `/admin/settings/categories` |
+| `static.ts:3008` | `/admin/money` *(DEAD — neither old `/admin/money-settings` nor new path)* | `/admin/settings/money` |
+
+OK (unchanged): `static.ts:2681` (`/servicer/services/new`), `:2864` (`/admin/users`),
+`:3016` (`/admin/settings`).
+
+> Seed strings require a **reseed** (or a data migration on existing FAQ rows) to take
+> effect in environments already seeded. `/admin/money` (`:3008`) is dead today.
+
 ### 5e. Backend NO CHANGE (verified — routes unchanged)
 `stripe.routes:304,596` (`/customer/transactions`), `stripe.routes:539` (`/servicer/deposit`),
 `stripe.routes:162,163` / `user.routes:128,129` (`/customer/account?topup`), `servicer.routes:366,367`
@@ -232,6 +251,7 @@ These are broken **now**, independent of the redesign — split into a standalon
 - `dispatch.service.ts:234` `/bookings` (missing `/customer` prefix → no route match)
 - `servicer/pages/dashboard.component.ts:296` `/servicer/history` (no such route) (§2a)
 - `customer/pages/my-bookings.component.ts:724` `/customer/chat` & `chat-widget.component.ts` `/contact` (§3a, Phase 4)
+- `seed/data/static.ts:3008` `/admin/money` (FAQ text — dead route served to users) (§5f)
 
 ---
 
@@ -246,6 +266,8 @@ These are broken **now**, independent of the redesign — split into a standalon
 | Backend Stripe returns | `booking.service`, `stripe.routes` | 4 sites (Phase 6) |
 | Backend search `route` | `index.ts` | 2 sites (Phase 6) |
 | Backend chat AI prompt | `chat.service` | 8 lines, incl. 4 dead-link bugs (Phase 6) |
+| Seed AI FAQ knowledge base | `prisma/seed/data/static.ts` | 5 lines, incl. 1 dead `/admin/money`; needs reseed (Phase 6) |
+| Backend tests | `backend/tests/**` | all `/api/v1/*` endpoints (unchanged); `MANUAL-TEST-PLAN.md` stale prose only (non-runtime) |
 | Redirect scaffolding | `customer/servicer/admin.routes` | added §6 |
 
 ## 9. Non-goals (unchanged)
