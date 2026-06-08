@@ -1606,6 +1606,16 @@ export async function sendToAi(
     }
   }
 
+  // quote_question sanity check: the model sometimes emits question cards for the
+  // WRONG category (matching the wrong category_lock). Filter out any question
+  // whose key doesn't exist in the confirmed category's questionSchema, so bogus
+  // questions never reach the front-end. If no category is confirmed (empty set),
+  // ALL quote_question blocks are dropped — better no questions than wrong ones.
+  const validQuestionKeys = new Set(categoryQuestions.map((q) => q.key));
+  outBlocks = outBlocks.filter(
+    (b) => b.type !== "quote_question" || validQuestionKeys.has(b.data.key as string),
+  );
+
   if (opts?.formAssist) {
     // On the real /quote/new form: the assistant may fill fields (form_fill) but
     // must never render the in-chat quote flow cards.
