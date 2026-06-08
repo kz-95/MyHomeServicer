@@ -45,7 +45,8 @@ export class PinService {
 
   /**
    * Action PIN. Resolves with a backend-verified PIN, or null if cancelled.
-   * Reuses the session's verified PIN if held; otherwise opens the dialog.
+   * Reuses the in-memory cached PIN within the same page session; page refresh
+   * or new tab re-prompts. Cleared on logout/account switch.
    */
   requirePin(): Observable<string | null> {
     if (this.cachedPin) return of(this.cachedPin);
@@ -103,7 +104,7 @@ export class PinService {
       next: () => {
         this.verifying.set(false);
         this.open.set(false);
-        // Only the action PIN is cached; the demo gate always re-validates.
+        // Only the action PIN is cached in-memory; page refresh re-prompts.
         if (this.mode === 'action') this.cachedPin = pin;
         this.finish(pin);
       },
@@ -125,7 +126,7 @@ export class PinService {
     this.cachedPin = null;
   }
 
-  /** Returns the session-cached action PIN, or null if not yet verified. */
+  /** Returns the cached action PIN, or null if not yet verified this page session. */
   getCachedPin(): string | null {
     return this.cachedPin;
   }
