@@ -1579,7 +1579,8 @@ export async function sendToAi(
   // category_lock sanity check: the model sometimes hallucinates a wrong UUID
   // (e.g. Interior Design's when the user confirmed Event Planner). Validate the
   // UUID resolves to a category whose name appears in the assistant's reply text.
-  // If not, drop the lock — better no lock than the wrong lock.
+  // If not, drop the lock AND any quote_question blocks the model emitted for the
+  // wrong category in the same reply — better no lock+questions than wrong ones.
   const lockBlock = outBlocks.find((b) => b.type === "category_lock");
   if (lockBlock) {
     const cid =
@@ -1599,22 +1600,20 @@ export async function sendToAi(
             name: cat?.name ?? "(not found)",
           });
           outBlocks = outBlocks.filter((b) => b !== lockBlock);
+          // Also strip any quote_question blocks the model hallucinated for the
+          // wrong category — they arrived in the same reply as the bogus lock.
+          const validKeys = new Set(categoryQuestions.map((q) => q.key));
+          outBlocks = outBlocks.filter(
+            (b) => b.type !== "quote_question" || validKeys.has(b.data.key as string),
+          );
+        } else {
+          // Lock is valid — keep everything; no special filtering needed.
         }
       } catch {
         /* DB hiccup — leave the lock alone */
       }
     }
   }
-
-  // quote_question sanity check: the model sometimes emits question cards for the
-  // WRONG category (matching the wrong category_lock). Filter out any question
-  // whose key doesn't exist in the confirmed category's questionSchema, so bogus
-  // questions never reach the front-end. If no category is confirmed (empty set),
-  // ALL quote_question blocks are dropped — better no questions than wrong ones.
-  const validQuestionKeys = new Set(categoryQuestions.map((q) => q.key));
-  outBlocks = outBlocks.filter(
-    (b) => b.type !== "quote_question" || validQuestionKeys.has(b.data.key as string),
-  );
 
   if (opts?.formAssist) {
     // On the real /quote/new form: the assistant may fill fields (form_fill) but
