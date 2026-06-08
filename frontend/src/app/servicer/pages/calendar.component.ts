@@ -322,9 +322,12 @@ interface CalendarData {
       border-radius: 999px;
       font-size: 0.72rem;
       font-weight: 600;
-      padding: 0.2rem 0.6rem;
+      padding: 0.35rem 0.65rem;
       cursor: pointer;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
     }
     .sf-all:hover { border-color: var(--color-primary); color: var(--color-primary); }
     .sf-all.on { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
@@ -337,9 +340,10 @@ interface CalendarData {
       border-radius: 999px;
       font-size: 0.72rem;
       color: var(--color-text);
-      padding: 0.2rem 0.6rem 0.2rem 0.4rem;
+      padding: 0.35rem 0.6rem 0.35rem 0.4rem;
       cursor: pointer;
       transition: opacity 0.15s, border-color 0.15s;
+      min-height: 36px;
     }
     .sf-btn:hover { border-color: var(--color-primary); }
     .sf-btn.off { opacity: 0.45; }
@@ -349,11 +353,12 @@ interface CalendarData {
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
-      padding: 0.3rem 0.7rem;
+      padding: 0.45rem 0.75rem;
       font-size: 0.9rem;
       cursor: pointer;
       color: var(--color-text);
       transition: background var(--transition);
+      min-height: 38px;
     }
     .nav-btn:hover { background: var(--color-bg); }
     .nav-title { font-size: 1.05rem; min-width: 130px; text-align: center; }
@@ -461,8 +466,10 @@ interface CalendarData {
       font-weight: 600;
       color: var(--color-primary);
       cursor: pointer;
-      padding: 0.2rem 0;
+      padding: 0.4rem 0;
       text-align: left;
+      min-height: 36px;
+      touch-action: manipulation;
     }
     .dm-expand:hover { text-decoration: underline; }
     .dm-view-job {
@@ -598,9 +605,171 @@ interface CalendarData {
     .pin-form input { max-width: 180px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
 
-    @media (max-width: 700px) {
-      .cal-cell { min-height: 60px; }
-      .day-booking { font-size: 0.58rem; }
+    /* ── Responsive: tablet (≤760px) ── */
+    @media (max-width: 760px) {
+      .cal-nav {
+        justify-content: center;
+      }
+      .nav-title {
+        min-width: 0;
+        flex: 1 0 100%;
+        order: -1;
+      }
+      .btn-today { margin-left: 0; }
+
+      .cal-cell {
+        min-height: 72px;
+        padding: 0.2rem 0.15rem;
+      }
+      .day-num { font-size: 0.72rem; }
+      .day-booking {
+        font-size: 0.55rem;
+        padding: 0.08rem 0.2rem;
+      }
+      .cal-cell.today .day-num {
+        width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+      }
+
+      /* Work hours: shrink label column */
+      .schedule-header,
+      .schedule-row {
+        grid-template-columns: 90px repeat(7, minmax(36px, 1fr));
+      }
+      .schedule-row-label {
+        font-size: 0.7rem;
+        padding: 0 0.15rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .schedule-cell { height: 48px; font-size: 0.72rem; }
+      .schedule-corner { font-size: 0.65rem; padding: 0.2rem 0.25rem; }
+      .schedule-col-head { font-size: 0.65rem; }
+    }
+
+    /* ── Responsive: mobile (≤560px) ── */
+    @media (max-width: 560px) {
+      .tabs {
+        gap: 0;
+      }
+      .tab {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.82rem;
+      }
+
+      /* Nav: stack month title above nav buttons */
+      .cal-nav {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas:
+          "title title title"
+          "prev today next";
+        gap: 0.4rem;
+        align-items: center;
+        margin-bottom: 0.6rem;
+      }
+      .nav-title {
+        grid-area: title;
+        text-align: center;
+        font-size: 0.95rem;
+        min-width: 0;
+        flex: none;
+        order: 0;
+      }
+      .nav-btn { grid-area: auto; font-size: 0.82rem; padding: 0.4rem 0.55rem; }
+      .btn-today { grid-area: today; margin-left: 0; }
+
+      /* Status filters: full-width scroll row */
+      .status-filters {
+        order: 999;
+        width: 100%;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 0.25rem;
+        padding-bottom: 0.2rem;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .status-filters::-webkit-scrollbar { display: none; }
+      .sf-all, .sf-btn {
+        font-size: 0.68rem;
+        padding: 0.35rem 0.55rem;
+        flex-shrink: 0;
+        white-space: nowrap;
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      /* Calendar grid: compact cells, hide booking text */
+      .cal-header { font-size: 0.65rem; }
+      .cal-cell {
+        min-height: 56px;
+        padding: 0.15rem 0.1rem;
+        gap: 1px;
+      }
+      .day-num { font-size: 0.68rem; }
+      .cal-cell.today .day-num {
+        width: 18px;
+        height: 18px;
+        font-size: 0.65rem;
+      }
+      .day-booking {
+        font-size: 0.5rem;
+        padding: 0.06rem 0.15rem;
+      }
+      .bk-cat { font-size: 0.48rem; }
+      .bk-time { display: none; }
+      .bk-more { font-size: 0.5rem; }
+
+      /* Work hours: minimal label, full-width scroll */
+      .schedule-header,
+      .schedule-row {
+        grid-template-columns: 52px repeat(7, minmax(32px, 1fr));
+      }
+      .schedule-row-label {
+        font-size: 0.62rem;
+        padding: 0 0.1rem;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .schedule-cell { height: 40px; font-size: 0.68rem; border-radius: 4px; }
+      .schedule-corner { font-size: 0.6rem; padding: 0.15rem 0.2rem; }
+      .schedule-col-head { font-size: 0.6rem; padding: 0.15rem 0; }
+
+      /* Day modal cards */
+      .dm-row1 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+      }
+      .dm-price { margin-left: 0; }
+      .dm-row3, .dm-row4 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+      }
+      .dm-addr { white-space: normal; overflow: visible; }
+      .dm-row5 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+      }
+      .dm-view-job {
+        width: 100%;
+        text-align: center;
+      }
+      .btn-copy {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.72rem;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+      }
     }
   `]
 })

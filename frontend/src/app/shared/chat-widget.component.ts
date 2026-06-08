@@ -1,24 +1,225 @@
-import { Component, OnInit, OnDestroy, AfterViewChecked, computed, effect, inject, signal, ElementRef, viewChild, SecurityContext } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterLink, NavigationEnd } from '@angular/router';
-import { DomSanitizer } from '@angular/platform-browser';
-import { Subscription, filter } from 'rxjs';
-import { AuthService } from '../core/services/auth.service';
-import { ApiService } from '../core/services/api.service';
-import { SocketService } from '../core/services/socket.service';
-import { ChatWidgetService, PrefillData } from '../core/services/chat-widget.service';
-import { PinService } from '../core/services/pin.service';
-import { QuoteAssistBridge } from '../core/services/quote-assist-bridge.service';
-import { PlacesAutocompleteComponent, PlaceResult } from './places-autocomplete.component';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  AfterViewChecked,
+  computed,
+  effect,
+  inject,
+  signal,
+  ElementRef,
+  viewChild,
+  SecurityContext,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { Router, RouterLink, NavigationEnd } from "@angular/router";
+import { DomSanitizer } from "@angular/platform-browser";
+import { Subscription, filter } from "rxjs";
+import { AuthService } from "../core/services/auth.service";
+import { ApiService } from "../core/services/api.service";
+import { SocketService } from "../core/services/socket.service";
+import {
+  ChatWidgetService,
+  PrefillData,
+} from "../core/services/chat-widget.service";
+import { PinService } from "../core/services/pin.service";
+import { QuoteAssistBridge } from "../core/services/quote-assist-bridge.service";
+import {
+  PlacesAutocompleteComponent,
+  PlaceResult,
+} from "./places-autocomplete.component";
 
 interface ChatMessage {
   id?: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   createdAt?: string;
   actions?: { action: string; label: string }[];
   actionBlocks?: Array<{ type: string; data: Record<string, unknown> }>;
 }
+
+/**
+ * Automated-QA conversation scripts. Each is a sequence of plain human turns typed
+ * into the chat exactly as a real customer would — no card clicks. They deliberately
+ * vary the ORDER and WAY details are given (service first, dump-all, address first,
+ * budget first, vague need, wrong-then-corrected, mixed language, ramble + real need,
+ * reject-and-retry, absurd-but-serviceable) so flow bugs (skipping service selection,
+ * jumping to review, looping, hallucinated name/budget) surface like they would in
+ * the wild. Driven by ChatWidgetComponent.runQa().
+ */
+interface QaScript {
+  name: string;
+  turns: string[];
+}
+
+const QA_SCRIPTS: QaScript[] = [
+  { name: "service first, step by step", turns: [
+    "hi, my kitchen sink is leaking",
+    "yeah that's the one",
+    "this saturday afternoon works",
+    "18 Jalan Tempua 5, Bandar Puchong Jaya, 47100 Puchong, Selangor",
+    "maybe around RM300",
+    "name's Brian, phone 0123456789",
+  ] },
+  { name: "dump everything in one line", turns: [
+    "aircon not cold, need someone tomorrow morning, I'm at 12 Jalan SS2/24 47300 PJ, budget rm250, call me at 0198765432, name Sarah",
+    "yes please go ahead",
+  ] },
+  { name: "vague need, let bot figure it out", turns: [
+    "my house is a complete mess and I have guests coming",
+    "no I don't want to cook, just need the place cleaned",
+    "sunday morning",
+    "rm180 ok?",
+  ] },
+  { name: "address given first", turns: [
+    "I stay at 7 Lorong Maarof, 59000 Bangsar KL",
+    "oh right, I need my ceiling fan fixed, it wobbles a lot",
+    "tonight if possible",
+  ] },
+  { name: "budget first", turns: [
+    "I've got about RM500 to spend",
+    "for pest control, lots of cockroaches in the kitchen",
+    "next monday evening",
+  ] },
+  { name: "contact first", turns: [
+    "you can reach me at 0112223344, I'm Daniel",
+    "need a plumber, toilet won't flush",
+    "tomorrow afternoon",
+  ] },
+  { name: "ambiguous party → catering or event", turns: [
+    "throwing a birthday party next weekend",
+    "yeah",
+    "around 30 people, saturday night",
+  ] },
+  { name: "rejects first suggestion", turns: [
+    "something's wrong with my lights",
+    "no that's not it, it's not the wiring, my chandelier needs cleaning and rehanging",
+    "this friday morning",
+  ] },
+  { name: "mixed Chinese/English", turns: [
+    "我家水pipe坏了, water leaking everywhere",
+    "对，就是这个",
+    "明天下午",
+    "rm200 左右",
+  ] },
+  { name: "Malay language", turns: [
+    "rumah saya kotor sangat, perlu cleaner",
+    "ya betul",
+    "hari sabtu pagi",
+    "bajet dalam rm150",
+  ] },
+  { name: "ramble + vent then real need", turns: [
+    "ugh today has been the worst, my car broke down and now my fridge stopped working too",
+    "yeah the fridge, can someone repair it",
+    "as soon as possible, tomorrow morning",
+  ] },
+  { name: "typos and lowercase", turns: [
+    "helo i need a electrcian my plug not workin",
+    "ya correct",
+    "tmrw nite",
+    "0145556677",
+  ] },
+  { name: "one word answers", turns: [
+    "plumber",
+    "yes",
+    "tomorrow",
+    "morning",
+    "puchong",
+  ] },
+  { name: "asks question before booking", turns: [
+    "do you guys do aircon servicing?",
+    "ok great, mine is dripping water inside",
+    "this sunday afternoon",
+  ] },
+  { name: "wrong info then corrects", turns: [
+    "I need cleaning service",
+    "actually no, change that, I need someone to fix my door lock",
+    "tomorrow evening",
+    "12 Jalan Bukit 3, 43000 Kajang",
+  ] },
+  { name: "gives name casually mid-chat", turns: [
+    "hey it's me again, need a gardener",
+    "I'm Aaron by the way",
+    "the lawn is overgrown, need trimming",
+    "saturday morning",
+  ] },
+  { name: "absurd but serviceable", turns: [
+    "my cat knocked over a paint can and now my whole living room wall is blue",
+    "haha yeah so I need it repainted",
+    "next week tuesday",
+  ] },
+  { name: "off-topic then real", turns: [
+    "what's the weather like today",
+    "anyway, I need my sofa shampooed, kid spilled juice on it",
+    "this weekend, saturday afternoon",
+  ] },
+  { name: "impatient customer", turns: [
+    "I need a plumber NOW",
+    "burst pipe, water everywhere",
+    "immediately, tonight",
+    "0123334444, just send someone",
+  ] },
+  { name: "asks for budget guidance", turns: [
+    "need someone to mount my TV on the wall",
+    "how much does that usually cost?",
+    "ok let's say rm120",
+    "tomorrow afternoon",
+  ] },
+  { name: "moving help", turns: [
+    "I'm moving apartments next month",
+    "need movers for furniture and boxes",
+    "the 15th, morning",
+    "from 5 Jalan Ampang to 22 Jalan Cheras, 56000",
+  ] },
+  { name: "tutoring request", turns: [
+    "looking for a math tutor for my son",
+    "he's in form 3, struggling with algebra",
+    "weekday evenings",
+  ] },
+  { name: "service we may not offer", turns: [
+    "do you do helicopter rental for a wedding entrance",
+    "ok fine, then I need a wedding planner instead",
+    "the event is in December",
+  ] },
+  { name: "gives postcode-heavy address", turns: [
+    "need car wash and detailing",
+    "I'm at No.88, Jalan PJU 5/20, Kota Damansara, 47810 Petaling Jaya, Selangor",
+    "sunday morning, rm150",
+  ] },
+  { name: "confirms by tapping then changes mind", turns: [
+    "house cleaning please",
+    "wait actually can you also do the windows",
+    "yes both, saturday",
+    "rm220",
+  ] },
+  { name: "very short and blunt", turns: [
+    "electrician",
+    "socket sparks",
+    "tonight",
+    "kajang",
+    "0177778888",
+  ] },
+  { name: "polite and chatty", turns: [
+    "good afternoon! hope you're well. I was wondering if you could help me",
+    "my bathroom tiles have a lot of mold, need a deep clean",
+    "this coming sunday in the morning would be lovely",
+    "my budget is roughly rm200",
+  ] },
+  { name: "gives everything but service unclear", turns: [
+    "tomorrow morning, 9 Jalan Damai 47100 Puchong, rm300, I'm Mei call 0123450000",
+    "oh sorry I forgot to say — I need someone to repair my washing machine",
+  ] },
+  { name: "double service request", turns: [
+    "I need both plumbing and electrical work done",
+    "ok let's start with the plumbing, leaking tap",
+    "this friday afternoon",
+  ] },
+  { name: "returning-guest style", turns: [
+    "hi again",
+    "same as last time, aircon servicing",
+    "next saturday morning please",
+  ] },
+];
 
 interface PublicConfig {
   chatGuestAutoOpen?: boolean;
@@ -31,17 +232,40 @@ interface PublicConfig {
 }
 
 @Component({
-    selector: 'app-chat-widget',
-    imports: [FormsModule, RouterLink, PlacesAutocompleteComponent],
-    template: `
+  selector: "app-chat-widget",
+  imports: [FormsModule, RouterLink, PlacesAutocompleteComponent],
+  template: `
     @if (!widget.isOpen() && showGuestFab()) {
-      <button class="cw-fab" (click)="widget.open()" [class.has-unread]="widget.chatUnread() > 0" aria-label="Open help chat" title="Help chat">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <button
+        class="cw-fab"
+        (click)="widget.open()"
+        [class.has-unread]="widget.chatUnread() > 0"
+        aria-label="Open help chat"
+        title="Help chat"
+      >
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+          />
         </svg>
-        <span class="cw-fab-dot" [class.online]="widget.chatStatus() !== 'offline'" [class.blink]="widget.chatStatus() === 'active'"></span>
+        <span
+          class="cw-fab-dot"
+          [class.online]="widget.chatStatus() !== 'offline'"
+          [class.blink]="widget.chatStatus() === 'active'"
+        ></span>
         @if (widget.chatUnread() > 0) {
-          <span class="cw-fab-unread">{{ widget.chatUnread() > 99 ? '99+' : widget.chatUnread() }}</span>
+          <span class="cw-fab-unread">{{
+            widget.chatUnread() > 99 ? "99+" : widget.chatUnread()
+          }}</span>
         }
       </button>
     }
@@ -51,27 +275,71 @@ interface PublicConfig {
         <div class="panel-header">
           <div class="panel-id">
             <div class="avatar" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                />
               </svg>
             </div>
             <div>
               <strong>Help Assistant</strong>
               <span class="status">
-                <span class="status-dot" [class.online]="widget.chatStatus() !== 'offline'" [class.blink]="widget.chatStatus() === 'active'"></span>
-                {{ auth.principal() ? statusLabel() : 'Online' }}
+                <span
+                  class="status-dot"
+                  [class.online]="widget.chatStatus() !== 'offline'"
+                  [class.blink]="widget.chatStatus() === 'active'"
+                ></span>
+                {{ auth.principal() ? statusLabel() : "Online" }}
               </span>
             </div>
           </div>
           <div class="header-acts">
-            <button class="clear-btn" (click)="clear()" [disabled]="clearing() || messages().length === 0">{{ clearing() ? '…' : 'Clear' }}</button>
-            <button class="close-btn" (click)="widget.close()" aria-label="Close chat">&times;</button>
+            <button
+              class="clear-btn qa-btn"
+              (click)="toggleQa()"
+              [class.running]="qaRunning()"
+              [title]="qaRunning() ? qaStatus() : 'Run automated QA — simulate 30 customer chats'"
+            >
+              {{ qaRunning() ? "Stop QA" : "QA" }}
+            </button>
+            <button
+              class="clear-btn"
+              (click)="clear()"
+              [disabled]="clearing() || qaRunning() || messages().length === 0"
+            >
+              {{ clearing() ? "…" : "Clear" }}
+            </button>
+            <button
+              class="close-btn"
+              (click)="widget.close()"
+              aria-label="Close chat"
+            >
+              &times;
+            </button>
           </div>
         </div>
 
         @if (!auth.principal()) {
           <div class="guest-banner">
-            <span>Guest chat isn't saved. <a routerLink="/login" [queryParams]="{ intent: 'chat' }" (click)="widget.close()">Sign in</a> for help tied to your account.</span>
+            <span
+              >Guest chat isn't saved.
+              <a
+                routerLink="/login"
+                [queryParams]="{ intent: 'chat' }"
+                (click)="widget.close()"
+                >Sign in</a
+              >
+              for help tied to your account.</span
+            >
           </div>
         }
 
@@ -81,9 +349,12 @@ interface PublicConfig {
           }
           @for (m of messages(); track $index; let mi = $index) {
             <div class="msg" [class.user]="m.role === 'user'">
-              @if (m.role === 'assistant') {
+              @if (m.role === "assistant") {
                 @if (m.content) {
-                  <span class="bubble" [innerHTML]="formatMessage(m.content)"></span>
+                  <span
+                    class="bubble"
+                    [innerHTML]="formatMessage(m.content)"
+                  ></span>
                 }
               } @else {
                 <span class="bubble">{{ m.content }}</span>
@@ -91,21 +362,28 @@ interface PublicConfig {
               @if (m.actions; as acts) {
                 <div class="action-row">
                   @for (a of acts; track a.action) {
-                    <button class="action-btn" (click)="runAction(a.action)">{{ a.label }}</button>
+                    <button class="action-btn" (click)="runAction(a.action)">
+                      {{ a.label }}
+                    </button>
                   }
                 </div>
               }
-              @if (m.role === 'assistant' && m.actionBlocks; as blocks) {
+              @if (m.role === "assistant" && m.actionBlocks; as blocks) {
                 <div class="action-blocks">
                   @for (b of blocks; track $index) {
                     <div class="action-card">
                       @switch (b.type) {
-                        @case ('quote_options') {
+                        @case ("quote_options") {
                           <div class="ac-quote-options">
                             <div class="ac-icon">🔧</div>
-                            <strong>{{ getStr(b.data, 'category') || 'Service' }}</strong>
-                            @if (cardResolved(getStr(b.data, 'categoryId'))) {
-                              @if (confirmedCategoryId() === getStr(b.data, 'categoryId')) {
+                            <strong>{{
+                              getStr(b.data, "category") || "Service"
+                            }}</strong>
+                            @if (cardResolved(getStr(b.data, "categoryId"))) {
+                              @if (
+                                confirmedCategoryId() ===
+                                getStr(b.data, "categoryId")
+                              ) {
                                 <p class="field-confirmed-value">✅ Selected</p>
                               } @else {
                                 <p class="muted">Not this one</p>
@@ -113,256 +391,640 @@ interface PublicConfig {
                             } @else {
                               <p class="muted">Is this the service you need?</p>
                               <div class="ac-actions">
-                                <button class="btn-primary" (click)="continueQuoteInChat(b.data)">Yes, that's it</button>
-                                <button class="btn-outline" (click)="rejectCategory(b.data)">Not this service</button>
+                                <button
+                                  class="btn-primary"
+                                  (click)="continueQuoteInChat(b.data)"
+                                >
+                                  Yes, that's it
+                                </button>
+                                <button
+                                  class="btn-outline"
+                                  (click)="rejectCategory(b.data)"
+                                >
+                                  Not this service
+                                </button>
                               </div>
                             }
                           </div>
                         }
-                        @case ('quote_field') {
+                        @case ("quote_field") {
                           <div class="ac-quote-field">
-                            <label>{{ fieldLabel(getStr(b.data, 'key') || getStr(b.data, 'label')) }}</label>
-                            @if (getStr(b.data, 'key') === 'preferredDate') {
+                            <label>{{
+                              fieldLabel(
+                                getStr(b.data, "key") || getStr(b.data, "label")
+                              )
+                            }}</label>
+                            @if (getStr(b.data, "key") === "preferredDate") {
                               @if (dateConfirmed()) {
                                 <div class="field-confirmed">
-                                  <span class="field-confirmed-value">✅ {{ dateConfirmed() }}</span>
-                                  <span class="field-confirmed-note">You can change it later if needed.</span>
+                                  <span class="field-confirmed-value"
+                                    >✅ {{ dateConfirmed() }}</span
+                                  >
+                                  <span class="field-confirmed-note"
+                                    >You can change it later if needed.</span
+                                  >
                                 </div>
                               } @else {
-                                <input type="date" [ngModel]="prefillDate()" (ngModelChange)="onDateSelected($event)" name="pf_date" />
-                                <button type="button" class="btn-primary ac-confirm" [disabled]="!prefillDate()" (click)="confirmDate()">Confirm</button>
+                                <input
+                                  type="date"
+                                  [ngModel]="prefillDate()"
+                                  (ngModelChange)="onDateSelected($event)"
+                                  name="pf_date"
+                                />
+                                <button
+                                  type="button"
+                                  class="btn-primary ac-confirm"
+                                  [disabled]="!prefillDate()"
+                                  (click)="confirmDate()"
+                                >
+                                  Confirm
+                                </button>
                               }
-                            } @else if (getStr(b.data, 'key') === 'timeSlot') {
+                            } @else if (getStr(b.data, "key") === "timeSlot") {
                               @if (timeConfirmed()) {
                                 <div class="field-confirmed">
-                                  <span class="field-confirmed-value">✅ {{ timeConfirmedLabel() }}</span>
-                                  <span class="field-confirmed-note">You can change this later if needed.</span>
+                                  <span class="field-confirmed-value"
+                                    >✅ {{ timeConfirmedLabel() }}</span
+                                  >
+                                  <span class="field-confirmed-note"
+                                    >You can change this later if needed.</span
+                                  >
                                 </div>
                               } @else {
                                 <div class="time-options">
-                                  @for (opt of timeSlotOptions; track opt.value) {
+                                  @for (
+                                    opt of timeSlotOptions;
+                                    track opt.value
+                                  ) {
                                     <button
                                       type="button"
                                       class="time-btn"
-                                      [class.selected]="prefillTimeSlot() === opt.value"
+                                      [class.selected]="
+                                        prefillTimeSlot() === opt.value
+                                      "
                                       (click)="onTimeSlotSelected(opt.value)"
-                                    >{{ opt.label }}</button>
+                                    >
+                                      {{ opt.label }}
+                                    </button>
                                   }
                                 </div>
-                                <button type="button" class="btn-primary ac-confirm" [disabled]="!prefillTimeSlot()" (click)="confirmTime()">Confirm</button>
+                                <button
+                                  type="button"
+                                  class="btn-primary ac-confirm"
+                                  [disabled]="!prefillTimeSlot()"
+                                  (click)="confirmTime()"
+                                >
+                                  Confirm
+                                </button>
                               }
-                            } @else if (getStr(b.data, 'key') === 'address') {
+                            } @else if (getStr(b.data, "key") === "address") {
                               @if (addressConfirmed()) {
                                 <div class="field-confirmed">
-                                  <span class="field-confirmed-value">✅ {{ addressFormatted() || composedAddress() }}</span>
-                                  <span class="field-confirmed-note">You can change it later if needed.</span>
+                                  <span class="field-confirmed-value"
+                                    >✅
+                                    {{
+                                      addressFormatted() || composedAddress()
+                                    }}</span
+                                  >
+                                  <span class="field-confirmed-note"
+                                    >You can change it later if needed.</span
+                                  >
                                 </div>
                               } @else {
-                                 <div class="addr-fields">
+                                <div class="addr-fields">
                                   <div class="addr-row">
-                                    <input class="addr-no" type="text" [ngModel]="addrNo()" (ngModelChange)="addrNo.set($event)" name="pf_addr_no" placeholder="No. / Unit" />
-                                    <select class="ptype-select" [ngModel]="addrPropertyType()" (ngModelChange)="addrPropertyType.set($event)">
+                                    <input
+                                      class="addr-no"
+                                      type="text"
+                                      [ngModel]="addrNo()"
+                                      (ngModelChange)="addrNo.set($event)"
+                                      name="pf_addr_no"
+                                      placeholder="No. / Unit"
+                                    />
+                                    <select
+                                      class="ptype-select"
+                                      [ngModel]="addrPropertyType()"
+                                      (ngModelChange)="
+                                        addrPropertyType.set($event)
+                                      "
+                                    >
                                       <option value="">Type*</option>
                                       <option value="landed">Landed</option>
                                       <option value="condo">Condo</option>
-                                      <option value="commercial">Commercial</option>
+                                      <option value="commercial">
+                                        Commercial
+                                      </option>
                                     </select>
-                                    <button type="button" class="gps-btn" [disabled]="locatingGps()" (click)="locateViaGps()" title="Use my current location">📍</button>
+                                    <button
+                                      type="button"
+                                      class="gps-btn"
+                                      [disabled]="locatingGps()"
+                                      (click)="locateViaGps()"
+                                      title="Use my current location"
+                                    >
+                                      📍
+                                    </button>
                                   </div>
                                   <app-places-autocomplete
                                     [types]="['address']"
                                     placeholder="Street (type and pick from the list)"
                                     (placeSelect)="onChatPlaceSelect($event)"
                                   ></app-places-autocomplete>
+                                  <input
+                                    class="addr-postcode"
+                                    type="text"
+                                    [ngModel]="addrPostcode()"
+                                    (ngModelChange)="addrPostcode.set($event)"
+                                    name="pf_addr_postcode"
+                                    placeholder="Postcode"
+                                    maxlength="5"
+                                    pattern="[0-9]{5}"
+                                    inputmode="numeric"
+                                  />
+                                  @if (addrPostcode().length === 5 && !postcodeValid()) {
+                                    <span class="addr-invalid">Postcode must be exactly 5 digits (e.g. 47100).</span>
+                                  }
                                   @if (addrStreet()) {
-                                    <span class="addr-valid">✓ {{ addrStreet() }}</span>
+                                    <span class="addr-valid"
+                                      >✓ {{ addrStreet() }}</span
+                                    >
                                   }
                                   @if (locatingGps()) {
-                                    <span class="addr-validating">Finding your location…</span>
+                                    <span class="addr-validating"
+                                      >Finding your location…</span
+                                    >
                                   } @else if (addrValidating()) {
-                                    <span class="addr-validating">Verifying address…</span>
+                                    <span class="addr-validating"
+                                      >Verifying address…</span
+                                    >
                                   } @else if (addrError()) {
-                                    <span class="addr-invalid">{{ addrError() }}</span>
+                                    <span class="addr-invalid">{{
+                                      addrError()
+                                    }}</span>
                                   }
                                 </div>
-                                <button type="button" class="btn-primary ac-confirm" [disabled]="!addrStreet().trim() || addrValidating() || locatingGps()" (click)="confirmAddress()">Confirm</button>
+                                @if (!addrStreet().trim() || !postcodeValid()) {
+                                  <p class="addr-reminder">
+                                    @if (!addrStreet().trim() && !postcodeValid()) {
+                                      ⚠️ Enter a street and a 5-digit postcode.
+                                    } @else if (!addrStreet().trim()) {
+                                      ⚠️ Enter a street from the dropdown above.
+                                    } @else if (!postcodeValid()) {
+                                      ⚠️ Enter a valid 5-digit postcode (e.g. 47100).
+                                    }
+                                  </p>
+                                }
+                                <button
+                                  type="button"
+                                  class="btn-primary ac-confirm"
+                                  [disabled]="
+                                    !addrStreet().trim() ||
+                                    !postcodeValid() ||
+                                    addrValidating() ||
+                                    locatingGps()
+                                  "
+                                  (click)="confirmAddress()"
+                                >
+                                  Confirm
+                                </button>
                               }
-                            } @else if (getStr(b.data, 'key') === 'propertyType') {
-                              @if (valueCollected('propertyType')) {
+                            } @else if (
+                              getStr(b.data, "key") === "propertyType"
+                            ) {
+                              @if (valueCollected("propertyType")) {
                                 <div class="field-confirmed">
-                                  <span class="field-confirmed-value">✅ {{ widget.prefillData()['propertyType'] }}</span>
+                                  <span class="field-confirmed-value"
+                                    >✅
+                                    {{
+                                      widget.prefillData()["propertyType"]
+                                    }}</span
+                                  >
                                 </div>
                               } @else {
                                 <div class="ac-budget">
-                                  <select [ngModel]="addrPropertyType()" (ngModelChange)="addrPropertyType.set($event)" name="pf_property_type">
-                                    <option value="">Select building type…</option>
+                                  <select
+                                    [ngModel]="addrPropertyType()"
+                                    (ngModelChange)="
+                                      addrPropertyType.set($event)
+                                    "
+                                    name="pf_property_type"
+                                  >
+                                    <option value="">
+                                      Select building type…
+                                    </option>
                                     <option value="landed">Landed</option>
                                     <option value="condo">Condo</option>
-                                    <option value="commercial">Commercial</option>
+                                    <option value="commercial">
+                                      Commercial
+                                    </option>
                                   </select>
-                                  <button type="button" class="btn-primary ac-confirm" [disabled]="!addrPropertyType()" (click)="confirmPropertyType()">Confirm</button>
+                                  <button
+                                    type="button"
+                                    class="btn-primary ac-confirm"
+                                    [disabled]="!addrPropertyType()"
+                                    (click)="confirmPropertyType()"
+                                  >
+                                    Confirm
+                                  </button>
                                 </div>
                               }
-                            } @else if (getStr(b.data, 'key') === 'contactNumber') {
-                              @if (valueCollected('contactNumber')) {
+                            } @else if (
+                              getStr(b.data, "key") === "contactNumber"
+                            ) {
+                              @if (valueCollected("contactNumber")) {
                                 <div class="field-confirmed">
-                                  <span class="field-confirmed-value">✅ {{ widget.prefillData()['contactNumber'] }}</span>
+                                  <span class="field-confirmed-value"
+                                    >✅
+                                    {{
+                                      widget.prefillData()["contactNumber"]
+                                    }}</span
+                                  >
                                 </div>
                               } @else {
                                 <div class="phone-row">
-                                  <select class="phone-prefix" [ngModel]="phonePrefix()" (ngModelChange)="phonePrefix.set($event)" name="pf_cprefix">
+                                  <select
+                                    class="phone-prefix"
+                                    [ngModel]="phonePrefix()"
+                                    (ngModelChange)="phonePrefix.set($event)"
+                                    name="pf_cprefix"
+                                  >
                                     @for (c of phonePrefixes; track c.code) {
-                                      <option [value]="c.code">{{ c.label }}</option>
+                                      <option [value]="c.code">
+                                        {{ c.label }}
+                                      </option>
                                     }
                                   </select>
-                                  <input type="tel" inputmode="tel" [ngModel]="contactPhoneLocal()" (ngModelChange)="contactPhoneLocal.set($event)" name="pf_cphone" placeholder="12 345 6789" />
+                                  <input
+                                    type="tel"
+                                    inputmode="tel"
+                                    [ngModel]="contactPhoneLocal()"
+                                    (ngModelChange)="
+                                      contactPhoneLocal.set($event)
+                                    "
+                                    name="pf_cphone"
+                                    placeholder="12 345 6789"
+                                  />
                                 </div>
                                 @if (contactPhoneLocal() && !phoneValid()) {
-                                  <span class="addr-invalid">Enter a valid phone number.</span>
+                                  <span class="addr-invalid"
+                                    >Enter a valid phone number.</span
+                                  >
                                 }
-                                <button type="button" class="btn-primary ac-confirm" [disabled]="!phoneValid()" (click)="confirmPhone()">Confirm</button>
+                                <button
+                                  type="button"
+                                  class="btn-primary ac-confirm"
+                                  [disabled]="!phoneValid()"
+                                  (click)="confirmPhone()"
+                                >
+                                  Confirm
+                                </button>
                               }
-                            } @else if ((getStr(b.data, 'key') === 'budgetMax' || getStr(b.data, 'key') === 'budgetMin') && budgetRanges().length > 0) {
+                            } @else if (
+                              (getStr(b.data, "key") === "budgetMax" ||
+                                getStr(b.data, "key") === "budgetMin") &&
+                              budgetRanges().length > 0
+                            ) {
                               <div class="ac-budget">
                                 @if (budgetAnswered()) {
                                   <div class="field-confirmed">
-                                    <span class="field-confirmed-value">✅ {{ rangeLabel(budgetRanges()[budgetSliderIdx()]) }}</span>
+                                    <span class="field-confirmed-value"
+                                      >✅
+                                      {{
+                                        rangeLabel(
+                                          budgetRanges()[budgetSliderIdx()]
+                                        )
+                                      }}</span
+                                    >
                                   </div>
                                 } @else {
-                                  <input type="range" class="budget-range"
-                                         [min]="0" [max]="budgetRanges().length - 1" [step]="1"
-                                         [ngModel]="budgetSliderIdx()" (ngModelChange)="onBudgetSlide($event)" name="pf_budget" />
+                                  <input
+                                    type="range"
+                                    class="budget-range"
+                                    [min]="0"
+                                    [max]="budgetRanges().length - 1"
+                                    [step]="1"
+                                    [ngModel]="budgetSliderIdx()"
+                                    (ngModelChange)="onBudgetSlide($event)"
+                                    name="pf_budget"
+                                  />
                                   <div class="budget-ticks">
                                     @for (r of budgetRanges(); track $index) {
-                                      <span class="budget-tick" [class.on]="budgetSliderIdx() === $index">{{ rangeLabel(r) }}</span>
+                                      <span
+                                        class="budget-tick"
+                                        [class.on]="
+                                          budgetSliderIdx() === $index
+                                        "
+                                        >{{ rangeLabel(r) }}</span
+                                      >
                                     }
                                   </div>
-                                  <button type="button" class="btn-primary ac-budget-confirm" (click)="confirmBudget()">
-                                    Confirm {{ rangeLabel(budgetRanges()[budgetSliderIdx()]) }}
+                                  <button
+                                    type="button"
+                                    class="btn-primary ac-budget-confirm"
+                                    (click)="confirmBudget()"
+                                  >
+                                    Confirm
+                                    {{
+                                      rangeLabel(
+                                        budgetRanges()[budgetSliderIdx()]
+                                      )
+                                    }}
                                   </button>
                                 }
                               </div>
                             } @else {
-                              @if (confirmedTextValues()[getStr(b.data, 'key')]) {
+                              @if (
+                                confirmedTextValues()[getStr(b.data, "key")]
+                              ) {
                                 <div class="field-confirmed">
-                                  <span class="field-confirmed-value">✅ {{ confirmedTextValues()[getStr(b.data, 'key')] }}</span>
+                                  <span class="field-confirmed-value"
+                                    >✅
+                                    {{
+                                      confirmedTextValues()[
+                                        getStr(b.data, "key")
+                                      ]
+                                    }}</span
+                                  >
                                 </div>
                               } @else {
-                                <input type="text" [ngModel]="prefillText()" (ngModelChange)="onPrefillField(getStr(b.data, 'key'), $event)" name="pf_text" placeholder="Enter {{ fieldLabel(getStr(b.data, 'key') || getStr(b.data, 'label')) }}" />
-                                <button type="button" class="btn-primary ac-confirm" [disabled]="!prefillText().trim()" (click)="confirmText(getStr(b.data, 'key'))">Confirm</button>
+                                <input
+                                  type="text"
+                                  [ngModel]="prefillText()"
+                                  (ngModelChange)="
+                                    onPrefillField(
+                                      getStr(b.data, 'key'),
+                                      $event
+                                    )
+                                  "
+                                  name="pf_text"
+                                  placeholder="Enter {{
+                                    fieldLabel(
+                                      getStr(b.data, 'key') ||
+                                        getStr(b.data, 'label')
+                                    )
+                                  }}"
+                                />
+                                <button
+                                  type="button"
+                                  class="btn-primary ac-confirm"
+                                  [disabled]="!prefillText().trim()"
+                                  (click)="confirmText(getStr(b.data, 'key'))"
+                                >
+                                  Confirm
+                                </button>
                               }
                             }
                           </div>
                         }
-                        @case ('quote_question') {
+                        @case ("quote_question") {
                           <div class="ac-quote-field">
-                            <label>{{ getStr(b.data, 'label') }}@if (getBool(b.data, 'required')) {<span class="req">*</span>}</label>
-                            @if (getStr(b.data, 'description')) {
-                              <p class="muted q-desc">{{ getStr(b.data, 'description') }}</p>
+                            <label
+                              >{{ getStr(b.data, "label") }}
+                              @if (getBool(b.data, "required")) {
+                                <span class="req">*</span>
+                              }
+                            </label>
+                            @if (getStr(b.data, "description")) {
+                              <p class="muted q-desc">
+                                {{ getStr(b.data, "description") }}
+                              </p>
                             }
-                            @if (questionAnswered(getStr(b.data, 'key'))) {
+                            @if (questionAnswered(getStr(b.data, "key"))) {
                               <div class="field-confirmed">
-                                <span class="field-confirmed-value">✅ {{ answerDisplay(b.data) }}</span>
+                                <span class="field-confirmed-value"
+                                  >✅ {{ answerDisplay(b.data) }}</span
+                                >
                               </div>
                             } @else {
-                              @switch (getStr(b.data, 'qtype')) {
-                                @case ('radio') {
+                              @switch (getStr(b.data, "qtype")) {
+                                @case ("radio") {
                                   <div class="time-options">
-                                    @for (o of getOptions(b.data); track o.value) {
-                                      <button type="button" class="time-btn" (click)="answerRadio(b.data, o.value)">{{ o.label }}</button>
+                                    @for (
+                                      o of getOptions(b.data);
+                                      track o.value
+                                    ) {
+                                      <button
+                                        type="button"
+                                        class="time-btn"
+                                        (click)="answerRadio(b.data, o.value)"
+                                      >
+                                        {{ o.label }}
+                                      </button>
                                     }
                                   </div>
                                 }
-                                @case ('checkbox') {
+                                @case ("checkbox") {
                                   <div class="time-options">
-                                    @for (o of getOptions(b.data); track o.value) {
-                                      <button type="button" class="time-btn" [class.selected]="qCheckbox().includes(o.value)" (click)="toggleQCheckbox(o.value)">{{ o.label }}</button>
+                                    @for (
+                                      o of getOptions(b.data);
+                                      track o.value
+                                    ) {
+                                      <button
+                                        type="button"
+                                        class="time-btn"
+                                        [class.selected]="
+                                          qCheckbox().includes(o.value)
+                                        "
+                                        (click)="toggleQCheckbox(o.value)"
+                                      >
+                                        {{ o.label }}
+                                      </button>
                                     }
                                   </div>
-                                  <button type="button" class="btn-primary ac-confirm" [disabled]="qCheckbox().length === 0" (click)="confirmQCheckbox(b.data)">Confirm</button>
+                                  <button
+                                    type="button"
+                                    class="btn-primary ac-confirm"
+                                    [disabled]="qCheckbox().length === 0"
+                                    (click)="confirmQCheckbox(b.data)"
+                                  >
+                                    Confirm
+                                  </button>
                                 }
-                                @case ('number') {
-                                  <input type="number" min="0" [ngModel]="qNumber()" (ngModelChange)="qNumber.set($event)" name="q_num" />
-                                  <button type="button" class="btn-primary ac-confirm" [disabled]="qNumber() === null || qNumber()! < 0" (click)="confirmQNumber(b.data)">Confirm</button>
+                                @case ("number") {
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    [ngModel]="qNumber()"
+                                    (ngModelChange)="qNumber.set($event)"
+                                    name="q_num"
+                                  />
+                                  <button
+                                    type="button"
+                                    class="btn-primary ac-confirm"
+                                    [disabled]="
+                                      qNumber() === null || qNumber()! < 0
+                                    "
+                                    (click)="confirmQNumber(b.data)"
+                                  >
+                                    Confirm
+                                  </button>
                                 }
-                                @case ('quantity') {
+                                @case ("quantity") {
                                   <div class="qty-list">
-                                    @for (o of getOptions(b.data); track o.value) {
+                                    @for (
+                                      o of getOptions(b.data);
+                                      track o.value
+                                    ) {
                                       <div class="qty-row">
-                                        <span class="qty-label">{{ o.label }}</span>
+                                        <span class="qty-label">{{
+                                          o.label
+                                        }}</span>
                                         <div class="qty-stepper">
-                                          <button type="button" class="qty-btn" (click)="decQ(o.value)">−</button>
-                                          <span class="qty-val">{{ qQuantity()[o.value] ?? 0 }}</span>
-                                          <button type="button" class="qty-btn" (click)="incQ(o.value)">+</button>
+                                          <button
+                                            type="button"
+                                            class="qty-btn"
+                                            (click)="decQ(o.value)"
+                                          >
+                                            −
+                                          </button>
+                                          <span class="qty-val">{{
+                                            qQuantity()[o.value] ?? 0
+                                          }}</span>
+                                          <button
+                                            type="button"
+                                            class="qty-btn"
+                                            (click)="incQ(o.value)"
+                                          >
+                                            +
+                                          </button>
                                         </div>
                                       </div>
                                     }
                                   </div>
-                                  <button type="button" class="btn-primary ac-confirm" [disabled]="qQuantityTotal() === 0" (click)="confirmQQuantity(b.data)">Confirm</button>
+                                  <button
+                                    type="button"
+                                    class="btn-primary ac-confirm"
+                                    [disabled]="qQuantityTotal() === 0"
+                                    (click)="confirmQQuantity(b.data)"
+                                  >
+                                    Confirm
+                                  </button>
                                 }
                                 @default {
-                                  <input type="text" [ngModel]="qText()" (ngModelChange)="qText.set($event)" name="q_text" placeholder="Your answer" />
-                                  <button type="button" class="btn-primary ac-confirm" [disabled]="!qText().trim()" (click)="confirmQText(b.data)">Confirm</button>
+                                  <input
+                                    type="text"
+                                    [ngModel]="qText()"
+                                    (ngModelChange)="qText.set($event)"
+                                    name="q_text"
+                                    placeholder="Your answer"
+                                  />
+                                  <button
+                                    type="button"
+                                    class="btn-primary ac-confirm"
+                                    [disabled]="!qText().trim()"
+                                    (click)="confirmQText(b.data)"
+                                  >
+                                    Confirm
+                                  </button>
                                 }
                               }
                             }
                           </div>
                         }
-                        @case ('quote_prefill') {
+                        @case ("quote_prefill") {
                           @if (mi === messages().length - 1) {
-                          <div class="ac-quote-prefill">
-                            <div class="ac-icon">✅</div>
-                            <strong>All information collected</strong>
-                            <div class="prefill-summary">
-                              @for (item of prefillSummary(); track item.label) {
-                                <div class="prefill-row">
-                                  <span class="prefill-label">{{ item.label }}</span>
-                                  <span class="prefill-value">{{ item.value }}</span>
-                                </div>
-                              }
+                            <div class="ac-quote-prefill">
+                              <div class="ac-icon">✅</div>
+                              <strong>All information collected</strong>
+                              <div class="prefill-summary">
+                                @for (
+                                  item of prefillSummary();
+                                  track item.label
+                                ) {
+                                  <div class="prefill-row">
+                                    <span class="prefill-label">{{
+                                      item.label
+                                    }}</span>
+                                    <span class="prefill-value">{{
+                                      item.value
+                                    }}</span>
+                                  </div>
+                                }
+                              </div>
+                               <p class="muted">
+                                 Review above and submit your quote request.
+                               </p>
+                               <button
+                                class="btn-primary"
+                                (click)="submitPrefill()"
+                              >
+                                Review & submit
+                              </button>
                             </div>
-                            <p class="muted">Review above and submit your quote request.</p>
-                            <p class="prefill-warning">⚠️ Your contact details and address <strong>cannot be changed</strong> after submitting. Double-check before confirming.</p>
-                            <button class="btn-primary" (click)="submitPrefill()">Review & submit</button>
-                          </div>
                           }
                         }
-                        @case ('profile_field') {
+                        @case ("profile_field") {
                           <div class="ac-profile-field">
                             <div class="ac-icon">🏢</div>
-                            <strong>{{ getStr(b.data, 'label') || 'Field' }}</strong>
-                            <p class="muted">{{ getStr(b.data, 'value') || '(not set)' }}</p>
-                            @if (b.data['required'] === true) {
+                            <strong>{{
+                              getStr(b.data, "label") || "Field"
+                            }}</strong>
+                            <p class="muted">
+                              {{ getStr(b.data, "value") || "(not set)" }}
+                            </p>
+                            @if (b.data["required"] === true) {
                               <span class="req-badge">Required</span>
                             }
-                            <button class="btn-outline" (click)="editProfileField(b.data)">Edit with PIN 🔒</button>
+                            <button
+                              class="btn-outline"
+                              (click)="editProfileField(b.data)"
+                            >
+                              Edit with PIN 🔒
+                            </button>
                           </div>
                         }
-                        @case ('pin_required') {
+                        @case ("pin_required") {
                           <div class="ac-pin-warning">
                             <div class="ac-icon">🔒</div>
                             <p>You'll need your PIN for this action.</p>
                           </div>
                         }
-                        @case ('link') {
+                        @case ("link") {
                           <div class="ac-link">
-                            <button class="btn-outline" (click)="navigateAction(getStr(b.data, 'href'))">{{ getStr(b.data, 'label') || 'Open' }}</button>
+                            <button
+                              class="btn-outline"
+                              (click)="navigateAction(getStr(b.data, 'href'))"
+                            >
+                              {{ getStr(b.data, "label") || "Open" }}
+                            </button>
                           </div>
                         }
-                        @case ('retry') {
-                          @if (mi === messages().length - 1 && retryCount() < 3) {
+                        @case ("retry") {
+                          @if (
+                            mi === messages().length - 1 && retryCount() < 3
+                          ) {
                             <div class="ac-link">
-                              <button class="btn-primary" [disabled]="sending() || connecting()" (click)="retryLastMessage()">{{ getStr(b.data, 'label') || 'Try again' }}</button>
+                              <button
+                                class="btn-primary"
+                                [disabled]="sending() || connecting()"
+                                (click)="retryLastMessage()"
+                              >
+                                {{ getStr(b.data, "label") || "Try again" }}
+                              </button>
                             </div>
                           }
                         }
-                        @case ('identity_confirm') {
+                        @case ("identity_confirm") {
                           <div class="ac-link">
                             @if (identityConfirmed() === null) {
-                              <button class="btn-primary" (click)="confirmIdentity(true)">Yes, it's me</button>
-                              <button class="btn-outline" (click)="confirmIdentity(false)">No, not me</button>
+                              <button
+                                class="btn-primary"
+                                (click)="confirmIdentity(true)"
+                              >
+                                Yes, it's me
+                              </button>
+                              <button
+                                class="btn-outline"
+                                (click)="confirmIdentity(false)"
+                              >
+                                No, not me
+                              </button>
                             } @else {
-                              <span class="muted" style="font-size:0.82rem">{{ identityConfirmed() ? '✅ Confirmed' : 'Starting fresh' }}</span>
+                              <span class="muted" style="font-size:0.82rem">{{
+                                identityConfirmed()
+                                  ? "✅ Confirmed"
+                                  : "Starting fresh"
+                              }}</span>
                             }
                           </div>
                         }
@@ -377,13 +1039,20 @@ interface PublicConfig {
             </div>
           } @empty {
             <div class="empty">
-              <p class="muted">{{ auth.principal() ? 'Ask me anything about quotes, bookings, payments, or reorders.' : 'Write a note or draft a message.' }}</p>
+              <p class="muted">
+                {{
+                  auth.principal()
+                    ? "Ask me anything about quotes, bookings, payments, or reorders."
+                    : "Write a note or draft a message."
+                }}
+              </p>
             </div>
           }
           @if (sending()) {
             <div class="msg" role="status" aria-label="Assistant is typing">
               <span class="bubble typing">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                <span class="dot"></span><span class="dot"></span
+                ><span class="dot"></span>
               </span>
             </div>
           }
@@ -393,44 +1062,105 @@ interface PublicConfig {
           <input
             [(ngModel)]="draft"
             name="draft"
-            placeholder="{{ connecting() ? 'Connecting…' : auth.principal() ? 'Type a message…' : 'Write a note…' }}"
+            placeholder="{{
+              connecting()
+                ? 'Connecting…'
+                : auth.principal()
+                  ? 'Type a message…'
+                  : 'Write a note…'
+            }}"
             [disabled]="connecting()"
             aria-label="Message input"
           />
-          <button class="btn-primary send-btn" type="submit" [disabled]="sending() || connecting() || !draft.trim()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          <button
+            class="btn-primary send-btn"
+            type="submit"
+            [disabled]="sending() || connecting() || !draft.trim()"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>
           </button>
         </form>
       </div>
     }
   `,
-    styles: [
-        `
+  styles: [
+    `
       /* Global floating launcher (guests on non-home pages; see showGuestFab). */
       .cw-fab {
-        position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 997;
-        width: 3.5rem; height: 3.5rem; border-radius: 50%;
-        background: var(--color-primary); color: #fff; border: none; cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.25));
-        transition: transform 0.15s ease, background 0.15s ease;
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        z-index: 997;
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 50%;
+        background: var(--color-primary);
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.25));
+        transition:
+          transform 0.15s ease,
+          background 0.15s ease;
       }
-      .cw-fab:hover { background: var(--color-primary-dark); transform: translateY(-2px); }
+      .cw-fab:hover {
+        background: var(--color-primary-dark);
+        transform: translateY(-2px);
+      }
       .cw-fab-dot {
-        position: absolute; top: 0.45rem; right: 0.45rem;
-        width: 9px; height: 9px; border-radius: 50%;
-        background: var(--color-muted); border: 2px solid var(--color-primary);
+        position: absolute;
+        top: 0.45rem;
+        right: 0.45rem;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--color-muted);
+        border: 2px solid var(--color-primary);
       }
-      .cw-fab-dot.online { background: var(--color-success); }
-      .cw-fab-dot.blink { animation: statusPulse 1.6s ease-in-out infinite; }
+      .cw-fab-dot.online {
+        background: var(--color-success);
+      }
+      .cw-fab-dot.blink {
+        animation: statusPulse 1.6s ease-in-out infinite;
+      }
       .cw-fab-unread {
-        position: absolute; top: -0.2rem; left: -0.2rem; min-width: 1.1rem; height: 1.1rem;
-        padding: 0 0.25rem; border-radius: 999px; background: var(--color-danger); color: #fff;
-        font-size: 0.65rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+        position: absolute;
+        top: -0.2rem;
+        left: -0.2rem;
+        min-width: 1.1rem;
+        height: 1.1rem;
+        padding: 0 0.25rem;
+        border-radius: 999px;
+        background: var(--color-danger);
+        color: #fff;
+        font-size: 0.65rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
-      @media (max-width: 640px) { .cw-fab { bottom: 1rem; right: 1rem; } }
+      @media (max-width: 640px) {
+        .cw-fab {
+          bottom: 1rem;
+          right: 1rem;
+        }
+      }
 
       .backdrop {
         position: fixed;
@@ -439,8 +1169,12 @@ interface PublicConfig {
         animation: bd-fade 0.2s ease-out;
       }
       @keyframes bd-fade {
-        from { opacity: 0; }
-        to   { opacity: 1; }
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
       }
       .panel {
         position: fixed;
@@ -453,7 +1187,7 @@ interface PublicConfig {
         background: var(--color-surface);
         border: 1px solid var(--color-border);
         border-radius: var(--radius);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
         z-index: 999;
         display: flex;
         flex-direction: column;
@@ -461,8 +1195,14 @@ interface PublicConfig {
         overflow: hidden;
       }
       @keyframes panel-in {
-        from { transform: translateY(24px); opacity: 0; }
-        to   { transform: translateY(0);    opacity: 1; }
+        from {
+          transform: translateY(24px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
       }
 
       .panel-header {
@@ -479,7 +1219,9 @@ interface PublicConfig {
         gap: 0.55rem;
         font-size: 0.88rem;
       }
-      .panel-id strong { font-size: 0.93rem; }
+      .panel-id strong {
+        font-size: 0.93rem;
+      }
       .avatar {
         width: 32px;
         height: 32px;
@@ -491,19 +1233,44 @@ interface PublicConfig {
         justify-content: center;
         flex-shrink: 0;
       }
-      .status { font-size: 0.72rem; display: flex; align-items: center; gap: 0.3rem; }
-      .status.muted { color: var(--color-muted); }
+      .status {
+        font-size: 0.72rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+      .status.muted {
+        color: var(--color-muted);
+      }
       .status-dot {
-        width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex: 0 0 auto;
         background: var(--color-muted);
       }
-      .status-dot.online { background: var(--color-success); }
-      .status-dot.blink { animation: statusPulse 1.6s ease-in-out infinite; }
-      @keyframes statusPulse {
-        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74, 140, 92, 0.5); }
-        50% { opacity: 0.6; box-shadow: 0 0 0 3px rgba(74, 140, 92, 0); }
+      .status-dot.online {
+        background: var(--color-success);
       }
-      @media (prefers-reduced-motion: reduce) { .status-dot.blink { animation: none; } }
+      .status-dot.blink {
+        animation: statusPulse 1.6s ease-in-out infinite;
+      }
+      @keyframes statusPulse {
+        0%,
+        100% {
+          opacity: 1;
+          box-shadow: 0 0 0 0 rgba(74, 140, 92, 0.5);
+        }
+        50% {
+          opacity: 0.6;
+          box-shadow: 0 0 0 3px rgba(74, 140, 92, 0);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .status-dot.blink {
+          animation: none;
+        }
+      }
       .header-acts {
         display: flex;
         align-items: center;
@@ -517,8 +1284,22 @@ interface PublicConfig {
         cursor: pointer;
         padding: 0.2rem 0.4rem;
       }
-      .clear-btn:hover { color: var(--color-danger); }
-      .clear-btn:disabled { opacity: 0.4; cursor: default; }
+      .clear-btn:hover {
+        color: var(--color-danger);
+      }
+      .clear-btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .qa-btn {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+      }
+      .qa-btn.running {
+        color: #fff;
+        background: var(--color-danger);
+        border-color: var(--color-danger);
+      }
       .close-btn {
         display: flex;
         align-items: center;
@@ -533,7 +1314,9 @@ interface PublicConfig {
         cursor: pointer;
         padding: 0;
         line-height: 1;
-        transition: background 0.15s ease, color 0.15s ease;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
       }
       .close-btn:hover {
         background: var(--color-surface);
@@ -548,7 +1331,10 @@ interface PublicConfig {
         text-align: center;
         flex-shrink: 0;
       }
-      .guest-banner a { color: var(--color-primary); font-weight: 600; }
+      .guest-banner a {
+        color: var(--color-primary);
+        font-weight: 600;
+      }
 
       .thread {
         flex: 1;
@@ -567,11 +1353,24 @@ interface PublicConfig {
         text-align: center;
         padding: 1rem;
       }
-      .empty p { font-size: 0.85rem; }
+      .empty p {
+        font-size: 0.85rem;
+      }
 
-      .msg { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; }
-      .msg.user { align-items: flex-end; }
-      .time { font-size: 0.65rem; color: var(--color-muted); padding: 0 0.2rem; }
+      .msg {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.15rem;
+      }
+      .msg.user {
+        align-items: flex-end;
+      }
+      .time {
+        font-size: 0.65rem;
+        color: var(--color-muted);
+        padding: 0 0.2rem;
+      }
       .bubble {
         padding: 0.45rem 0.7rem;
         border-radius: 10px;
@@ -581,31 +1380,64 @@ interface PublicConfig {
         font-size: 0.88rem;
         word-break: break-word;
       }
-      .bubble a { color: var(--color-primary); text-decoration: underline; font-weight: 500; }
-      .bubble a:hover { color: var(--color-primary-dark); }
-      .bubble a .ext-icon { font-size: 0.78em; margin-left: 1px; text-decoration: none; opacity: 0.85; }
+      .bubble a {
+        color: var(--color-primary);
+        text-decoration: underline;
+        font-weight: 500;
+      }
+      .bubble a:hover {
+        color: var(--color-primary-dark);
+      }
+      .bubble a .ext-icon {
+        font-size: 0.78em;
+        margin-left: 1px;
+        text-decoration: none;
+        opacity: 0.85;
+      }
       .msg.user .bubble {
         background: var(--color-primary);
         color: #fff;
         border-radius: 10px 10px 3px 10px;
       }
-      .msg.user .bubble a { color: rgba(255,255,255,0.9); }
+      .msg.user .bubble a {
+        color: rgba(255, 255, 255, 0.9);
+      }
       .msg:not(.user) .bubble {
         border: 1px solid var(--color-border);
         border-radius: 10px 10px 10px 3px;
       }
 
-      .typing { display: flex; gap: 3px; padding: 0.55rem 0.7rem; align-items: center; }
+      .typing {
+        display: flex;
+        gap: 3px;
+        padding: 0.55rem 0.7rem;
+        align-items: center;
+      }
       .dot {
-        width: 5px; height: 5px; border-radius: 50%;
-        background: var(--color-muted); opacity: 0.35;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--color-muted);
+        opacity: 0.35;
         animation: dot-bounce 1.2s infinite ease-in-out both;
       }
-      .dot:nth-child(2) { animation-delay: 0.2s; }
-      .dot:nth-child(3) { animation-delay: 0.4s; }
+      .dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
       @keyframes dot-bounce {
-        0%,60%,100% { transform: translateY(0); opacity: 0.35; }
-        30% { transform: translateY(-4px); opacity: 1; }
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.35;
+        }
+        30% {
+          transform: translateY(-4px);
+          opacity: 1;
+        }
       }
 
       .composer {
@@ -615,7 +1447,11 @@ interface PublicConfig {
         border-top: 1px solid var(--color-border);
         flex-shrink: 0;
       }
-      .composer input { flex: 1; font-size: 0.88rem; padding: 0.9rem 0.7rem; }
+      .composer input {
+        flex: 1;
+        font-size: 0.88rem;
+        padding: 0.9rem 0.7rem;
+      }
       .send-btn {
         display: flex;
         align-items: center;
@@ -626,127 +1462,405 @@ interface PublicConfig {
         border-radius: 50%;
       }
 
-      .err-msg { color: var(--color-danger); font-size: 0.82rem; text-align: center; padding: 0.5rem; }
+      .err-msg {
+        color: var(--color-danger);
+        font-size: 0.82rem;
+        text-align: center;
+        padding: 0.5rem;
+      }
 
-      .action-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; }
-      .action-btn { font-size: 0.78rem; padding: 0.25rem 0.5rem; border-radius: 6px; }
+      .action-row {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin-top: 0.3rem;
+      }
+      .action-btn {
+        font-size: 0.78rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+      }
 
-      .action-blocks { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.4rem; }
+      .action-blocks {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.4rem;
+      }
       .action-card {
-        border: 1px solid var(--color-border); border-radius: var(--radius);
-        padding: 0.6rem; background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        padding: 0.6rem;
+        background: var(--color-bg);
         /* Staggered reveal: each card fades in 1.2s after the previous, so cards
            appear one by one like chat messages (delay set inline per index).
            Fill-mode both keeps the card invisible until its turn. */
         animation: cardReveal 0.35s ease both;
       }
       @keyframes cardReveal {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
       @media (prefers-reduced-motion: reduce) {
-        .action-card { animation-duration: 0.01ms; animation-delay: 0ms !important; }
+        .action-card {
+          animation-duration: 0.01ms;
+          animation-delay: 0ms !important;
+        }
       }
-      .ac-icon { font-size: 1.2rem; margin-bottom: 0.2rem; }
-      .ac-actions { display: flex; gap: 0.4rem; margin-top: 0.4rem; }
-      .ac-actions button { font-size: 0.78rem; padding: 0.3rem 0.6rem; }
-      .ac-quote-field label { font-size: 0.82rem; font-weight: 500; display: block; margin-bottom: 0.3rem; }
-      .ac-quote-field input, .ac-quote-field select { width: 100%; font-size: 0.85rem; padding: 0.35rem 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); outline: none; }
+      .ac-icon {
+        font-size: 1.2rem;
+        margin-bottom: 0.2rem;
+      }
+      .ac-actions {
+        display: flex;
+        gap: 0.4rem;
+        margin-top: 0.4rem;
+      }
+      .ac-actions button {
+        font-size: 0.78rem;
+        padding: 0.3rem 0.6rem;
+      }
+      .ac-quote-field label {
+        font-size: 0.82rem;
+        font-weight: 500;
+        display: block;
+        margin-bottom: 0.3rem;
+      }
+      .ac-quote-field input,
+      .ac-quote-field select {
+        width: 100%;
+        font-size: 0.85rem;
+        padding: 0.35rem 0.5rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: var(--color-text);
+        outline: none;
+      }
       /* Match the native date-picker calendar width (~Chromium 16rem) so the
          field lines up with the popup and the trigger sits close. */
-      .ac-quote-field input[type="date"] { max-width: 16rem; }
+      .ac-quote-field input[type="date"] {
+        max-width: 16rem;
+      }
       /* Budget range slider (mirrors the quote form). */
-      .ac-budget { display: flex; flex-direction: column; gap: 0.4rem; }
-      .budget-range { width: 100%; accent-color: var(--color-primary); cursor: pointer; }
-      .budget-ticks { display: flex; justify-content: space-between; gap: 0.2rem; flex-wrap: wrap; }
-      .budget-tick { font-size: 0.68rem; color: var(--color-muted); }
-      .budget-tick.on { color: var(--color-primary); font-weight: 700; }
-      .ac-budget-confirm { align-self: flex-start; font-size: 0.8rem; padding: 0.35rem 0.7rem; margin-top: 0.2rem; }
-      .ac-quote-field input:focus, .ac-quote-field select:focus { border-color: var(--color-primary); }
-      .req-badge { font-size: 0.7rem; padding: 0.1rem 0.35rem; background: #fff3cd; color: #856404; border-radius: 4px; margin-left: 0.3rem; }
-      .ac-pin-warning { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.6rem; background: #fff3cd; border-radius: var(--radius); font-size: 0.82rem; }
-      .ac-pin-warning p { margin: 0; }
-      .btn-outline { background: transparent; border: 1px solid var(--color-primary); color: var(--color-primary); padding: 0.625rem 0.7rem; border-radius: var(--radius); cursor: pointer; font-size: 0.82rem; }
-      .btn-outline:hover { background: var(--color-primary); color: #fff; }
+      .ac-budget {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .budget-range {
+        width: 100%;
+        accent-color: var(--color-primary);
+        cursor: pointer;
+      }
+      .budget-ticks {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.2rem;
+        flex-wrap: wrap;
+      }
+      .budget-tick {
+        font-size: 0.68rem;
+        color: var(--color-muted);
+      }
+      .budget-tick.on {
+        color: var(--color-primary);
+        font-weight: 700;
+      }
+      .ac-budget-confirm {
+        align-self: flex-start;
+        font-size: 0.8rem;
+        padding: 0.35rem 0.7rem;
+        margin-top: 0.2rem;
+      }
+      .ac-quote-field input:focus,
+      .ac-quote-field select:focus {
+        border-color: var(--color-primary);
+      }
+      .req-badge {
+        font-size: 0.7rem;
+        padding: 0.1rem 0.35rem;
+        background: #fff3cd;
+        color: #856404;
+        border-radius: 4px;
+        margin-left: 0.3rem;
+      }
+      .ac-pin-warning {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.6rem;
+        background: #fff3cd;
+        border-radius: var(--radius);
+        font-size: 0.82rem;
+      }
+      .ac-pin-warning p {
+        margin: 0;
+      }
+      .btn-outline {
+        background: transparent;
+        border: 1px solid var(--color-primary);
+        color: var(--color-primary);
+        padding: 0.625rem 0.7rem;
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-size: 0.82rem;
+      }
+      .btn-outline:hover {
+        background: var(--color-primary);
+        color: #fff;
+      }
 
-      .time-options { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.25rem; }
-      .q-desc { font-size: 0.75rem; margin: 0.1rem 0 0.3rem; }
-      .qty-list { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.25rem; }
-      .qty-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-      .qty-label { font-size: 0.82rem; }
-      .qty-stepper { display: flex; align-items: center; gap: 0.4rem; }
+      .time-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.25rem;
+      }
+      .q-desc {
+        font-size: 0.75rem;
+        margin: 0.1rem 0 0.3rem;
+      }
+      .qty-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        margin-top: 0.25rem;
+      }
+      .qty-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .qty-label {
+        font-size: 0.82rem;
+      }
+      .qty-stepper {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
       .qty-btn {
-        width: 1.6rem; height: 1.6rem; border: 1px solid var(--color-border); border-radius: var(--radius);
-        background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: 1rem; line-height: 1;
+        width: 1.6rem;
+        height: 1.6rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: var(--color-text);
+        cursor: pointer;
+        font-size: 1rem;
+        line-height: 1;
       }
-      .qty-btn:hover { border-color: var(--color-primary); }
-      .qty-val { min-width: 1.2rem; text-align: center; font-weight: 600; font-size: 0.85rem; }
+      .qty-btn:hover {
+        border-color: var(--color-primary);
+      }
+      .qty-val {
+        min-width: 1.2rem;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
       .time-btn {
-        font-size: 0.78rem; padding: 0.3rem 0.5rem; border: 1px solid var(--color-border);
-        border-radius: var(--radius); background: var(--color-surface); color: var(--color-text);
-        cursor: pointer; transition: all 0.15s ease;
+        font-size: 0.78rem;
+        padding: 0.3rem 0.5rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: var(--color-text);
+        cursor: pointer;
+        transition: all 0.15s ease;
       }
-      .time-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
-      .time-btn.selected { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
-
-      .prefill-summary { margin: 0.5rem 0; border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; }
-      .prefill-row { display: flex; justify-content: space-between; padding: 0.3rem 0.5rem; font-size: 0.8rem; border-bottom: 1px solid var(--color-border); }
-      .prefill-row:last-child { border-bottom: none; }
-      .prefill-warning {
-        margin: 0.5rem 0 0.2rem; font-size: 0.78rem; font-weight: 600;
-        color: var(--color-danger); background: var(--color-danger-bg);
-        border: 1px solid var(--color-danger); border-radius: var(--radius);
-        padding: 0.4rem 0.55rem; line-height: 1.35;
+      .time-btn:hover {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
       }
-      .prefill-label { font-weight: 500; color: var(--color-muted); }
-      .prefill-value { text-align: right; max-width: 60%; word-break: break-word; }
+      .time-btn.selected {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: #fff;
+      }
 
-      .addr-validating { display: block; font-size: 0.75rem; color: var(--color-muted); margin-top: 0.2rem; }
-      .addr-valid { display: block; font-size: 0.75rem; color: var(--color-success); margin-top: 0.2rem; }
-      .addr-invalid { display: block; font-size: 0.75rem; color: var(--color-danger); margin-top: 0.2rem; }
+      .prefill-summary {
+        margin: 0.5rem 0;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .prefill-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.8rem;
+        border-bottom: 1px solid var(--color-border);
+      }
+      .prefill-row:last-child {
+        border-bottom: none;
+      }
+      .prefill-label {
+        font-weight: 500;
+        color: var(--color-muted);
+      }
+      .prefill-value {
+        text-align: right;
+        max-width: 60%;
+        word-break: break-word;
+      }
 
-      .ac-confirm { align-self: flex-start; font-size: 0.8rem; padding: 0.4rem 0.8rem; margin-top: 0.3rem; }
-      .ac-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
-      .addr-fields { display: flex; flex-direction: column; gap: 0.35rem; }
-      .addr-row { display: flex; gap: 0.35rem; align-items: stretch; }
-      .addr-no { flex: 1; }
-      .addr-postcode { width: 100%; }
+      .addr-validating {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--color-muted);
+        margin-top: 0.2rem;
+      }
+      .addr-valid {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--color-success);
+        margin-top: 0.2rem;
+      }
+      .addr-invalid {
+        color: var(--color-danger);
+        font-size: 0.78rem;
+      }
+      .addr-reminder {
+        color: var(--color-warning);
+        font-size: 0.78rem;
+        margin: 0.15rem 0 0;
+      }
+
+      .ac-confirm {
+        align-self: flex-start;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+        margin-top: 0.3rem;
+      }
+      .ac-confirm:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .addr-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .addr-row {
+        display: flex;
+        gap: 0.35rem;
+        align-items: stretch;
+      }
+      .addr-no {
+        flex: 1;
+      }
+      .ptype-select {
+        flex: 1;
+      }
+      .addr-postcode {
+        width: 100%;
+      }
       .gps-btn {
-        flex: 0 0 auto; width: 2.4rem; border: 1px solid var(--color-border);
-        border-radius: var(--radius); background: var(--color-surface); cursor: pointer;
-        font-size: 1rem; transition: border-color 0.15s ease, background 0.15s ease;
+        flex: 0 0 auto;
+        width: 2.4rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        cursor: pointer;
+        font-size: 1rem;
+        transition:
+          border-color 0.15s ease,
+          background 0.15s ease;
       }
-      .gps-btn:hover { border-color: var(--color-primary); background: var(--color-bg); }
-      .gps-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .gps-btn:hover {
+        border-color: var(--color-primary);
+        background: var(--color-bg);
+      }
+      .gps-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
 
-      .contact-prompt { margin: 0 0 0.4rem; }
+      .contact-prompt {
+        margin: 0 0 0.4rem;
+      }
       /* Stack Name then Phone vertically: the chat panel is narrow, and a 2-col
          row squeezes the phone-row (prefix select + number) so the number input
          collapses to ~0 width. Full width per field keeps the number visible. */
-      .contact-fields { display: flex; flex-direction: column; gap: 0.5rem; }
-      .contact-col { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
-      .contact-label { font-size: 0.72rem; color: var(--color-muted); }
-      .contact-col input { width: 100%; box-sizing: border-box; }
-      .phone-row { display: flex; gap: 0.4rem; align-items: stretch; }
-      .phone-prefix {
-        flex: 0 0 4.5rem; width: 4.5rem; font-size: 0.82rem; padding: 0.35rem 0.2rem;
-        border: 1px solid var(--color-border); border-radius: var(--radius);
-        background: var(--color-surface); color: var(--color-text);
+      .contact-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
       }
-      .phone-row input { flex: 1 1 auto; width: auto; min-width: 0; }
+      .contact-col {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+      }
+      .contact-label {
+        font-size: 0.72rem;
+        color: var(--color-muted);
+      }
+      .contact-col input {
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .phone-row {
+        display: flex;
+        gap: 0.4rem;
+        align-items: stretch;
+      }
+      .phone-prefix {
+        flex: 0 0 4.5rem;
+        width: 4.5rem;
+        font-size: 0.82rem;
+        padding: 0.35rem 0.2rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: var(--color-text);
+      }
+      .phone-row input {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+      }
 
-      .field-confirmed { margin-bottom: 0.4rem; display: flex; flex-direction: column; gap: 0.1rem; }
-      .field-confirmed-value { font-size: 0.85rem; font-weight: 600; color: var(--color-success); }
-      .field-confirmed-note { font-size: 0.72rem; color: var(--color-muted); font-style: italic; }
+      .field-confirmed {
+        margin-bottom: 0.4rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+      }
+      .field-confirmed-value {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--color-success);
+      }
+      .field-confirmed-note {
+        font-size: 0.72rem;
+        color: var(--color-muted);
+        font-style: italic;
+      }
 
       /* Mobile: the chat takes over the whole screen and a dimmed backdrop blocks
          the page behind it, so nothing in the background can be tapped while the
          chat is open (tap the backdrop, or close, to return to the page). */
       @media (max-width: 640px) {
-        .backdrop { background: var(--color-backdrop); }
+        .backdrop {
+          background: var(--color-backdrop);
+        }
         .panel {
           inset: 0;
-          top: 0; right: 0; bottom: 0; left: 0;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          left: 0;
           width: auto;
           max-width: none;
           height: auto;
@@ -756,9 +1870,11 @@ interface PublicConfig {
         }
       }
     `,
-    ]
+  ],
 })
-export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class ChatWidgetComponent
+  implements OnInit, OnDestroy, AfterViewChecked
+{
   widget = inject(ChatWidgetService);
   auth = inject(AuthService);
   private router = inject(Router);
@@ -768,17 +1884,17 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   private pin = inject(PinService);
   private assist = inject(QuoteAssistBridge);
 
-  draft = '';
+  draft = "";
   sending = signal(false);
   connecting = signal(false);
   clearing = signal(false);
-  initError = signal('');
+  initError = signal("");
 
   /** Last resolved principal id - detects login/logout/account-switch to reset state. */
   private lastPrincipalId: string | null = null;
 
   /** Current route URL (kept in sync via router events) for the global FAB gate. */
-  private currentUrl = signal('/');
+  private currentUrl = signal("/");
 
   /**
    * Show the global floating chat button only where there isn't already one:
@@ -788,7 +1904,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   showGuestFab = computed(() => {
     if (this.auth.principal()) return false;
     const url = this.currentUrl();
-    return url !== '/' && !url.startsWith('/?');
+    return url !== "/" && !url.startsWith("/?");
   });
 
   /** Auth-only messages - server-backed, JWT-validated, never touched in guest mode. */
@@ -805,14 +1921,14 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * guest buffer - which logout has already emptied - so auth history cannot leak.
    */
   readonly messages = computed<ChatMessage[]>(() =>
-    this.connecting() || this.sessionId() ? this.authMsgs() : this.guestMsgs()
+    this.connecting() || this.sessionId() ? this.authMsgs() : this.guestMsgs(),
   );
 
   private replyTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private socketSubs: Subscription[] = [];
   private scrollBottom = false;
 
-  private readonly threadEl = viewChild<ElementRef<HTMLElement>>('threadEl');
+  private readonly threadEl = viewChild<ElementRef<HTMLElement>>("threadEl");
 
   constructor() {
     // These effects react to isOpen()/principal() and update chat-state signals
@@ -840,7 +1956,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.cancelPendingReply();
         this.sessionId.set(null);
         this.authMsgs.set([]);
-        this.initError.set('');
+        this.initError.set("");
         if (pid) {
           // Logged in / switched account: guest history must never bleed into an account.
           this.guestMsgs.set([]);
@@ -861,15 +1977,19 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     // Load the category's budget ranges once a category is confirmed, so the
     // budget step renders the same slider as the quote form.
     effect(() => {
-      const cid = this.widget.prefillData()['categoryId'];
-      if (typeof cid === 'string' && cid) this.loadBudgetRanges(cid);
+      const cid = this.widget.prefillData()["categoryId"];
+      if (typeof cid === "string" && cid) this.loadBudgetRanges(cid);
     }, opts);
     // Persist guest chat so it survives a page refresh, but clears when the tab/
     // window closes (sessionStorage semantics). Only while not logged in.
     effect(() => {
       const msgs = this.guestMsgs();
       if (!this.auth.principal()) {
-        try { sessionStorage.setItem(this.GUEST_CHAT_KEY, JSON.stringify(msgs)); } catch { /* quota/private mode */ }
+        try {
+          sessionStorage.setItem(this.GUEST_CHAT_KEY, JSON.stringify(msgs));
+        } catch {
+          /* quota/private mode */
+        }
       }
     }, opts);
     // Persist guest quote prefill (name/phone/address) so a refresh can greet the
@@ -881,10 +2001,23 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     effect(() => {
       const data = this.widget.prefillData();
       if (this.auth.principal()) return;
-      const hasData = Object.values(data).some((v) => v !== undefined && v !== null && v !== '');
+      const hasData = Object.values(data).some(
+        (v) => v !== undefined && v !== null && v !== "",
+      );
       if (hasData) {
-        try { sessionStorage.setItem(this.GUEST_PREFILL_KEY, JSON.stringify(data)); } catch { /* quota/private mode */ }
-        try { localStorage.setItem('msvc_latest_chat_prefill', JSON.stringify(data)); } catch { /* quota/private mode */ }
+        try {
+          sessionStorage.setItem(this.GUEST_PREFILL_KEY, JSON.stringify(data));
+        } catch {
+          /* quota/private mode */
+        }
+        try {
+          localStorage.setItem(
+            "msvc_latest_chat_prefill",
+            JSON.stringify(data),
+          );
+        } catch {
+          /* quota/private mode */
+        }
       }
     }, opts);
 
@@ -900,7 +2033,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       const ready = this.sessionId() || !this.auth.principal();
       if (!ready) return;
       // Clear the pending so it only fires once.
-      this.widget.pendingQuestion.set('');
+      this.widget.pendingQuestion.set("");
       // Dispatch the question as a user-typed message.
       this.draft = q;
       this.send();
@@ -922,18 +2055,21 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         .subscribe((e) => this.currentUrl.set(e.urlAfterRedirects)),
     );
     this.socketSubs.push(
-      this.socketSvc.on<string>('connect').subscribe(() => this.widget.chatStatus.set('active')),
+      this.socketSvc
+        .on<string>("connect")
+        .subscribe(() => this.widget.chatStatus.set("active")),
       // Do NOT flip to 'offline' on a socket disconnect: the AI assistant answers
       // over HTTP, so it stays available even when the realtime socket drops.
-      this.socketSvc.on<number>('chat.unread').subscribe((n) => {
+      this.socketSvc.on<number>("chat.unread").subscribe((n) => {
         this.widget.chatUnread.set(n);
         if (n > 0) this.playChatSound();
       }),
-      this.socketSvc.on<string>('chat.typing').subscribe(() => {
-        this.widget.chatStatus.set('typing');
+      this.socketSvc.on<string>("chat.typing").subscribe(() => {
+        this.widget.chatStatus.set("typing");
         this.playTypingSound();
         setTimeout(() => {
-          if (this.widget.chatStatus() === 'typing') this.widget.chatStatus.set('active');
+          if (this.widget.chatStatus() === "typing")
+            this.widget.chatStatus.set("active");
         }, 3000);
       }),
     );
@@ -962,7 +2098,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   private loadChatSettings(): void {
-    this.api.get<PublicConfig>('/config/public').subscribe({
+    this.api.get<PublicConfig>("/config/public").subscribe({
       next: (r) => {
         // Greetings (all tiers)
         this.widget.setGreetingTiers({
@@ -980,7 +2116,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.guestAutoOpenTimer = setTimeout(() => {
           // Don't auto-open on the quote form - the floating button stays, but the
           // panel must not steal focus while the user is filling out a quote.
-          if (this.router.url.includes('/quote/new')) return;
+          if (this.router.url.includes("/quote/new")) return;
           if (!this.auth.principal() && !this.widget.isOpen()) {
             this.widget.open();
           }
@@ -999,34 +2135,37 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   statusLabel(): string {
     const s = this.widget.chatStatus();
-    if (s === 'active') return 'Active now';
-    if (s === 'typing') return 'Typing…';
-    return 'Offline';
+    if (s === "active") return "Active now";
+    if (s === "typing") return "Typing…";
+    return "Offline";
   }
 
   formatMessage(content: string): string {
     const escaped = content
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
     const html = escaped
       // Links open in a new tab with an external-link icon so the user keeps the chat.
-      .replace(/\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<span class="ext-icon">↗</span></a>')
+      .replace(
+        /\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1<span class="ext-icon">↗</span></a>',
+      )
       // **bold** -> <strong> (model emits markdown bold; render it, don't leak the asterisks)
-      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n/g, '<br />');
+      .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\n/g, "<br />");
     return this.sanitizer.sanitize(SecurityContext.HTML, html) as string;
   }
 
   handleThreadClick(event: MouseEvent): void {
-    const anchor = (event.target as HTMLElement).closest('a');
+    const anchor = (event.target as HTMLElement).closest("a");
     if (!anchor) return;
-    const href = anchor.getAttribute('href');
+    const href = anchor.getAttribute("href");
     if (!href) return;
     // target="_blank" links (service mentions, external) open in a new tab - let
     // the browser handle them instead of routing in-app and closing the chat.
-    if (anchor.getAttribute('target') === '_blank') return;
-    if (href.startsWith('/')) {
+    if (anchor.getAttribute("target") === "_blank") return;
+    if (href.startsWith("/")) {
       event.preventDefault();
       this.widget.close();
       this.router.navigateByUrl(href);
@@ -1038,7 +2177,8 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * tailor help to the current step and fill fields in the real form.
    */
   private formAssistBody(): Record<string, unknown> {
-    if (!this.router.url.includes('/quote/new') || !this.assist.active()) return {};
+    if (!this.router.url.includes("/quote/new") || !this.assist.active())
+      return {};
     const ctx = this.assist.context();
     return ctx ? { formAssist: true, formContext: ctx } : {};
   }
@@ -1053,29 +2193,40 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (!blocks?.length) return blocks;
     const rest: { type: string; data: Record<string, unknown> }[] = [];
     for (const b of blocks) {
-      if (b.type === 'quote_prefill') {
+      if (b.type === "quote_prefill") {
         if (this.prefillSeen) continue; // dedup — show once
         this.prefillSeen = true;
       }
-      if (b.type === 'quote_field') {
-        const qk = typeof b.data['key'] === 'string' ? (b.data['key'] as string) : '';
-        if (qk === 'addressNo' || qk === 'streetDetails' || qk === 'postcode' || qk === 'propertyType') {
-          const qv = b.data['value'];
-          if (qv != null && String(qv) !== '') this.widget.accumulatePrefill({ [qk]: String(qv) });
+      if (b.type === "quote_field") {
+        const qk =
+          typeof b.data["key"] === "string" ? (b.data["key"] as string) : "";
+        if (
+          qk === "addressNo" ||
+          qk === "streetDetails" ||
+          qk === "postcode" ||
+          qk === "propertyType"
+        ) {
+          const qv = b.data["value"];
+          if (qv != null && String(qv) !== "")
+            this.widget.accumulatePrefill({ [qk]: String(qv) });
           continue; // silently stored, no visible card
         }
       }
-      if (b.type === 'form_fill') {
-        const key = typeof b.data['key'] === 'string' ? (b.data['key'] as string) : '';
-        const value = b.data['value'] != null ? String(b.data['value']) : '';
+      if (b.type === "form_fill") {
+        const key =
+          typeof b.data["key"] === "string" ? (b.data["key"] as string) : "";
+        const value = b.data["value"] != null ? String(b.data["value"]) : "";
         if (key) this.assist.setField(key, value);
-      } else if (b.type === 'category_lock') {
+      } else if (b.type === "category_lock") {
         // Silently lock the confirmed category. The model emits this when the user
         // confirms a service by ANY means (tapping the card OR typing "yep"), so the
         // categoryId is captured and the questionSchema can load even on text-confirm.
         // Not rendered (stripped here).
-        const cid = typeof b.data['categoryId'] === 'string' ? (b.data['categoryId'] as string) : '';
-        if (cid && !this.widget.prefillData()['categoryId']) {
+        const cid =
+          typeof b.data["categoryId"] === "string"
+            ? (b.data["categoryId"] as string)
+            : "";
+        if (cid && !this.widget.prefillData()["categoryId"]) {
           this.widget.accumulatePrefill({ categoryId: cid });
         }
         // Collapse the matching quote_options card so a text-confirm ("yep") shows
@@ -1091,7 +2242,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   /** True when a field already holds a non-empty value in prefillData. */
   private fieldAlreadySet(key: string): boolean {
     const v = this.widget.prefillData()[key];
-    return v !== undefined && v !== null && v !== '';
+    return v !== undefined && v !== null && v !== "";
   }
 
   /**
@@ -1107,27 +2258,31 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * silently reverts to an old value. (Direct card confirms use accumulatePrefill
    * and intentionally overwrite; that is the user's own action, so it is fine.)
    */
-  private applyQuoteFieldValues(blocks?: { type: string; data: Record<string, unknown> }[]): void {
+  private applyQuoteFieldValues(
+    blocks?: { type: string; data: Record<string, unknown> }[],
+  ): void {
     if (!blocks) return;
     for (const b of blocks) {
       // quote_question with a value = the assistant mapped a free-text answer to a
       // questionSchema option. Record it (collapsed) so the card shows it answered.
-      if (b.type === 'quote_question') {
-        const qk = typeof b.data['key'] === 'string' ? (b.data['key'] as string) : '';
-        const qv = b.data['value'];
-        if (qk && qv != null && qv !== '' && !this.questionAnswered(qk)) {
+      if (b.type === "quote_question") {
+        const qk =
+          typeof b.data["key"] === "string" ? (b.data["key"] as string) : "";
+        const qv = b.data["value"];
+        if (qk && qv != null && qv !== "" && !this.questionAnswered(qk)) {
           this.setQuestionAnswer(b.data, qv);
         }
         continue;
       }
-      if (b.type !== 'quote_field') continue;
-      const key = typeof b.data['key'] === 'string' ? (b.data['key'] as string) : '';
+      if (b.type !== "quote_field") continue;
+      const key =
+        typeof b.data["key"] === "string" ? (b.data["key"] as string) : "";
       // Combined contact card carries name/phone as separate fields, not a single value.
-      if (key === 'contact') {
-        const n = b.data['name'] != null ? String(b.data['name']) : '';
-        const p = b.data['phone'] != null ? String(b.data['phone']).trim() : '';
-        const nameOpen = !this.fieldAlreadySet('contactName');
-        const phoneOpen = !this.fieldAlreadySet('contactNumber');
+      if (key === "contact") {
+        const n = b.data["name"] != null ? String(b.data["name"]) : "";
+        const p = b.data["phone"] != null ? String(b.data["phone"]).trim() : "";
+        const nameOpen = !this.fieldAlreadySet("contactName");
+        const phoneOpen = !this.fieldAlreadySet("contactNumber");
         if (n && nameOpen) this.contactNameDraft.set(n);
         if (p && phoneOpen) {
           // Split a pre-filled number into prefix + local so the dropdown matches.
@@ -1136,7 +2291,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
             this.phonePrefix.set(match.code);
             this.contactPhoneLocal.set(p.slice(match.code.length));
           } else {
-            this.contactPhoneLocal.set(p.replace(/^\+/, ''));
+            this.contactPhoneLocal.set(p.replace(/^\+/, ""));
           }
         }
         if (n && p && nameOpen && phoneOpen) {
@@ -1145,14 +2300,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         }
         continue;
       }
-      const raw = b.data['value'];
-      const value = raw != null && raw !== '' ? String(raw) : '';
+      const raw = b.data["value"];
+      const value = raw != null && raw !== "" ? String(raw) : "";
       if (!value) {
         // A fresh card with no value OVERWRITES any prior UNCONFIRMED draft: the
         // user edited the date/time but messaged again without confirming, so the
         // new card must not stay stuck showing that stale local edit — reset it.
-        if (key === 'preferredDate' && !this.dateConfirmed()) this.prefillDate.set('');
-        else if (key === 'timeSlot' && !this.timeConfirmed()) this.prefillTimeSlot.set('');
+        if (key === "preferredDate" && !this.dateConfirmed())
+          this.prefillDate.set("");
+        else if (key === "timeSlot" && !this.timeConfirmed())
+          this.prefillTimeSlot.set("");
         continue;
       }
       if (!key) continue;
@@ -1160,19 +2317,22 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       if (this.fieldAlreadySet(key)) continue;
       // Normalise a phone (model/extractor may store "0111123456" or "111123456")
       // into a proper +60 number for display + submit.
-      const storeValue = key === 'contactNumber' ? this.normalizePhone(value) : value;
+      const storeValue =
+        key === "contactNumber" ? this.normalizePhone(value) : value;
       this.widget.accumulatePrefill({ [key]: storeValue });
-      if (key === 'preferredDate') {
+      if (key === "preferredDate") {
         this.prefillDate.set(value);
         this.dateConfirmed.set(value);
-      } else if (key === 'timeSlot') {
+      } else if (key === "timeSlot") {
         this.prefillTimeSlot.set(value);
         this.timeConfirmed.set(value);
-        this.timeConfirmedLabel.set(this.timeSlotOptions.find((o) => o.value === value)?.label ?? value);
-      } else if (key === 'address') {
+        this.timeConfirmedLabel.set(
+          this.timeSlotOptions.find((o) => o.value === value)?.label ?? value,
+        );
+      } else if (key === "address") {
         this.addrStreet.set(value);
         this.addressConfirmed.set(true);
-      } else if (key === 'budgetMax' || key === 'budgetMin') {
+      } else if (key === "budgetMax" || key === "budgetMin") {
         // The stated amount is the user's CEILING - pick the lowest bracket whose
         // top covers it (never a bracket that starts above their budget). If ranges
         // aren't loaded yet, loadBudgetRanges applies the same rule from prefillData.
@@ -1195,7 +2355,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     const d = this.widget.prefillData();
     return Object.keys(d).filter((k) => {
       const v = d[k];
-      return v !== undefined && v !== null && v !== '';
+      return v !== undefined && v !== null && v !== "";
     });
   }
 
@@ -1235,12 +2395,150 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
           this.authMsgs.set([]);
           this.clearing.set(false);
         },
-        error: () => { this.clearing.set(false); },
+        error: () => {
+          this.clearing.set(false);
+        },
       });
     } else {
       this.guestMsgs.set([]);
       this.clearGuestStorage();
       this.clearing.set(false);
+    }
+  }
+
+  // ─── Automated QA harness ──────────────────────────────────────────────────
+  // Drives the live chatbot through QA_SCRIPTS — 30 scripted customer conversations
+  // that each give their details in a DIFFERENT order/way (service first, dump
+  // everything, address first, vague need, wrong-then-corrected, mixed language,
+  // ramble + real need, etc.) so flow regressions surface the way a real human would
+  // hit them. Types natural sentences only (no card clicks); the bot must cope.
+  qaRunning = signal(false);
+  qaStatus = signal("");
+  /** Accumulated transcript lines for the current QA run. */
+  private qaLog: string[] = [];
+  /** Per-session run counter — the XX suffix in the log filename. */
+  private qaRunSeq = 0;
+  /** Filename base for the current run, generated as ChatQA_Log_<HHMMDDMMYYXX>. */
+  private qaLogName = "";
+
+  /**
+   * Build the run's log name: ChatQA_Log_HHMMDDMMYYXX where the suffix is
+   * hour, minute, day, month, 2-digit year, and a 2-digit run sequence — e.g.
+   * 04:18 on 08/06/26, run 01 → ChatQA_Log_041808062601.
+   */
+  private makeQaLogName(): string {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    this.qaRunSeq += 1;
+    return (
+      "ChatQA_Log_" +
+      p(d.getHours()) +
+      p(d.getMinutes()) +
+      p(d.getDate()) +
+      p(d.getMonth() + 1) +
+      p(d.getFullYear() % 100) +
+      p(this.qaRunSeq)
+    );
+  }
+
+  toggleQa(): void {
+    if (this.qaRunning()) {
+      // Cancel: the running loop checks this flag between turns and bails out.
+      this.qaRunning.set(false);
+      return;
+    }
+    void this.runQa();
+  }
+
+  private qaSleep(ms: number): Promise<void> {
+    return new Promise((res) => setTimeout(res, ms));
+  }
+
+  /** Wait until the in-flight reply lands (sending flips false) or we time out. */
+  private async qaWaitIdle(maxMs = 25000): Promise<void> {
+    const start = Date.now();
+    while (this.sending() && Date.now() - start < maxMs) {
+      await this.qaSleep(150);
+    }
+    await this.qaSleep(250); // small settle for the typing animation
+  }
+
+  private qaPush(line: string): void {
+    this.qaLog.push(line);
+    // Mirror live to the console so a run can be watched without waiting for the file.
+    console.log(`[ChatQA] ${line}`);
+  }
+
+  /** Type one human turn, wait for the reply, and log the user line + bot reply(s). */
+  private async qaSay(text: string): Promise<void> {
+    await this.qaWaitIdle();
+    if (!this.qaRunning()) return;
+    const before = this.messages().length;
+    this.draft = text;
+    this.send();
+    await this.qaSleep(150);
+    await this.qaWaitIdle();
+    this.qaPush(`USER: ${text}`);
+    const replies = this.messages()
+      .slice(before)
+      .filter((m) => m.role === "assistant" && m.content.trim().length > 0)
+      .map((m) => m.content.trim());
+    if (replies.length === 0) {
+      this.qaPush(`BOT:  (no reply)`);
+    } else {
+      for (const r of replies) this.qaPush(`BOT:  ${r.replace(/\n+/g, " ")}`);
+    }
+  }
+
+  private async runQa(): Promise<void> {
+    this.qaRunning.set(true);
+    this.qaLog = [];
+    this.qaLogName = this.makeQaLogName();
+    this.qaPush(`# ${this.qaLogName}`);
+    this.qaPush(`Automated chat QA — ${QA_SCRIPTS.length} simulated customer conversations`);
+    this.qaPush(`Generated: ${new Date().toISOString()}`);
+    try {
+      for (let i = 0; i < QA_SCRIPTS.length; i++) {
+        if (!this.qaRunning()) break;
+        const s = QA_SCRIPTS[i];
+        this.qaStatus.set(`QA ${i + 1}/${QA_SCRIPTS.length}: ${s.name}`);
+        this.qaPush("");
+        this.qaPush(`## ${i + 1}. ${s.name}`);
+        this.clear();
+        await this.qaSleep(700);
+        for (const turn of s.turns) {
+          if (!this.qaRunning()) break;
+          await this.qaSay(turn);
+          await this.qaSleep(450); // human read/think pause between turns
+        }
+        await this.qaSleep(900); // breath between conversations
+      }
+      this.qaPush("");
+      this.qaPush(this.qaRunning() ? "QA complete." : "QA cancelled.");
+      this.qaStatus.set(this.qaRunning() ? "QA complete" : "QA cancelled");
+    } finally {
+      this.downloadQaLog();
+      this.qaRunning.set(false);
+    }
+  }
+
+  /** Save the accumulated transcript as a downloadable markdown file. */
+  private downloadQaLog(): void {
+    if (this.qaLog.length === 0) return;
+    try {
+      const blob = new Blob([this.qaLog.join("\n")], {
+        type: "text/markdown;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${this.qaLogName || "ChatQA_Log"}.md`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* download blocked (private mode / popup policy) — console still has the log */
     }
   }
 
@@ -1251,24 +2549,41 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    *  No wipes them so the next quote starts clean. */
   confirmIdentity(yes: boolean): void {
     this.identityConfirmed.set(yes);
-    const name = (this.widget.prefillData()['contactName'] as string | undefined)?.trim() ?? '';
+    const name =
+      (
+        this.widget.prefillData()["contactName"] as string | undefined
+      )?.trim() ?? "";
     if (yes) {
-      this.appendAssistantBubble(name ? `Great, welcome back ${name}! How can I help you today?` : 'Welcome back! How can I help you today?');
+      this.appendAssistantBubble(
+        name
+          ? `Great, welcome back ${name}! How can I help you today?`
+          : "Welcome back! How can I help you today?",
+      );
     } else {
       // Drop the remembered identity + address; keep nothing personal.
-      this.widget.accumulatePrefill({ contactName: '', contactNumber: '', address: '' });
-      this.contactNameDraft.set('');
-      this.contactPhoneLocal.set('');
-      this.addrStreet.set('');
+      this.widget.accumulatePrefill({
+        contactName: "",
+        contactNumber: "",
+        address: "",
+      });
+      this.contactNameDraft.set("");
+      this.contactPhoneLocal.set("");
+      this.addrStreet.set("");
       this.addressConfirmed.set(false);
       this.clearGuestPrefill();
-      this.appendAssistantBubble('No problem, let\'s start fresh. How can I help you today?');
+      this.appendAssistantBubble(
+        "No problem, let's start fresh. How can I help you today?",
+      );
     }
   }
 
   /** Append an assistant bubble to whichever buffer is active. */
   private appendAssistantBubble(content: string): void {
-    const msg: ChatMessage = { role: 'assistant', content, createdAt: new Date().toISOString() };
+    const msg: ChatMessage = {
+      role: "assistant",
+      content,
+      createdAt: new Date().toISOString(),
+    };
     if (this.sessionId()) this.authMsgs.update((m) => [...m, msg]);
     else this.guestMsgs.update((m) => [...m, msg]);
     this.scrollBottom = true;
@@ -1277,35 +2592,39 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   /** Greeting tier + display name for the signed-in user. */
   private roleGreeting(): { tier: string; name: string } {
     const p = this.auth.principal();
-    if (!p) return { tier: 'anonymous', name: '' };
-    const name = ((p as { name?: string }).name ?? '').trim();
-    if (p.role === 'admin') return { tier: 'admin', name };
-    if (p.role === 'servicer') return { tier: 'servicer', name };
-    return { tier: 'customer', name };
+    if (!p) return { tier: "anonymous", name: "" };
+    const name = ((p as { name?: string }).name ?? "").trim();
+    if (p.role === "admin") return { tier: "admin", name };
+    if (p.role === "servicer") return { tier: "servicer", name };
+    return { tier: "customer", name };
   }
 
   /** Prefill input signals for chat-based quote field collection. */
-  prefillText = signal('');
-  prefillDate = signal('');
-  prefillTimeSlot = signal('');
+  prefillText = signal("");
+  prefillDate = signal("");
+  prefillTimeSlot = signal("");
 
   /** Structured chat address: No. / Street (Places-picked) / Postcode. */
-  addrNo = signal('');
-  addrStreet = signal('');
-  addrPostcode = signal('');
-  addrPropertyType = signal('');
+  addrNo = signal("");
+  addrStreet = signal("");
+  addrPostcode = signal("");
+  addrPropertyType = signal("");
   private addrLat: number | null = null;
   private addrLng: number | null = null;
   addressConfirmed = signal(false);
-  addressFormatted = signal('');
+  addressFormatted = signal("");
   locatingGps = signal(false);
   addrValidating = signal(false);
-  addrError = signal('');
+  addrError = signal("");
 
   /** Composed single-line address from the three structured fields. */
   composedAddress = computed(() => {
-    const parts = [this.addrNo().trim(), this.addrStreet().trim(), this.addrPostcode().trim()];
-    return parts.filter(Boolean).join(', ');
+    const parts = [
+      this.addrNo().trim(),
+      this.addrStreet().trim(),
+      this.addrPostcode().trim(),
+    ];
+    return parts.filter(Boolean).join(", ");
   });
 
   /** Malaysian postcode = exactly 5 digits. */
@@ -1313,33 +2632,35 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   /** Combined contact card: name + phone in one card. Phone = a country-code
    *  prefix chosen from a dropdown (default Malaysia +60) + the local number. */
-  contactNameDraft = signal('');
-  phonePrefix = signal('+60');
-  contactPhoneLocal = signal('');
+  contactNameDraft = signal("");
+  phonePrefix = signal("+60");
+  contactPhoneLocal = signal("");
   contactConfirmed = signal(false);
 
   /** Common country dialling codes for the prefix dropdown (Malaysia first). */
   phonePrefixes = [
-    { code: '+60', label: '🇲🇾 +60' },
-    { code: '+65', label: '🇸🇬 +65' },
-    { code: '+62', label: '🇮🇩 +62' },
-    { code: '+66', label: '🇹🇭 +66' },
-    { code: '+63', label: '🇵🇭 +63' },
-    { code: '+84', label: '🇻🇳 +84' },
-    { code: '+95', label: '🇲🇲 +95' },
-    { code: '+91', label: '🇮🇳 +91' },
-    { code: '+86', label: '🇨🇳 +86' },
-    { code: '+880', label: '🇧🇩 +880' },
-    { code: '+92', label: '🇵🇰 +92' },
-    { code: '+977', label: '🇳🇵 +977' },
-    { code: '+44', label: '🇬🇧 +44' },
-    { code: '+1', label: '🇺🇸 +1' },
-    { code: '+61', label: '🇦🇺 +61' },
+    { code: "+60", label: "🇲🇾 +60" },
+    { code: "+65", label: "🇸🇬 +65" },
+    { code: "+62", label: "🇮🇩 +62" },
+    { code: "+66", label: "🇹🇭 +66" },
+    { code: "+63", label: "🇵🇭 +63" },
+    { code: "+84", label: "🇻🇳 +84" },
+    { code: "+95", label: "🇲🇲 +95" },
+    { code: "+91", label: "🇮🇳 +91" },
+    { code: "+86", label: "🇨🇳 +86" },
+    { code: "+880", label: "🇧🇩 +880" },
+    { code: "+92", label: "🇵🇰 +92" },
+    { code: "+977", label: "🇳🇵 +977" },
+    { code: "+44", label: "🇬🇧 +44" },
+    { code: "+1", label: "🇺🇸 +1" },
+    { code: "+61", label: "🇦🇺 +61" },
   ];
 
   /** Full E.164-style number: chosen prefix + local digits. */
   fullPhone = computed(() => {
-    const local = this.contactPhoneLocal().replace(/[\s\-()]/g, '').replace(/^0+/, '');
+    const local = this.contactPhoneLocal()
+      .replace(/[\s\-()]/g, "")
+      .replace(/^0+/, "");
     return `${this.phonePrefix()}${local}`;
   });
 
@@ -1354,30 +2675,30 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   confirmedTextValues = signal<Record<string, string>>({});
 
   /** Date/time confirmed state - shows confirmation after user picks */
-  dateConfirmed = signal('');
-  timeConfirmed = signal('');
-  timeConfirmedLabel = signal('');
+  dateConfirmed = signal("");
+  timeConfirmed = signal("");
+  timeConfirmedLabel = signal("");
 
   timeSlotOptions = [
-    { value: 'morning', label: '🌅 Morning (9:00–11:00)' },
-    { value: 'noon', label: '☀️ Noon (11:00–13:00)' },
-    { value: 'afternoon', label: '🌆 Afternoon (13:00–15:00)' },
-    { value: 'evening', label: '🌙 Evening (15:00–17:00)' },
-    { value: 'night', label: '🌃 Night (17:00–22:00)' },
+    { value: "morning", label: "🌅 Morning (9:00–11:00)" },
+    { value: "noon", label: "☀️ Noon (11:00–13:00)" },
+    { value: "afternoon", label: "🌆 Afternoon (13:00–15:00)" },
+    { value: "evening", label: "🌙 Evening (15:00–17:00)" },
+    { value: "night", label: "🌃 Night (17:00–22:00)" },
   ];
 
   /** Per-category budget ranges (same source as the quote form). */
   budgetRanges = signal<Array<{ min: number; max: number | null }>>([]);
   budgetSliderIdx = signal(0);
   budgetChosen = signal(false);
-  private budgetLoadedFor = '';
+  private budgetLoadedFor = "";
 
   /** Budget is "answered" if confirmed via the slider OR a value already landed in
    *  prefillData (e.g. the user typed "500" in chat). Collapses the budget card. */
   budgetAnswered = computed(() => {
     if (this.budgetChosen()) return true;
-    const v = this.widget.prefillData()['budgetMax'];
-    return v != null && String(v) !== '';
+    const v = this.widget.prefillData()["budgetMax"];
+    return v != null && String(v) !== "";
   });
 
   rangeLabel(r: { min: number; max: number | null }): string {
@@ -1388,23 +2709,27 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   private loadBudgetRanges(categoryId: string): void {
     if (!categoryId || this.budgetLoadedFor === categoryId) return;
     this.budgetLoadedFor = categoryId;
-    this.api.get<{ ranges: Array<{ min: number; max: number | null }> }>(
-      '/quotes/budget-ranges', { categoryId },
-    ).subscribe({
-      next: (r) => {
-        const ranges = r.ranges ?? [];
-        this.budgetRanges.set(ranges);
-        // Preselect by the user's CEILING: the lowest bracket whose top covers their
-        // stated budget (never one that starts above it).
-        const pre = Number(this.widget.prefillData()['budgetMax']);
-        if (ranges.length && !Number.isNaN(pre) && pre > 0) {
-          let idx = ranges.findIndex((rg) => rg.max == null || pre <= rg.max);
-          if (idx < 0) idx = ranges.length - 1;
-          this.budgetSliderIdx.set(idx);
-        }
-      },
-      error: () => { this.budgetRanges.set([]); },
-    });
+    this.api
+      .get<{
+        ranges: Array<{ min: number; max: number | null }>;
+      }>("/quotes/budget-ranges", { categoryId })
+      .subscribe({
+        next: (r) => {
+          const ranges = r.ranges ?? [];
+          this.budgetRanges.set(ranges);
+          // Preselect by the user's CEILING: the lowest bracket whose top covers their
+          // stated budget (never one that starts above it).
+          const pre = Number(this.widget.prefillData()["budgetMax"]);
+          if (ranges.length && !Number.isNaN(pre) && pre > 0) {
+            let idx = ranges.findIndex((rg) => rg.max == null || pre <= rg.max);
+            if (idx < 0) idx = ranges.length - 1;
+            this.budgetSliderIdx.set(idx);
+          }
+        },
+        error: () => {
+          this.budgetRanges.set([]);
+        },
+      });
   }
 
   onBudgetSlide(idx: number): void {
@@ -1416,7 +2741,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     const r = this.budgetRanges()[this.budgetSliderIdx()];
     if (!r) return;
     this.budgetChosen.set(true);
-    this.widget.accumulatePrefill({ budgetIndex: this.budgetSliderIdx(), budgetMin: r.min, budgetMax: r.max ?? r.min });
+    this.widget.accumulatePrefill({
+      budgetIndex: this.budgetSliderIdx(),
+      budgetMin: r.min,
+      budgetMax: r.max ?? r.min,
+    });
     this.draft = `My budget is ${this.rangeLabel(r)}.`;
     this.send();
   }
@@ -1425,42 +2754,47 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     const d = this.widget.prefillData();
     const items: Array<{ label: string; value: string }> = [];
     const timeLabels: Record<string, string> = {
-      morning: 'Morning (9:00–11:00)',
-      noon: 'Noon (11:00–13:00)',
-      afternoon: 'Afternoon (13:00–15:00)',
-      evening: 'Evening (15:00–17:00)',
-      night: 'Night (17:00–22:00)',
+      morning: "Morning (9:00–11:00)",
+      noon: "Noon (11:00–13:00)",
+      afternoon: "Afternoon (13:00–15:00)",
+      evening: "Evening (15:00–17:00)",
+      night: "Night (17:00–22:00)",
     };
     // WHITELIST only - internal keys (categoryId, lat, lng, budgetIndex, budgetMin/Max,
     // paymentMode) must never leak into the human-facing summary.
     const order: Array<[string, string]> = [
-      ['preferredDate', 'Date'],
-      ['timeSlot', 'Time'],
-      ['address', 'Address'],
-      ['contactName', 'Name'],
-      ['contactNumber', 'Phone'],
-      ['notes', 'Notes'],
+      ["preferredDate", "Date"],
+      ["timeSlot", "Time"],
+      ["address", "Address"],
+      ["contactName", "Name"],
+      ["contactNumber", "Phone"],
+      ["notes", "Notes"],
     ];
     for (const [key, label] of order) {
       const val = d[key];
-      if (val === undefined || val === null || val === '') continue;
-      const value = key === 'timeSlot' ? (timeLabels[val as string] || String(val)) : String(val);
+      if (val === undefined || val === null || val === "") continue;
+      const value =
+        key === "timeSlot"
+          ? timeLabels[val as string] || String(val)
+          : String(val);
       if (value) items.push({ label, value });
     }
     // Budget shown as a readable bracket (never the raw index/min/max). For a typed
     // value (only budgetMax), map it to the bracket that contains it.
-    const bmax = d['budgetMax'];
-    if (bmax != null && String(bmax) !== '') {
+    const bmax = d["budgetMax"];
+    if (bmax != null && String(bmax) !== "") {
       const n = Number(bmax);
-      const bmin = d['budgetMin'];
-      let blabel = '';
-      if (bmin != null && String(bmin) !== '') {
+      const bmin = d["budgetMin"];
+      let blabel = "";
+      if (bmin != null && String(bmin) !== "") {
         blabel = this.rangeLabel({ min: Number(bmin), max: n });
       } else if (!Number.isNaN(n)) {
-        const bracket = this.budgetRanges().find((r) => n >= r.min && (r.max == null || n <= r.max));
+        const bracket = this.budgetRanges().find(
+          (r) => n >= r.min && (r.max == null || n <= r.max),
+        );
         blabel = bracket ? this.rangeLabel(bracket) : `RM ${n}`;
       }
-      if (blabel) items.push({ label: 'Budget', value: blabel });
+      if (blabel) items.push({ label: "Budget", value: blabel });
     }
     // Service question answers (with their labels), for the final review.
     for (const { label, display } of Object.values(this.qDisplay())) {
@@ -1471,15 +2805,15 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   getStr(data: Record<string, unknown>, key: string): string {
     const v = data[key];
-    return typeof v === 'string' ? v : '';
+    return typeof v === "string" ? v : "";
   }
 
   runAction(action: string): void {
-    if (action === 'report_booking') {
-      this.router.navigate(['/customer/bookings']);
+    if (action === "report_booking") {
+      this.router.navigate(["/customer/bookings"]);
       this.widget.close();
-    } else if (action === 'report_bug') {
-      this.router.navigate(['/contact']);
+    } else if (action === "report_bug") {
+      this.router.navigate(["/contact"]);
       this.widget.close();
     }
   }
@@ -1497,7 +2831,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (this.sending() || this.connecting()) return;
     const msgs = this.messages();
     for (let i = msgs.length - 1; i >= 0; i--) {
-      if (msgs[i].role === 'user') {
+      if (msgs[i].role === "user") {
         this.retryCount.update((n) => n + 1);
         this.draft = msgs[i].content;
         this.send();
@@ -1518,7 +2852,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * show the card. Capped to one auto-recovery per stuck point (resets when a real
    * card arrives) so it can never loop.
    */
-  private armStuckWatchdog(replyText: string, isGuest: boolean, forSessionId: string | undefined): void {
+  private armStuckWatchdog(
+    replyText: string,
+    isGuest: boolean,
+    forSessionId: string | undefined,
+  ): void {
     this.clearStuckTimer();
     if (this.stuckRecoveryDone) return;
     const txt = replyText.trim();
@@ -1526,22 +2864,31 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     // phrasings, OR any reply that ends with a colon ("Here you go:") which always
     // promises something next.
     const promisedCard =
-      /let me check|here (you go|it is|'?s|is |are )|the service that fits|pick the one|take a look|let me share|that('?s| is) the right|this is the|we (do|can) (offer|help)|right one for you/i.test(txt) ||
-      /[:：]\s*$/.test(txt);
+      /let me check|here (you go|it is|'?s|is |are )|the service that fits|pick the one|take a look|let me share|that('?s| is) the right|this is the|we (do|can) (offer|help)|right one for you/i.test(
+        txt,
+      ) || /[:：]\s*$/.test(txt);
     if (!promisedCard) return;
-    const inQuoteFlow = this.messages().some((m) => m.actionBlocks?.some((b) => b.type.startsWith('quote_')));
+    const inQuoteFlow = this.messages().some((m) =>
+      m.actionBlocks?.some((b) => b.type.startsWith("quote_")),
+    );
     if (!inQuoteFlow) return;
     this.stuckTimer = setTimeout(() => {
       this.stuckTimer = null;
       if (this.sending() || this.connecting()) return;
-      if (isGuest ? this.sessionId() !== null : this.sessionId() !== forSessionId) return;
+      if (
+        isGuest ? this.sessionId() !== null : this.sessionId() !== forSessionId
+      )
+        return;
       this.stuckRecoveryDone = true;
       this.retryLastMessage();
     }, 5000);
   }
 
   private clearStuckTimer(): void {
-    if (this.stuckTimer) { clearTimeout(this.stuckTimer); this.stuckTimer = null; }
+    if (this.stuckTimer) {
+      clearTimeout(this.stuckTimer);
+      this.stuckTimer = null;
+    }
   }
 
   /** Record a date pick (no send) - the Confirm button advances the flow. */
@@ -1571,7 +2918,8 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   confirmTime(): void {
     const value = this.prefillTimeSlot();
     if (!value) return;
-    const label = this.timeSlotOptions.find((o) => o.value === value)?.label ?? value;
+    const label =
+      this.timeSlotOptions.find((o) => o.value === value)?.label ?? value;
     this.timeConfirmed.set(value);
     this.timeConfirmedLabel.set(label);
     this.widget.accumulatePrefill({ timeSlot: value });
@@ -1586,17 +2934,21 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.widget.accumulatePrefill({ [key]: value });
     this.confirmedTextValues.update((m) => ({ ...m, [key]: value }));
     this.draft = this.fieldSendPhrase(key, value);
-    this.prefillText.set('');
+    this.prefillText.set("");
     this.send();
   }
 
   /** Natural sentence the assistant reads back after a text field is confirmed. */
   private fieldSendPhrase(key: string, value: string): string {
     switch (key) {
-      case 'contactName': return `My name is ${value}.`;
-      case 'contactNumber': return `My phone number is ${value}.`;
-      case 'notes': return value;
-      default: return `${this.fieldLabel(key)}: ${value}`;
+      case "contactName":
+        return `My name is ${value}.`;
+      case "contactNumber":
+        return `My phone number is ${value}.`;
+      case "notes":
+        return value;
+      default:
+        return `${this.fieldLabel(key)}: ${value}`;
     }
   }
 
@@ -1605,11 +2957,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   resolvedCards = signal<string[]>([]);
 
   /** The currently confirmed category id (locks every quote_options card). */
-  confirmedCategoryId = computed(() => String(this.widget.prefillData()['categoryId'] ?? ''));
+  confirmedCategoryId = computed(() =>
+    String(this.widget.prefillData()["categoryId"] ?? ""),
+  );
 
   /** A category card is resolved once acted on, or once ANY category is confirmed. */
   cardResolved(categoryId: string): boolean {
-    return this.confirmedCategoryId() !== '' || this.resolvedCards().includes(categoryId);
+    return (
+      this.confirmedCategoryId() !== "" ||
+      this.resolvedCards().includes(categoryId)
+    );
   }
 
   private markCardResolved(categoryId: string): void {
@@ -1625,15 +2982,21 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * Ambiguous cases (0 or 2+ pending cards) are left to the assistant.
    */
   private maybeTextConfirmCategory(text: string): void {
-    if (this.widget.prefillData()['categoryId']) return;
-    if (!/^\s*(yep|yes|yeah|yup|sure|ok(ay)?|correct|right|that('?s| is)?( it| the one)?|the first( one)?|do it|proceed|go ahead|confirm(ed)?|let'?s go|sounds good)\b/i.test(text)) return;
+    if (this.widget.prefillData()["categoryId"]) return;
+    if (
+      !/^\s*(yep|yes|yeah|yup|sure|ok(ay)?|correct|right|that('?s| is)?( it| the one)?|the first( one)?|do it|proceed|go ahead|confirm(ed)?|let'?s go|sounds good)\b/i.test(
+        text,
+      )
+    )
+      return;
     const resolved = new Set(this.resolvedCards());
     const pending: string[] = [];
     for (const m of this.messages()) {
-      for (const b of (m.actionBlocks ?? [])) {
-        if (b.type === 'quote_options') {
-          const cid = b.data['categoryId'] as string | undefined;
-          if (cid && !resolved.has(cid) && !pending.includes(cid)) pending.push(cid);
+      for (const b of m.actionBlocks ?? []) {
+        if (b.type === "quote_options") {
+          const cid = b.data["categoryId"] as string | undefined;
+          if (cid && !resolved.has(cid) && !pending.includes(cid))
+            pending.push(cid);
         }
       }
     }
@@ -1644,18 +3007,20 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   continueQuoteInChat(data: Record<string, unknown>): void {
-    const category = data['category'] as string || '';
+    const category = (data["category"] as string) || "";
     // Confirming a service starts a fresh booking — clear any stale field data left
     // over from an earlier topic in this session (date/address/etc.), then set the
     // chosen category. Safe: the backend never pre-fills fields before a category is
     // picked, so nothing collected-this-flow is lost.
     this.resetQuoteFlowState();
-    this.markCardResolved(data['categoryId'] as string);
-    this.widget.accumulatePrefill({ categoryId: data['categoryId'] as string });
+    this.markCardResolved(data["categoryId"] as string);
+    this.widget.accumulatePrefill({ categoryId: data["categoryId"] as string });
     // Send a follow-up message to advance the conversational flow. categoryLocked
     // (set from prefillData above) tells the backend to suppress further category
     // suggestion cards, so confirming can't loop back to the same prompt.
-    this.draft = category ? `Yes, let's proceed with ${category}.` : 'Yes, that\'s the service I need. Let\'s proceed.';
+    this.draft = category
+      ? `Yes, let's proceed with ${category}.`
+      : "Yes, that's the service I need. Let's proceed.";
     this.send();
   }
 
@@ -1665,8 +3030,8 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * a better-fitting service instead of proceeding.
    */
   rejectCategory(data: Record<string, unknown>): void {
-    const category = data['category'] as string || '';
-    this.markCardResolved(data['categoryId'] as string);
+    const category = (data["category"] as string) || "";
+    this.markCardResolved(data["categoryId"] as string);
     this.draft = category
       ? `No, ${category} isn't the service I'm looking for.`
       : `No, that's not the service I'm looking for.`;
@@ -1682,7 +3047,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * postcode" rule.
    */
   onChatPlaceSelect(place: PlaceResult): void {
-    this.addrStreet.set(place.street || place.address || '');
+    this.addrStreet.set(place.street || place.address || "");
     if (place.postcode) this.addrPostcode.set(place.postcode);
     this.addrLat = place.lat ?? null;
     this.addrLng = place.lng ?? null;
@@ -1698,19 +3063,25 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         const lng = pos.coords.longitude;
         this.addrLat = lat;
         this.addrLng = lng;
-        this.api.post<{ valid: boolean; formattedAddress?: string; street?: string; postcode?: string }>(
-          '/chat/reverse-geocode', { lat, lng },
-        ).subscribe({
-          next: (r) => {
-            this.locatingGps.set(false);
-            if (r.valid) {
-              if (r.street) this.addrStreet.set(r.street);
-              else if (r.formattedAddress) this.addrStreet.set(r.formattedAddress);
-              if (r.postcode) this.addrPostcode.set(r.postcode);
-            }
-          },
-          error: () => this.locatingGps.set(false),
-        });
+        this.api
+          .post<{
+            valid: boolean;
+            formattedAddress?: string;
+            street?: string;
+            postcode?: string;
+          }>("/chat/reverse-geocode", { lat, lng })
+          .subscribe({
+            next: (r) => {
+              this.locatingGps.set(false);
+              if (r.valid) {
+                if (r.street) this.addrStreet.set(r.street);
+                else if (r.formattedAddress)
+                  this.addrStreet.set(r.formattedAddress);
+                if (r.postcode) this.addrPostcode.set(r.postcode);
+              }
+            },
+            error: () => this.locatingGps.set(false),
+          });
       },
       () => this.locatingGps.set(false),
       { enableHighAccuracy: true, timeout: 8000 },
@@ -1725,37 +3096,44 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   confirmAddress(): void {
     if (!this.addrStreet().trim()) return;
     const composed = this.composedAddress();
-    this.addrError.set('');
+    this.addrError.set("");
     this.addrValidating.set(true);
-    this.api.post<{ valid: boolean; formattedAddress?: string; lat?: number; lng?: number }>(
-      '/chat/validate-address', { address: `${composed}, Malaysia` },
-    ).subscribe({
-      next: (r) => {
-        this.addrValidating.set(false);
-        if (r.valid && r.formattedAddress) {
-          this.addressFormatted.set(r.formattedAddress);
-          this.widget.accumulatePrefill({ address: r.formattedAddress });
-          if (r.lat != null && r.lng != null) {
-            this.widget.accumulatePrefill({ lat: r.lat, lng: r.lng });
+    this.api
+      .post<{
+        valid: boolean;
+        formattedAddress?: string;
+        lat?: number;
+        lng?: number;
+      }>("/chat/validate-address", { address: `${composed}, Malaysia` })
+      .subscribe({
+        next: (r) => {
+          this.addrValidating.set(false);
+          if (r.valid && r.formattedAddress) {
+            this.addressFormatted.set(r.formattedAddress);
+            this.widget.accumulatePrefill({ address: r.formattedAddress });
+            if (r.lat != null && r.lng != null) {
+              this.widget.accumulatePrefill({ lat: r.lat, lng: r.lng });
+            }
+            this.widget.accumulatePrefill({
+              addressNo: this.addrNo().trim(),
+              streetDetails: this.addrStreet().trim(),
+              postcode: this.addrPostcode().trim(),
+              propertyType: this.addrPropertyType(),
+            });
+            this.addressConfirmed.set(true);
+            this.draft = `My address is ${r.formattedAddress}.`;
+            this.send();
+          } else {
+            this.addrError.set(
+              "We couldn't verify this address. Check the street and postcode, or pick a suggestion from the dropdown.",
+            );
           }
-          this.widget.accumulatePrefill({
-            addressNo: this.addrNo().trim(),
-            streetDetails: this.addrStreet().trim(),
-            postcode: this.addrPostcode().trim(),
-            propertyType: this.addrPropertyType(),
-          });
-          this.addressConfirmed.set(true);
-          this.draft = `My address is ${r.formattedAddress}.`;
-          this.send();
-        } else {
-          this.addrError.set("We couldn't verify this address. Check the street and postcode, or pick a suggestion from the dropdown.");
-        }
-      },
-      error: () => {
-        this.addrValidating.set(false);
-        this.addrError.set('Address check failed, please try again.');
-      },
-    });
+        },
+        error: () => {
+          this.addrValidating.set(false);
+          this.addrError.set("Address check failed, please try again.");
+        },
+      });
   }
 
   confirmPropertyType(): void {
@@ -1789,30 +3167,36 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   /** True when a field already holds a non-empty value in prefillData (public for templates). */
   valueCollected(key: string): boolean {
     const v = this.widget.prefillData()[key];
-    return v !== undefined && v !== null && v !== '';
+    return v !== undefined && v !== null && v !== "";
   }
 
   /** Normalise a phone into a +60 Malaysian number (drop spaces/dashes + leading
    *  0, prepend +60) unless it already carries a country code. */
   private normalizePhone(v: string): string {
-    const raw = (v ?? '').replace(/[\s\-()]/g, '');
+    const raw = (v ?? "").replace(/[\s\-()]/g, "");
     if (!raw) return v;
-    if (raw.startsWith('+')) return raw;
-    const local = raw.replace(/^0+/, '');
+    if (raw.startsWith("+")) return raw;
+    const local = raw.replace(/^0+/, "");
     return local ? `+60${local}` : v;
   }
 
   // ─── Service questionSchema answers (quote_question cards) ───────────────────
   /** Working drafts for the current question card (one shows at a time). */
   qCheckbox = signal<string[]>([]);
-  qText = signal('');
+  qText = signal("");
   qNumber = signal<number | null>(null);
   qQuantity = signal<Record<string, number>>({});
-  qQuantityTotal = computed(() => Object.values(this.qQuantity()).reduce((a, b) => a + b, 0));
+  qQuantityTotal = computed(() =>
+    Object.values(this.qQuantity()).reduce((a, b) => a + b, 0),
+  );
 
   /** Confirmed question answers, stored in prefillData.serviceDetails (submitted as-is). */
   serviceAnswers = computed(
-    () => (this.widget.prefillData()['serviceDetails'] as Record<string, unknown>) ?? {},
+    () =>
+      (this.widget.prefillData()["serviceDetails"] as Record<
+        string,
+        unknown
+      >) ?? {},
   );
   /** Question keys with a non-empty answer — sent to the backend so it knows what's done. */
   answeredQuestions = computed(() =>
@@ -1822,9 +3206,12 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   );
 
   private isAnswered(v: unknown): boolean {
-    if (v == null || v === '') return false;
+    if (v == null || v === "") return false;
     if (Array.isArray(v)) return v.length > 0;
-    if (typeof v === 'object') return Object.values(v as Record<string, number>).some((n) => Number(n) > 0);
+    if (typeof v === "object")
+      return Object.values(v as Record<string, number>).some(
+        (n) => Number(n) > 0,
+      );
     return true;
   }
 
@@ -1836,13 +3223,17 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     return data[key] === true;
   }
 
-  getOptions(data: Record<string, unknown>): Array<{ value: string; label: string }> {
-    const o = data['options'];
-    return Array.isArray(o) ? (o as Array<{ value: string; label: string }>) : [];
+  getOptions(
+    data: Record<string, unknown>,
+  ): Array<{ value: string; label: string }> {
+    const o = data["options"];
+    return Array.isArray(o)
+      ? (o as Array<{ value: string; label: string }>)
+      : [];
   }
 
   private qLabel(data: Record<string, unknown>): string {
-    return String(data['label'] ?? 'Answer');
+    return String(data["label"] ?? "Answer");
   }
   private optLabel(data: Record<string, unknown>, value: string): string {
     return this.getOptions(data).find((o) => o.value === value)?.label ?? value;
@@ -1850,56 +3241,70 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   /** Readable confirmed-answer string for a question card. */
   answerDisplay(data: Record<string, unknown>): string {
-    const v = this.serviceAnswers()[String(data['key'])];
-    if (Array.isArray(v)) return v.map((x) => this.optLabel(data, String(x))).join(', ');
-    if (v && typeof v === 'object') {
+    const v = this.serviceAnswers()[String(data["key"])];
+    if (Array.isArray(v))
+      return v.map((x) => this.optLabel(data, String(x))).join(", ");
+    if (v && typeof v === "object") {
       return Object.entries(v as Record<string, number>)
         .filter(([, n]) => Number(n) > 0)
         .map(([k, n]) => `${this.optLabel(data, k)} ×${n}`)
-        .join(', ');
+        .join(", ");
     }
     const opts = this.getOptions(data);
-    if (opts.length) { const o = opts.find((x) => x.value === String(v)); if (o) return o.label; }
-    return String(v ?? '');
+    if (opts.length) {
+      const o = opts.find((x) => x.value === String(v));
+      if (o) return o.label;
+    }
+    return String(v ?? "");
   }
 
   /** Readable label+answer per question, for the final review summary. */
   qDisplay = signal<Record<string, { label: string; display: string }>>({});
 
-  private setQuestionAnswer(data: Record<string, unknown>, value: unknown): void {
-    const key = String(data['key']);
-    this.widget.accumulatePrefill({ serviceDetails: { ...this.serviceAnswers(), [key]: value } });
+  private setQuestionAnswer(
+    data: Record<string, unknown>,
+    value: unknown,
+  ): void {
+    const key = String(data["key"]);
+    this.widget.accumulatePrefill({
+      serviceDetails: { ...this.serviceAnswers(), [key]: value },
+    });
     // answerDisplay reads the just-set value (computed updates synchronously).
-    this.qDisplay.update((m) => ({ ...m, [key]: { label: this.qLabel(data), display: this.answerDisplay(data) } }));
+    this.qDisplay.update((m) => ({
+      ...m,
+      [key]: { label: this.qLabel(data), display: this.answerDisplay(data) },
+    }));
   }
   private resetQDrafts(): void {
     this.qCheckbox.set([]);
-    this.qText.set('');
+    this.qText.set("");
     this.qNumber.set(null);
     this.qQuantity.set({});
   }
 
   answerRadio(data: Record<string, unknown>, value: string): void {
-    this.setQuestionAnswer(data,value);
+    this.setQuestionAnswer(data, value);
     this.resetQDrafts();
     this.draft = `${this.qLabel(data)}: ${this.optLabel(data, value)}.`;
     this.send();
   }
   toggleQCheckbox(value: string): void {
-    this.qCheckbox.update((a) => (a.includes(value) ? a.filter((x) => x !== value) : [...a, value]));
+    this.qCheckbox.update((a) =>
+      a.includes(value) ? a.filter((x) => x !== value) : [...a, value],
+    );
   }
   confirmQCheckbox(data: Record<string, unknown>): void {
     const sel = this.qCheckbox();
     if (!sel.length) return;
-    this.setQuestionAnswer(data,sel);
-    this.draft = `${this.qLabel(data)}: ${sel.map((v) => this.optLabel(data, v)).join(', ')}.`;
+    this.setQuestionAnswer(data, sel);
+    this.draft = `${this.qLabel(data)}: ${sel.map((v) => this.optLabel(data, v)).join(", ")}.`;
     this.resetQDrafts();
     this.send();
   }
   confirmQNumber(data: Record<string, unknown>): void {
     const n = this.qNumber();
     if (n === null || n < 0) return;
-    this.setQuestionAnswer(data,n);
+    this.setQuestionAnswer(data, n);
     this.draft = `${this.qLabel(data)}: ${n}.`;
     this.resetQDrafts();
     this.send();
@@ -1907,7 +3312,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   confirmQText(data: Record<string, unknown>): void {
     const t = this.qText().trim();
     if (!t) return;
-    this.setQuestionAnswer(data,t);
+    this.setQuestionAnswer(data, t);
     this.draft = `${this.qLabel(data)}: ${t}.`;
     this.resetQDrafts();
     this.send();
@@ -1916,23 +3321,33 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.qQuantity.update((q) => ({ ...q, [value]: (q[value] ?? 0) + 1 }));
   }
   decQ(value: string): void {
-    this.qQuantity.update((q) => ({ ...q, [value]: Math.max(0, (q[value] ?? 0) - 1) }));
+    this.qQuantity.update((q) => ({
+      ...q,
+      [value]: Math.max(0, (q[value] ?? 0) - 1),
+    }));
   }
   confirmQQuantity(data: Record<string, unknown>): void {
-    const cleaned = Object.fromEntries(Object.entries(this.qQuantity()).filter(([, n]) => n > 0));
+    const cleaned = Object.fromEntries(
+      Object.entries(this.qQuantity()).filter(([, n]) => n > 0),
+    );
     if (!Object.keys(cleaned).length) return;
-    this.setQuestionAnswer(data,cleaned);
-    this.draft = `${this.qLabel(data)}: ${Object.entries(cleaned).map(([v, n]) => `${this.optLabel(data, v)} ×${n}`).join(', ')}.`;
+    this.setQuestionAnswer(data, cleaned);
+    this.draft = `${this.qLabel(data)}: ${Object.entries(cleaned)
+      .map(([v, n]) => `${this.optLabel(data, v)} ×${n}`)
+      .join(", ")}.`;
     this.resetQDrafts();
     this.send();
   }
 
   goToQuoteForm(data: Record<string, unknown>): void {
-    const categoryId = data['categoryId'] as string;
+    const categoryId = data["categoryId"] as string;
     const prefill = { ...this.widget.prefillData(), categoryId };
     const encoded = btoa(JSON.stringify(prefill));
-    const base = this.auth.principal()?.role === 'customer' ? '/customer' : '/guest';
-    this.router.navigate([`${base}/quote/new`], { queryParams: { prefill: encoded } });
+    const base =
+      this.auth.principal()?.role === "customer" ? "/customer" : "/guest";
+    this.router.navigate([`${base}/quote/new`], {
+      queryParams: { prefill: encoded },
+    });
     this.widget.close();
   }
 
@@ -1940,20 +3355,23 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     const data = this.widget.prefillData();
     if (!data.categoryId) return;
     const encoded = btoa(JSON.stringify(data));
-    const base = this.auth.principal()?.role === 'customer' ? '/customer' : '/guest';
-    this.router.navigate([`${base}/quote/new`], { queryParams: { prefill: encoded } });
+    const base =
+      this.auth.principal()?.role === "customer" ? "/customer" : "/guest";
+    this.router.navigate([`${base}/quote/new`], {
+      queryParams: { prefill: encoded },
+    });
   }
 
   fieldLabel(key: string): string {
     const labels: Record<string, string> = {
-      contactName: 'Your name',
-      contactNumber: 'Phone number',
-      address: 'Address',
-      preferredDate: 'Preferred date',
-      timeSlot: 'Preferred time',
-      notes: 'Notes',
-      budgetMin: 'Min budget',
-      budgetMax: 'Max budget',
+      contactName: "Your name",
+      contactNumber: "Phone number",
+      address: "Address",
+      preferredDate: "Preferred date",
+      timeSlot: "Preferred time",
+      notes: "Notes",
+      budgetMin: "Min budget",
+      budgetMax: "Max budget",
     };
     return labels[key] || key;
   }
@@ -1969,21 +3387,25 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   editProfileField(data: Record<string, unknown>): void {
     this.pin.requirePin().subscribe((pin) => {
       if (!pin) return;
-      const field = this.getStr(data, 'field');
-      const value = data['value'];
-      this.api.post('/chat/apply-profile', { pin, field, value }).subscribe({
+      const field = this.getStr(data, "field");
+      const value = data["value"];
+      this.api.post("/chat/apply-profile", { pin, field, value }).subscribe({
         next: () => {
-          this.injectAssistantMessage(`✅ ${this.getStr(data, 'label') || field} has been updated.`);
+          this.injectAssistantMessage(
+            `✅ ${this.getStr(data, "label") || field} has been updated.`,
+          );
         },
         error: (e) => {
-          this.injectAssistantMessage(`❌ Could not update profile: ${e?.message || 'Unknown error'}.`);
+          this.injectAssistantMessage(
+            `❌ Could not update profile: ${e?.message || "Unknown error"}.`,
+          );
         },
       });
     });
   }
 
   navigateAction(href: string): void {
-    if (href.startsWith('/')) {
+    if (href.startsWith("/")) {
       this.widget.close();
       this.router.navigateByUrl(href);
     }
@@ -1991,7 +3413,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   /** Injects a system-style assistant message into the active chat buffer. */
   private injectAssistantMessage(content: string): void {
-    const msg: ChatMessage = { role: 'assistant', content, createdAt: new Date().toISOString() };
+    const msg: ChatMessage = {
+      role: "assistant",
+      content,
+      createdAt: new Date().toISOString(),
+    };
     if (this.sessionId()) {
       this.authMsgs.update((m) => [...m, msg]);
     } else {
@@ -2006,66 +3432,98 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     // starting fresh from the returning-guest greeting. Only when there's something
     // archived (set by the returning greeting in loadGuest).
     if (
-      this.archivedGuestMsgs && this.archivedGuestMsgs.length > 0 &&
-      (/\b(continue|resume|carry on|pick up|go back)\b/i.test(text) &&
-        /\b(last|previous|prior|earlier|where|session|chat|conversation|left off)\b/i.test(text) ||
-        /what (did |were )?we (talk|talked|discuss|discussed|chat|chatted|saying|said)/i.test(text))
+      this.archivedGuestMsgs &&
+      this.archivedGuestMsgs.length > 0 &&
+      ((/\b(continue|resume|carry on|pick up|go back)\b/i.test(text) &&
+        /\b(last|previous|prior|earlier|where|session|chat|conversation|left off)\b/i.test(
+          text,
+        )) ||
+        /what (did |were )?we (talk|talked|discuss|discussed|chat|chatted|saying|said)/i.test(
+          text,
+        ))
     ) {
       const archived = this.archivedGuestMsgs;
       this.archivedGuestMsgs = null;
       this.identityConfirmed.set(true);
       this.guestMsgs.set([
         ...archived,
-        { role: 'user', content: text, createdAt: new Date().toISOString() },
-        { role: 'assistant', content: 'Sure, here\'s where we left off. How can I help you continue?', createdAt: new Date().toISOString() },
+        { role: "user", content: text, createdAt: new Date().toISOString() },
+        {
+          role: "assistant",
+          content:
+            "Sure, here's where we left off. How can I help you continue?",
+          createdAt: new Date().toISOString(),
+        },
       ]);
-      this.draft = '';
+      this.draft = "";
       this.scrollBottom = true;
       return;
     }
-    const userMsg: ChatMessage = { role: 'user', content: text, createdAt: new Date().toISOString() };
+    const userMsg: ChatMessage = {
+      role: "user",
+      content: text,
+      createdAt: new Date().toISOString(),
+    };
     this.guestMsgs.update((m) => [...m, userMsg]);
-    this.draft = '';
+    this.draft = "";
     this.scrollBottom = true;
     this.sending.set(true);
 
-    const history = this.guestMsgs().slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
-    const role = this.auth.principal()?.role ?? 'guest';
+    const history = this.guestMsgs()
+      .slice(0, -1)
+      .map((m) => ({ role: m.role, content: m.content }));
+    const role = this.auth.principal()?.role ?? "guest";
 
-    this.api.post<{ reply: string; createdAt?: string; actionBlocks?: { type: string; data: Record<string, unknown> }[] }>('/chat/guest', { message: text, history, role, categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), categoryId: (this.widget.prefillData()['categoryId'] as string | undefined), answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() }).subscribe({
-      next: (r) => {
-        const mapped = r.actionBlocks?.map((b) => ({
-          type: b.type as string,
-          data: b.data as Record<string, unknown>,
-        }));
-        const blocks = this.applyFormFills(mapped);
-        this.applyQuoteFieldValues(blocks);
-        this.delayedReply(r.reply, r.createdAt, undefined, blocks);
-      },
-      error: () => {
-        const errMsg: ChatMessage = { role: 'assistant', content: 'Could not send message. Please try again.', createdAt: new Date().toISOString() };
-        this.guestMsgs.update((m) => [...m, errMsg]);
-        this.scrollBottom = true;
-        this.sending.set(false);
-      },
-    });
+    this.api
+      .post<{
+        reply: string;
+        createdAt?: string;
+        actionBlocks?: { type: string; data: Record<string, unknown> }[];
+      }>("/chat/guest", { message: text, history, role, categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() })
+      .subscribe({
+        next: (r) => {
+          const mapped = r.actionBlocks?.map((b) => ({
+            type: b.type as string,
+            data: b.data as Record<string, unknown>,
+          }));
+          const blocks = this.applyFormFills(mapped);
+          this.applyQuoteFieldValues(blocks);
+          this.delayedReply(r.reply, r.createdAt, undefined, blocks);
+        },
+        error: () => {
+          const errMsg: ChatMessage = {
+            role: "assistant",
+            content: "Could not send message. Please try again.",
+            createdAt: new Date().toISOString(),
+          };
+          this.guestMsgs.update((m) => [...m, errMsg]);
+          this.scrollBottom = true;
+          this.sending.set(false);
+        },
+      });
   }
 
   private sendAuthenticated(text: string): void {
     const sessionAtSend = this.sessionId();
     if (!sessionAtSend) return;
-    const userMsg: ChatMessage = { role: 'user', content: text, createdAt: new Date().toISOString() };
+    const userMsg: ChatMessage = {
+      role: "user",
+      content: text,
+      createdAt: new Date().toISOString(),
+    };
     this.authMsgs.update((m) => [...m, userMsg]);
     this.scrollBottom = true;
-    this.draft = '';
+    this.draft = "";
     this.sending.set(true);
     this.widget.actionBlocks.set([]);
 
     this.api
-      .post<{ reply: string; createdAt?: string; actions?: ChatMessage['actions']; actionBlocks?: { type: string; data: Record<string, unknown> }[] }>(
-        `/chat/session/${sessionAtSend}/message`,
-        { message: text, categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), categoryId: (this.widget.prefillData()['categoryId'] as string | undefined), answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() },
-      )
+      .post<{
+        reply: string;
+        createdAt?: string;
+        actions?: ChatMessage["actions"];
+        actionBlocks?: { type: string; data: Record<string, unknown> }[];
+      }>(`/chat/session/${sessionAtSend}/message`, { message: text, categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() })
       .subscribe({
         next: (r) => {
           const mapped = r.actionBlocks?.map((b) => ({
@@ -2082,7 +3540,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
         error: () => {
           // Ignore a late error if the session changed or ended (logout) meanwhile.
           if (this.sessionId() !== sessionAtSend) return;
-          const errMsg: ChatMessage = { role: 'assistant', content: 'Could not send message. Please try again.', createdAt: new Date().toISOString() };
+          const errMsg: ChatMessage = {
+            role: "assistant",
+            content: "Could not send message. Please try again.",
+            createdAt: new Date().toISOString(),
+          };
           this.authMsgs.update((m) => [...m, errMsg]);
           this.scrollBottom = true;
           this.sending.set(false);
@@ -2092,38 +3554,58 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   formatTime(iso: string): string {
     const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  private fallbackReply = "Thanks for your message. I'm the My Home Servicer assistant - I can help with quotes, bookings, payments, reorders, and reporting problems. What can I help with?";
+  private fallbackReply =
+    "Thanks for your message. I'm the My Home Servicer assistant - I can help with quotes, bookings, payments, reorders, and reporting problems. What can I help with?";
 
   /**
    * forSessionId: snapshot of the session at send time (undefined = guest).
    * The reply is dropped if the mode changed before the typing delay elapsed,
    * so a logged-in reply never lands in guest view and vice versa.
    */
-  private delayedReply(content: string, createdAt?: string, forSessionId?: string, actionBlocks?: Array<{ type: string; data: Record<string, unknown> }>): void {
+  private delayedReply(
+    content: string,
+    createdAt?: string,
+    forSessionId?: string,
+    actionBlocks?: Array<{ type: string; data: Record<string, unknown> }>,
+  ): void {
     // A reply without a retry action = a real answer (not the failure fallback) →
     // reset the Try-again counter so the next genuine failure starts fresh.
-    if (!actionBlocks?.some((b) => b.type === 'retry')) this.retryCount.set(0);
+    if (!actionBlocks?.some((b) => b.type === "retry")) this.retryCount.set(0);
     const reply = content || this.fallbackReply;
     const isGuest = forSessionId === undefined;
     const parts = this.splitReply(reply);
-    const ms = this.auth.principal()?.role === 'admin' ? 0 : 2000 + Math.random() * 3000;
+    const ms =
+      this.auth.principal()?.role === "admin" ? 0 : 2000 + Math.random() * 3000;
     if (this.replyTimeoutId !== null) clearTimeout(this.replyTimeoutId);
     // First bubble after the main typing delay; remaining bubbles drip in one by
     // one (revealParts) with a short typing pause between each.
     this.replyTimeoutId = setTimeout(() => {
       this.replyTimeoutId = null;
-      this.revealParts(parts, 0, createdAt, forSessionId, isGuest, actionBlocks);
+      this.revealParts(
+        parts,
+        0,
+        createdAt,
+        forSessionId,
+        isGuest,
+        actionBlocks,
+      );
     }, ms);
   }
 
   /** Split a reply into bubbles: paragraphs first, else lines. Capped. */
   private splitReply(text: string): string[] {
-    const byPara = text.split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
+    const byPara = text
+      .split(/\n\s*\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (byPara.length > 1) return byPara.slice(0, 6);
-    const byLine = text.split(/\n/).map((s) => s.trim()).filter(Boolean);
+    const byLine = text
+      .split(/\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (byLine.length > 1) return byLine.slice(0, 6);
     return [text.trim() || this.fallbackReply];
   }
@@ -2139,15 +3621,24 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   ): void {
     // Drop the whole sequence if the chat mode changed (login/logout/session swap).
     if (isGuest) {
-      if (this.sessionId() !== null) { this.sending.set(false); return; }
+      if (this.sessionId() !== null) {
+        this.sending.set(false);
+        return;
+      }
     } else {
-      if (this.sessionId() !== forSessionId) { this.sending.set(false); return; }
+      if (this.sessionId() !== forSessionId) {
+        this.sending.set(false);
+        return;
+      }
     }
 
     const msg: ChatMessage = {
-      role: 'assistant',
+      role: "assistant",
       content: parts[idx],
-      createdAt: idx === 0 ? (createdAt ?? new Date().toISOString()) : new Date().toISOString(),
+      createdAt:
+        idx === 0
+          ? (createdAt ?? new Date().toISOString())
+          : new Date().toISOString(),
     };
     if (isGuest) this.guestMsgs.update((m) => [...m, msg]);
     else this.authMsgs.update((m) => [...m, msg]);
@@ -2160,7 +3651,14 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       const gap = 500 + Math.random() * 1000;
       this.replyTimeoutId = setTimeout(() => {
         this.replyTimeoutId = null;
-        this.revealParts(parts, idx + 1, createdAt, forSessionId, isGuest, actionBlocks);
+        this.revealParts(
+          parts,
+          idx + 1,
+          createdAt,
+          forSessionId,
+          isGuest,
+          actionBlocks,
+        );
       }, gap);
       return;
     }
@@ -2175,7 +3673,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
     this.sending.set(false);
     // No card in this reply — if it promised one and stranded the user, self-heal.
-    this.armStuckWatchdog(parts.join(' '), isGuest, forSessionId);
+    this.armStuckWatchdog(parts.join(" "), isGuest, forSessionId);
   }
 
   /** Reveal action blocks one at a time, each as its own message bubble, so cards
@@ -2194,13 +3692,19 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       return;
     }
     if (isGuest) {
-      if (this.sessionId() !== null) { this.sending.set(false); return; }
+      if (this.sessionId() !== null) {
+        this.sending.set(false);
+        return;
+      }
     } else {
-      if (this.sessionId() !== forSessionId) { this.sending.set(false); return; }
+      if (this.sessionId() !== forSessionId) {
+        this.sending.set(false);
+        return;
+      }
     }
     const cardMsg: ChatMessage = {
-      role: 'assistant',
-      content: '',
+      role: "assistant",
+      content: "",
       createdAt: createdAt ?? new Date().toISOString(),
       actionBlocks: [blocks[idx]],
     };
@@ -2221,22 +3725,28 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * logout, account switches, or page reloads.
    */
   /** sessionStorage key for the guest chat (survives refresh, clears on tab close). */
-  private readonly GUEST_CHAT_KEY = 'msvc_guest_chat';
+  private readonly GUEST_CHAT_KEY = "msvc_guest_chat";
 
   private readGuestStorage(): ChatMessage[] | null {
     try {
       const raw = sessionStorage.getItem(this.GUEST_CHAT_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
       return Array.isArray(parsed) ? (parsed as ChatMessage[]) : null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   private clearGuestStorage(): void {
-    try { sessionStorage.removeItem(this.GUEST_CHAT_KEY); } catch { /* private mode */ }
+    try {
+      sessionStorage.removeItem(this.GUEST_CHAT_KEY);
+    } catch {
+      /* private mode */
+    }
   }
 
   /** sessionStorage key for the guest quote prefill (name/phone/address/etc.). */
-  private readonly GUEST_PREFILL_KEY = 'msvc_guest_prefill';
+  private readonly GUEST_PREFILL_KEY = "msvc_guest_prefill";
   /** Prior-session messages archived behind the returning greeting, restored on
    *  "continue last session". */
   private archivedGuestMsgs: ChatMessage[] | null = null;
@@ -2245,13 +3755,52 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     try {
       const raw = sessionStorage.getItem(this.GUEST_PREFILL_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
-      return parsed && typeof parsed === 'object' ? (parsed as PrefillData) : null;
-    } catch { return null; }
+      return parsed && typeof parsed === "object"
+        ? (parsed as PrefillData)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Re-persist a sanitized guest prefill (e.g. after dropping a poisoned name). */
+  private persistGuestPrefill(data: PrefillData): void {
+    try {
+      sessionStorage.setItem(this.GUEST_PREFILL_KEY, JSON.stringify(data));
+    } catch {
+      /* quota/private mode */
+    }
+  }
+
+  /**
+   * A stored contactName is only trustworthy as a real name. Reject the false
+   * positives the old free-text extractor produced ("From" from "I'm from KL",
+   * "Here", "Contact", etc.): require a single capitalised token and exclude a
+   * small stopword set. Used to gate the returning-guest "is this {name}?" greeting.
+   */
+  private isPlausibleName(name: string): boolean {
+    const n = name.trim();
+    if (!/^[A-Z][A-Za-z'’-]{1,29}$/.test(n)) return false;
+    const stop = new Set([
+      "from", "and", "the", "your", "our", "name", "number", "contact", "here",
+      "there", "yes", "no", "nope", "ok", "okay", "sure", "hi", "hey", "hello",
+      "thanks", "today", "tomorrow", "tonight", "morning", "noon", "afternoon",
+      "evening", "night", "address", "phone", "details", "please", "this", "that",
+    ]);
+    return !stop.has(n.toLowerCase());
   }
 
   private clearGuestPrefill(): void {
-    try { sessionStorage.removeItem(this.GUEST_PREFILL_KEY); } catch { /* private mode */ }
-    try { localStorage.removeItem('msvc_latest_chat_prefill'); } catch { /* private mode */ }
+    try {
+      sessionStorage.removeItem(this.GUEST_PREFILL_KEY);
+    } catch {
+      /* private mode */
+    }
+    try {
+      localStorage.removeItem("msvc_latest_chat_prefill");
+    } catch {
+      /* private mode */
+    }
   }
 
   /**
@@ -2264,31 +3813,31 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.prefillSeen = false;
     this.widget.resetPrefill();
     this.resolvedCards.set([]);
-    this.dateConfirmed.set('');
-    this.timeConfirmed.set('');
-    this.timeConfirmedLabel.set('');
-    this.prefillDate.set('');
-    this.prefillTimeSlot.set('');
-    this.prefillText.set('');
-    this.addrNo.set('');
-    this.addrStreet.set('');
-    this.addrPostcode.set('');
-    this.addrPropertyType.set('');
+    this.dateConfirmed.set("");
+    this.timeConfirmed.set("");
+    this.timeConfirmedLabel.set("");
+    this.prefillDate.set("");
+    this.prefillTimeSlot.set("");
+    this.prefillText.set("");
+    this.addrNo.set("");
+    this.addrStreet.set("");
+    this.addrPostcode.set("");
+    this.addrPropertyType.set("");
     this.addressConfirmed.set(false);
-    this.addressFormatted.set('');
-    this.addrError.set('');
+    this.addressFormatted.set("");
+    this.addrError.set("");
     this.addrValidating.set(false);
     this.addrLat = null;
     this.addrLng = null;
-    this.contactNameDraft.set('');
-    this.contactPhoneLocal.set('');
-    this.phonePrefix.set('+60');
+    this.contactNameDraft.set("");
+    this.contactPhoneLocal.set("");
+    this.phonePrefix.set("+60");
     this.contactConfirmed.set(false);
     this.budgetChosen.set(false);
     this.budgetSliderIdx.set(0);
     this.confirmedTextValues.set({});
     this.qCheckbox.set([]);
-    this.qText.set('');
+    this.qText.set("");
     this.qNumber.set(null);
     this.qQuantity.set({});
     this.qDisplay.set({});
@@ -2296,28 +3845,47 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   private loadGuest(): void {
     this.sessionId.set(null);
-    this.initError.set('');
+    this.initError.set("");
     if (this.guestMsgs().length === 0) {
       const restored = this.readGuestStorage();
       const savedPrefill = this.readGuestPrefill();
-      const name = (savedPrefill?.['contactName'] as string | undefined)?.trim();
+      const rawName = (
+        savedPrefill?.["contactName"] as string | undefined
+      )?.trim();
+      // Guard against a poisoned name from the old free-text extractor (e.g. "From"
+      // captured from "I'm from KL"). Only greet by a plausible name; otherwise drop
+      // it and purge it from storage so the bad value can't keep resurfacing.
+      const name = rawName && this.isPlausibleName(rawName) ? rawName : undefined;
+      if (rawName && !name && savedPrefill) {
+        delete savedPrefill["contactName"];
+        this.persistGuestPrefill(savedPrefill);
+      }
       if (name && this.widget.hasGreeting()) {
         // Returning guest: restore their prefill, archive the old thread for
         // "continue last session", and greet by name with a yes/no identity confirm.
         this.widget.resetPrefill();
         this.widget.accumulatePrefill(savedPrefill ?? {});
-        this.archivedGuestMsgs = restored && restored.length > 0 ? restored : null;
+        this.archivedGuestMsgs =
+          restored && restored.length > 0 ? restored : null;
         this.identityConfirmed.set(null);
-        this.guestMsgs.set([{
-          role: 'assistant',
-          content: this.widget.getGreeting('returning', name),
-          createdAt: new Date().toISOString(),
-          actionBlocks: [{ type: 'identity_confirm', data: { name } }],
-        }]);
+        this.guestMsgs.set([
+          {
+            role: "assistant",
+            content: this.widget.getGreeting("returning", name),
+            createdAt: new Date().toISOString(),
+            actionBlocks: [{ type: "identity_confirm", data: { name } }],
+          },
+        ]);
       } else if (restored && restored.length > 0) {
         this.guestMsgs.set(restored);
       } else if (this.widget.hasGreeting()) {
-        this.guestMsgs.set([{ role: 'assistant', content: this.widget.getGreeting('anonymous'), createdAt: new Date().toISOString() }]);
+        this.guestMsgs.set([
+          {
+            role: "assistant",
+            content: this.widget.getGreeting("anonymous"),
+            createdAt: new Date().toISOString(),
+          },
+        ]);
       }
     }
   }
@@ -2335,14 +3903,19 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
     if (this.connecting()) return;
     this.connecting.set(true);
-    this.initError.set('');
+    this.initError.set("");
     this.api
-      .get<{ data: Array<{ id: string; contextType: string }> }>('/chat/sessions')
+      .get<{
+        data: Array<{ id: string; contextType: string }>;
+      }>("/chat/sessions")
       .subscribe({
         next: (r) => {
           // User may have logged out while the request was in-flight.
-          if (!this.auth.principal()) { this.connecting.set(false); return; }
-          const existing = r.data.find((s) => s.contextType === 'general');
+          if (!this.auth.principal()) {
+            this.connecting.set(false);
+            return;
+          }
+          const existing = r.data.find((s) => s.contextType === "general");
           if (existing) {
             this.sessionId.set(existing.id);
             this.connecting.set(false);
@@ -2361,14 +3934,17 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   private createSession(): void {
     this.api
-      .post<{ sessionId: string }>('/chat/session', { contextType: 'general' })
+      .post<{ sessionId: string }>("/chat/session", { contextType: "general" })
       .subscribe({
         next: (r) => {
-          if (!this.auth.principal()) { this.connecting.set(false); return; }
+          if (!this.auth.principal()) {
+            this.connecting.set(false);
+            return;
+          }
           this.authMsgs.set([]);
           this.sessionId.set(r.sessionId);
           this.connecting.set(false);
-          this.initError.set('');
+          this.initError.set("");
         },
         error: () => {
           this.connecting.set(false);
@@ -2381,7 +3957,10 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     const sid = this.sessionId();
     if (!sid) return;
     this.api
-      .get<{ data: ChatMessage[]; hasMore: boolean }>(`/chat/session/${sid}/messages`, { limit: '20' })
+      .get<{
+        data: ChatMessage[];
+        hasMore: boolean;
+      }>(`/chat/session/${sid}/messages`, { limit: "20" })
       .subscribe({
         next: (r) => {
           // Ignore a late response if the session changed or the user logged out.
@@ -2389,7 +3968,13 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
           if (r.data.length === 0 && this.widget.hasGreeting()) {
             const rg = this.roleGreeting();
             const greeting = this.widget.getGreeting(rg.tier, rg.name);
-            this.authMsgs.set([{ role: 'assistant', content: greeting, createdAt: new Date().toISOString() }]);
+            this.authMsgs.set([
+              {
+                role: "assistant",
+                content: greeting,
+                createdAt: new Date().toISOString(),
+              },
+            ]);
           } else {
             this.authMsgs.set(r.data);
           }
@@ -2402,7 +3987,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   private playChatSound(): void {
     if (!this.chatSoundEnabled()) return;
     try {
-      const audio = new Audio('assets/sounds/NotificationChat.wav');
+      const audio = new Audio("assets/sounds/NotificationChat.wav");
       audio.volume = 0.5;
       audio.play().catch(() => {});
     } catch {
@@ -2411,10 +3996,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   private checkChatSoundSetting(): void {
-    this.api.get<{ data: { key: string; value: unknown }[] }>('/admin/settings')
+    this.api
+      .get<{ data: { key: string; value: unknown }[] }>("/admin/settings")
       .subscribe({
         next: (r) => {
-          const s = r.data.find(x => x.key === 'chat_sound_enabled');
+          const s = r.data.find((x) => x.key === "chat_sound_enabled");
           if (s) this.chatSoundEnabled.set(s.value === true);
         },
         error: () => {},
@@ -2422,10 +4008,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   private checkTypingSoundSetting(): void {
-    this.api.get<{ data: { key: string; value: unknown }[] }>('/admin/settings')
+    this.api
+      .get<{ data: { key: string; value: unknown }[] }>("/admin/settings")
       .subscribe({
         next: (r) => {
-          const s = r.data.find(x => x.key === 'typing_sound_enabled');
+          const s = r.data.find((x) => x.key === "typing_sound_enabled");
           if (s) this.typingSoundEnabled.set(s.value === true);
         },
         error: () => {},

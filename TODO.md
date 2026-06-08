@@ -39,6 +39,37 @@ hierarchical paths with tabs as URL segments and filters as query params.
 
 ---
 
+## 🐛 FIXED (uncommitted) — AI chat: name/budget/flow bugs (2026-06-08)
+
+**Plan:** `docs/ai-context/chat-bugfix-plan.md`
+
+From real transcript. 3 root causes — all fixed; `tsc` backend + frontend pass:
+- [x] **A (name):** "is this From?" — backend `extractName` disable (already in tree) +
+      frontend `isPlausibleName()` guard on the returning-guest greeting; poisoned
+      `contactName` dropped from `sessionStorage` on load.
+      (`chat-widget.component.ts` `loadGuest` + new helpers.)
+- [x] **B (budget):** "budget 1000" pre-filled — `extractBudget`/`extractPhone` now run
+      on `userConvo` (user words only), not the assistant's prose. (`chat.service.ts:1679`.)
+- [x] **C (flow):** gave info first → skipped service pick → jumped to review. Field
+      collection now requires a real category context (`hasCategoryContext`); premature
+      `quote_field`/`quote_prefill` cards stripped until a service is settled.
+      (`chat.service.ts` `collectingFields` gate.)
+
+### Chat QA harness (2026-06-08)
+- [x] **QA button** added left of Clear in the chat header. Runs `runQa()` — drives the
+      live bot through 30 scripted human-style customer conversations (`QA_SCRIPTS`),
+      each giving details in a different order/way (service-first, dump-all, address-
+      first, budget-first, vague, wrong-then-corrected, mixed CN/MY/EN, ramble, reject-
+      retry, absurd-but-serviceable). Types natural text only, no card clicks; awaits
+      each reply via the `sending` signal. Click again = Stop/cancel.
+- [x] Transcript logged live to console and downloaded as
+      `ChatQA_Log_<HHMMDDMMYYXX>.md` (clock-stamped: hour, min, day, month, 2-digit
+      year, 2-digit run seq — e.g. `ChatQA_Log_041808062601`).
+
+Committed together on `feat/ux-polish` with the name/budget/flow fixes.
+
+---
+
 ## 🐛 FIXED — Calendar day-click crash + card redesign (2026-06-08)
 
 **Root cause:** `b.price` (Prisma Decimal) serialized as string in JSON → `.toFixed(2)`

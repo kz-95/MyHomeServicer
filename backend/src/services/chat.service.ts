@@ -1112,50 +1112,11 @@ function parseDateTimeFromText(text: string): { date?: string; slot?: string } {
   return out;
 }
 
-const NON_NAME_WORDS = new Set([
-  "yeah", "yes", "yep", "no", "nope", "ok", "okay", "sure", "hi", "hello", "hey",
-  "thanks", "thank", "morning", "noon", "afternoon", "evening", "night", "today",
-  "tomorrow", "tonight", "correct", "right", "yup", "cool", "great",
-  // common words that follow "name"/"you are" but are NOT names
-  "and", "a", "an", "the", "your", "my", "our", "or", "number", "contact",
-  "is", "are", "was", "to", "for", "at", "on", "in", "of", "with", "you", "we",
-  "it", "that", "this", "please", "here", "there", "name", "phone", "details",
-]);
-
-/**
- * Extract a person's name the user typed in reply to "what name should I put the
- * booking under?" — the model often acknowledges it ("Thanks Hugo!") but emits an
- * empty name field. Only called while the name card is showing, so a bare one-word
- * reply is safely treated as the name.
- */
-function extractName(message: string, replyText = ""): string | undefined {
-  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-  // Explicit patterns, checked on the user message AND the assistant's echo (the
-  // model often confirms "I have your name as Brian" when the user gave it earlier).
-  // Only UNAMBIGUOUS name lead-ins. Dropped "you are / it's / this is" — they
-  // matched the assistant's prose ("you are comfortable spending", "it's fine")
-  // and captured a junk name ("Comfortable").
-  const explicit =
-    /(?:my name(?:'?s| is| as)|i'?m|i am|call me|name(?:'?s| is| as)|speaking (?:with|to))\s+([A-Za-z][A-Za-z'-]{1,30})/i;
-  const m = `${message} ${replyText}`.match(explicit);
-  if (m && !NON_NAME_WORDS.has(m[1].toLowerCase())) return cap(m[1]);
-  // Personalised-address echo in the assistant's reply ("Got it, Brian!", "Thanks,
-  // Brian"). The next word MUST be Capitalised — names are, mid-sentence stopwords
-  // are not — which keeps "Thanks for"/"Got it now" from matching.
-  const echo = replyText.match(
-    /\b(?:got it|thanks|thank you|alright|welcome|welcome back|noted|sure|okay|ok|perfect|awesome|excellent|wonderful|nice|lovely|congrats|congratulations|hi|hey|hello|(?:great|good)(?:\s+choice)?)[,!]?\s+([A-Z][a-z'-]{1,20})\b/i,
-  );
-  if (echo && !NON_NAME_WORDS.has(echo[1].toLowerCase())) return cap(echo[1]);
-  // Bare one-word reply — ONLY the user's message (the reply is long prose).
-  const trimmed = message.trim();
-  if (
-    /^[A-Za-z][A-Za-z'-]{1,30}$/.test(trimmed) &&
-    !NON_NAME_WORDS.has(trimmed.toLowerCase())
-  ) {
-    return cap(trimmed);
-  }
-  return undefined;
-}
+// DISABLED & REMOVED — free-text name extraction (extractName + NON_NAME_WORDS) was too aggressive.
+// It captured false positives like "From" from "I'm from KL" and caused
+// returning-guest greetings to display hallucinated names ("Hello there, is this From?").
+// Names are now ONLY captured from the explicit contact-name form card where the
+// user types and confirms. No regex or LLM guessing.
 
 /**
  * Extract a phone number the user typed in reply to "what's your phone number?".
@@ -1656,13 +1617,24 @@ export async function sendToAi(
     // collecting, so never collect then.
     const stillChoosingCategory = outBlocks.some((b) => b.type === "quote_options");
     const categoryLockedThisReply = outBlocks.some((b) => b.type === "category_lock");
-    const collectingFields =
-      !stillChoosingCategory &&
-      (opts?.suppressCategorySuggest === true ||
-        categoryLockedThisReply ||
-        outBlocks.some(
-          (b) => b.type === "quote_field" || b.type === "quote_prefill",
-        ));
+    // A SERVICE must be settled before any field collection. "Settled" = locked
+    // client-side (suppressCategorySuggest / categoryId) or text-confirmed THIS reply.
+    // The model emitting a stray quote_field/quote_prefill is NOT proof a service was
+    // picked: when the user dumps their details up front, the model would emit field/
+    // prefill cards and the flow would jump straight to the review, skipping service
+    // selection entirely. Requiring a real category context prevents that.
+    const hasCategoryContext =
+      opts?.suppressCategorySuggest === true ||
+      categoryLockedThisReply ||
+      !!opts?.categoryId;
+    const collectingFields = !stillChoosingCategory && hasCategoryContext;
+    if (!collectingFields && !hasCategoryContext) {
+      // No service chosen yet — drop any premature field/prefill cards the model
+      // emitted so the flow can't dump details or a review before a service is picked.
+      outBlocks = outBlocks.filter(
+        (b) => b.type !== "quote_field" && b.type !== "quote_prefill",
+      );
+    }
     if (collectingFields) {
       // Deterministic date/time pre-fill: the model often states a resolved date in
       // its text but emits an empty picker. Parse it ourselves so it never relies on
@@ -1715,10 +1687,17 @@ export async function sendToAi(
       }
       const addrText = `${message}\n${convoText}`;
       fillField("address", extractAddress(addrText));
-      const budgetN = extractBudget(allText);
+      // Budget + phone are extracted from the USER's own words only (userConvo), never
+      // the assistant's prose. extractBudget on the full transcript grabbed a number
+      // from the assistant narrating a bracket ("RM500–1000") and pre-filled budgetMax
+      // the user never stated — same false-positive class as the old name extraction.
+      const budgetN = extractBudget(userConvo);
       if (budgetN) fillField("budgetMax", String(budgetN));
-      fillField("contactName", extractName(message, `${processed.text}\n${convoText}`));
-      fillField("contactNumber", extractPhone(allText));
+      // Name is NOT extracted from free-text — it only comes from the explicit
+      // contact-name form card where the user types and confirms. Free-text name
+      // extraction was too aggressive and captured false positives like "From" from
+      // "I'm from KL", producing greetings like "Hello there, is this From?".
+      fillField("contactNumber", extractPhone(userConvo));
 
 
       // Fields are "done" if the client already collected them OR the model just
