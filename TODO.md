@@ -107,7 +107,14 @@ Standalone, shared, dev-only automated QA that completes a FULL quote to the rev
       fixes, written at the TOP of the log (CONCLUSION + SUMMARY incl. logical-issue
       count). `JUDGE_UNAVAILABLE` when no LLM key configured.
 - [x] **Bot language match:** `buildAssistantPrompt` now instructs the assistant to
-      reply in the user's language (Malay→Malay, Chinese→Chinese, rojak→rojak).
+      reply in the user's language (Malay→Malay, Chinese→Chinese, Tamil→Tamil, rojak mirrored).
+- [x] **Card i18n (EN / Malay / CN / Tamil):** quote-flow card UI translated via a
+      `CARD_T` dictionary + `t(key)`/`tSlot()` helpers. `cardLang` is detected from the
+      last few user messages (Tamil/Chinese script → ta/zh, Malay markers → ms, else en);
+      rojak resolves to its non-English side instead of always English. Covers category
+      Yes/No, Confirm buttons, time slots, field labels, address form (options,
+      placeholders, validation), budget, review summary, identity confirm. Profile/PIN/
+      link cards (servicer/admin context) left in English.
 - [x] **PIN-gated** (`5201314`) on press; **dev-build only** (`!environment.production`).
 - [x] **Log output:** `POST /chat/qa-log` writes `<repo-root>/logs/ChatQA_Log_<HHMMDDMMYYXX>.log`
       (name sanitised, write confined to logs/). `logs/` git-kept, `*.log` ignored.

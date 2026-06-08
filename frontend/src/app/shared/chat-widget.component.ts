@@ -35,6 +35,83 @@ import { environment } from "../../environments/environment";
 /** PIN that unlocks the dev-only automated chat QA run. */
 const QA_PIN = "5201314";
 
+/** Supported card languages. Cards mirror the language the customer is writing in. */
+type CardLang = "en" | "ms" | "zh" | "ta";
+
+/**
+ * Detect the language of a chunk of user text. Tamil and Chinese scripts win on sight;
+ * otherwise a few distinctive Malay markers flip it to Malay; default English. This
+ * resolves rojak (mixed) to its non-English side — Tamil/Chinese/Malay-laced rojak maps
+ * to ta/zh/ms — instead of always falling back to English.
+ */
+function detectCardLang(text: string): CardLang {
+  if (/[஀-௿]/.test(text)) return "ta";
+  if (/[一-鿿]/.test(text)) return "zh";
+  if (
+    /\b(saya|nak|perlu|rumah|bocor|esok|pagi|petang|malam|kotor|sangat|betul|boleh|tolong|bajet|pukul|sejuk|rosak|tersumbat|berapa|nombor|alamat)\b/i.test(
+      text,
+    )
+  )
+    return "ms";
+  return "en";
+}
+
+/** Card UI strings per language. `en` is the source of truth; ms/zh/ta mirror it. */
+const CARD_T: Record<string, Record<CardLang, string>> = {
+  confirm: { en: "Confirm", ms: "Sahkan", zh: "确认", ta: "உறுதிப்படுத்து" },
+  yesThatsIt: { en: "Yes, that's it", ms: "Ya, betul", zh: "对，就是这个", ta: "ஆம், அதுதான்" },
+  notThisService: { en: "Not this service", ms: "Bukan servis ini", zh: "不是这个服务", ta: "இந்த சேவை அல்ல" },
+  notThisOne: { en: "Not this one", ms: "Bukan yang ini", zh: "不是这个", ta: "இது அல்ல" },
+  isThisService: { en: "Is this the service you need?", ms: "Ini servis yang anda perlukan?", zh: "这是您需要的服务吗？", ta: "உங்களுக்குத் தேவையான சேவை இதுவா?" },
+  selected: { en: "Selected", ms: "Dipilih", zh: "已选择", ta: "தேர்ந்தெடுக்கப்பட்டது" },
+  changeLater: { en: "{{ t('changeLater') }}", ms: "Anda boleh ubah kemudian jika perlu.", zh: "如有需要，稍后可更改。", ta: "தேவைப்பட்டால் பின்னர் மாற்றலாம்." },
+  typeStar: { en: "Type*", ms: "Jenis*", zh: "类型*", ta: "வகை*" },
+  landed: { en: "Landed", ms: "Teres / Banglo", zh: "独立式", ta: "தனி வீடு" },
+  condo: { en: "Condo", ms: "Kondo", zh: "公寓", ta: "கொண்டோ" },
+  commercial: { en: "Commercial", ms: "Komersial", zh: "商用", ta: "வணிக" },
+  selectBuildingType: { en: "Select building type…", ms: "Pilih jenis bangunan…", zh: "选择建筑类型…", ta: "கட்டிட வகையைத் தேர்ந்தெடுக்கவும்…" },
+  noUnit: { en: "No. / Unit", ms: "No. / Unit", zh: "门牌 / 单位", ta: "எண் / யூனிட்" },
+  streetPlaceholder: { en: "Street (type and pick from the list)", ms: "Jalan (taip dan pilih dari senarai)", zh: "街道（输入并从列表选择）", ta: "தெரு (தட்டச்சு செய்து பட்டியலில் தேர்வு)" },
+  postcode: { en: "Postcode", ms: "Poskod", zh: "邮编", ta: "அஞ்சல் குறியீடு" },
+  postcode5: { en: "Postcode must be exactly 5 digits (e.g. 47100).", ms: "Poskod mesti tepat 5 digit (cth. 47100).", zh: "邮编必须是5位数字（例如 47100）。", ta: "அஞ்சல் குறியீடு சரியாக 5 இலக்கங்கள் இருக்க வேண்டும் (எ.கா. 47100)." },
+  findingLocation: { en: "Finding your location…", ms: "Mencari lokasi anda…", zh: "正在定位…", ta: "உங்கள் இருப்பிடத்தைக் கண்டறிகிறது…" },
+  verifyingAddress: { en: "Verifying address…", ms: "Mengesahkan alamat…", zh: "正在验证地址…", ta: "முகவரியைச் சரிபார்க்கிறது…" },
+  enterStreetPostcode: { en: "⚠️ Enter a street and a 5-digit postcode.", ms: "⚠️ Masukkan jalan dan poskod 5 digit.", zh: "⚠️ 请输入街道和5位邮编。", ta: "⚠️ தெரு மற்றும் 5 இலக்க அஞ்சல் குறியீட்டை உள்ளிடவும்." },
+  enterStreet: { en: "⚠️ Enter a street from the dropdown above.", ms: "⚠️ Pilih jalan dari senarai di atas.", zh: "⚠️ 请从上方列表选择街道。", ta: "⚠️ மேலே உள்ள பட்டியலில் தெருவைத் தேர்ந்தெடுக்கவும்." },
+  enterPostcode: { en: "⚠️ Enter a valid 5-digit postcode (e.g. 47100).", ms: "⚠️ Masukkan poskod 5 digit yang sah (cth. 47100).", zh: "⚠️ 请输入有效的5位邮编（例如 47100）。", ta: "⚠️ சரியான 5 இலக்க அஞ்சல் குறியீட்டை உள்ளிடவும் (எ.கா. 47100)." },
+  validPhone: { en: "Enter a valid phone number.", ms: "Masukkan nombor telefon yang sah.", zh: "请输入有效的电话号码。", ta: "சரியான தொலைபேசி எண்ணை உள்ளிடவும்." },
+  allCollected: { en: "All information collected", ms: "Semua maklumat lengkap", zh: "所有资料已收集", ta: "அனைத்து தகவல்களும் சேகரிக்கப்பட்டன" },
+  reviewSubmitNote: { en: "Review above and submit your quote request.", ms: "Semak di atas dan hantar permintaan sebut harga anda.", zh: "请检查以上信息并提交您的报价请求。", ta: "மேலே உள்ளதைச் சரிபார்த்து உங்கள் கோரிக்கையைச் சமர்ப்பிக்கவும்." },
+  reviewSubmit: { en: "Review & submit", ms: "Semak & hantar", zh: "检查并提交", ta: "சரிபார்த்து சமர்ப்பி" },
+  yesItsMe: { en: "Yes, it's me", ms: "Ya, ini saya", zh: "是的，是我", ta: "ஆம், நான்தான்" },
+  notMe: { en: "No, not me", ms: "Bukan, bukan saya", zh: "不，不是我", ta: "இல்லை, நான் அல்ல" },
+  confirmedTick: { en: "✅ Confirmed", ms: "✅ Disahkan", zh: "✅ 已确认", ta: "✅ உறுதிப்படுத்தப்பட்டது" },
+  startingFresh: { en: "Starting fresh", ms: "Mula semula", zh: "重新开始", ta: "புதிதாகத் தொடங்குகிறது" },
+  // Time slots
+  tmorning: { en: "🌅 Morning (9:00–11:00)", ms: "🌅 Pagi (9:00–11:00)", zh: "🌅 早上 (9:00–11:00)", ta: "🌅 காலை (9:00–11:00)" },
+  tnoon: { en: "☀️ Noon (11:00–13:00)", ms: "☀️ Tengah hari (11:00–13:00)", zh: "☀️ 中午 (11:00–13:00)", ta: "☀️ நண்பகல் (11:00–13:00)" },
+  tafternoon: { en: "🌆 Afternoon (13:00–15:00)", ms: "🌆 Petang (13:00–15:00)", zh: "🌆 下午 (13:00–15:00)", ta: "🌆 பிற்பகல் (13:00–15:00)" },
+  tevening: { en: "🌙 Evening (15:00–17:00)", ms: "🌙 Lewat petang (15:00–17:00)", zh: "🌙 傍晚 (15:00–17:00)", ta: "🌙 மாலை (15:00–17:00)" },
+  tnight: { en: "🌃 Night (17:00–22:00)", ms: "🌃 Malam (17:00–22:00)", zh: "🌃 晚上 (17:00–22:00)", ta: "🌃 இரவு (17:00–22:00)" },
+  // Field labels
+  contactName: { en: "Your name", ms: "Nama anda", zh: "您的姓名", ta: "உங்கள் பெயர்" },
+  contactNumber: { en: "Phone number", ms: "Nombor telefon", zh: "电话号码", ta: "தொலைபேசி எண்" },
+  address: { en: "Address", ms: "Alamat", zh: "地址", ta: "முகவரி" },
+  preferredDate: { en: "Preferred date", ms: "Tarikh pilihan", zh: "首选日期", ta: "விரும்பிய தேதி" },
+  timeSlot: { en: "Preferred time", ms: "Masa pilihan", zh: "首选时间", ta: "விரும்பிய நேரம்" },
+  notes: { en: "Notes", ms: "Nota", zh: "备注", ta: "குறிப்புகள்" },
+  budgetMin: { en: "Min budget", ms: "Bajet minimum", zh: "最低预算", ta: "குறைந்தபட்ச பட்ஜெட்" },
+  budgetMax: { en: "Max budget", ms: "Bajet maksimum", zh: "最高预算", ta: "அதிகபட்ச பட்ஜெட்" },
+  // Summary labels
+  sDate: { en: "Date", ms: "Tarikh", zh: "日期", ta: "தேதி" },
+  sTime: { en: "Time", ms: "Masa", zh: "时间", ta: "நேரம்" },
+  sAddress: { en: "Address", ms: "Alamat", zh: "地址", ta: "முகவரி" },
+  sName: { en: "Name", ms: "Nama", zh: "姓名", ta: "பெயர்" },
+  sPhone: { en: "Phone", ms: "Telefon", zh: "电话", ta: "தொலைபேசி" },
+  sNotes: { en: "Notes", ms: "Nota", zh: "备注", ta: "குறிப்புகள்" },
+  sBudget: { en: "Budget", ms: "Bajet", zh: "预算", ta: "பட்ஜெட்" },
+};
+
 interface ChatMessage {
   id?: string;
   role: "user" | "assistant";
@@ -243,24 +320,24 @@ interface PublicConfig {
                                 confirmedCategoryId() ===
                                 getStr(b.data, "categoryId")
                               ) {
-                                <p class="field-confirmed-value">✅ Selected</p>
+                                <p class="field-confirmed-value">✅ {{ t('selected') }}</p>
                               } @else {
-                                <p class="muted">Not this one</p>
+                                <p class="muted">{{ t('notThisOne') }}</p>
                               }
                             } @else {
-                              <p class="muted">Is this the service you need?</p>
+                              <p class="muted">{{ t('isThisService') }}</p>
                               <div class="ac-actions">
                                 <button
                                   class="btn-primary"
                                   (click)="continueQuoteInChat(b.data)"
                                 >
-                                  Yes, that's it
+                                  {{ t('yesThatsIt') }}
                                 </button>
                                 <button
                                   class="btn-outline"
                                   (click)="rejectCategory(b.data)"
                                 >
-                                  Not this service
+                                  {{ t('notThisService') }}
                                 </button>
                               </div>
                             }
@@ -280,7 +357,7 @@ interface PublicConfig {
                                     >✅ {{ dateConfirmed() }}</span
                                   >
                                   <span class="field-confirmed-note"
-                                    >You can change it later if needed.</span
+                                    >{{ t('changeLater') }}</span
                                   >
                                 </div>
                               } @else {
@@ -296,7 +373,7 @@ interface PublicConfig {
                                   [disabled]="!prefillDate()"
                                   (click)="confirmDate()"
                                 >
-                                  Confirm
+                                  {{ t('confirm') }}
                                 </button>
                               }
                             } @else if (getStr(b.data, "key") === "timeSlot") {
@@ -306,7 +383,7 @@ interface PublicConfig {
                                     >✅ {{ timeConfirmedLabel() }}</span
                                   >
                                   <span class="field-confirmed-note"
-                                    >You can change this later if needed.</span
+                                    >{{ t('changeLater') }}</span
                                   >
                                 </div>
                               } @else {
@@ -323,7 +400,7 @@ interface PublicConfig {
                                       "
                                       (click)="onTimeSlotSelected(opt.value)"
                                     >
-                                      {{ opt.label }}
+                                      {{ tSlot(opt.value) }}
                                     </button>
                                   }
                                 </div>
@@ -333,7 +410,7 @@ interface PublicConfig {
                                   [disabled]="!prefillTimeSlot()"
                                   (click)="confirmTime()"
                                 >
-                                  Confirm
+                                  {{ t('confirm') }}
                                 </button>
                               }
                             } @else if (getStr(b.data, "key") === "address") {
@@ -346,7 +423,7 @@ interface PublicConfig {
                                     }}</span
                                   >
                                   <span class="field-confirmed-note"
-                                    >You can change it later if needed.</span
+                                    >{{ t('changeLater') }}</span
                                   >
                                 </div>
                               } @else {
@@ -358,7 +435,7 @@ interface PublicConfig {
                                       [ngModel]="addrNo()"
                                       (ngModelChange)="addrNo.set($event)"
                                       name="pf_addr_no"
-                                      placeholder="No. / Unit"
+                                      [placeholder]="t('noUnit')"
                                     />
                                     <select
                                       class="ptype-select"
@@ -367,11 +444,11 @@ interface PublicConfig {
                                         addrPropertyType.set($event)
                                       "
                                     >
-                                      <option value="">Type*</option>
-                                      <option value="landed">Landed</option>
-                                      <option value="condo">Condo</option>
+                                      <option value="">{{ t('typeStar') }}</option>
+                                      <option value="landed">{{ t('landed') }}</option>
+                                      <option value="condo">{{ t('condo') }}</option>
                                       <option value="commercial">
-                                        Commercial
+                                        {{ t('commercial') }}
                                       </option>
                                     </select>
                                     <button
@@ -386,7 +463,7 @@ interface PublicConfig {
                                   </div>
                                   <app-places-autocomplete
                                     [types]="['address']"
-                                    placeholder="Street (type and pick from the list)"
+                                    [placeholder]="t('streetPlaceholder')"
                                     (placeSelect)="onChatPlaceSelect($event)"
                                   ></app-places-autocomplete>
                                   <input
@@ -395,13 +472,13 @@ interface PublicConfig {
                                     [ngModel]="addrPostcode()"
                                     (ngModelChange)="addrPostcode.set($event)"
                                     name="pf_addr_postcode"
-                                    placeholder="Postcode"
+                                    [placeholder]="t('postcode')"
                                     maxlength="5"
                                     pattern="[0-9]{5}"
                                     inputmode="numeric"
                                   />
                                   @if (addrPostcode().length === 5 && !postcodeValid()) {
-                                    <span class="addr-invalid">Postcode must be exactly 5 digits (e.g. 47100).</span>
+                                    <span class="addr-invalid">{{ t('postcode5') }}</span>
                                   }
                                   @if (addrStreet()) {
                                     <span class="addr-valid"
@@ -410,11 +487,11 @@ interface PublicConfig {
                                   }
                                   @if (locatingGps()) {
                                     <span class="addr-validating"
-                                      >Finding your location…</span
+                                      >{{ t('findingLocation') }}</span
                                     >
                                   } @else if (addrValidating()) {
                                     <span class="addr-validating"
-                                      >Verifying address…</span
+                                      >{{ t('verifyingAddress') }}</span
                                     >
                                   } @else if (addrError()) {
                                     <span class="addr-invalid">{{
@@ -425,11 +502,11 @@ interface PublicConfig {
                                 @if (!addrStreet().trim() || !postcodeValid()) {
                                   <p class="addr-reminder">
                                     @if (!addrStreet().trim() && !postcodeValid()) {
-                                      ⚠️ Enter a street and a 5-digit postcode.
+                                      {{ t('enterStreetPostcode') }}
                                     } @else if (!addrStreet().trim()) {
-                                      ⚠️ Enter a street from the dropdown above.
+                                      {{ t('enterStreet') }}
                                     } @else if (!postcodeValid()) {
-                                      ⚠️ Enter a valid 5-digit postcode (e.g. 47100).
+                                      {{ t('enterPostcode') }}
                                     }
                                   </p>
                                 }
@@ -444,7 +521,7 @@ interface PublicConfig {
                                   "
                                   (click)="confirmAddress()"
                                 >
-                                  Confirm
+                                  {{ t('confirm') }}
                                 </button>
                               }
                             } @else if (
@@ -469,12 +546,12 @@ interface PublicConfig {
                                     name="pf_property_type"
                                   >
                                     <option value="">
-                                      Select building type…
+                                      {{ t('selectBuildingType') }}
                                     </option>
-                                    <option value="landed">Landed</option>
-                                    <option value="condo">Condo</option>
+                                    <option value="landed">{{ t('landed') }}</option>
+                                    <option value="condo">{{ t('condo') }}</option>
                                     <option value="commercial">
-                                      Commercial
+                                      {{ t('commercial') }}
                                     </option>
                                   </select>
                                   <button
@@ -483,7 +560,7 @@ interface PublicConfig {
                                     [disabled]="!addrPropertyType()"
                                     (click)="confirmPropertyType()"
                                   >
-                                    Confirm
+                                    {{ t('confirm') }}
                                   </button>
                                 </div>
                               }
@@ -526,7 +603,7 @@ interface PublicConfig {
                                 </div>
                                 @if (contactPhoneLocal() && !phoneValid()) {
                                   <span class="addr-invalid"
-                                    >Enter a valid phone number.</span
+                                    >{{ t('validPhone') }}</span
                                   >
                                 }
                                 <button
@@ -535,7 +612,7 @@ interface PublicConfig {
                                   [disabled]="!phoneValid()"
                                   (click)="confirmPhone()"
                                 >
-                                  Confirm
+                                  {{ t('confirm') }}
                                 </button>
                               }
                             } @else if (
@@ -582,7 +659,7 @@ interface PublicConfig {
                                     class="btn-primary ac-budget-confirm"
                                     (click)="confirmBudget()"
                                   >
-                                    Confirm
+                                    {{ t('confirm') }}
                                     {{
                                       rangeLabel(
                                         budgetRanges()[budgetSliderIdx()]
@@ -629,7 +706,7 @@ interface PublicConfig {
                                   [disabled]="!prefillText().trim()"
                                   (click)="confirmText(getStr(b.data, 'key'))"
                                 >
-                                  Confirm
+                                  {{ t('confirm') }}
                                 </button>
                               }
                             }
@@ -696,7 +773,7 @@ interface PublicConfig {
                                     [disabled]="qCheckbox().length === 0"
                                     (click)="confirmQCheckbox(b.data)"
                                   >
-                                    Confirm
+                                    {{ t('confirm') }}
                                   </button>
                                 }
                                 @case ("number") {
@@ -715,7 +792,7 @@ interface PublicConfig {
                                     "
                                     (click)="confirmQNumber(b.data)"
                                   >
-                                    Confirm
+                                    {{ t('confirm') }}
                                   </button>
                                 }
                                 @case ("quantity") {
@@ -756,7 +833,7 @@ interface PublicConfig {
                                     [disabled]="qQuantityTotal() === 0"
                                     (click)="confirmQQuantity(b.data)"
                                   >
-                                    Confirm
+                                    {{ t('confirm') }}
                                   </button>
                                 }
                                 @default {
@@ -773,7 +850,7 @@ interface PublicConfig {
                                     [disabled]="!qText().trim()"
                                     (click)="confirmQText(b.data)"
                                   >
-                                    Confirm
+                                    {{ t('confirm') }}
                                   </button>
                                 }
                               }
@@ -784,7 +861,7 @@ interface PublicConfig {
                           @if (mi === messages().length - 1) {
                             <div class="ac-quote-prefill">
                               <div class="ac-icon">✅</div>
-                              <strong>All information collected</strong>
+                              <strong>{{ t('allCollected') }}</strong>
                               <div class="prefill-summary">
                                 @for (
                                   item of prefillSummary();
@@ -801,13 +878,13 @@ interface PublicConfig {
                                 }
                               </div>
                                <p class="muted">
-                                 Review above and submit your quote request.
+                                 {{ t('reviewSubmitNote') }}
                                </p>
                                <button
                                 class="btn-primary"
                                 (click)="submitPrefill()"
                               >
-                                Review & submit
+                                {{ t('reviewSubmit') }}
                               </button>
                             </div>
                           }
@@ -870,19 +947,19 @@ interface PublicConfig {
                                 class="btn-primary"
                                 (click)="confirmIdentity(true)"
                               >
-                                Yes, it's me
+                                {{ t('yesItsMe') }}
                               </button>
                               <button
                                 class="btn-outline"
                                 (click)="confirmIdentity(false)"
                               >
-                                No, not me
+                                {{ t('notMe') }}
                               </button>
                             } @else {
                               <span class="muted" style="font-size:0.82rem">{{
                                 identityConfirmed()
-                                  ? "✅ Confirmed"
-                                  : "Starting fresh"
+                                  ? t('confirmedTick')
+                                  : t('startingFresh')
                               }}</span>
                             }
                           </div>
@@ -2222,9 +2299,7 @@ export class ChatWidgetComponent
       } else if (key === "timeSlot") {
         this.prefillTimeSlot.set(value);
         this.timeConfirmed.set(value);
-        this.timeConfirmedLabel.set(
-          this.timeSlotOptions.find((o) => o.value === value)?.label ?? value,
-        );
+        this.timeConfirmedLabel.set(this.tSlot(value));
       } else if (key === "address") {
         this.addrStreet.set(value);
         this.addressConfirmed.set(true);
@@ -2658,31 +2733,22 @@ export class ChatWidgetComponent
   prefillSummary = computed(() => {
     const d = this.widget.prefillData();
     const items: Array<{ label: string; value: string }> = [];
-    const timeLabels: Record<string, string> = {
-      morning: "Morning (9:00–11:00)",
-      noon: "Noon (11:00–13:00)",
-      afternoon: "Afternoon (13:00–15:00)",
-      evening: "Evening (15:00–17:00)",
-      night: "Night (17:00–22:00)",
-    };
     // WHITELIST only - internal keys (categoryId, lat, lng, budgetIndex, budgetMin/Max,
-    // paymentMode) must never leak into the human-facing summary.
+    // paymentMode) must never leak into the human-facing summary. Labels translated.
     const order: Array<[string, string]> = [
-      ["preferredDate", "Date"],
-      ["timeSlot", "Time"],
-      ["address", "Address"],
-      ["contactName", "Name"],
-      ["contactNumber", "Phone"],
-      ["notes", "Notes"],
+      ["preferredDate", "sDate"],
+      ["timeSlot", "sTime"],
+      ["address", "sAddress"],
+      ["contactName", "sName"],
+      ["contactNumber", "sPhone"],
+      ["notes", "sNotes"],
     ];
-    for (const [key, label] of order) {
+    for (const [key, lblKey] of order) {
       const val = d[key];
       if (val === undefined || val === null || val === "") continue;
       const value =
-        key === "timeSlot"
-          ? timeLabels[val as string] || String(val)
-          : String(val);
-      if (value) items.push({ label, value });
+        key === "timeSlot" ? this.tSlot(val as string) : String(val);
+      if (value) items.push({ label: this.t(lblKey), value });
     }
     // Budget shown as a readable bracket (never the raw index/min/max). For a typed
     // value (only budgetMax), map it to the bracket that contains it.
@@ -2699,7 +2765,7 @@ export class ChatWidgetComponent
         );
         blabel = bracket ? this.rangeLabel(bracket) : `RM ${n}`;
       }
-      if (blabel) items.push({ label: "Budget", value: blabel });
+      if (blabel) items.push({ label: this.t("sBudget"), value: blabel });
     }
     // Service question answers (with their labels), for the final review.
     for (const { label, display } of Object.values(this.qDisplay())) {
@@ -2823,8 +2889,7 @@ export class ChatWidgetComponent
   confirmTime(): void {
     const value = this.prefillTimeSlot();
     if (!value) return;
-    const label =
-      this.timeSlotOptions.find((o) => o.value === value)?.label ?? value;
+    const label = this.tSlot(value);
     this.timeConfirmed.set(value);
     this.timeConfirmedLabel.set(label);
     this.widget.accumulatePrefill({ timeSlot: value });
@@ -3267,18 +3332,31 @@ export class ChatWidgetComponent
     });
   }
 
+  /** Card language — mirrors the language the customer is currently writing in (scans
+   *  the last few user messages so a short "yes" doesn't flip cards back to English). */
+  readonly cardLang = computed<CardLang>(() => {
+    const users = this.messages()
+      .filter((m) => m.role === "user")
+      .slice(-6)
+      .map((m) => m.content)
+      .join(" ");
+    return detectCardLang(users);
+  });
+
+  /** Translate a card-string key into the current card language (falls back to en). */
+  t(key: string): string {
+    const row = CARD_T[key];
+    return row ? row[this.cardLang()] || row.en : key;
+  }
+
+  /** Translated time-slot label for a slot value (morning/noon/afternoon/evening/night). */
+  tSlot(value: string): string {
+    return this.t("t" + value);
+  }
+
   fieldLabel(key: string): string {
-    const labels: Record<string, string> = {
-      contactName: "Your name",
-      contactNumber: "Phone number",
-      address: "Address",
-      preferredDate: "Preferred date",
-      timeSlot: "Preferred time",
-      notes: "Notes",
-      budgetMin: "Min budget",
-      budgetMax: "Max budget",
-    };
-    return labels[key] || key;
+    // Translatable known keys live in CARD_T (contactName, address, timeSlot, budgetMax…).
+    return CARD_T[key] ? this.t(key) : key;
   }
 
   onPrefillField(_key: string, value: string): void {

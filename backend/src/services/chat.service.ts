@@ -290,7 +290,7 @@ export async function buildAssistantPrompt(
   extra +=
     '\nPunctuation style: write in plain, complete sentences with ordinary punctuation. Do NOT use dashes or em-dashes (-, –, —) to join clauses, set off an aside, or replace a comma. Use a comma, a full stop, or a joining word like "and", "so", or "because" instead. Never write the "X — Y" aside structure. This makes you sound more natural and human, less like a template.';
   extra +=
-    "\nLanguage: ALWAYS reply in the SAME language the user is currently writing in. If they write in Malay, reply in Malay; if they write in Chinese, reply in Chinese; if English, English; if they mix languages (rojak), mirror that mix. Match their language every turn, switching if they switch. Service names from the catalog stay in their original form. Never silently answer in English when the user wrote in another language.";
+    "\nLanguage: ALWAYS reply in the SAME language the user is currently writing in. If they write in Malay, reply in Malay; in Chinese, reply in Chinese; in Tamil, reply in Tamil; in English, English; if they mix languages (rojak), mirror that mix. Match their language every turn, switching if they switch. Service names from the catalog stay in their original form. Never silently answer in English when the user wrote in another language.";
 
   // CRITICAL: Flow instructions come FIRST — right after tone, before any reference data
   if (role === "guest" || role === "customer") {
