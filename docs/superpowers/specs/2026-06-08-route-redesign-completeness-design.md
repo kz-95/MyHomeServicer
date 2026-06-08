@@ -57,10 +57,18 @@ layer a permanent crutch and leaves the AI's dead links broken. Do both.
 ### 2a. NEEDS CHANGE
 | File:line | Current | New | Owning phase |
 |-----------|---------|-----|------|
-| `servicer/pages/dashboard.component.ts:93` | `['/servicer/jobs']` ("View history") | `['/servicer/jobs','history']` | **6 (was unlisted)** |
-| `servicer/pages/dashboard.component.ts:294` | `/servicer/jobs` ("Pending Requests" card) | `/servicer/jobs/pending` | **6 (was unlisted)** |
-| `servicer/pages/dashboard.component.ts:295` | `/servicer/jobs` ("Active Jobs" card) | `/servicer/jobs/active` | **6 (was unlisted)** |
+| `servicer/pages/dashboard.component.ts:93` | `['/servicer/jobs']` (link labelled "View history →" — lands on pending, not history) | `['/servicer/jobs','history']` | **6 (was unlisted)** |
+| `servicer/pages/dashboard.component.ts:294` | `/servicer/jobs` (quickLink "Pending Requests") | `/servicer/jobs/pending` | **6 (was unlisted)** |
+| `servicer/pages/dashboard.component.ts:295` | `/servicer/jobs` (quickLink "Active Jobs") | `/servicer/jobs/active` | **6 (was unlisted)** |
+| `servicer/pages/dashboard.component.ts:296` | `/servicer/history` (quickLink "History") *(DEAD — no such route)* | `/servicer/jobs/history` | **6 (was unlisted)** |
 | `admin/pages/dashboard.component.ts:53,57,61,65` | `/admin/queues` + `?tab=` | `/admin/queues/{withdrawals,appeals,category,reports}` | 3 (spec covered) |
+
+> `servicer/pages/dashboard.component.ts:296` emits `/servicer/history`, which is not a
+> registered route — already a dead quickLink today. Fold into the dead-link hotfix.
+
+### 2a-note. Verified NOT a change (agent false-positives rejected)
+- `core/services/notification.service.ts:185` `linkQuoteList` → `/customer/quotes` is **correct/unchanged** (quote list, not bookings).
+- `shared/notification-panel.component.ts:688,689` → `/{servicer,customer}/notifications` — unchanged base routes (per-role dynamic).
 
 ### 2b. ALREADY DONE (Phase 1)
 | File:line | Note |
@@ -222,6 +230,8 @@ that renames each route. Everything backend/dynamic becomes a new **Phase 6**.
 These are broken **now**, independent of the redesign — split into a standalone fix if desired:
 - Chat AI prompt dead links: `/customer/proposals`, `/customer/deposit`, `/servicer/quotes`, `/admin/dashboard` (§5d)
 - `dispatch.service.ts:234` `/bookings` (missing `/customer` prefix → no route match)
+- `servicer/pages/dashboard.component.ts:296` `/servicer/history` (no such route) (§2a)
+- `customer/pages/my-bookings.component.ts:724` `/customer/chat` & `chat-widget.component.ts` `/contact` (§3a, Phase 4)
 
 ---
 
@@ -229,7 +239,7 @@ These are broken **now**, independent of the redesign — split into a standalon
 
 | Surface | Files | Status |
 |---------|-------|--------|
-| Frontend `routerLink` | 40 files swept | 3 lines change (servicer dashboard), rest covered/unchanged |
+| Frontend `routerLink` | 40 files swept + 4-portal page-by-page walk | 4 lines change (servicer dashboard `93,294,295,296`, incl. 1 dead `/servicer/history`), rest covered/unchanged |
 | Frontend imperative nav | swept | all covered by Phases 2/3/4/6 or unchanged |
 | Frontend services | `notification.service` | 1 line (Phase 6) |
 | Backend notification `linkUrl` | `booking.service`, `quote.service`, `dispatch.service`, `stripe.routes` | 10 sites (Phase 6), incl. 1 dead-link bug |
