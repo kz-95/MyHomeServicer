@@ -322,6 +322,7 @@ interface PublicConfig {
                               }
                             </div>
                             <p class="muted">Review above and submit your quote request.</p>
+                            <p class="prefill-warning">⚠️ Your contact details and address <strong>cannot be changed</strong> after submitting. Double-check before confirming.</p>
                             <button class="btn-primary" (click)="submitPrefill()">Review & submit</button>
                           </div>
                           }
@@ -1042,6 +1043,9 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     return ctx ? { formAssist: true, formContext: ctx } : {};
   }
 
+  /** Track whether a quote_prefill card was already shown, so duplicates are dropped. */
+  private prefillSeen = false;
+
   /** Apply any form_fill actions to the live form; return the rest for rendering. */
   private applyFormFills(
     blocks?: { type: string; data: Record<string, unknown> }[],
@@ -1049,6 +1053,10 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (!blocks?.length) return blocks;
     const rest: { type: string; data: Record<string, unknown> }[] = [];
     for (const b of blocks) {
+      if (b.type === 'quote_prefill') {
+        if (this.prefillSeen) continue; // dedup — show once
+        this.prefillSeen = true;
+      }
       if (b.type === 'form_fill') {
         const key = typeof b.data['key'] === 'string' ? (b.data['key'] as string) : '';
         const value = b.data['value'] != null ? String(b.data['value']) : '';
@@ -1926,7 +1934,6 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     const encoded = btoa(JSON.stringify(data));
     const base = this.auth.principal()?.role === 'customer' ? '/customer' : '/guest';
     this.router.navigate([`${base}/quote/new`], { queryParams: { prefill: encoded } });
-    this.widget.close();
   }
 
   fieldLabel(key: string): string {
@@ -2225,6 +2232,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
    * into the next account or guest in the same tab.
    */
   private resetQuoteFlowState(): void {
+    this.prefillSeen = false;
     this.widget.resetPrefill();
     this.resolvedCards.set([]);
     this.dateConfirmed.set('');

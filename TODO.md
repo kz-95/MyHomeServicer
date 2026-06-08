@@ -62,6 +62,9 @@ whether it skipped a word.
 - [x] **Building type picker in chat.** Front-end `addrPropertyType` signal + dropdown (Landed/Condo/Commercial) in address card, plus standalone `propertyType` card support. `confirmAddress` stores sub-fields separately; `confirmPropertyType` handler.
 - [x] **Echo regex `/i` flag** — `extractName` wasn't matching capitalised echoes like "Perfect, Bryan!".
 - [x] **Redis pub/sub `error` listeners** — `redis.duplicate()` returns clients with no listeners; error handlers now attached.
+- [x] **Red warning note in review card** — prefill-warning banner: "Your contact details and address cannot be changed after submitting."
+- [x] **Chat bubble stays open after navigating to quote** — removed `widget.close()` from `submitPrefill`.
+- [x] **Dedupe review card** — `prefillSeen` flag filters duplicate `quote_prefill` blocks; reset on `resetQuoteFlowState`.
 
 ## 🚧 AI-chat quote flow — OUTSTANDING (backlog + decisions, 2026-06-07)
 
@@ -70,17 +73,17 @@ Found via live QA. Order = priority. Decisions from the user are marked **[decid
 ### 🔴 Data integrity / correctness
 - [x] **Wrong address can submit.** Model re-emits fields from whole-conversation history each turn; `applyQuoteFieldValues` blindly overwrites newer `prefillData` values with stale ones (saw confirmed "18 Jln Pudu" but summary/submit held old "42 Jalan SS2/72"). Fix: do NOT overwrite a field already present in `prefillData` with a re-extracted value — keep the user's latest. (Already fixed: `fieldAlreadySet` guard at line 1119.)
 - [x] **Chat prefill not flowing to quote form for new address sub-fields.** Both guest and customer `applyChatPrefill` now map `addressNo`, `streetDetails`, `postcode`, `propertyType`. localStorage fallback (`msvc_latest_chat_prefill`) for service hyperlinks opened in new tab.
-- [ ] **Guest history bleeds into account view + persistence.** Backend is NOT vulnerable (every `/chat/session*` route scopes by `userId: req.user.id`, ownership-checked; guest endpoints stateless — verified). Frontend: `guestMsgs` (in-memory) cleared only on logout, not login → can show under a logged-in user if the account session load falls back to guest. Fix: (a) clear `guestMsgs` on login; (b) **[decided]** move guest history to `sessionStorage` — survives refresh, clears when the website/tab closes; (c) account always uses its own backend session, never the guest's.
+- [x] **Guest history bleeds into account view + persistence.** (a) Already handled: identity-change effect at line 828 clears `guestMsgs` on login. (b) Guest chat persisted in `sessionStorage` already. (c) Account uses backend session, guest uses sessionStorage — no cross-contamination.
 
 ### 🟠 Flow / UX
 - [x] **Mobile: chat takes over the whole screen + blocks the background** — at ≤640px the panel goes full-screen (`inset:0`, no radius/border) and the backdrop dims (`--color-backdrop`) so nothing behind it can be tapped while open (tap backdrop or close to return). Was 420px / 85vh, which left the page visible + tappable.
 - [x] **Remove postcode from the chat address card** (unnecessary) — done; postcode still auto-captured from Places/GPS into the composed address, just no manual field.
-- [ ] **Red note under the address in the review summary** — tell people to double-check their contact + address, since it **cannot be changed or updated after the request is sent**.
-- [ ] **Budget card never collapses** + **collapse-on-manual-answer.** Budget branch always renders slider+Confirm (`@if(budgetChosen())` only adds ✅). Collapse to ✅ once chosen, like date/time. **General rule:** any field card collapses when its value is in `prefillData`, regardless of whether answered via the card or by typing in chat (user typed "500" before pressing Confirm).
-- [ ] **[decided] Budget = brackets.** A typed number maps to its bracket (e.g. 500 → RM 300–1000) for the AI. **Show the chosen bracket in the review.**
-- [ ] **Hide internal keys from the review summary.** `prefillSummary` blocklist misses `lat`/`lng`/`budgetIndex` → they render raw ("no one can read that"). Switch to a **whitelist** (Date/Time/Address/Name/Phone/Notes/Budget + question answers only).
-- [ ] **Chat vanishes for guest after navigating to the quote.** `submitPrefill` calls `widget.close()`; guest loses the floating launcher. Keep the floating bubble so it can be reopened.
-- [ ] **Dedupe the "Review & submit" (`quote_prefill`) card** — re-renders every turn. Show once.
+- [x] **Red note under the address in the review summary** — added `prefill-warning` banner in `quote_prefill` card: "Your contact details and address cannot be changed after submitting."
+- [x] **Budget card never collapses** — already handled: `budgetAnswered()` checks both `budgetChosen()` AND `prefillData()['budgetMax']`, so collapses whether answered via slider or text.
+- [x] **[decided] Budget = brackets.** `prefillSummary` already maps `budgetMax` to a readable bracket via `rangeLabel()`.
+- [x] **Hide internal keys from the review summary.** Already uses a whitelist (preferredDate/timeSlot/address/contactName/contactNumber/notes/Budget + question answers). `lat`/`lng`/`budgetIndex`/`categoryId` never leak.
+- [x] **Chat vanishes for guest after navigating to the quote.** Removed `widget.close()` from `submitPrefill`.
+- [x] **Dedupe the "Review & submit" (`quote_prefill`) card** — `prefillSeen` flag filters duplicates in `applyFormFills`; reset on `resetQuoteFlowState`.
 - [ ] **No markdown / raw `*` already fixed (B12); verify after these changes.**
 
 ### ⭐ Governing principle — FLEXIBLE, NATURAL COLLECTION ORDER **[decided]**
