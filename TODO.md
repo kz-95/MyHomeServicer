@@ -56,9 +56,22 @@ hierarchical paths with tabs as URL segments and filters as query params.
       `/servicer/history`)
 - [ ] `routeFor()` relative-path guard (`notification.service`) — defense-in-depth
 
-### 🔴 Dead-link hotfix (broken NOW, optional ahead of Phase 6)
-- [ ] `/servicer/history`, `/bookings`, `/customer/chat`, `/contact`, `/customer/proposals`,
-      `/customer/deposit`, `/servicer/quotes`, `/admin/dashboard`, `/admin/money`
+### ✅ Dead-link hotfix — DONE (2026-06-08)
+**Plan:** `docs/superpowers/plans/2026-06-08-dead-link-hotfix.md`. All 9 dead links
+re-pointed to routes that exist today (renamed-route re-points still deferred to Phases 2/3/6).
+- [x] `/servicer/history` → `/servicer/jobs/history` (servicer dashboard quickLink) — `4fc4822`
+- [x] `/admin/dashboard` → `/admin` (setup-wizard) — `8ee0c55`
+- [x] `/customer/chat` + `/contact` → open chat widget in place (my-bookings, chat-widget) — `0eab573`
+- [x] `/bookings` → `/customer/bookings` (dispatch.service notification) — `444d7bf`
+- [x] `/admin/money` → `/admin/money-settings` (seed FAQ) — `9114f05`
+- [~] `/servicer/quotes`, `/admin/dashboard`, `/customer/proposals`, `/customer/deposit`
+      (chat.service AI prompt) — **applied + tsc-verified, commit held**: `chat.service.ts` has
+      unrelated in-progress chat-infra work in the tree; my prompt fix will land when that file
+      is committed (auto-committer) or on explicit request.
+- [ ] **Reseed deferred** (T6): `npm run db:reset` needed for the FAQ string to reach an
+      already-seeded DB — NOT auto-run (destructive; would wipe demo data). Run when ready.
+- Gates: backend + frontend `tsc` pass (2 pre-existing `tsconfig.json` TS5101/5107 deprecation
+  errors are unrelated); grep guard clean (only false-positive = `/bookings` API call).
 
 ---
 
