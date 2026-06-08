@@ -3005,7 +3005,7 @@ export const chatKnowledge: {
     category: "admin",
     question: "What is the Financial Settings page?",
     answer:
-      "Financial Settings (/admin/money) has three tabs: Pricing (platform fee rate, fee mode), Rewards (loyalty tiers CRUD — Bronze/Silver/Gold/Platinum with point thresholds and bonus rates, reward catalog CRUD, redemption log), and Servicer (deposit minimum, withdrawal threshold, penalty amounts, fee baselines for travel and supplies). All changes require action PIN.",
+      "Financial Settings (/admin/money-settings) has three tabs: Pricing (platform fee rate, fee mode), Rewards (loyalty tiers CRUD — Bronze/Silver/Gold/Platinum with point thresholds and bonus rates, reward catalog CRUD, redemption log), and Servicer (deposit minimum, withdrawal threshold, penalty amounts, fee baselines for travel and supplies). All changes require action PIN.",
     sortOrder: 128,
     tier: "admin",
   },
