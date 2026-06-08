@@ -1,0 +1,248 @@
+# Route Redesign — Completeness Audit & Link Reroute
+
+> 2026-06-08 · Companion spec to `2026-06-08-route-redesign.md` · Design
+
+## Purpose
+
+The original route-redesign spec is a **frontend route map**: it inventories 18
+component/route files. But application routes are emitted from a much wider surface —
+**backend notification links, Stripe return URLs, global-search results, the chat AI
+system prompt, and dynamic link arrays.** If the frontend renames routes while these
+emitters keep minting the old paths, every newly-created notification, AI reply, and
+checkout return lands on a stale (or dead) URL.
+
+This spec is the **completeness layer**: it enumerates *every* navigation reference in
+the app (changed and unchanged, so coverage is auditable), picks a reroute strategy,
+and adds the pieces the original spec omitted.
+
+## Strategy (decided)
+
+**Redirects + fix sources** (belt-and-suspenders):
+
+1. **Redirect layer** — Angular redirect route entries for every renamed path. Catches
+   stored DB `linkUrl`s, bookmarks, and external links permanently. (These entries are
+   missing from the original spec's route-config examples.)
+2. **Fix frontend sources** — components/services that still point at old paths.
+3. **Fix backend sources** — notification `linkUrl` emitters, Stripe return URLs,
+   global-search `route` fields, and the chat AI prompt (which also has dead links today).
+
+Rationale: stored notification `linkUrl` rows and external links can't be migrated, so
+redirects are mandatory; but leaving the backend emitting old paths makes the redirect
+layer a permanent crutch and leaves the AI's dead links broken. Do both.
+
+---
+
+## 1. Route rename reference (from original spec)
+
+| Old | New |
+|-----|-----|
+| `/servicer/jobs` | `/servicer/jobs/pending` (tabs: `/pending`, `/active`, `/history`) |
+| `/servicer/notification-settings` | `/servicer/notifications/settings` |
+| `/customer/bookings` | `/customer/bookings/active` (tabs: `/active`, `/pending`, `/history`) |
+| `/customer/history` | `/customer/bookings/history` |
+| `/customer/notification-settings` | `/customer/notifications/settings` |
+| `/admin/money-settings` | `/admin/settings/money` |
+| `/admin/uiux-settings` | `/admin/settings/uiux` |
+| `/admin/ai-chat-settings` | `/admin/settings/ai-chat` |
+| `/admin/category-settings` | `/admin/settings/categories` |
+| `/admin/queues` | `/admin/queues/{withdrawals,appeals,category,reports}` |
+| `/admin/dashboard` *(dead link — never existed)* | `/admin` |
+| `/customer/chat`, `/contact` *(dead links)* | removed (chat is a widget) |
+| `/customer/proposals`, `/customer/deposit`, `/servicer/quotes` *(dead — AI prompt only)* | corrected (see §5) |
+
+---
+
+## 2. Frontend — declarative `routerLink`
+
+### 2a. NEEDS CHANGE
+| File:line | Current | New | Owning phase |
+|-----------|---------|-----|------|
+| `servicer/pages/dashboard.component.ts:93` | `['/servicer/jobs']` ("View history") | `['/servicer/jobs','history']` | **6 (was unlisted)** |
+| `servicer/pages/dashboard.component.ts:294` | `/servicer/jobs` ("Pending Requests" card) | `/servicer/jobs/pending` | **6 (was unlisted)** |
+| `servicer/pages/dashboard.component.ts:295` | `/servicer/jobs` ("Active Jobs" card) | `/servicer/jobs/active` | **6 (was unlisted)** |
+| `admin/pages/dashboard.component.ts:53,57,61,65` | `/admin/queues` + `?tab=` | `/admin/queues/{withdrawals,appeals,category,reports}` | 3 (spec covered) |
+
+### 2b. ALREADY DONE (Phase 1)
+| File:line | Note |
+|-----------|------|
+| `servicer/pages/jobs.component.ts:117,120,123` | tab routerLinks → `/servicer/jobs/{pending,active,history}` |
+| `servicer/pages/calendar.component.ts:888,892` | `viewJob()` → `/servicer/jobs/:id` |
+
+### 2c. NO CHANGE (verified — routes unchanged)
+`admin/dashboard:33` (`/admin/users`), `customer/browse:76`, `customer/my-quotes:53,86,93,97`,
+`dispatch-overlay:97`, `quote-form:136,590`, `deposit:204`, `jobs:515`, `shell:171,203,267`,
+`my-bookings:73`, `chat-widget:145`, all auth/public pages (`login`, `register`,
+`merchant-register`, `forgot/reset-password`, `children-browse`, `home`, `guest-quote`,
+`not-found`), `site-footer` (all `/services/:slug`, `/`, `/terms`, `/register/servicer`),
+`home.portalPath()` (dynamic `/${role}`).
+
+---
+
+## 3. Frontend — imperative navigation (`router.navigate` / `navigateByUrl` / `window`)
+
+### 3a. NEEDS CHANGE
+| File:line | Current | New | Owning phase |
+|-----------|---------|-----|------|
+| `customer/pages/proposals.component.ts:466` | `['/customer/bookings']` `?id=` | `['/customer/bookings/active']` (or `/:id`) | 2 (spec covered) |
+| `customer/pages/my-bookings.component.ts:724` | `['/customer/chat']` (dead) | remove — open widget via `ChatWidgetService` | 4 (spec covered) |
+| `admin/pages/setup-wizard.component.ts:99` | `['/admin/dashboard']` (dead) | `['/admin']` | 3 (spec covered) |
+| `shared/chat-widget.component.ts:2477` | `['/customer/bookings']` (`report_booking`) | `['/customer/bookings/active']` | 4 (spec covered) |
+| `shared/chat-widget.component.ts:2480` | `['/contact']` (dead) | remove / replace action | 4 (spec covered) |
+| `shared/chat-widget.component.ts:1971,3074` | `navigateByUrl(href)` — AI-emitted href | fixed at source via chat.service prompt (§5) | 6 |
+
+### 3b. NO CHANGE (verified)
+`setup-wizard:102` (`/login`), `chat-widget:3012,3024` (`${base}/quote/new`), `demo-bar`
+(dynamic `/${role}`, `window.location`), `dispatch-prompt-guard:361` (Google Maps external),
+`children-browse:449,454`, `auth-callback` (dynamic target/`/login`), `merchant-register:317`
+(`/servicer`), `register:185` (`/customer`), `login:281,285,304,308,310` (root/quote/dynamic),
+guards (dynamic `/${role}`, `/login`, `/admin`), `home:1646,1695,1698,1704`, `account` (cust
+`745` relative, `1163` `/`; servicer `1686` `/`), `calendar:888-894` (done), `order-history:250`
+(`/customer/quote/new`), `quote-form:2068` (`/customer/quotes`), `jobs:1180` (print window),
+`jobs:1216`/`deposit:534` (relative `navigate([])`), `services:612,616`, `rewards:496`,
+`stripe-payment.service` (external Stripe URLs), `listing-wizard:865,868,951`,
+`pull-to-refresh` (reload), `shell:1945,2010,2019,2079,2089,2095` (portal roots —
+spec non-goal: shell hard-nav unchanged), `notification-panel:681,687` / `notifications:211`
+/ `snackbar:244` (all delegate to `notification.service.routeFor()` — fixed in §4).
+
+---
+
+## 4. Frontend — services
+
+| File:line | Current | New | Owning phase |
+|-----------|---------|-----|------|
+| `core/services/notification.service.ts:186` | `linkReorder` → `/customer/history` | `/customer/bookings/history` | 6 (spec listed) |
+
+`routeFor()` (`:184-186`) returns `linkUrl` verbatim when present → relies on backend
+emitting correct paths (§5) **and** on the redirect layer (§7) for already-stored rows.
+
+---
+
+## 5. Backend — link emitters (the original spec's blind spot)
+
+### 5a. Notification `linkUrl` — NEEDS CHANGE
+| File:line | Current | New |
+|-----------|---------|-----|
+| `services/booking.service.ts:271,696,729` | `/servicer/jobs` | `/servicer/jobs/pending` |
+| `services/booking.service.ts:344,432` | `/customer/bookings` | `/customer/bookings/active` |
+| `services/quote.service.ts:347,664,717` | `/servicer/jobs` | `/servicer/jobs/pending` |
+| `services/dispatch.service.ts:150` | `/servicer/jobs` | `/servicer/jobs/pending` |
+| `services/dispatch.service.ts:234` | `/bookings` *(DEAD — missing `/customer` prefix; no such route)* | `/customer/bookings/active` |
+| `routes/stripe.routes.ts:643` | `/customer/bookings` | `/customer/bookings/active` |
+
+> `dispatch.service.ts:234` emits `/bookings` (no portal prefix) — already a broken
+> notification link in production. Fold into the §5d dead-link hotfix.
+
+### 5b. Stripe checkout return URLs — NEEDS CHANGE
+| File:line | Current | New |
+|-----------|---------|-----|
+| `services/booking.service.ts:839,840` | `/customer/bookings?stripe_settled=` / `?stripe_cancel=` | `/customer/bookings/active?...` |
+| `routes/stripe.routes.ts:93,94` | `/customer/bookings?pay=success` / `?pay=cancelled` | `/customer/bookings/active?...` |
+
+### 5c. Global search `route` field (`routes/index.ts`) — NEEDS CHANGE
+| File:line | Current | New |
+|-----------|---------|-----|
+| `routes/index.ts:390` | `/servicer/jobs` (Job result) | `/servicer/jobs/pending` |
+| `routes/index.ts:421` | `/customer/bookings` (Booking result) | `/customer/bookings/active` |
+
+### 5d. Chat AI system prompt (`services/chat.service.ts`) — NEEDS CHANGE + BUG FIX
+The prompt instructs the model to emit markdown links; frontend `navigateByUrl`s them.
+Two problems: redesign-stale routes **and** routes that are already dead today.
+
+| File:line | Current | New |
+|-----------|---------|-----|
+| `:96` | `/customer/bookings` | `/customer/bookings/active` |
+| `:97` | `/customer/history` | `/customer/bookings/history` |
+| `:99` | `/customer/proposals` *(DEAD — no such route)* | `/customer/quotes` (proposals live under `/customer/quotes/:id/proposals`) |
+| `:102` | `/customer/deposit` *(DEAD — customer wallet is `/customer/transactions`)* | `/customer/transactions` |
+| `:85` | `/servicer/quotes` *(DEAD)* | `/servicer/jobs/pending` |
+| `:85` | `/servicer/jobs` | `/servicer/jobs/pending` |
+| `:86` | `/admin/dashboard` *(DEAD)* | `/admin` |
+| `:518` | `/customer/history` | `/customer/bookings/history` |
+
+> The dead links (`/customer/proposals`, `/customer/deposit`, `/servicer/quotes`,
+> `/admin/dashboard`) are broken in production **now**, independent of the redesign.
+> Candidate for a hotfix ahead of the rest of Phase 6.
+
+### 5e. Backend NO CHANGE (verified — routes unchanged)
+`stripe.routes:304,596` (`/customer/transactions`), `stripe.routes:539` (`/servicer/deposit`),
+`stripe.routes:162,163` / `user.routes:128,129` (`/customer/account?topup`), `servicer.routes:366,367`
+(`/servicer/deposit?topup`), `servicer-quote.service:426` & `quote.jobs:43` (`/customer/quotes/:id/proposals`),
+`booking.jobs:111` & `quote.jobs:134` (`/customer/quote/new?from`), `chat.service:1526`
+(`/customer/quote/new` | `/guest/quote/new`), search results for services/invoices/quotes/merchants
+(`index.ts:394,397,415,432`).
+
+---
+
+## 6. Redirect routes — MISSING from the original spec's config examples
+
+The original spec lists these in backward-compat *tables* but omits them from the example
+`Routes` arrays. They must be added as real entries (otherwise stored/external old links 404):
+
+```typescript
+// customer.routes.ts
+{ path: 'history', redirectTo: 'bookings/history', pathMatch: 'full' },
+{ path: 'bookings', redirectTo: 'bookings/active', pathMatch: 'full' }, // '' child already covers
+{ path: 'notification-settings', redirectTo: 'notifications/settings', pathMatch: 'full' },
+
+// servicer.routes.ts
+{ path: 'notification-settings', redirectTo: 'notifications/settings', pathMatch: 'full' },
+// jobs '' → 'pending' already added in Phase 1
+
+// admin.routes.ts
+{ path: 'dashboard', redirectTo: '', pathMatch: 'full' },
+{ path: 'money-settings', redirectTo: 'settings/money', pathMatch: 'full' },
+{ path: 'uiux-settings', redirectTo: 'settings/uiux', pathMatch: 'full' },
+{ path: 'ai-chat-settings', redirectTo: 'settings/ai-chat', pathMatch: 'full' },
+{ path: 'category-settings', redirectTo: 'settings/categories', pathMatch: 'full' },
+// queues '' → 'withdrawals' per original spec
+```
+
+> Note: query-param deep links (e.g. `/admin/queues?tab=appeals`, `/customer/bookings?id=`)
+> are NOT preserved by a plain `redirectTo`. Where the original spec converts a `?tab=`
+> into a path segment, the **source** must be updated (§2a, §5) rather than relying on a
+> redirect. A plain redirect drops the query string's routing intent.
+
+---
+
+## 7. Revised phasing
+
+The original Phases 1-5 stay frontend-structural. Redirect entries (§6) fold into the phase
+that renames each route. Everything backend/dynamic becomes a new **Phase 6**.
+
+| Phase | Scope | Adds (this audit) |
+|-------|-------|-------------------|
+| 1 | Servicer jobs | ✅ done. `jobs '' → pending` redirect already in. |
+| 2 | Customer bookings | + `customer.routes` redirects: `history`, `notification-settings` |
+| 3 | Admin settings + queues | + `admin.routes` redirects: `dashboard`, `*-settings` |
+| 4 | Shared + dead links | (unchanged — chat-widget `/contact`, `/customer/chat`) |
+| 5 | Detail pages (stretch) | (unchanged) |
+| **6 (NEW)** | **Backend & dynamic links** | All §5 backend emitters, §5d chat AI prompt (+dead-link fix), §2a servicer dashboard, §4 frontend `notification.service`, §3 `navigateByUrl(href)` source-fix. Independent of 1-5; ship after frontend lands. |
+
+### Optional hotfix (ahead of Phase 6)
+These are broken **now**, independent of the redesign — split into a standalone fix if desired:
+- Chat AI prompt dead links: `/customer/proposals`, `/customer/deposit`, `/servicer/quotes`, `/admin/dashboard` (§5d)
+- `dispatch.service.ts:234` `/bookings` (missing `/customer` prefix → no route match)
+
+---
+
+## 8. Coverage summary
+
+| Surface | Files | Status |
+|---------|-------|--------|
+| Frontend `routerLink` | 40 files swept | 3 lines change (servicer dashboard), rest covered/unchanged |
+| Frontend imperative nav | swept | all covered by Phases 2/3/4/6 or unchanged |
+| Frontend services | `notification.service` | 1 line (Phase 6) |
+| Backend notification `linkUrl` | `booking.service`, `quote.service`, `dispatch.service`, `stripe.routes` | 10 sites (Phase 6), incl. 1 dead-link bug |
+| Backend Stripe returns | `booking.service`, `stripe.routes` | 4 sites (Phase 6) |
+| Backend search `route` | `index.ts` | 2 sites (Phase 6) |
+| Backend chat AI prompt | `chat.service` | 8 lines, incl. 4 dead-link bugs (Phase 6) |
+| Redirect scaffolding | `customer/servicer/admin.routes` | added §6 |
+
+## 9. Non-goals (unchanged)
+
+Guest routes, public/auth roots, `/services/:slug`, demo-bar dynamic redirects,
+`shell.component` hard navigations, external URLs (Stripe, Google Maps), the
+`/customer/account?topup` and `/servicer/deposit?topup` returns (routes unchanged),
+backend OAuth `res.redirect`s (`auth.routes.ts:222,229` → `/login`, `/auth/callback` —
+unchanged), and `admin/users` internal `?tab=` (component keeps its own tabs per the
+original spec).
