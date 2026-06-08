@@ -98,7 +98,7 @@ interface PublicConfig {
               @if (m.role === 'assistant' && m.actionBlocks; as blocks) {
                 <div class="action-blocks">
                   @for (b of blocks; track $index) {
-                    <div class="action-card" [style.animation-delay.ms]="$index * 1200">
+                    <div class="action-card">
                       @switch (b.type) {
                         @case ('quote_options') {
                           <div class="ac-quote-options">
@@ -2157,33 +2157,54 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
       return;
     }
 
-    // Text done. Action blocks (date pickers etc.) drip in as their own final
-    // step after a typing pause, so they don't pop instantly with the last line.
+    // Text done. Action blocks (date pickers etc.) drip in one at a time — each
+    // as its own message bubble, like the text parts — so cards stream in naturally
+    // instead of flashing all at once in a pre-allocated container.
     if (actionBlocks?.length) {
-      this.sending.set(true);
-      const gap = 500 + Math.random() * 1000;
-      this.replyTimeoutId = setTimeout(() => {
-        this.replyTimeoutId = null;
-        if (isGuest) {
-          if (this.sessionId() !== null) { this.sending.set(false); return; }
-        } else {
-          if (this.sessionId() !== forSessionId) { this.sending.set(false); return; }
-        }
-        const cardMsg: ChatMessage = { role: 'assistant', content: '', createdAt: new Date().toISOString(), actionBlocks };
-        if (isGuest) this.guestMsgs.update((m) => [...m, cardMsg]);
-        else this.authMsgs.update((m) => [...m, cardMsg]);
-        this.scrollBottom = true;
-        this.sending.set(false);
-        // A real card arrived — flow progressed, re-enable the stuck watchdog.
-        this.stuckRecoveryDone = false;
-        this.clearStuckTimer();
-      }, gap);
+      this.revealCards(actionBlocks, 0, createdAt, forSessionId, isGuest);
       return;
     }
 
     this.sending.set(false);
     // No card in this reply — if it promised one and stranded the user, self-heal.
     this.armStuckWatchdog(parts.join(' '), isGuest, forSessionId);
+  }
+
+  /** Reveal action blocks one at a time, each as its own message bubble, so cards
+   *  stream in naturally instead of flashing all at once. */
+  private revealCards(
+    blocks: Array<{ type: string; data: Record<string, unknown> }>,
+    idx: number,
+    createdAt: string | undefined,
+    forSessionId: string | undefined,
+    isGuest: boolean,
+  ): void {
+    if (idx >= blocks.length) {
+      this.sending.set(false);
+      this.stuckRecoveryDone = false;
+      this.clearStuckTimer();
+      return;
+    }
+    if (isGuest) {
+      if (this.sessionId() !== null) { this.sending.set(false); return; }
+    } else {
+      if (this.sessionId() !== forSessionId) { this.sending.set(false); return; }
+    }
+    const cardMsg: ChatMessage = {
+      role: 'assistant',
+      content: '',
+      createdAt: createdAt ?? new Date().toISOString(),
+      actionBlocks: [blocks[idx]],
+    };
+    if (isGuest) this.guestMsgs.update((m) => [...m, cardMsg]);
+    else this.authMsgs.update((m) => [...m, cardMsg]);
+    this.scrollBottom = true;
+    this.sending.set(true);
+    const gap = 400 + Math.random() * 600;
+    this.replyTimeoutId = setTimeout(() => {
+      this.replyTimeoutId = null;
+      this.revealCards(blocks, idx + 1, createdAt, forSessionId, isGuest);
+    }, gap);
   }
 
   /**
