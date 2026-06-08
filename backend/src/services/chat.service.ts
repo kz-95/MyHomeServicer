@@ -1083,7 +1083,16 @@ function parseDateTimeFromText(text: string): { date?: string; slot?: string } {
   try {
     const results = chrono.parse(text, undefined, { forwardDate: true });
     if (results.length > 0) {
-      const d = results[0].start.date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const specific = results.filter((r) =>
+        r.start.isCertain("day") &&
+        r.start.isCertain("month") &&
+        r.start.isCertain("year") &&
+        r.start.date().getTime() >= today.getTime(),
+      );
+      const chosen = specific.length > 0 ? specific[specific.length - 1] : results[0];
+      const d = chosen.start.date();
       if (!Number.isNaN(d.getTime())) {
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -1134,7 +1143,7 @@ function extractName(message: string, replyText = ""): string | undefined {
   // Brian"). The next word MUST be Capitalised — names are, mid-sentence stopwords
   // are not — which keeps "Thanks for"/"Got it now" from matching.
   const echo = replyText.match(
-    /\b(?:got it|thanks|thank you|alright|welcome|welcome back|noted|sure|okay|ok|perfect|awesome|excellent|wonderful|nice|lovely|congrats|congratulations|hi|hey|hello|(?:great|good)(?:\s+choice)?)[,!]?\s+([A-Z][a-z'-]{1,20})\b/,
+    /\b(?:got it|thanks|thank you|alright|welcome|welcome back|noted|sure|okay|ok|perfect|awesome|excellent|wonderful|nice|lovely|congrats|congratulations|hi|hey|hello|(?:great|good)(?:\s+choice)?)[,!]?\s+([A-Z][a-z'-]{1,20})\b/i,
   );
   if (echo && !NON_NAME_WORDS.has(echo[1].toLowerCase())) return cap(echo[1]);
   // Bare one-word reply — ONLY the user's message (the reply is long prose).
@@ -1566,6 +1575,36 @@ export async function sendToAi(
   // "Is this the service?" card and lets the user loop forever. Stripping the
   // block here makes the card physically un-repeatable regardless of model output.
   let outBlocks = processed.actionBlocks;
+
+  // category_lock sanity check: the model sometimes hallucinates a wrong UUID
+  // (e.g. Interior Design's when the user confirmed Event Planner). Validate the
+  // UUID resolves to a category whose name appears in the assistant's reply text.
+  // If not, drop the lock — better no lock than the wrong lock.
+  const lockBlock = outBlocks.find((b) => b.type === "category_lock");
+  if (lockBlock) {
+    const cid =
+      typeof lockBlock.data.categoryId === "string"
+        ? lockBlock.data.categoryId
+        : "";
+    if (cid) {
+      try {
+        const cat = await prisma.category.findFirst({
+          where: { id: cid, deletedAt: null },
+          select: { id: true, name: true },
+        });
+        const text = processed.text.toLowerCase();
+        if (!cat || !text.includes(cat.name.toLowerCase())) {
+          logger.warn("category_lock UUID does not match assistant reply text — dropping", {
+            cid,
+            name: cat?.name ?? "(not found)",
+          });
+          outBlocks = outBlocks.filter((b) => b !== lockBlock);
+        }
+      } catch {
+        /* DB hiccup — leave the lock alone */
+      }
+    }
+  }
 
   if (opts?.formAssist) {
     // On the real /quote/new form: the assistant may fill fields (form_fill) but
