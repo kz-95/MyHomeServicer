@@ -1,6 +1,6 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-08 (AI-chat quote flow hardened end-to-end; greeting tiers; services card scan-load)
+> **State: 🟢 ACTIVE** — 2026-06-08 (chat flow: category_lock validation, resolved date over anchor, children UUIDs in prompt, address sub-fields + building type)
 
 ---
 
@@ -53,12 +53,22 @@ whether it skipped a word.
 
 ---
 
+## ✅ AI-chat quote flow — SESSION 2026-06-08 (category_lock + address split + Service Catalog UUIDs)
+
+- [x] **Bug A — category_lock hallucinates wrong UUID.** Validation now drops `category_lock` blocks whose UUID's category name doesn't appear in the assistant's reply text. Also strips any `quote_question` blocks emitted for the wrong category in the same reply.
+- [x] **Bug B — preferredDate grabs anchor "today" instead of resolved date.** `parseDateTimeFromText` now prefers the last fully-specified (`day`+`month`+`year` certain) non-past chrono result, not blindly `results[0]`.
+- [x] **Root cause: children UUIDs missing from Service Catalog.** The children Prisma query didn't select `id`, so the model had to guess UUIDs and hallucinated wrong ones (Interior Design's for Event Planner). Now prints `(id: \`uuid\`, slug: \`slug\`)` in the catalog.
+- [x] **Address split into sub-fields.** `extractAddressNo` + `extractPostcode` extract unit number and postcode separately from raw text. `fillField` now fills `addressNo`, `streetDetails`, `postcode` alongside `address`. `nextStepBlocks` emits `propertyType` selector card. Prompt updated with new valid keys.
+- [x] **Building type picker in chat.** Front-end `addrPropertyType` signal + dropdown (Landed/Condo/Commercial) in address card, plus standalone `propertyType` card support. `confirmAddress` stores sub-fields separately; `confirmPropertyType` handler.
+- [x] **Echo regex `/i` flag** — `extractName` wasn't matching capitalised echoes like "Perfect, Bryan!".
+- [x] **Redis pub/sub `error` listeners** — `redis.duplicate()` returns clients with no listeners; error handlers now attached.
+
 ## 🚧 AI-chat quote flow — OUTSTANDING (backlog + decisions, 2026-06-07)
 
 Found via live QA. Order = priority. Decisions from the user are marked **[decided]**.
 
 ### 🔴 Data integrity / correctness
-- [ ] **Wrong address can submit.** Model re-emits fields from whole-conversation history each turn; `applyQuoteFieldValues` blindly overwrites newer `prefillData` values with stale ones (saw confirmed "18 Jln Pudu" but summary/submit held old "42 Jalan SS2/72"). Fix: do NOT overwrite a field already present in `prefillData` with a re-extracted value — keep the user's latest.
+- [x] **Wrong address can submit.** Model re-emits fields from whole-conversation history each turn; `applyQuoteFieldValues` blindly overwrites newer `prefillData` values with stale ones (saw confirmed "18 Jln Pudu" but summary/submit held old "42 Jalan SS2/72"). Fix: do NOT overwrite a field already present in `prefillData` with a re-extracted value — keep the user's latest. (Already fixed: `fieldAlreadySet` guard at line 1119.)
 - [ ] **Review & Submit → quote form opens WRONG service.** Need to trace `submitPrefill` `categoryId` vs the quote form's prefill parsing/category select. Investigate then fix.
 - [ ] **Guest history bleeds into account view + persistence.** Backend is NOT vulnerable (every `/chat/session*` route scopes by `userId: req.user.id`, ownership-checked; guest endpoints stateless — verified). Frontend: `guestMsgs` (in-memory) cleared only on logout, not login → can show under a logged-in user if the account session load falls back to guest. Fix: (a) clear `guestMsgs` on login; (b) **[decided]** move guest history to `sessionStorage` — survives refresh, clears when the website/tab closes; (c) account always uses its own backend session, never the guest's.
 
