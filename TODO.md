@@ -93,14 +93,19 @@ Standalone, shared, dev-only automated QA that completes a FULL quote to the rev
       `quote_prefill` review card appears (does NOT navigate away). Fixes the old
       text-only harness that could never finish a card-driven flow.
 - [x] **Persona model (per run):** {Typing}{Tone}{Behavior}{Sorting}{Language} +
-      **Customer Preset** (customer-mode 6th axis — named test customers). 100 random
-      runs per click (procedural).
+      **Customer Preset** (customer-mode 6th axis — named test customers). Procedural.
+- [x] **Run count:** inline number input next to the QA button (default 1, max 500);
+      each run = one full procedurally-random quote.
 - [x] **Guest + customer mode** (adapter uses mode-agnostic send/clear/messages).
 - [x] **Checker** logs per run: missing fields / loop / stall / timeout; SUMMARY block
       at top (pass/fail + issue tally + failure list).
 - [x] **PIN-gated** (`5201314`) on press; **dev-build only** (`!environment.production`).
 - [x] **Log output:** `POST /chat/qa-log` writes `<repo-root>/logs/ChatQA_Log_<HHMMDDMMYYXX>.log`
       (name sanitised, write confined to logs/). `logs/` git-kept, `*.log` ignored.
+- [x] **Security (review fix):** `/chat/qa-log` registered ONLY when `NODE_ENV !==
+      'production'` (the PIN is a UX gate, not auth — env guard is the real protection);
+      exclusive write (`flag: 'wx'`) + random suffix on collision so a client name can
+      never overwrite an existing log.
 
 Verified: backend tsc + frontend tsc clean, ng build green.
 

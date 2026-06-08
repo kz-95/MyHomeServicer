@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 import rateLimit from 'express-rate-limit';
+import { writeFile, mkdir } from 'fs/promises';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { asyncHandler } from '../lib/async-handler';
 import { requireAuth } from '../middleware/auth';
@@ -118,6 +121,50 @@ chatRouter.post(
     });
   }),
 );
+
+/**
+ * POST /chat/qa-log — persist an automated-QA transcript to <repo-root>/logs/.
+ *
+ * DEV/QA ONLY: registered exclusively when NODE_ENV !== 'production', so it never
+ * exists on the live server (the chat QA button is likewise dev-build only). The
+ * client-side QA PIN is a UX gate, NOT auth — the real protection is this env guard.
+ * The name is hard-sanitised to a filename token and the extension is forced to .log,
+ * so the write stays inside logs/; writes are exclusive ('wx') with a random suffix on
+ * collision, so a client-supplied name can never overwrite an existing log.
+ */
+if (process.env.NODE_ENV !== 'production') {
+  chatRouter.post(
+    '/qa-log',
+    guestChatLimiter,
+    validate([
+      body('name').isString().matches(/^[A-Za-z0-9_-]{1,64}$/),
+      body('content').isString().isLength({ min: 1, max: 5_000_000 }),
+    ]),
+    asyncHandler(async (req, res) => {
+      const name = (req.body.name as string).replace(/[^A-Za-z0-9_-]/g, '');
+      const content = req.body.content as string;
+      // The server runs from backend/; logs/ lives at the repo root one level up. If
+      // launched from the repo root instead, use that directly.
+      const cwd = process.cwd();
+      const repoRoot = cwd.endsWith(`${path.sep}backend`) ? path.resolve(cwd, '..') : cwd;
+      const logsDir = path.join(repoRoot, 'logs');
+      await mkdir(logsDir, { recursive: true });
+      // Exclusive write — never truncate an existing log; add a random suffix on collision.
+      let file = path.join(logsDir, `${name}.log`);
+      try {
+        await writeFile(file, content, { encoding: 'utf8', flag: 'wx' });
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
+          file = path.join(logsDir, `${name}_${randomUUID().slice(0, 8)}.log`);
+          await writeFile(file, content, { encoding: 'utf8', flag: 'wx' });
+        } else {
+          throw e;
+        }
+      }
+      res.json({ ok: true, file: path.relative(repoRoot, file).split(path.sep).join('/') });
+    }),
+  );
+}
 
 /**
  * POST /chat/validate-address — validate an address using Google Geocoding API.

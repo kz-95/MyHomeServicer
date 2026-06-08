@@ -28,6 +28,12 @@ import {
   PlacesAutocompleteComponent,
   PlaceResult,
 } from "./places-autocomplete.component";
+import { ChatQaService } from "./chat-qa.service";
+import { QaHost, QaBlock } from "./chat-qa-harness";
+import { environment } from "../../environments/environment";
+
+/** PIN that unlocks the dev-only automated chat QA run. */
+const QA_PIN = "5201314";
 
 interface ChatMessage {
   id?: string;
@@ -38,188 +44,9 @@ interface ChatMessage {
   actionBlocks?: Array<{ type: string; data: Record<string, unknown> }>;
 }
 
-/**
- * Automated-QA conversation scripts. Each is a sequence of plain human turns typed
- * into the chat exactly as a real customer would — no card clicks. They deliberately
- * vary the ORDER and WAY details are given (service first, dump-all, address first,
- * budget first, vague need, wrong-then-corrected, mixed language, ramble + real need,
- * reject-and-retry, absurd-but-serviceable) so flow bugs (skipping service selection,
- * jumping to review, looping, hallucinated name/budget) surface like they would in
- * the wild. Driven by ChatWidgetComponent.runQa().
- */
-interface QaScript {
-  name: string;
-  turns: string[];
-}
-
-const QA_SCRIPTS: QaScript[] = [
-  { name: "service first, step by step", turns: [
-    "hi, my kitchen sink is leaking",
-    "yeah that's the one",
-    "this saturday afternoon works",
-    "18 Jalan Tempua 5, Bandar Puchong Jaya, 47100 Puchong, Selangor",
-    "maybe around RM300",
-    "name's Brian, phone 0123456789",
-  ] },
-  { name: "dump everything in one line", turns: [
-    "aircon not cold, need someone tomorrow morning, I'm at 12 Jalan SS2/24 47300 PJ, budget rm250, call me at 0198765432, name Sarah",
-    "yes please go ahead",
-  ] },
-  { name: "vague need, let bot figure it out", turns: [
-    "my house is a complete mess and I have guests coming",
-    "no I don't want to cook, just need the place cleaned",
-    "sunday morning",
-    "rm180 ok?",
-  ] },
-  { name: "address given first", turns: [
-    "I stay at 7 Lorong Maarof, 59000 Bangsar KL",
-    "oh right, I need my ceiling fan fixed, it wobbles a lot",
-    "tonight if possible",
-  ] },
-  { name: "budget first", turns: [
-    "I've got about RM500 to spend",
-    "for pest control, lots of cockroaches in the kitchen",
-    "next monday evening",
-  ] },
-  { name: "contact first", turns: [
-    "you can reach me at 0112223344, I'm Daniel",
-    "need a plumber, toilet won't flush",
-    "tomorrow afternoon",
-  ] },
-  { name: "ambiguous party → catering or event", turns: [
-    "throwing a birthday party next weekend",
-    "yeah",
-    "around 30 people, saturday night",
-  ] },
-  { name: "rejects first suggestion", turns: [
-    "something's wrong with my lights",
-    "no that's not it, it's not the wiring, my chandelier needs cleaning and rehanging",
-    "this friday morning",
-  ] },
-  { name: "mixed Chinese/English", turns: [
-    "我家水pipe坏了, water leaking everywhere",
-    "对，就是这个",
-    "明天下午",
-    "rm200 左右",
-  ] },
-  { name: "Malay language", turns: [
-    "rumah saya kotor sangat, perlu cleaner",
-    "ya betul",
-    "hari sabtu pagi",
-    "bajet dalam rm150",
-  ] },
-  { name: "ramble + vent then real need", turns: [
-    "ugh today has been the worst, my car broke down and now my fridge stopped working too",
-    "yeah the fridge, can someone repair it",
-    "as soon as possible, tomorrow morning",
-  ] },
-  { name: "typos and lowercase", turns: [
-    "helo i need a electrcian my plug not workin",
-    "ya correct",
-    "tmrw nite",
-    "0145556677",
-  ] },
-  { name: "one word answers", turns: [
-    "plumber",
-    "yes",
-    "tomorrow",
-    "morning",
-    "puchong",
-  ] },
-  { name: "asks question before booking", turns: [
-    "do you guys do aircon servicing?",
-    "ok great, mine is dripping water inside",
-    "this sunday afternoon",
-  ] },
-  { name: "wrong info then corrects", turns: [
-    "I need cleaning service",
-    "actually no, change that, I need someone to fix my door lock",
-    "tomorrow evening",
-    "12 Jalan Bukit 3, 43000 Kajang",
-  ] },
-  { name: "gives name casually mid-chat", turns: [
-    "hey it's me again, need a gardener",
-    "I'm Aaron by the way",
-    "the lawn is overgrown, need trimming",
-    "saturday morning",
-  ] },
-  { name: "absurd but serviceable", turns: [
-    "my cat knocked over a paint can and now my whole living room wall is blue",
-    "haha yeah so I need it repainted",
-    "next week tuesday",
-  ] },
-  { name: "off-topic then real", turns: [
-    "what's the weather like today",
-    "anyway, I need my sofa shampooed, kid spilled juice on it",
-    "this weekend, saturday afternoon",
-  ] },
-  { name: "impatient customer", turns: [
-    "I need a plumber NOW",
-    "burst pipe, water everywhere",
-    "immediately, tonight",
-    "0123334444, just send someone",
-  ] },
-  { name: "asks for budget guidance", turns: [
-    "need someone to mount my TV on the wall",
-    "how much does that usually cost?",
-    "ok let's say rm120",
-    "tomorrow afternoon",
-  ] },
-  { name: "moving help", turns: [
-    "I'm moving apartments next month",
-    "need movers for furniture and boxes",
-    "the 15th, morning",
-    "from 5 Jalan Ampang to 22 Jalan Cheras, 56000",
-  ] },
-  { name: "tutoring request", turns: [
-    "looking for a math tutor for my son",
-    "he's in form 3, struggling with algebra",
-    "weekday evenings",
-  ] },
-  { name: "service we may not offer", turns: [
-    "do you do helicopter rental for a wedding entrance",
-    "ok fine, then I need a wedding planner instead",
-    "the event is in December",
-  ] },
-  { name: "gives postcode-heavy address", turns: [
-    "need car wash and detailing",
-    "I'm at No.88, Jalan PJU 5/20, Kota Damansara, 47810 Petaling Jaya, Selangor",
-    "sunday morning, rm150",
-  ] },
-  { name: "confirms by tapping then changes mind", turns: [
-    "house cleaning please",
-    "wait actually can you also do the windows",
-    "yes both, saturday",
-    "rm220",
-  ] },
-  { name: "very short and blunt", turns: [
-    "electrician",
-    "socket sparks",
-    "tonight",
-    "kajang",
-    "0177778888",
-  ] },
-  { name: "polite and chatty", turns: [
-    "good afternoon! hope you're well. I was wondering if you could help me",
-    "my bathroom tiles have a lot of mold, need a deep clean",
-    "this coming sunday in the morning would be lovely",
-    "my budget is roughly rm200",
-  ] },
-  { name: "gives everything but service unclear", turns: [
-    "tomorrow morning, 9 Jalan Damai 47100 Puchong, rm300, I'm Mei call 0123450000",
-    "oh sorry I forgot to say — I need someone to repair my washing machine",
-  ] },
-  { name: "double service request", turns: [
-    "I need both plumbing and electrical work done",
-    "ok let's start with the plumbing, leaking tap",
-    "this friday afternoon",
-  ] },
-  { name: "returning-guest style", turns: [
-    "hi again",
-    "same as last time, aircon servicing",
-    "next saturday morning please",
-  ] },
-];
+// Automated chat-QA lives in chat-qa-harness.ts (pure scenario engine) + chat-qa.service.ts
+// (shared runner). This component only supplies the QaHost adapter (buildQaHost) that
+// maps the harness's card actions onto the real card handlers + signals below.
 
 interface PublicConfig {
   chatGuestAutoOpen?: boolean;
@@ -303,18 +130,31 @@ interface PublicConfig {
             </div>
           </div>
           <div class="header-acts">
-            <button
-              class="clear-btn qa-btn"
-              (click)="toggleQa()"
-              [class.running]="qaRunning()"
-              [title]="qaRunning() ? qaStatus() : 'Run automated QA — simulate 30 customer chats'"
-            >
-              {{ qaRunning() ? "Stop QA" : "QA" }}
-            </button>
+            @if (qaVisible) {
+              <input
+                class="qa-runs"
+                type="number"
+                min="1"
+                max="500"
+                [ngModel]="qaRuns()"
+                (ngModelChange)="setQaRuns($event)"
+                [disabled]="qa.running()"
+                title="Number of QA runs (each = one full simulated quote)"
+                aria-label="QA run count"
+              />
+              <button
+                class="clear-btn qa-btn"
+                (click)="toggleQa()"
+                [class.running]="qa.running()"
+                [title]="qa.running() ? qa.status() : 'Run automated chat QA (dev only, PIN)'"
+              >
+                {{ qa.running() ? "Stop QA" : "QA" }}
+              </button>
+            }
             <button
               class="clear-btn"
               (click)="clear()"
-              [disabled]="clearing() || qaRunning() || messages().length === 0"
+              [disabled]="clearing() || qa.running() || messages().length === 0"
             >
               {{ clearing() ? "…" : "Clear" }}
             </button>
@@ -1294,6 +1134,14 @@ interface PublicConfig {
       .qa-btn {
         border: 1px solid var(--color-border);
         border-radius: var(--radius);
+      }
+      .qa-runs {
+        width: 3rem;
+        font-size: 0.78rem;
+        padding: 0.15rem 0.3rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        text-align: center;
       }
       .qa-btn.running {
         color: #fff;
@@ -2407,138 +2255,130 @@ export class ChatWidgetComponent
   }
 
   // ─── Automated QA harness ──────────────────────────────────────────────────
-  // Drives the live chatbot through QA_SCRIPTS — 30 scripted customer conversations
-  // that each give their details in a DIFFERENT order/way (service first, dump
-  // everything, address first, vague need, wrong-then-corrected, mixed language,
-  // ramble + real need, etc.) so flow regressions surface the way a real human would
-  // hit them. Types natural sentences only (no card clicks); the bot must cope.
-  qaRunning = signal(false);
-  qaStatus = signal("");
-  /** Accumulated transcript lines for the current QA run. */
-  private qaLog: string[] = [];
-  /** Per-session run counter — the XX suffix in the log filename. */
-  private qaRunSeq = 0;
-  /** Filename base for the current run, generated as ChatQA_Log_<HHMMDDMMYYXX>. */
-  private qaLogName = "";
-
-  /**
-   * Build the run's log name: ChatQA_Log_HHMMDDMMYYXX where the suffix is
-   * hour, minute, day, month, 2-digit year, and a 2-digit run sequence — e.g.
-   * 04:18 on 08/06/26, run 01 → ChatQA_Log_041808062601.
-   */
-  private makeQaLogName(): string {
-    const d = new Date();
-    const p = (n: number) => String(n).padStart(2, "0");
-    this.qaRunSeq += 1;
-    return (
-      "ChatQA_Log_" +
-      p(d.getHours()) +
-      p(d.getMinutes()) +
-      p(d.getDate()) +
-      p(d.getMonth() + 1) +
-      p(d.getFullYear() % 100) +
-      p(this.qaRunSeq)
-    );
+  // Engine: chat-qa-harness.ts (pure). Runner: ChatQaService (shared, writes the log).
+  // This component only adapts the harness's QaHost onto the real card handlers +
+  // signals. PIN-gated (QA_PIN); the button is rendered only in dev builds.
+  readonly qa = inject(ChatQaService);
+  /** The QA button only renders in dev builds (demo/dev deploy), never in production. */
+  protected readonly qaVisible = !environment.production;
+  /** How many runs the next QA press fires (manual int input, default 1, max 500). */
+  protected readonly qaRuns = signal(1);
+  /** Clamp + store the run-count input. */
+  protected setQaRuns(v: unknown): void {
+    const n = Math.floor(Number(v));
+    this.qaRuns.set(Number.isFinite(n) ? Math.min(500, Math.max(1, n)) : 1);
   }
 
+  /** Press handler: cancel if running, else PIN-gate, then start a 100-run suite. */
   toggleQa(): void {
-    if (this.qaRunning()) {
-      // Cancel: the running loop checks this flag between turns and bails out.
-      this.qaRunning.set(false);
+    if (this.qa.running()) {
+      this.qa.cancel();
       return;
     }
-    void this.runQa();
-  }
-
-  private qaSleep(ms: number): Promise<void> {
-    return new Promise((res) => setTimeout(res, ms));
-  }
-
-  /** Wait until the in-flight reply lands (sending flips false) or we time out. */
-  private async qaWaitIdle(maxMs = 25000): Promise<void> {
-    const start = Date.now();
-    while (this.sending() && Date.now() - start < maxMs) {
-      await this.qaSleep(150);
+    const pin = window.prompt("Enter QA PIN to run automated chat QA:");
+    if (pin === null) return;
+    if (pin.trim() !== QA_PIN) {
+      this.qa.status.set("Wrong QA PIN");
+      return;
     }
-    await this.qaSleep(250); // small settle for the typing animation
+    // Run count comes from the inline number input (default 1, each = one full quote).
+    const count = Math.min(500, Math.max(1, this.qaRuns()));
+    const customerMode = this.auth.principal()?.role === "customer";
+    this.qa.start(this.buildQaHost(), { count, customerMode });
   }
 
-  private qaPush(line: string): void {
-    this.qaLog.push(line);
-    // Mirror live to the console so a run can be watched without waiting for the file.
-    console.log(`[ChatQA] ${line}`);
+  /** Adapter: maps the harness's card actions onto this component's handlers/signals. */
+  private buildQaHost(): QaHost {
+    return {
+      clear: () => this.clear(),
+      messages: () =>
+        this.messages().map((m) => ({
+          role: m.role,
+          content: m.content,
+          blocks: (m.actionBlocks ?? []).map((b) => ({ type: b.type, data: b.data })),
+        })),
+      sending: () => this.sending(),
+      prefill: () => this.widget.prefillData(),
+      budgetRangeCount: () => this.budgetRanges().length,
+      sendText: (t) => {
+        this.draft = t;
+        this.send();
+      },
+      lockCategory: (b) => this.continueQuoteInChat(b.data),
+      rejectCategory: (b) => this.rejectCategory(b.data),
+      confirmDate: (v) => {
+        this.prefillDate.set(v);
+        this.confirmDate();
+      },
+      confirmTime: (v) => {
+        this.prefillTimeSlot.set(v);
+        this.confirmTime();
+      },
+      confirmAddress: (a) => {
+        this.addrNo.set(a.no);
+        this.addrStreet.set(a.street);
+        this.addrPostcode.set(a.postcode);
+        this.addrPropertyType.set(a.propertyType);
+        this.confirmAddress();
+      },
+      confirmPropertyType: (v) => {
+        this.addrPropertyType.set(v);
+        this.confirmPropertyType();
+      },
+      confirmBudget: (i) => {
+        this.budgetSliderIdx.set(i);
+        this.confirmBudget();
+      },
+      confirmTextField: (key, val) => {
+        this.prefillText.set(val);
+        this.confirmText(key);
+      },
+      confirmPhone: (local) => {
+        this.contactPhoneLocal.set(local);
+        this.confirmPhone();
+      },
+      answerQuestion: (b) => this.qaAnswerQuestion(b),
+      confirmIdentity: (yes) => this.confirmIdentity(yes),
+    };
   }
 
-  /** Type one human turn, wait for the reply, and log the user line + bot reply(s). */
-  private async qaSay(text: string): Promise<void> {
-    await this.qaWaitIdle();
-    if (!this.qaRunning()) return;
-    const before = this.messages().length;
-    this.draft = text;
-    this.send();
-    await this.qaSleep(150);
-    await this.qaWaitIdle();
-    this.qaPush(`USER: ${text}`);
-    const replies = this.messages()
-      .slice(before)
-      .filter((m) => m.role === "assistant" && m.content.trim().length > 0)
-      .map((m) => m.content.trim());
-    if (replies.length === 0) {
-      this.qaPush(`BOT:  (no reply)`);
-    } else {
-      for (const r of replies) this.qaPush(`BOT:  ${r.replace(/\n+/g, " ")}`);
-    }
-  }
-
-  private async runQa(): Promise<void> {
-    this.qaRunning.set(true);
-    this.qaLog = [];
-    this.qaLogName = this.makeQaLogName();
-    this.qaPush(`# ${this.qaLogName}`);
-    this.qaPush(`Automated chat QA — ${QA_SCRIPTS.length} simulated customer conversations`);
-    this.qaPush(`Generated: ${new Date().toISOString()}`);
-    try {
-      for (let i = 0; i < QA_SCRIPTS.length; i++) {
-        if (!this.qaRunning()) break;
-        const s = QA_SCRIPTS[i];
-        this.qaStatus.set(`QA ${i + 1}/${QA_SCRIPTS.length}: ${s.name}`);
-        this.qaPush("");
-        this.qaPush(`## ${i + 1}. ${s.name}`);
-        this.clear();
-        await this.qaSleep(700);
-        for (const turn of s.turns) {
-          if (!this.qaRunning()) break;
-          await this.qaSay(turn);
-          await this.qaSleep(450); // human read/think pause between turns
+  /** Answer a service-question card with a valid value for its type. */
+  private qaAnswerQuestion(b: QaBlock): void {
+    const data = b.data;
+    const qtype = (data["qtype"] as string) || (data["type"] as string) || "text";
+    const options = (data["options"] as Array<{ value: string; label: string }>) || [];
+    switch (qtype) {
+      case "radio":
+        if (options.length) {
+          this.answerRadio(data, options[Math.floor(Math.random() * options.length)].value);
+        } else {
+          this.qText.set("no preference");
+          this.confirmQText(data);
         }
-        await this.qaSleep(900); // breath between conversations
-      }
-      this.qaPush("");
-      this.qaPush(this.qaRunning() ? "QA complete." : "QA cancelled.");
-      this.qaStatus.set(this.qaRunning() ? "QA complete" : "QA cancelled");
-    } finally {
-      this.downloadQaLog();
-      this.qaRunning.set(false);
-    }
-  }
-
-  /** Save the accumulated transcript as a downloadable markdown file. */
-  private downloadQaLog(): void {
-    if (this.qaLog.length === 0) return;
-    try {
-      const blob = new Blob([this.qaLog.join("\n")], {
-        type: "text/markdown;charset=utf-8",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${this.qaLogName || "ChatQA_Log"}.md`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      /* download blocked (private mode / popup policy) — console still has the log */
+        break;
+      case "checkbox":
+        if (options.length) {
+          this.qCheckbox.set([options[0].value]);
+          this.confirmQCheckbox(data);
+        }
+        break;
+      case "number":
+        this.qNumber.set(Math.floor(Math.random() * 8) + 1);
+        this.confirmQNumber(data);
+        break;
+      case "quantity":
+        if (options.length) {
+          this.incQ(options[0].value);
+          this.confirmQQuantity(data);
+        } else {
+          this.qNumber.set(2);
+          this.confirmQNumber(data);
+        }
+        break;
+      default:
+        this.qText.set("no specific preference");
+        this.confirmQText(data);
+        break;
     }
   }
 
