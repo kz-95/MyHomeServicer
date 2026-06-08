@@ -64,7 +64,7 @@ const CARD_T: Record<string, Record<CardLang, string>> = {
   notThisOne: { en: "Not this one", ms: "Bukan yang ini", zh: "不是这个", ta: "இது அல்ல" },
   isThisService: { en: "Is this the service you need?", ms: "Ini servis yang anda perlukan?", zh: "这是您需要的服务吗？", ta: "உங்களுக்குத் தேவையான சேவை இதுவா?" },
   selected: { en: "Selected", ms: "Dipilih", zh: "已选择", ta: "தேர்ந்தெடுக்கப்பட்டது" },
-  changeLater: { en: "{{ t('changeLater') }}", ms: "Anda boleh ubah kemudian jika perlu.", zh: "如有需要，稍后可更改。", ta: "தேவைப்பட்டால் பின்னர் மாற்றலாம்." },
+  changeLater: { en: "You can change it later if needed.", ms: "Anda boleh ubah kemudian jika perlu.", zh: "如有需要，稍后可更改。", ta: "தேவைப்பட்டால் பின்னர் மாற்றலாம்." },
   typeStar: { en: "Type*", ms: "Jenis*", zh: "类型*", ta: "வகை*" },
   landed: { en: "Landed", ms: "Teres / Banglo", zh: "独立式", ta: "தனி வீடு" },
   condo: { en: "Condo", ms: "Kondo", zh: "公寓", ta: "கொண்டோ" },
