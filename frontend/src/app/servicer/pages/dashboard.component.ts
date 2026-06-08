@@ -293,7 +293,7 @@ export class ServicerDashboardComponent implements OnInit {
   readonly quickLinks = [
     { label: 'Pending Requests', path: '/servicer/jobs', icon: '📨', detail: 'Incoming quotes to respond to' },
     { label: 'Active Jobs', path: '/servicer/jobs', icon: '🔧', detail: 'Jobs in progress' },
-    { label: 'History', path: '/servicer/history', icon: '🗂️', detail: 'Past & completed jobs' },
+    { label: 'History', path: '/servicer/jobs/history', icon: '🗂️', detail: 'Past & completed jobs' },
     { label: 'Invoices', path: '/servicer/invoices', icon: '🧾', detail: 'View and download invoices' },
     { label: 'Service Listings', path: '/servicer/services', icon: '📋', detail: 'Manage your services' },
     { label: 'Deposit', path: '/servicer/deposit', icon: '💳', detail: 'Manage your security deposit' },
