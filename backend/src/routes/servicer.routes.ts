@@ -737,8 +737,8 @@ servicerRouter.post(
 /**
  * GET /merchant/calendar?month=2026-05
  * Returns all bookings for the servicer in the given month, grouped by date.
- * Each booking includes: id, scheduledDate, timeSlot, status, price,
- * category name, customer name.
+ * Each booking includes: id, timeSlot, status, price, paymentMode, paid flag,
+ * category, contactName, contactNumber, address fields, notes, serviceDetails.
  */
 servicerRouter.get(
   '/calendar',
@@ -762,9 +762,18 @@ servicerRouter.get(
         timeSlot: true,
         status: true,
         price: true,
+        paymentMode: true,
+        cashConfirmed: true,
         quoteRequest: {
           select: {
             category: { select: { name: true } },
+            contactName: true,
+            contactNumber: true,
+            notes: true,
+            serviceDetails: true,
+            address: {
+              select: { address: true, postcode: true, district: true, state: true },
+            },
             user: { select: { name: true } },
           },
         },
@@ -781,8 +790,18 @@ servicerRouter.get(
         id: b.id,
         timeSlot: b.timeSlot,
         status: b.status,
-        price: b.price,
+        price: Number(b.price),
+        paymentMode: b.paymentMode,
+        paid: b.paymentMode === 'pay_now' ? true : b.cashConfirmed,
         category: b.quoteRequest.category.name,
+        contactName: b.quoteRequest.contactName,
+        contactNumber: b.quoteRequest.contactNumber,
+        address: b.quoteRequest.address.address,
+        postcode: b.quoteRequest.address.postcode,
+        district: b.quoteRequest.address.district,
+        state: b.quoteRequest.address.state,
+        notes: b.quoteRequest.notes,
+        serviceDetails: b.quoteRequest.serviceDetails,
         customerName: b.quoteRequest.user.name,
       });
     }

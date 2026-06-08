@@ -1,6 +1,51 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-08 (chat flow: category_lock validation, resolved date over anchor, children UUIDs in prompt, address sub-fields + building type)
+> **State: 🟢 ACTIVE** — 2026-06-08 (route redesign spec drafted; calendar day-click Decimal fix)
+
+---
+
+## 🔨 IN PROGRESS — App-Wide Route Redesign (2026-06-08)
+
+**Spec:** `docs/superpowers/specs/2026-06-08-route-redesign.md`
+
+Restructure all portal URLs from flat/in-component-tab patterns to RESTful,
+hierarchical paths with tabs as URL segments and filters as query params.
+
+### Phase 1 — Servicer jobs (next)
+- [ ] `servicer.routes.ts` — add `jobs/pending`, `jobs/active`, `jobs/history`, `jobs/history/:id`, `jobs/:id`
+- [ ] `jobs.component.ts` — replace signal tabs with URL segment reading + queryParam filters
+- [ ] `servicer-shell.component.ts` — update sidebar routerLink
+- [ ] `calendar.component.ts` — change `openJob()` path
+
+### Phase 2 — Customer bookings
+- [ ] Restructure bookings + history under `/customer/bookings/*`
+
+### Phase 3 — Admin settings + queues nesting
+- [ ] Nest flat settings under `/admin/settings/*`, queues under `/admin/queues/*`
+
+### Phase 4 — Shared links + dead link fixes
+- [ ] Fix `/customer/chat`, `/contact`, `/admin/dashboard` dead links
+- [ ] Update notification service routes
+
+### Phase 5 — New detail pages (stretch)
+- [ ] Job history detail, booking detail, user detail, merchant detail
+
+---
+
+## 🐛 FIXED — Calendar day-click crash + card redesign (2026-06-08)
+
+**Root cause:** `b.price` (Prisma Decimal) serialized as string in JSON → `.toFixed(2)`
+threw TypeError, crashing modal rendering for days with bookings.
+
+**Fix applied:**
+- `backend/src/routes/servicer.routes.ts` — `Number(b.price)` cast; enriched endpoint
+  with `paymentMode`, `cashConfirmed`, `contactName`, `contactNumber`, address fields,
+  `notes`, `serviceDetails`
+- `frontend/src/app/servicer/pages/calendar.component.ts` — new detail card layout:
+  status + time + payment/paid + price row, category, contact with copy button,
+  address with copy button, expandable job description (collapsed by default),
+  View Job button (new tab on desktop, direct navigate on mobile)
+- Both `tsc --noEmit` pass (zero errors)
 
 ---
 
