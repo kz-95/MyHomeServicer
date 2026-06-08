@@ -97,8 +97,17 @@ Standalone, shared, dev-only automated QA that completes a FULL quote to the rev
 - [x] **Run count:** inline number input next to the QA button (default 1, max 500);
       each run = one full procedurally-random quote.
 - [x] **Guest + customer mode** (adapter uses mode-agnostic send/clear/messages).
-- [x] **Checker** logs per run: missing fields / loop / stall / timeout; SUMMARY block
-      at top (pass/fail + issue tally + failure list).
+- [x] **Heuristic checker** logs per run: missing fields / loop / stall / timeout /
+      redundant re-ask. Skips cards for fields already in prefill (no parroting).
+- [x] **LLM judge** (`POST /chat/qa-judge`, dev-only) reviews each transcript for
+      LOGICAL issues the heuristics miss: wrong reply language, assumed/hallucinated
+      data, contradictions, ignored input, illogical flow, tone. Reuses the chatbot's
+      LLM chain (Gemini→DeepSeek→OpenAI). Findings logged per run.
+- [x] **Final conclusion:** one LLM pass over all findings → overall verdict + top
+      fixes, written at the TOP of the log (CONCLUSION + SUMMARY incl. logical-issue
+      count). `JUDGE_UNAVAILABLE` when no LLM key configured.
+- [x] **Bot language match:** `buildAssistantPrompt` now instructs the assistant to
+      reply in the user's language (Malay→Malay, Chinese→Chinese, rojak→rojak).
 - [x] **PIN-gated** (`5201314`) on press; **dev-build only** (`!environment.production`).
 - [x] **Log output:** `POST /chat/qa-log` writes `<repo-root>/logs/ChatQA_Log_<HHMMDDMMYYXX>.log`
       (name sanitised, write confined to logs/). `logs/` git-kept, `*.log` ignored.

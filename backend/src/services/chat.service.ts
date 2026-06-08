@@ -289,6 +289,8 @@ export async function buildAssistantPrompt(
   let extra = `\n\nTone: ${toneGuide[tone] || toneGuide.friendly}`;
   extra +=
     '\nPunctuation style: write in plain, complete sentences with ordinary punctuation. Do NOT use dashes or em-dashes (-, –, —) to join clauses, set off an aside, or replace a comma. Use a comma, a full stop, or a joining word like "and", "so", or "because" instead. Never write the "X — Y" aside structure. This makes you sound more natural and human, less like a template.';
+  extra +=
+    "\nLanguage: ALWAYS reply in the SAME language the user is currently writing in. If they write in Malay, reply in Malay; if they write in Chinese, reply in Chinese; if English, English; if they mix languages (rojak), mirror that mix. Match their language every turn, switching if they switch. Service names from the catalog stay in their original form. Never silently answer in English when the user wrote in another language.";
 
   // CRITICAL: Flow instructions come FIRST — right after tone, before any reference data
   if (role === "guest" || role === "customer") {
@@ -862,6 +864,41 @@ async function callOpenAi(
     tokensUsed,
     truncated,
   };
+}
+
+const QA_JUDGE_SYSTEM = `You are a strict QA reviewer for a home-services booking chatbot.
+You are given a transcript where USER = a simulated customer and BOT = the assistant.
+Find LOGICAL and conversational problems a structural checker cannot see, including:
+- the bot replied in a DIFFERENT language than the user wrote in (it must match: Malay->Malay, Chinese->Chinese, English->English);
+- the bot assumed or invented data the user never gave (e.g. a budget, a name, a date);
+- contradictions, or the bot repeating/re-asking something already answered;
+- the bot ignored or misunderstood what the user actually said;
+- wrong service chosen for the stated need;
+- illogical, out-of-order, or broken flow; tone that is rude or robotic.
+Output ONLY a compact list, one finding per line as: SEVERITY | short location | the problem.
+SEVERITY is HIGH, MED, or LOW. If the conversation is genuinely fine, output exactly: OK.
+Do not restate the transcript or add commentary.`;
+
+const QA_CONCLUDE_SYSTEM = `You are a QA lead. You are given the per-conversation findings from a batch of
+simulated chatbot bookings. Write a SHORT overall conclusion (under 180 words, plain text):
+the overall quality, the most common and most serious recurring issues, and the top 3 fixes
+to prioritise. Be specific and blunt. No preamble.`;
+
+/**
+ * QA judge — evaluate a transcript (or a set of findings) for LOGICAL/conversational
+ * problems the deterministic checker can't see. Reuses the chatbot's own LLM failover
+ * chain. mode 'run' judges one transcript; mode 'conclude' summarises findings into an
+ * overall verdict. Returns 'JUDGE_UNAVAILABLE' when no LLM key is configured.
+ */
+export async function judgeConversation(
+  text: string,
+  mode: "run" | "conclude",
+): Promise<string> {
+  const system = mode === "conclude" ? QA_CONCLUDE_SYSTEM : QA_JUDGE_SYSTEM;
+  const chain = await buildLlmChain(system, text, [], "guest");
+  if (chain.length === 0) return "JUDGE_UNAVAILABLE: no LLM key configured";
+  const reply = await tryAiChain(system, text, [], "guest");
+  return (reply.answer || "").trim();
 }
 
 async function callByProvider(

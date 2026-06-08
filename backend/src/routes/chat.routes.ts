@@ -6,11 +6,11 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { asyncHandler } from '../lib/async-handler';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireCustomer } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { chatLimiter, chatDailyLimiter } from '../middleware/rate-limit';
 import { notFound, forbidden } from '../lib/errors';
-import { sendToAi } from '../services/chat.service';
+import { sendToAi, judgeConversation } from '../services/chat.service';
 import { checkInjection } from '../services/chatGuard';
 import { recordAudit } from '../services/ledger.service';
 import { createBugReport } from '../services/booking.service';
@@ -164,6 +164,27 @@ if (process.env.NODE_ENV !== 'production') {
       res.json({ ok: true, file: path.relative(repoRoot, file).split(path.sep).join('/') });
     }),
   );
+
+  /**
+   * POST /chat/qa-judge — LLM review of a QA transcript (or batch of findings).
+   * DEV/QA ONLY (same env guard). mode 'run' returns logical findings for one
+   * conversation; mode 'conclude' returns an overall verdict. Reuses the chatbot's
+   * own LLM failover chain.
+   */
+  chatRouter.post(
+    '/qa-judge',
+    guestChatLimiter,
+    validate([
+      body('transcript').isString().isLength({ min: 1, max: 200_000 }),
+      body('mode').optional().isIn(['run', 'conclude']),
+    ]),
+    asyncHandler(async (req, res) => {
+      const transcript = req.body.transcript as string;
+      const mode = req.body.mode === 'conclude' ? 'conclude' : 'run';
+      const result = await judgeConversation(transcript, mode);
+      res.json({ result });
+    }),
+  );
 }
 
 /**
@@ -314,9 +335,10 @@ chatRouter.get(
   }),
 );
 
-/** POST /chat/session — start a chat session. */
+/** POST /chat/session — start a chat session. Only customers, not servicers. */
 chatRouter.post(
   '/session',
+  requireCustomer,
   validate([
     body('contextType').isIn(['general', 'booking_support', 'quote_help']),
     body('contextId').optional({ nullable: true }).isUUID(),

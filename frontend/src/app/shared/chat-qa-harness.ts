@@ -75,6 +75,8 @@ export interface QaHost {
   answerQuestion(b: QaBlock): void;
   /** Accept a returning-guest identity confirm. */
   confirmIdentity(yes: boolean): void;
+  /** LLM review of a transcript ('run') or batch of findings ('conclude'). Optional. */
+  judge?(text: string, mode: "run" | "conclude"): Promise<string>;
 }
 
 // ─── Persona axes ────────────────────────────────────────────────────────────────
@@ -389,6 +391,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promi
   let lastSig = "";
   let sameSigCount = 0;
   let emptyTurns = 0;
+  let redundantNudges = 0;
   let success = false;
 
   // waitIdle — block until the in-flight reply lands. Some confirms (address geocode)
@@ -451,7 +454,32 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle): Promi
       break;
     }
 
-    const b = blocks[0];
+    // A real customer never repeats info they already gave. Skip any quote_field card
+    // whose value is already in the prefill (front-loaded in the opening, or confirmed
+    // earlier) and act on a still-missing field instead. If the bot is ONLY re-asking
+    // for already-known fields, that's a bot UX flaw — log it and nudge forward once
+    // rather than parroting the same details back.
+    const pf = host.prefill();
+    const satisfied = (bk: QaBlock) =>
+      bk.type === "quote_field" &&
+      typeof bk.data["key"] === "string" &&
+      pf[bk.data["key"] as string] != null &&
+      pf[bk.data["key"] as string] !== "";
+    const fresh = blocks.filter((bk) => !satisfied(bk));
+    if (fresh.length === 0) {
+      redundantNudges++;
+      issues.push(`redundant: bot re-requested already-provided field(s) ${blocks.map((bk) => bk.data["key"]).filter(Boolean).join(", ")}`);
+      if (redundantNudges >= 2) {
+        issues.push("stuck: bot keeps re-asking for info already given");
+        break;
+      }
+      host.sendText("yes that is all correct, please continue");
+      await waitIdle();
+      flush();
+      continue;
+    }
+
+    const b = fresh[0];
     const sig = `${b.type}:${(b.data["key"] as string) ?? (b.data["categoryId"] as string) ?? (b.data["qtype"] as string) ?? ""}`;
     if (sig === lastSig) {
       sameSigCount++;
@@ -583,6 +611,10 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
   push(`Generated: ${new Date().toISOString()}`);
   push("");
 
+  const judgeFindings: string[] = [];
+  let judgeIssueRuns = 0;
+  let judgeUnavailable = false;
+
   for (let i = 0; i < scenarios.length; i++) {
     if (cancelled()) break;
     const scn = scenarios[i];
@@ -590,6 +622,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     push("");
     push(`## ${i + 1}. ${scn.label}`);
     push(`persona: ${JSON.stringify(scn.persona)}`);
+    const startLen = log.length;
     host.clear();
     await sleep(700);
     const res = await driveScenario(host, scn, {
@@ -598,7 +631,43 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     });
     results.push(res);
     push(`RESULT: ${res.ok ? "PASS" : "FAIL"} (${res.steps} steps)${res.issues.length ? " — " + res.issues.join("; ") : ""}`);
+
+    // LLM judge — catch logical/conversational issues the heuristic checker can't see
+    // (wrong reply language, assumed data, contradictions, ignored input, bad flow).
+    if (host.judge && !judgeUnavailable) {
+      const transcript = log.slice(startLen).join("\n");
+      try {
+        const verdict = (await host.judge(transcript, "run")).trim();
+        if (verdict.startsWith("JUDGE_UNAVAILABLE")) {
+          judgeUnavailable = true;
+          push("JUDGE: (no LLM key configured — logical review skipped)");
+        } else if (verdict && verdict.toUpperCase() !== "OK") {
+          judgeIssueRuns++;
+          push("JUDGE:");
+          for (const line of verdict.split("\n")) if (line.trim()) push(`  ${line.trim()}`);
+          judgeFindings.push(`#${i + 1} ${scn.label}\n${verdict}`);
+        } else {
+          push("JUDGE: OK");
+        }
+      } catch {
+        push("JUDGE: (review error)");
+      }
+    }
     await sleep(600);
+  }
+
+  // ─── Final conclusion — one LLM pass over all findings. ───
+  let conclusion = "";
+  if (host.judge && !judgeUnavailable && results.length) {
+    const findingsText = judgeFindings.length
+      ? judgeFindings.join("\n\n")
+      : "All conversations passed the LLM logical review with no findings.";
+    try {
+      const c = (await host.judge(findingsText, "conclude")).trim();
+      if (c && !c.startsWith("JUDGE_UNAVAILABLE")) conclusion = c;
+    } catch {
+      /* conclusion optional */
+    }
   }
 
   // ─── Summary first-page report. ───
@@ -614,14 +683,18 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
   const summary: string[] = [
     "",
     "---",
+    "## CONCLUSION",
+    conclusion || (judgeUnavailable ? "(LLM judge unavailable — structural checks only.)" : "(no conclusion)"),
+    "",
     "## SUMMARY",
-    `Ran: ${results.length}   Pass: ${pass}   Fail: ${fail}`,
-    "Issue breakdown:",
+    `Ran: ${results.length}   Structurally complete: ${pass}   Incomplete: ${fail}`,
+    `Logical issues flagged by LLM judge: ${judgeIssueRuns}/${results.length} runs`,
+    "Structural issue breakdown:",
     ...[...issueTally.entries()].map(([k, n]) => `  - ${k}: ${n}`),
     "",
-    "Failures:",
+    "Incomplete runs:",
     ...results.filter((r) => !r.ok).map((r, i) => `  ${i + 1}. ${r.label} — ${r.issues.join("; ") || "incomplete"}`),
   ];
-  // Put the summary at the TOP (after the title) so it's the first thing read.
+  // Put the conclusion + summary at the TOP (after the title) so they read first.
   return [...log.slice(0, 4), ...summary, ...log.slice(4)];
 }

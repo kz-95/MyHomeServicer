@@ -14,7 +14,7 @@ import {
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink, NavigationEnd } from "@angular/router";
 import { DomSanitizer } from "@angular/platform-browser";
-import { Subscription, filter } from "rxjs";
+import { Subscription, filter, firstValueFrom } from "rxjs";
 import { AuthService } from "../core/services/auth.service";
 import { ApiService } from "../core/services/api.service";
 import { SocketService } from "../core/services/socket.service";
@@ -131,22 +131,11 @@ interface PublicConfig {
           </div>
           <div class="header-acts">
             @if (qaVisible) {
-              <input
-                class="qa-runs"
-                type="number"
-                min="1"
-                max="500"
-                [ngModel]="qaRuns()"
-                (ngModelChange)="setQaRuns($event)"
-                [disabled]="qa.running()"
-                title="Number of QA runs (each = one full simulated quote)"
-                aria-label="QA run count"
-              />
               <button
                 class="clear-btn qa-btn"
-                (click)="toggleQa()"
+                (click)="onQaPress()"
                 [class.running]="qa.running()"
-                [title]="qa.running() ? qa.status() : 'Run automated chat QA (dev only, PIN)'"
+                [title]="qa.running() ? qa.status() : 'Automated chat QA (dev only)'"
               >
                 {{ qa.running() ? "Stop QA" : "QA" }}
               </button>
@@ -167,6 +156,36 @@ interface PublicConfig {
             </button>
           </div>
         </div>
+
+        @if (qaVisible && (qaPanelOpen() || qa.running())) {
+          <div class="qa-panel">
+            @if (qa.running()) {
+              <span class="qa-status">{{ qa.status() || "Running QA…" }}</span>
+              <button class="qa-go" (click)="qa.cancel()">Stop</button>
+            } @else {
+              <input
+                type="password"
+                class="qa-pin"
+                placeholder="QA PIN"
+                [ngModel]="qaPin()"
+                (ngModelChange)="qaPin.set($event)"
+                aria-label="QA PIN"
+              />
+              <input
+                type="number"
+                class="qa-runs"
+                min="1"
+                max="500"
+                [ngModel]="qaRuns()"
+                (ngModelChange)="setQaRuns($event)"
+                title="Number of runs (each = one full quote)"
+                aria-label="QA run count"
+              />
+              <button class="qa-go" (click)="startQa()">Run</button>
+              @if (qa.status()) { <span class="qa-status">{{ qa.status() }}</span> }
+            }
+          </div>
+        }
 
         @if (!auth.principal()) {
           <div class="guest-banner">
@@ -1142,6 +1161,35 @@ interface PublicConfig {
         border: 1px solid var(--color-border);
         border-radius: var(--radius);
         text-align: center;
+      }
+      .qa-panel {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.6rem;
+        background: var(--color-bg);
+        border-bottom: 1px solid var(--color-border);
+        flex-wrap: wrap;
+      }
+      .qa-pin {
+        width: 5rem;
+        font-size: 0.78rem;
+        padding: 0.2rem 0.4rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+      }
+      .qa-go {
+        font-size: 0.78rem;
+        padding: 0.2rem 0.6rem;
+        background: var(--color-primary, #2563eb);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius);
+        cursor: pointer;
+      }
+      .qa-status {
+        font-size: 0.75rem;
+        color: var(--color-muted);
       }
       .qa-btn.running {
         color: #fff;
@@ -2263,25 +2311,33 @@ export class ChatWidgetComponent
   protected readonly qaVisible = !environment.production;
   /** How many runs the next QA press fires (manual int input, default 1, max 500). */
   protected readonly qaRuns = signal(1);
+  /** Inline QA panel open state + PIN draft (no window.prompt — renders in-DOM). */
+  protected readonly qaPanelOpen = signal(false);
+  protected readonly qaPin = signal("");
   /** Clamp + store the run-count input. */
   protected setQaRuns(v: unknown): void {
     const n = Math.floor(Number(v));
     this.qaRuns.set(Number.isFinite(n) ? Math.min(500, Math.max(1, n)) : 1);
   }
 
-  /** Press handler: cancel if running, else PIN-gate, then start a 100-run suite. */
-  toggleQa(): void {
+  /** QA button: stop if running, else toggle the inline PIN/run panel. */
+  onQaPress(): void {
     if (this.qa.running()) {
       this.qa.cancel();
       return;
     }
-    const pin = window.prompt("Enter QA PIN to run automated chat QA:");
-    if (pin === null) return;
-    if (pin.trim() !== QA_PIN) {
+    this.qaPanelOpen.update((o) => !o);
+    if (this.qaPanelOpen()) this.qa.status.set("");
+  }
+
+  /** Run button inside the panel: check the PIN, then start the suite. */
+  startQa(): void {
+    if (this.qaPin().trim() !== QA_PIN) {
       this.qa.status.set("Wrong QA PIN");
       return;
     }
-    // Run count comes from the inline number input (default 1, each = one full quote).
+    this.qaPin.set("");
+    this.qaPanelOpen.set(false);
     const count = Math.min(500, Math.max(1, this.qaRuns()));
     const customerMode = this.auth.principal()?.role === "customer";
     this.qa.start(this.buildQaHost(), { count, customerMode });
@@ -2339,6 +2395,15 @@ export class ChatWidgetComponent
       },
       answerQuestion: (b) => this.qaAnswerQuestion(b),
       confirmIdentity: (yes) => this.confirmIdentity(yes),
+      judge: (text, mode) =>
+        firstValueFrom(
+          this.api.post<{ result: string }>("/chat/qa-judge", {
+            transcript: text,
+            mode,
+          }),
+        )
+          .then((r) => r?.result ?? "")
+          .catch(() => "JUDGE_UNAVAILABLE: request failed"),
     };
   }
 
