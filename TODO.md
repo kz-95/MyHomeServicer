@@ -65,6 +65,9 @@ whether it skipped a word.
 - [x] **Red warning note in review card** — prefill-warning banner: "Your contact details and address cannot be changed after submitting."
 - [x] **Chat bubble stays open after navigating to quote** — removed `widget.close()` from `submitPrefill`.
 - [x] **Dedupe review card** — `prefillSeen` flag filters duplicate `quote_prefill` blocks; reset on `resetQuoteFlowState`.
+- [x] **Cards stream one at a time** — `revealCards()` drips each action block as its own message bubble with 400-1000ms gap instead of all-at-once.
+- [x] **Logo click full reload with role redirect** — `window.location.href` for full re-init; admin→/admin, servicer→/servicer, customer→/customer, guest→/.
+- [x] **Admin PIN: prompt on every guarded navigation** — `pin.clear()` in guard before each `requirePin()`. No storage persistence. Logout clears cache.
 
 ## 🚧 AI-chat quote flow — OUTSTANDING (backlog + decisions, 2026-06-07)
 
