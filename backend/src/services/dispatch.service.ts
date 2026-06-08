@@ -231,7 +231,7 @@ export async function handleDispatchAccept(
     userId: qr.userId,
     type: 'orders',
     message: `Your booking has been accepted!`,
-    linkUrl: '/bookings',
+    linkUrl: '/customer/bookings',
   });
 
   logger.info('Dispatch accepted', { merchantId, broadcastId, bookingId: booking.id });
