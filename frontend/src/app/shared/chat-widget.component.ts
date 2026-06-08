@@ -2784,8 +2784,9 @@ export class ChatWidgetComponent
       this.router.navigate(["/customer/bookings"]);
       this.widget.close();
     } else if (action === "report_bug") {
-      this.router.navigate(["/contact"]);
-      this.widget.close();
+      this.injectAssistantMessage(
+        "Sorry you hit a problem. Please describe what happened — what you were doing and what went wrong — and I'll log it for the team.",
+      );
     }
   }
 
