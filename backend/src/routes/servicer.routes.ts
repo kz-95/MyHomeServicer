@@ -78,6 +78,7 @@ import { createTopUpSession, isStripeConfigured } from '../lib/stripe';
 import { getPlatformFeeRate, getSstRate } from '../services/settings.service';
 import { transferBalance, requestWithdrawal as depositRequestWithdrawal } from '../services/deposit.service';
 import { createIdentityChangeRequest } from '../services/identity-change.service';
+import { switchToCustomer } from '../services/auth.service';
 
 /**
  * Servicer self-service router (`/merchant/*`). Quote endpoints land in
@@ -86,6 +87,20 @@ import { createIdentityChangeRequest } from '../services/identity-change.service
  */
 export const servicerRouter = Router();
 servicerRouter.use(requireAuth, requireServicer);
+
+/**
+ * POST /merchant/customer-session — enter "customer mode".
+ * Returns (creating on first use) the servicer's paired customer-account session so
+ * a merchant can operate the platform as a customer. The frontend stashes the
+ * merchant session and swaps in these tokens. Mounted at /api/v1/servicer.
+ */
+servicerRouter.post(
+  '/customer-session',
+  asyncHandler(async (req, res) => {
+    const { user, tokens } = await switchToCustomer(req.user!.id);
+    res.json({ user, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+  }),
+);
 
 // ── Profile, earnings, deposit ───────────────────────────────────────────────
 
