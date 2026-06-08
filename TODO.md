@@ -69,7 +69,7 @@ Found via live QA. Order = priority. Decisions from the user are marked **[decid
 
 ### 🔴 Data integrity / correctness
 - [x] **Wrong address can submit.** Model re-emits fields from whole-conversation history each turn; `applyQuoteFieldValues` blindly overwrites newer `prefillData` values with stale ones (saw confirmed "18 Jln Pudu" but summary/submit held old "42 Jalan SS2/72"). Fix: do NOT overwrite a field already present in `prefillData` with a re-extracted value — keep the user's latest. (Already fixed: `fieldAlreadySet` guard at line 1119.)
-- [ ] **Review & Submit → quote form opens WRONG service.** Need to trace `submitPrefill` `categoryId` vs the quote form's prefill parsing/category select. Investigate then fix.
+- [x] **Chat prefill not flowing to quote form for new address sub-fields.** Both guest and customer `applyChatPrefill` now map `addressNo`, `streetDetails`, `postcode`, `propertyType`. localStorage fallback (`msvc_latest_chat_prefill`) for service hyperlinks opened in new tab.
 - [ ] **Guest history bleeds into account view + persistence.** Backend is NOT vulnerable (every `/chat/session*` route scopes by `userId: req.user.id`, ownership-checked; guest endpoints stateless — verified). Frontend: `guestMsgs` (in-memory) cleared only on logout, not login → can show under a logged-in user if the account session load falls back to guest. Fix: (a) clear `guestMsgs` on login; (b) **[decided]** move guest history to `sessionStorage` — survives refresh, clears when the website/tab closes; (c) account always uses its own backend session, never the guest's.
 
 ### 🟠 Flow / UX

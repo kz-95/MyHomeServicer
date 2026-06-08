@@ -717,6 +717,13 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
         if (raw) this.chatPrefillData = JSON.parse(raw) as Record<string, unknown>;
       } catch { /* ignore */ }
     }
+    // Fallback for service hyperlinks opened in new tab (sessionStorage per-tab).
+    if (!this.chatPrefillData) {
+      try {
+        const raw = localStorage.getItem('msvc_latest_chat_prefill');
+        if (raw) this.chatPrefillData = JSON.parse(raw) as Record<string, unknown>;
+      } catch { /* ignore */ }
+    }
     if (this.chatPrefillData) this.applyChatPrefill(this.chatPrefillData);
 
     // Direct service link from the chat (e.g. ?category=<childId>): preselect the
@@ -762,8 +769,12 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     if (str('categoryId')) this.f.categoryId = str('categoryId')!;
     if (str('contactName')) this.f.contactName = str('contactName')!;
     if (str('contactNumber')) this.f.contactNumber = str('contactNumber')!;
-    if (str('address')) this.f.streetDetails = str('address')!;
-    if (str('newAddressPostcode')) this.f.newAddressPostcode = str('newAddressPostcode')!;
+    if (str('addressNo')) this.f.addressNo = str('addressNo')!;
+    if (str('streetDetails')) this.f.streetDetails = str('streetDetails')!;
+    if (str('address') && !str('streetDetails')) this.f.streetDetails = str('address')!;
+    if (str('postcode')) this.f.newAddressPostcode = str('postcode')!;
+    if (str('propertyType')) this.f.newAddressPropertyType = str('propertyType')!;
+    if (str('newAddressPostcode') && !str('postcode')) this.f.newAddressPostcode = str('newAddressPostcode')!;
     if (typeof p['newAddressLat'] === 'number') this.f.newAddressLat = p['newAddressLat'] as number;
     if (typeof p['newAddressLng'] === 'number') this.f.newAddressLng = p['newAddressLng'] as number;
     if (str('timeSlot')) this.f.timeSlot = str('timeSlot')!;

@@ -875,12 +875,15 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
     // returning guest by name. Only WRITE when there's data — never overwrite the
     // stored prefill with the empty initial state on load (that race would erase
     // the very data we want to restore). Clearing is explicit (clearGuestPrefill).
+    // Also writes to localStorage so a service hyperlink opened in a new tab can
+    // carry the chat's prefill data (sessionStorage is per-tab).
     effect(() => {
       const data = this.widget.prefillData();
       if (this.auth.principal()) return;
       const hasData = Object.values(data).some((v) => v !== undefined && v !== null && v !== '');
       if (hasData) {
         try { sessionStorage.setItem(this.GUEST_PREFILL_KEY, JSON.stringify(data)); } catch { /* quota/private mode */ }
+        try { localStorage.setItem('msvc_latest_chat_prefill', JSON.stringify(data)); } catch { /* quota/private mode */ }
       }
     }, opts);
 
@@ -2212,6 +2215,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   private clearGuestPrefill(): void {
     try { sessionStorage.removeItem(this.GUEST_PREFILL_KEY); } catch { /* private mode */ }
+    try { localStorage.removeItem('msvc_latest_chat_prefill'); } catch { /* private mode */ }
   }
 
   /**
