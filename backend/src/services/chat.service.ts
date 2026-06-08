@@ -1205,19 +1205,6 @@ function extractAddress(text: string): string | undefined {
   return addr.length >= 8 ? addr : undefined;
 }
 
-function extractAddressNo(text: string): string | undefined {
-  const m = text.match(/(?:no\.?\s*|unit\s*|blok\s*|block\s*)(\d+[a-z]?(?:\s*[-–]\s*\d+)?)/i);
-  if (m) return m[1].trim();
-  const first = text.split(",")[0].trim();
-  if (/^\d+[a-z]?$/.test(first)) return first;
-  return undefined;
-}
-
-function extractPostcode(text: string): string | undefined {
-  const m = text.match(/\b(\d{5})\b/);
-  return m ? m[1] : undefined;
-}
-
 /**
  * Match a bare answer the user typed against a pending service question, so an
  * answer given in text (e.g. "50" for an attendees question) is captured and the
@@ -1728,9 +1715,6 @@ export async function sendToAi(
       }
       const addrText = `${message}\n${convoText}`;
       fillField("address", extractAddress(addrText));
-      fillField("addressNo", extractAddressNo(addrText));
-      fillField("streetDetails", extractAddress(addrText));
-      fillField("postcode", extractPostcode(addrText));
       const budgetN = extractBudget(allText);
       if (budgetN) fillField("budgetMax", String(budgetN));
       fillField("contactName", extractName(message, `${processed.text}\n${convoText}`));
