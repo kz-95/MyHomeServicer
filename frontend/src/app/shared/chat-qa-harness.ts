@@ -80,11 +80,11 @@ export interface QaHost {
 }
 
 // ─── Persona axes ────────────────────────────────────────────────────────────────
-export const QA_TYPING = ["proper", "lowercase", "typos", "abbrev", "verbose", "terse"] as const;
+export const QA_TYPING = ["proper", "lowercase", "typos", "abbrev", "verbose", "terse", "slang"] as const;
 export const QA_TONE = ["polite", "blunt", "impatient", "friendly", "anxious", "chatty"] as const;
 export const QA_BEHAVIOR = ["cooperative", "reject_first", "oversharer", "self_correct", "rambler", "minimal"] as const;
 export const QA_SORTING = ["service_first", "dump_all", "address_first", "budget_first", "contact_first", "vague_first"] as const;
-export const QA_LANG = ["en", "ms", "zh", "rojak"] as const;
+export const QA_LANG = ["en", "ms", "zh", "ta", "rojak"] as const;
 
 export type QaTyping = (typeof QA_TYPING)[number];
 export type QaTone = (typeof QA_TONE)[number];
@@ -107,22 +107,22 @@ interface QaService {
   vague: string;
 }
 const QA_SERVICES: QaService[] = [
-  { needs: { en: "my kitchen sink is leaking badly", ms: "sink dapur saya bocor teruk", zh: "我家厨房水管漏水" }, vague: "there's water all over my kitchen floor" },
-  { needs: { en: "my aircon is not cold anymore", ms: "aircond saya tak sejuk dah", zh: "我的冷气不冷了" }, vague: "my room is so hot even with the unit on" },
-  { needs: { en: "my house is really dirty and needs a deep clean", ms: "rumah saya kotor sangat perlu cleaner", zh: "我家很脏需要打扫" }, vague: "the place is a complete mess, guests coming soon" },
-  { needs: { en: "a power socket keeps sparking", ms: "soket kuasa saya mengeluarkan api", zh: "插座一直冒火花" }, vague: "something smells burnt near the wall plug" },
-  { needs: { en: "lots of cockroaches in my kitchen", ms: "banyak lipas dalam dapur saya", zh: "厨房有很多蟑螂" }, vague: "there are bugs everywhere in the kitchen" },
-  { needs: { en: "I need my ceiling fan installed", ms: "saya perlu pasang kipas siling", zh: "我需要安装吊扇" }, vague: "this thing on the ceiling needs putting up" },
-  { needs: { en: "I want to repaint my living room", ms: "saya nak cat semula ruang tamu", zh: "我想重新粉刷客厅" }, vague: "the walls look terrible, need a new look" },
-  { needs: { en: "my lawn is overgrown and needs trimming", ms: "rumput saya panjang perlu potong", zh: "我的草坪需要修剪" }, vague: "the garden is a jungle now" },
-  { needs: { en: "I need movers for my apartment", ms: "saya perlu pekerja pindah rumah", zh: "我需要搬家工人" }, vague: "I have a lot of furniture to shift" },
-  { needs: { en: "my door lock is jammed", ms: "kunci pintu saya tersangkut", zh: "我的门锁卡住了" }, vague: "I can't get my door to work properly" },
-  { needs: { en: "I want to install a CCTV camera", ms: "saya nak pasang kamera CCTV", zh: "我想安装闭路电视" }, vague: "I want to keep an eye on my front gate" },
-  { needs: { en: "I need a car wash and detailing", ms: "saya perlu cuci kereta", zh: "我需要洗车" }, vague: "my car is filthy inside and out" },
-  { needs: { en: "I'm looking for a math tutor for my son", ms: "saya cari tutor matematik untuk anak saya", zh: "我想找数学补习老师" }, vague: "my kid needs help with his studies" },
-  { needs: { en: "I need laundry and ironing done", ms: "saya perlu basuh dan gosok baju", zh: "我需要洗衣和熨衣" }, vague: "I have a huge pile of clothes" },
-  { needs: { en: "my roof is leaking when it rains", ms: "bumbung saya bocor bila hujan", zh: "下雨时屋顶漏水" }, vague: "water drips inside whenever it rains" },
-  { needs: { en: "my washing machine stopped working", ms: "mesin basuh saya rosak", zh: "我的洗衣机坏了" }, vague: "one of my appliances just died" },
+  { needs: { en: "my kitchen sink is leaking badly", ms: "sink dapur saya bocor teruk", zh: "我家厨房水管漏水", ta: "என் சமையலறை சிங்க் மோசமாக கசிகிறது" }, vague: "there's water all over my kitchen floor" },
+  { needs: { en: "my aircon is not cold anymore", ms: "aircond saya tak sejuk dah", zh: "我的冷气不冷了", ta: "என் ஏசி இனி குளிரவில்லை" }, vague: "my room is so hot even with the unit on" },
+  { needs: { en: "my house is really dirty and needs a deep clean", ms: "rumah saya kotor sangat perlu cleaner", zh: "我家很脏需要打扫", ta: "என் வீடு மிகவும் அழுக்காக உள்ளது, சுத்தம் தேவை" }, vague: "the place is a complete mess, guests coming soon" },
+  { needs: { en: "a power socket keeps sparking", ms: "soket kuasa saya mengeluarkan api", zh: "插座一直冒火花", ta: "ஒரு பவர் சாக்கெட் தீப்பொறி பறக்கிறது" }, vague: "something smells burnt near the wall plug" },
+  { needs: { en: "lots of cockroaches in my kitchen", ms: "banyak lipas dalam dapur saya", zh: "厨房有很多蟑螂", ta: "என் சமையலறையில் நிறைய கரப்பான் பூச்சிகள்" }, vague: "there are bugs everywhere in the kitchen" },
+  { needs: { en: "I need my ceiling fan installed", ms: "saya perlu pasang kipas siling", zh: "我需要安装吊扇", ta: "எனக்கு சீலிங் ஃபேன் பொருத்த வேண்டும்" }, vague: "this thing on the ceiling needs putting up" },
+  { needs: { en: "I want to repaint my living room", ms: "saya nak cat semula ruang tamu", zh: "我想重新粉刷客厅", ta: "என் வரவேற்பறையை மீண்டும் பெயிண்ட் செய்ய வேண்டும்" }, vague: "the walls look terrible, need a new look" },
+  { needs: { en: "my lawn is overgrown and needs trimming", ms: "rumput saya panjang perlu potong", zh: "我的草坪需要修剪", ta: "என் புல்வெளி வளர்ந்து வெட்ட வேண்டும்" }, vague: "the garden is a jungle now" },
+  { needs: { en: "I need movers for my apartment", ms: "saya perlu pekerja pindah rumah", zh: "我需要搬家工人", ta: "என் வீட்டை மாற்ற ஆட்கள் தேவை" }, vague: "I have a lot of furniture to shift" },
+  { needs: { en: "my door lock is jammed", ms: "kunci pintu saya tersangkut", zh: "我的门锁卡住了", ta: "என் கதவு பூட்டு சிக்கிக்கொண்டது" }, vague: "I can't get my door to work properly" },
+  { needs: { en: "I want to install a CCTV camera", ms: "saya nak pasang kamera CCTV", zh: "我想安装闭路电视", ta: "எனக்கு சிசிடிவி கேமரா பொருத்த வேண்டும்" }, vague: "I want to keep an eye on my front gate" },
+  { needs: { en: "I need a car wash and detailing", ms: "saya perlu cuci kereta", zh: "我需要洗车", ta: "எனக்கு கார் வாஷ் தேவை" }, vague: "my car is filthy inside and out" },
+  { needs: { en: "I'm looking for a math tutor for my son", ms: "saya cari tutor matematik untuk anak saya", zh: "我想找数学补习老师", ta: "என் மகனுக்கு கணித டியூஷன் தேவை" }, vague: "my kid needs help with his studies" },
+  { needs: { en: "I need laundry and ironing done", ms: "saya perlu basuh dan gosok baju", zh: "我需要洗衣和熨衣", ta: "எனக்கு துணி துவைத்து இஸ்திரி தேவை" }, vague: "I have a huge pile of clothes" },
+  { needs: { en: "my roof is leaking when it rains", ms: "bumbung saya bocor bila hujan", zh: "下雨时屋顶漏水", ta: "மழை பெய்யும்போது என் கூரை கசிகிறது" }, vague: "water drips inside whenever it rains" },
+  { needs: { en: "my washing machine stopped working", ms: "mesin basuh saya rosak", zh: "我的洗衣机坏了", ta: "என் சலவை இயந்திரம் வேலை செய்யவில்லை" }, vague: "one of my appliances just died" },
 ];
 
 /** Real, geocode-resolvable KL/Selangor addresses (the address card validates). */
@@ -231,10 +231,39 @@ function applyTyping(text: string, typing: QaTyping): string {
     case "terse":
       // Strip filler down to the core.
       return text.replace(/\b(my|a|an|the|is|are|i|need|want|looking for|please)\b/gi, "").replace(/\s{2,}/g, " ").trim();
+    case "slang":
+      // English slang handled here; Malay/rojak slang is applied separately.
+      return text.toLowerCase();
     case "proper":
     default:
       return text.charAt(0).toUpperCase() + text.slice(1);
   }
+}
+
+/**
+ * Malaysian SMS-style Malay shortcuts — how Malays actually type ("saya tak perlu
+ * ambil" → "i x prlu ambik", "boleh lah kan" → "blh la kn"). Applied to Malay text for
+ * the slang/abbrev/terse typing styles so QA exercises real-world compressed Malay.
+ */
+function malayShortcut(text: string): string {
+  const map: Array<[RegExp, string]> = [
+    [/\bsaya\b/gi, "i"], [/\btak\b/gi, "x"], [/\bperlu\b/gi, "prlu"], [/\bambil\b/gi, "ambik"],
+    [/\bboleh\b/gi, "blh"], [/\blah\b/gi, "la"], [/\bkan\b/gi, "kn"], [/\bdengan\b/gi, "dgn"],
+    [/\byang\b/gi, "yg"], [/\bdalam\b/gi, "dlm"], [/\bsangat\b/gi, "sgt"], [/\bsahaja\b/gi, "je"],
+    [/\bsudah\b/gi, "dh"], [/\bmacam\b/gi, "mcm"], [/\bitu\b/gi, "tu"], [/\bini\b/gi, "ni"],
+    [/\btolong\b/gi, "tlg"], [/\buntuk\b/gi, "utk"], [/\bkereta\b/gi, "kete"], [/\bsekarang\b/gi, "skrg"],
+    [/\bbanyak\b/gi, "byk"], [/\bkena\b/gi, "kna"], [/\bnombor\b/gi, "no"], [/\btelefon\b/gi, "fon"],
+    [/\brumah\b/gi, "umah"], [/\bbetul\b/gi, "btul"], [/\bsejuk\b/gi, "sjuk"], [/\bmesin\b/gi, "msin"],
+  ];
+  let out = text.toLowerCase();
+  for (const [re, r] of map) out = out.replace(re, r);
+  return out;
+}
+
+const MANGLISH = ["lah", "lor", "mah", "sia", "leh", "liao"];
+/** Turn an English need into Manglish/rojak — mixed English with Malay particles. */
+function rojakify(text: string): string {
+  return `eh boss, ${text} ${pick(MANGLISH)}, can help anot?`;
 }
 
 /** Wrap a sentence with tone-coloured framing. */
@@ -260,11 +289,13 @@ function applyTone(text: string, tone: QaTone): string {
 export function qaAffirm(lang: QaLang): string {
   switch (lang) {
     case "ms":
-      return "ya betul";
+      return "ya btul";
     case "zh":
       return "对，就是这个";
+    case "ta":
+      return "ஆம், சரிதான்";
     case "rojak":
-      return "ya correct lah";
+      return "ya correct lah, can";
     default:
       return "yes please go ahead";
   }
@@ -274,8 +305,23 @@ export function qaAffirm(lang: QaLang): string {
 function composeOpening(p: QaPersona, s: QaService, name: string, phone: string, addr: QaAddress, budgetWord: string, dateWords: string): string[] {
   const need = s.needs[p.language] ?? s.needs.en;
   const addrStr = `${addr.no} ${addr.street}, ${addr.postcode}`;
-  // Language transforms only colour English/rojak; ms/zh needs are already localised.
-  const style = (t: string) => (p.language === "en" || p.language === "rojak" ? applyTone(applyTyping(t, p.typing), p.tone) : t);
+  // Per-language styling: Malay gets SMS shortcuts on the short typing styles; Chinese
+  // and Tamil are already localised (no English transforms); rojak mixes English with
+  // Malay particles; English gets the tone + typing colour.
+  const style = (t: string): string => {
+    switch (p.language) {
+      case "ms":
+        return ["slang", "abbrev", "terse"].includes(p.typing) ? malayShortcut(t) : t;
+      case "zh":
+      case "ta":
+        return t;
+      case "rojak":
+        return rojakify(applyTyping(t, p.typing));
+      case "en":
+      default:
+        return applyTone(applyTyping(t, p.typing), p.tone);
+    }
+  };
 
   switch (p.sorting) {
     case "dump_all":
@@ -594,6 +640,9 @@ export interface QaHarnessOptions {
   customerMode?: boolean;
   onProgress?: (done: number, total: number, label: string) => void;
   cancelled?: () => boolean;
+  /** Incremental writer — called with each new chunk (header, per scenario, summary)
+   *  so the log is persisted to disk as the run goes, surviving a stop or crash. */
+  onChunk?: (text: string) => Promise<void> | void;
 }
 
 /**
@@ -602,7 +651,16 @@ export interface QaHarnessOptions {
  */
 export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promise<string[]> {
   const log: string[] = [];
-  const push = (line: string) => log.push(line);
+  let pending: string[] = [];
+  const push = (line: string) => {
+    log.push(line);
+    pending.push(line);
+  };
+  // Flush the buffered lines to the incremental writer (disk), then clear the buffer.
+  const flushChunk = async () => {
+    if (pending.length && opts.onChunk) await opts.onChunk(pending.join("\n") + "\n");
+    pending = [];
+  };
   const cancelled = opts.cancelled ?? (() => false);
   const scenarios = generateScenarios(opts.count, opts.customerMode === true);
   const results: QaRunResult[] = [];
@@ -612,6 +670,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
   push(`Mode: ${opts.customerMode ? "customer (with presets)" : "guest"}`);
   push(`Generated: ${new Date().toISOString()}`);
   push("");
+  await flushChunk(); // create the file with the header immediately
 
   const judgeFindings: string[] = [];
   let judgeIssueRuns = 0;
@@ -644,6 +703,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
         // the RESULT line alone. Flag the run for investigation instead.
         push("JUDGE: (no transcript captured — review skipped; conversation did not run)");
         if (!res.issues.includes("no-transcript")) res.issues.push("no-transcript: conversation produced no messages");
+        await flushChunk();
         await sleep(600);
         continue;
       }
@@ -665,6 +725,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
         push("JUDGE: (review error)");
       }
     }
+    await flushChunk(); // persist this scenario before moving on
     await sleep(600);
   }
 
@@ -707,6 +768,8 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     "Incomplete runs:",
     ...results.filter((r) => !r.ok).map((r, i) => `  ${i + 1}. ${r.label} — ${r.issues.join("; ") || "incomplete"}`),
   ];
-  // Put the conclusion + summary at the TOP (after the title) so they read first.
-  return [...log.slice(0, 4), ...summary, ...log.slice(4)];
+  // Stream the conclusion + summary as the final chunk so it lands on disk too.
+  for (const line of summary) push(line);
+  await flushChunk();
+  return log;
 }

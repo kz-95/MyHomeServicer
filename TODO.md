@@ -96,6 +96,15 @@ Standalone, shared, dev-only automated QA that completes a FULL quote to the rev
       **Customer Preset** (customer-mode 6th axis — named test customers). Procedural.
 - [x] **Run count:** inline number input next to the QA button (default 1, max 500);
       each run = one full procedurally-random quote.
+- [x] **Personas extended:** Typing adds `slang`; Language adds `ta` (Tamil) + improved
+      `rojak`. Malay short typing styles apply SMS shortcuts (saya→i, tak→x, perlu→prlu,
+      ambil→ambik, boleh→blh, lah→la, kan→kn…); rojak mixes English + Manglish particles
+      (lah/lor/mah/sia/leh/liao + "can anot"); Tamil service needs added so Tamil cards
+      are actually exercised.
+- [x] **Incremental log writing:** `/chat/qa-log` gains an `append` mode (returns the
+      resolved name on create-collision). The harness streams chunks (`onChunk`) — header,
+      each scenario, then summary — so the file is written to disk AS the run goes. A
+      Stop or crash still leaves everything-so-far recorded (file now chronological).
 - [x] **Guest + customer mode** (adapter uses mode-agnostic send/clear/messages).
 - [x] **Heuristic checker** logs per run: missing fields / loop / stall / timeout /
       redundant re-ask. Skips cards for fields already in prefill (no parroting).

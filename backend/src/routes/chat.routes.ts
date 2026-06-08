@@ -137,31 +137,46 @@ if (process.env.NODE_ENV !== 'production') {
     '/qa-log',
     guestChatLimiter,
     validate([
-      body('name').isString().matches(/^[A-Za-z0-9_-]{1,64}$/),
-      body('content').isString().isLength({ min: 1, max: 5_000_000 }),
+      body('name').isString().matches(/^[A-Za-z0-9_-]{1,72}$/),
+      body('content').isString().isLength({ min: 0, max: 5_000_000 }),
+      body('append').optional().isBoolean(),
     ]),
     asyncHandler(async (req, res) => {
-      const name = (req.body.name as string).replace(/[^A-Za-z0-9_-]/g, '');
+      const reqName = (req.body.name as string).replace(/[^A-Za-z0-9_-]/g, '');
       const content = req.body.content as string;
+      const append = req.body.append === true;
       // The server runs from backend/; logs/ lives at the repo root one level up. If
       // launched from the repo root instead, use that directly.
       const cwd = process.cwd();
       const repoRoot = cwd.endsWith(`${path.sep}backend`) ? path.resolve(cwd, '..') : cwd;
       const logsDir = path.join(repoRoot, 'logs');
       await mkdir(logsDir, { recursive: true });
-      // Exclusive write — never truncate an existing log; add a random suffix on collision.
+      const rel = (f: string) => path.relative(repoRoot, f).split(path.sep).join('/');
+
+      // Append mode: write incrementally to the already-created file, so a run that is
+      // stopped or crashes mid-way is still recorded on disk.
+      if (append) {
+        const file = path.join(logsDir, `${reqName}.log`);
+        await writeFile(file, content, { encoding: 'utf8', flag: 'a' });
+        res.json({ ok: true, name: reqName, file: rel(file) });
+        return;
+      }
+      // Create exclusively — never truncate an existing log; add a random suffix on
+      // collision and return the RESOLVED name so the client appends to the right file.
+      let name = reqName;
       let file = path.join(logsDir, `${name}.log`);
       try {
         await writeFile(file, content, { encoding: 'utf8', flag: 'wx' });
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
-          file = path.join(logsDir, `${name}_${randomUUID().slice(0, 8)}.log`);
+          name = `${reqName}_${randomUUID().slice(0, 8)}`;
+          file = path.join(logsDir, `${name}.log`);
           await writeFile(file, content, { encoding: 'utf8', flag: 'wx' });
         } else {
           throw e;
         }
       }
-      res.json({ ok: true, file: path.relative(repoRoot, file).split(path.sep).join('/') });
+      res.json({ ok: true, name, file: rel(file) });
     }),
   );
 

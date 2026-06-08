@@ -1,4 +1,5 @@
 import { Injectable, inject, signal } from "@angular/core";
+import { firstValueFrom } from "rxjs";
 import { ApiService } from "../core/services/api.service";
 import { QaHost, runQaHarness } from "./chat-qa-harness";
 
@@ -32,32 +33,52 @@ export class ChatQaService {
 
   private async run(host: QaHost, count: number, customerMode: boolean): Promise<void> {
     this.running.set(true);
-    const name = this.makeLogName();
-    let log: string[] = [];
+    const requested = this.makeLogName();
+    let resolvedName = requested;
+    let created = false;
+
+    // Incremental writer: the first chunk CREATES the file (and resolves the final
+    // name on collision); every later chunk APPENDS. So the log is on disk as the run
+    // progresses — a Stop or crash still leaves everything written so far recorded.
+    const writeChunk = async (text: string): Promise<void> => {
+      if (text.trim()) console.log(text.trimEnd());
+      try {
+        if (!created) {
+          const r = await firstValueFrom(
+            this.api.post<{ ok: boolean; name: string; file: string }>("/chat/qa-log", {
+              name: requested,
+              content: text,
+              append: false,
+            }),
+          );
+          resolvedName = r?.name || requested;
+          created = true;
+          this.status.set(`Writing ${r?.file ?? `logs/${resolvedName}.log`}`);
+        } else {
+          await firstValueFrom(
+            this.api.post("/chat/qa-log", { name: resolvedName, content: text, append: true }),
+          );
+        }
+      } catch {
+        this.status.set("Log write failed — see console for transcript");
+      }
+    };
+
     try {
-      log = await runQaHarness(host, {
+      await runQaHarness(host, {
         count,
-        logName: name,
+        logName: requested,
         customerMode,
         onProgress: (done, total) => this.status.set(`QA ${done}/${total}`),
         cancelled: () => !this.running(),
+        onChunk: writeChunk,
       });
+      this.status.set(
+        (this.running() ? "Saved " : "Stopped — saved ") + `logs/${resolvedName}.log`,
+      );
     } finally {
-      this.status.set("Saving log…");
-      this.save(name, log);
       this.running.set(false);
     }
-  }
-
-  /** POST the assembled log to the backend for writing under logs/. */
-  private save(name: string, lines: string[]): void {
-    const content = lines.join("\n");
-    console.log(content);
-    if (!content.trim()) return;
-    this.api.post<{ ok: boolean; file: string }>("/chat/qa-log", { name, content }).subscribe({
-      next: (r) => this.status.set(`Saved ${r.file}`),
-      error: () => this.status.set("Log save failed — see console for transcript"),
-    });
   }
 
   /**
