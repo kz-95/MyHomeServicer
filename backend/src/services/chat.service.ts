@@ -1048,6 +1048,26 @@ async function tryAiChain(
   throw (lastErr instanceof Error ? lastErr : new Error("No AI provider available"));
 }
 
+/**
+ * Admin-facing LLM failure diagnostic. When the AI chain fails for an ADMIN, surface
+ * the REAL cause (quota / auth / misconfig / no key) and point them at the API Keys
+ * setting, instead of giving the customer-style fallback. Lets the admin fix the LLM
+ * setup directly. Plain text, no em-dashes (returned without dash normalisation).
+ */
+function adminLlmDiagnostic(err: unknown): string {
+  const msg = ((err as Error)?.message ?? "").toLowerCase();
+  if (/\b429\b|quota|rate.?limit|too many requests|exhaust/.test(msg)) {
+    return "Admin notice: the AI provider returned 429, so the API key's token quota or rate limit is exhausted. Top up or rotate the key in Admin, API Keys, then try again. Until then customers fall back to the local responder.";
+  }
+  if (/\b401\b|\b403\b|unauthorized|forbidden|invalid|permission denied|api key/.test(msg)) {
+    return "Admin notice: the AI provider rejected the key (401/403), so it is missing, invalid, or lacks access. Re-enter a valid API key in Admin, API Keys and save, then try again.";
+  }
+  if (/\b404\b|not found|model|endpoint/.test(msg)) {
+    return "Admin notice: the AI provider returned 404, so the model or endpoint is misconfigured. Check the provider and model name in Admin, API Keys and set it up again.";
+  }
+  return "Admin notice: no working AI provider is available. No API key is configured, or every configured key is failing. Add or fix a key in Admin, API Keys, then try again. Until then the chat uses the local fallback responder.";
+}
+
 function buildBannedWordsReplacer(
   bannedWords: string[],
 ): (text: string) => string {
@@ -1549,7 +1569,12 @@ export async function sendToAi(
   // Priority chain: .env key → DB priority keys → DB fallback key → local
   try {
     raw = await tryAiChain(systemPrompt, message, history, role);
-  } catch {
+  } catch (e) {
+    // Admins get a real setup diagnostic (quota / auth / misconfig / no key) instead
+    // of the customer fallback, so they can fix the LLM directly. No quote flow.
+    if (role === "admin") {
+      return { answer: adminLlmDiagnostic(e), tokensUsed: null };
+    }
     raw = { answer: await localFallback(message, role), tokensUsed: null };
   }
 
