@@ -35,53 +35,65 @@ export class ChatQaService {
     this.running.set(true);
     const requested = this.makeLogName();
     let resolvedName = requested;
+    let created = false;
+    let buffered = ""; // chunks that failed to write (file locked)
 
-    // Collect every log line in memory during the run — the most reliable record.
-    // Console-mirrored in real time; written to disk once at the end.
-    const lines: string[] = [];
+    const tryWrite = async (name: string, content: string, append: boolean): Promise<boolean> => {
+      try {
+        await firstValueFrom(this.api.post("/chat/qa-log", { name, content, append }));
+        return true;
+      } catch {
+        return false;
+      }
+    };
 
-    const writeLine = (line: string): void => {
-      if (line.trim()) console.log(line.trimEnd());
-      lines.push(line);
+    const writeChunk = async (text: string): Promise<void> => {
+      // Console-mirror every non-empty line in real time.
+      for (const line of text.split("\n")) {
+        const t = line.trimEnd();
+        if (t) console.log(t);
+      }
+
+      // Flush previous buffered chunk first, then write this one.
+      if (buffered) {
+        if (await tryWrite(resolvedName, buffered, true)) buffered = "";
+      }
+
+      if (!created) {
+        const r = await firstValueFrom(
+          this.api.post<{ ok: boolean; name: string; file: string }>("/chat/qa-log", {
+            name: requested, content: text, append: false,
+          }),
+        ).catch(() => null);
+        if (r?.ok) { resolvedName = r.name; created = true; this.status.set(`Writing logs/${r.file}`); }
+        else { buffered += text; }
+      } else {
+        if (!(await tryWrite(resolvedName, text, true))) buffered += text;
+      }
+
+      if (buffered) this.status.set("Log buffered (file locked) — retrying");
     };
 
     try {
       await runQaHarness(host, {
-        count,
-        logName: requested,
-        customerMode,
+        count, logName: requested, customerMode,
         onProgress: (done, total) => this.status.set(`QA ${done}/${total}`),
         cancelled: () => !this.running(),
-        onChunk: async (text) => {
-          // Console-mirror each non-empty line in real time.
-          for (const line of text.split("\n")) {
-            const t = line.trimEnd();
-            if (t) console.log(t);
-          }
-          // Accumulate the raw chunk text for the final disk write.
-          lines.push(text);
-        },
+        onChunk: writeChunk,
       });
     } catch (e) {
-      const msg = (e as Error)?.message ?? String(e);
-      writeLine(`\n---\n## RUN ERROR\nThe run stopped unexpectedly: ${msg}\n`);
-      this.status.set("Run errored — partial log saved");
+      await writeChunk(`\n---\n## RUN ERROR\n${(e as Error)?.message ?? String(e)}\n`);
     } finally {
-      // Write the entire log to the server in ONE call. No incremental chunks,
-      // no file-lock retries mid-run. If this fails, the console still has it.
-      try {
-        const r = await firstValueFrom(
-          this.api.post<{ ok: boolean; name: string; file: string }>("/chat/qa-log", {
-            name: requested,
-            content: lines.join("\n"),
-            append: false,
-          }),
-        );
-        resolvedName = r?.name || requested;
-        this.status.set(`Saved logs/${resolvedName}.log (${lines.length} lines)`);
-      } catch {
-        this.status.set(`Write failed — log is in browser console (${lines.length} lines)`);
+      // Flush buffer with retries, then report.
+      for (let i = 0; i < 3 && buffered; i++) {
+        await new Promise((r) => setTimeout(r, 600));
+        if (await tryWrite(resolvedName, buffered, true)) buffered = "";
       }
+      this.status.set(
+        buffered
+          ? `Log partially saved — ${buffered.length} bytes not written (see console)`
+          : `Saved logs/${resolvedName}.log`,
+      );
       this.running.set(false);
     }
   }
