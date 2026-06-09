@@ -29,7 +29,13 @@ All items below: `tsc` + `ng build` pass, committed to `feat/ux-polish`, pushed.
 - [x] `confirmAddress` geocode fallback: when API fails or returns invalid, falls back to
       sending raw composed address text → flow never dead-ends on missing geocode API.
 - [x] `forceCardInput` signal: disables chat input/send when address card is showing,
-      preventing users from typing instead of filling the address form.
+      replacing input with visible instruction text.
+- [x] Adjacent-service fallback: 1st refusal = warm "not in catalog" (no card); 2nd+ ask =
+      suggest closest catalog category with a real card. Fixes bot repeating "we don't offer
+      that" 3× without giving the user anything to tap.
+- [x] QA log resilience: client buffers chunks when file-locked, retries on next write;
+      server retries `append` on EBUSY/EPERM/EACCES with exponential backoff (200→1600ms).
+      Fixes runs losing the 2nd scenario when the log file is open in an editor.
 
 ### Done — prompt hardening (ZERO-TOLERANCE)
 - [x] ZERO-TOLERANCE rule: "The tag IS the card" — covers ALL action types (quote_options,
