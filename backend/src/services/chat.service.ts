@@ -331,29 +331,9 @@ export async function buildAssistantPrompt(
     extra +=
       "\nWithout [action:...] blocks the user sees ONLY TEXT and CANNOT pick dates, times, or fill forms. The tag IS the card.";
     extra +=
-      "\nThis applies to EVERY card type, not just service selection:";
+      "\nIf you name a service, ask for a date, ask a question, or confirm a booking — you MUST emit [action:quote_options], [action:quote_field], [action:quote_question], or [action:quote_prefill] in THAT SAME MESSAGE. Saying \"tap Yes on the card\" without the tag is BROKEN.";
     extra +=
-      '\n  • You name a service → MUST emit [action:quote_options] with real category+id IN THAT SAME MESSAGE.';
-    extra +=
-      '\n  • You ask for date/time → MUST emit [action:quote_field]key: preferredDate[/action] (or timeSlot) IN THAT SAME MESSAGE.';
-    extra +=
-      '\n  • You ask the service questions → MUST emit [action:quote_question]key: ...[/action] IN THAT SAME MESSAGE.';
-    extra +=
-      '\n  • You confirm the booking → MUST emit [action:quote_prefill] IN THAT SAME MESSAGE.';
-    extra +=
-      '\nExamples:';
-    extra +=
-      '\n  CORRECT: "Roof covers that. [action:quote_options]\ncategory: Roof\ncategoryId: <uuid>[/action]"';
-    extra +=
-      '\n  CORRECT: "When do you need it? [action:quote_field]key: preferredDate[/action] [action:quote_field]key: timeSlot[/action]"';
-    extra +=
-      '\n  WRONG: "Tap the card below to confirm." (no block → nothing clickable)';
-    extra +=
-      '\n  WRONG: "What date works for you?" in text only — no [action:quote_field] block → no date picker appears.';
-    extra +=
-      '\n  WRONG: "Here is the card, press Yes" without [action:...] — the user sees ONLY text.';
-    extra +=
-      "\nNever describe a card you didn't emit. If you can name the field, emit its block.";
+      '\nCORRECT: "Roof covers that. [action:quote_options]\ncategory: Roof\ncategoryId: <uuid>[/action]"  WRONG: "Tap the card below to confirm." Never describe a card you did not emit.';
 
     extra += `\n\nToday is ${weekdayKL}, ${todayKL} (Asia/Kuala_Lumpur). Resolve relative dates ("tonight", "tomorrow", "next Sunday") to a concrete FUTURE date in YYYY-MM-DD.`;
     extra += "\n\n### EXTRACT FIRST — pre-fill what the user already said.";
@@ -2135,7 +2115,6 @@ export async function sendToAi(
           userText,
         );
       const convoText = history.map((h) => h.content).join("\n");
-      const allText = `${message}\n${processed.text}\n${convoText}`;
       const fillField = (key: string, val?: string) => {
         if (!val) return;
         const existing = outBlocks.find(
