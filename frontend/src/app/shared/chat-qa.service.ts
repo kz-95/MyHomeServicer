@@ -84,8 +84,10 @@ export class ChatQaService {
       }
     };
 
+    let logLines: string[] = [];
+
     try {
-      await runQaHarness(host, {
+      logLines = await runQaHarness(host, {
         count,
         logName: requested,
         customerMode,
@@ -107,6 +109,22 @@ export class ChatQaService {
       await flushPending();
       this.status.set("Run errored — partial log saved");
     } finally {
+      // Always offer a browser-side download of the complete log, independent of the
+      // server-side file. This is the most reliable record — it lives in browser memory
+      // and survives backend/network/file-lock failures.
+      if (logLines.length > 0) {
+        const text = logLines.join("\n");
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${resolvedName}.log`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.status.set(`Downloaded ${resolvedName}.log (${logLines.length} lines)`);
+      }
       this.running.set(false);
     }
   }
