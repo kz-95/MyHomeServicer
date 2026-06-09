@@ -193,6 +193,11 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
   truncate the answer.
 - Truncated reply with no usable text → "out of service" + a Request-a-service button.
 - Admins get a real setup diagnostic on total failure; customers get a local fallback.
+- **One auto-retry on a failed send**: a transient HTTP failure (429 / cold provider /
+  dropped connection) retries once after ~3.5 s before showing "Could not send message".
+  Distinct from "out of service" (a successful 200 where the LLM chain was exhausted).
+- **No `.env` key fallback**: keys come only from the `llmApiKey` DB table — `npm run db:reset`
+  leaves it empty (the seed seeds none), so re-add keys in Admin → API Keys after a reset.
 
 ---
 
@@ -257,23 +262,19 @@ grounding check is the recommended next addition.
 
 ## 12. QA harness
 
-Simulates real customers booking end-to-end against the live bot. A persona matrix of
-**7 typing × 6 tones × 6 behaviors × 6 sortings × 5 languages**, driving the real card
-handlers (and ~35% free-text answers) until the review card (success) or a stall / loop /
-timeout.
+Simulates real customers booking end-to-end against the live bot. Persona matrix of
+**7 typing × 6 tones × 8 behaviors × 6 sortings × 5 languages = 10,080 combinations**
+(× 16 services ≈ 161k scenario shapes), driving the real card handlers — by tap, ~35%
+free-text fields, ~40% free-text questions, or fully typed (the `typing_shortcut` /
+`typing_adhd` personas never tap a card). Runs until the review card (success) or a stall /
+loop / timeout. Per-turn log shows `SENT` (frontend) / `RECV` (backend) / `DATA` (prefill).
 
-**Deterministic checks**: looping (same card 4×), stalls, timeout (no review in 40 steps),
-duplicate cards, wrong-language card labels, redundant re-asks, **fabricated field** (in
-review but never collected on a card), incomplete prefill, out-of-order flow, "NO CARD"
-(text promises a card, none emitted), refresh/identity restore, idempotency.
+**Full rules — axes, possibility calculation, every structural check, the log format, how to
+run, known limitations — live in [`chat-qa-harness.md`](chat-qa-harness.md).**
 
-**LLM judge** (`judgeConversation`, DeepSeek): logical/prose problems a structural checker
-can't see (language mismatch, invented data, contradictions, wrong service).
-
-**Fit**: strong for flow/structural correctness; partial for free-form prose
-hallucination (only the judge sees it) and it is a happy-path booking driver — by design,
-~90% quote-flow, ~10% other (info Q&A, mid-flow detour) is the intended split. Combined
-multi-card auto-send, if added, needs the `waitIdle` pacing adjusted.
+**Fit**: strong for flow/structural correctness; partial for free-form prose hallucination
+(only the LLM judge sees it). It's a happy-path booking driver by design (~90% quote-flow).
+Requires LLM keys (it drives the real bot).
 
 ---
 
