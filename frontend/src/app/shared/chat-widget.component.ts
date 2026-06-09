@@ -129,6 +129,11 @@ const CARD_T: Record<string, Record<CardLang, string>> = {
 
 /** Base quote fields that MUST be filled before the chat input unlocks. Optional
  *  fields (notes, budgetMin, propertyType) never lock the input. */
+/** Pause before the single automatic retry of a failed chat send — "drag longer a little"
+ *  so a transient blip (rate-limit window, cold provider) has time to clear before we
+ *  show "Could not send message". */
+const SEND_RETRY_DELAY_MS = 3500;
+
 const REQUIRED_FIELDS = new Set<string>([
   "preferredDate",
   "timeSlot",
@@ -845,7 +850,7 @@ interface PublicConfig {
                                             −
                                           </button>
                                           <span class="qty-val">{{
-                                            qQuantity()[o.value] ?? 0
+                                            qQuantity()[o.value]
                                           }}</span>
                                           <button
                                             type="button"
@@ -3901,34 +3906,44 @@ export class ChatWidgetComponent
     const role = this.auth.principal()?.role ?? "guest";
 
     const guestBody = { message: text, history, role, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() };
-    this.api
-      .post<{
-        reply: string;
-        createdAt?: string;
-        actionBlocks?: { type: string; data: Record<string, unknown> }[];
-      }>("/chat/guest", guestBody)
-      .subscribe({
-        next: (r) => {
-          this.recordQaExchange(guestBody, r);
-          const mapped = r.actionBlocks?.map((b) => ({
-            type: b.type as string,
-            data: b.data as Record<string, unknown>,
-          }));
-          const blocks = this.applyFormFills(mapped);
-          this.applyQuoteFieldValues(blocks);
-          this.delayedReply(r.reply, r.createdAt, undefined, blocks);
-        },
-        error: () => {
-          const errMsg: ChatMessage = {
-            role: "assistant",
-            content: "Could not send message. Please try again.",
-            createdAt: new Date().toISOString(),
-          };
-          this.guestMsgs.update((m) => [...m, errMsg]);
-          this.scrollBottom = true;
-          this.sending.set(false);
-        },
-      });
+    // One automatic retry after a short pause before giving up — covers a transient blip
+    // (rate-limit window, cold provider, dropped connection) instead of dead-ending on the
+    // first failure. Only the SECOND failure shows "Could not send message".
+    const attempt = (isRetry: boolean) => {
+      this.api
+        .post<{
+          reply: string;
+          createdAt?: string;
+          actionBlocks?: { type: string; data: Record<string, unknown> }[];
+        }>("/chat/guest", guestBody)
+        .subscribe({
+          next: (r) => {
+            this.recordQaExchange(guestBody, r);
+            const mapped = r.actionBlocks?.map((b) => ({
+              type: b.type as string,
+              data: b.data as Record<string, unknown>,
+            }));
+            const blocks = this.applyFormFills(mapped);
+            this.applyQuoteFieldValues(blocks);
+            this.delayedReply(r.reply, r.createdAt, undefined, blocks);
+          },
+          error: () => {
+            if (!isRetry) {
+              setTimeout(() => attempt(true), SEND_RETRY_DELAY_MS);
+              return;
+            }
+            const errMsg: ChatMessage = {
+              role: "assistant",
+              content: "Could not send message. Please try again.",
+              createdAt: new Date().toISOString(),
+            };
+            this.guestMsgs.update((m) => [...m, errMsg]);
+            this.scrollBottom = true;
+            this.sending.set(false);
+          },
+        });
+    };
+    attempt(false);
   }
 
   private sendAuthenticated(text: string): void {
@@ -3946,40 +3961,48 @@ export class ChatWidgetComponent
     this.widget.actionBlocks.set([]);
 
     const authBody = { message: text, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() };
-    this.api
-      .post<{
-        reply: string;
-        createdAt?: string;
-        actions?: ChatMessage["actions"];
-        actionBlocks?: { type: string; data: Record<string, unknown> }[];
-      }>(`/chat/session/${sessionAtSend}/message`, authBody)
-      .subscribe({
-        next: (r) => {
-          this.recordQaExchange(authBody, r);
-          const mapped = r.actionBlocks?.map((b) => ({
-            type: b.type as string,
-            data: b.data as Record<string, unknown>,
-          }));
-          const blocks = this.applyFormFills(mapped);
-          this.applyQuoteFieldValues(blocks);
-          if (blocks && blocks.length > 0) {
-            this.widget.actionBlocks.set(blocks);
-          }
-          this.delayedReply(r.reply, r.createdAt, sessionAtSend, blocks);
-        },
-        error: () => {
-          // Ignore a late error if the session changed or ended (logout) meanwhile.
-          if (this.sessionId() !== sessionAtSend) return;
-          const errMsg: ChatMessage = {
-            role: "assistant",
-            content: "Could not send message. Please try again.",
-            createdAt: new Date().toISOString(),
-          };
-          this.authMsgs.update((m) => [...m, errMsg]);
-          this.scrollBottom = true;
-          this.sending.set(false);
-        },
-      });
+    // One automatic retry after a short pause before giving up (see sendGuest).
+    const attempt = (isRetry: boolean) => {
+      this.api
+        .post<{
+          reply: string;
+          createdAt?: string;
+          actions?: ChatMessage["actions"];
+          actionBlocks?: { type: string; data: Record<string, unknown> }[];
+        }>(`/chat/session/${sessionAtSend}/message`, authBody)
+        .subscribe({
+          next: (r) => {
+            this.recordQaExchange(authBody, r);
+            const mapped = r.actionBlocks?.map((b) => ({
+              type: b.type as string,
+              data: b.data as Record<string, unknown>,
+            }));
+            const blocks = this.applyFormFills(mapped);
+            this.applyQuoteFieldValues(blocks);
+            if (blocks && blocks.length > 0) {
+              this.widget.actionBlocks.set(blocks);
+            }
+            this.delayedReply(r.reply, r.createdAt, sessionAtSend, blocks);
+          },
+          error: () => {
+            // Ignore a late error if the session changed or ended (logout) meanwhile.
+            if (this.sessionId() !== sessionAtSend) return;
+            if (!isRetry) {
+              setTimeout(() => attempt(true), SEND_RETRY_DELAY_MS);
+              return;
+            }
+            const errMsg: ChatMessage = {
+              role: "assistant",
+              content: "Could not send message. Please try again.",
+              createdAt: new Date().toISOString(),
+            };
+            this.authMsgs.update((m) => [...m, errMsg]);
+            this.scrollBottom = true;
+            this.sending.set(false);
+          },
+        });
+    };
+    attempt(false);
   }
 
   formatTime(iso: string): string {
