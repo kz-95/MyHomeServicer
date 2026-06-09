@@ -3246,7 +3246,7 @@ export class ChatWidgetComponent
     const promisedCard =
       /let me check|here (you go|it is|'?s|is |are )|the service that fits|pick the one|take a look|let me share|that('?s| is) the right|this is the|we (do|can) (offer|help)|right one for you/i.test(
         txt,
-      ) || /[:：]\s*$/.test(txt);
+      ) || /[:：?？]\s*$/.test(txt);
     if (!promisedCard) return;
     const inQuoteFlow = this.messages().some((m) =>
       m.actionBlocks?.some((b) => b.type.startsWith("quote_")),

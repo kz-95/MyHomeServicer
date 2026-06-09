@@ -2483,6 +2483,46 @@ export async function sendToAi(
     }
   }
 
+  // Stall recovery: the bot NAMED a catalog service in its text but emitted NO card (the
+  // classic "describes a card it didn't emit" loop — common after a rejection and in
+  // non-English replies, where the prompt rule is ignored). In a pure service-SELECTION
+  // turn, inject that service's quote_options so the user can tap it instead of looping in
+  // text. Guarded to selection only (no category locked, no field/question/option/lock
+  // already present) so it never fires mid field-collection.
+  if (!opts?.formAssist) {
+    const selectionPhase =
+      !opts?.categoryId &&
+      !opts?.suppressCategorySuggest &&
+      !outBlocks.some((b) =>
+        [
+          "category_lock",
+          "quote_options",
+          "quote_field",
+          "quote_question",
+          "quote_prefill",
+        ].includes(b.type),
+      );
+    if (selectionPhase && processed.text) {
+      const lower = processed.text.toLowerCase();
+      const seen = new Set<string>();
+      const mentioned: Array<{ id: string; name: string }> = [];
+      for (const s of linkServices) {
+        if (seen.has(s.id)) continue;
+        if (lower.includes(s.name.toLowerCase())) {
+          seen.add(s.id);
+          mentioned.push(s);
+        }
+        if (mentioned.length >= 2) break; // at most 2 (e.g. "Catering OR Event Planner")
+      }
+      for (const s of mentioned) {
+        outBlocks.push({
+          type: "quote_options",
+          data: { category: s.name, categoryId: s.id },
+        });
+      }
+    }
+  }
+
   const roleBase = role === "customer" ? "/customer" : "/guest";
   const answer = linkifyServices(processed.text, linkServices, roleBase);
 
