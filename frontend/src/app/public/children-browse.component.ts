@@ -412,6 +412,10 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Land at the top so the service cards are visible immediately — without this, a
+    // navigation from a scrolled page keeps the old scroll offset and the cards start
+    // off-screen below the fold.
+    window.scrollTo({ top: 0, left: 0 });
     this.currentSlug = this.route.snapshot.paramMap.get('parentSlug') ?? '';
     if (this.currentSlug) {
       this.parentName.set(this.currentSlug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
