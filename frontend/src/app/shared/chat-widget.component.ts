@@ -115,7 +115,28 @@ const CARD_T: Record<string, Record<CardLang, string>> = {
   sPhone: { en: "Phone", ms: "Telefon", zh: "电话", ta: "தொலைபேசி" },
   sNotes: { en: "Notes", ms: "Nota", zh: "备注", ta: "குறிப்புகள்" },
   sBudget: { en: "Budget", ms: "Bajet", zh: "预算", ta: "பட்ஜெட்" },
+  // Locked-input guide placeholders — shown in place of the composer while a required
+  // card is unfilled. One per pending card; joined when several show at once.
+  ph_preferredDate: { en: "Pick a date in the card above.", ms: "Pilih tarikh pada kad di atas.", zh: "请在上方卡片中选择日期。", ta: "மேலே உள்ள கார்டில் தேதியைத் தேர்ந்தெடுக்கவும்." },
+  ph_timeSlot: { en: "Choose a time in the card above.", ms: "Pilih masa pada kad di atas.", zh: "请在上方卡片中选择时间。", ta: "மேலே உள்ள கார்டில் நேரத்தைத் தேர்ந்தெடுக்கவும்." },
+  ph_address: { en: "Fill the address card above.", ms: "Lengkapkan kad alamat di atas.", zh: "请填写上方的地址卡片。", ta: "மேலே உள்ள முகவரி கார்டை நிரப்பவும்." },
+  ph_budgetMax: { en: "Set your budget in the card above.", ms: "Tetapkan bajet anda pada kad di atas.", zh: "请在上方卡片中设置预算。", ta: "மேலே உள்ள கார்டில் உங்கள் பட்ஜெட்டை அமைக்கவும்." },
+  ph_contactName: { en: "Enter your name in the card above.", ms: "Masukkan nama anda pada kad di atas.", zh: "请在上方卡片中输入您的姓名。", ta: "மேலே உள்ள கார்டில் உங்கள் பெயரை உள்ளிடவும்." },
+  ph_contactNumber: { en: "Enter your phone number in the card above.", ms: "Masukkan nombor telefon anda pada kad di atas.", zh: "请在上方卡片中输入您的电话号码。", ta: "மேலே உள்ள கார்டில் உங்கள் தொலைபேசி எண்ணை உள்ளிடவும்." },
+  ph_question: { en: "Answer the question in the card above.", ms: "Jawab soalan pada kad di atas.", zh: "请回答上方卡片中的问题。", ta: "மேலே உள்ள கார்டில் உள்ள கேள்விக்கு பதிலளிக்கவும்." },
+  ph_review: { en: "Review your details above, then tap Review & submit.", ms: "Semak butiran anda di atas, kemudian tekan Semak & hantar.", zh: "请检查以上信息，然后点击检查并提交。", ta: "மேலே உள்ள விவரங்களைச் சரிபார்த்து, சரிபார்த்து சமர்ப்பி என்பதைத் தட்டவும்." },
 };
+
+/** Base quote fields that MUST be filled before the chat input unlocks. Optional
+ *  fields (notes, budgetMin, propertyType) never lock the input. */
+const REQUIRED_FIELDS = new Set<string>([
+  "preferredDate",
+  "timeSlot",
+  "address",
+  "budgetMax",
+  "contactName",
+  "contactNumber",
+]);
 
 interface ChatMessage {
   id?: string;
@@ -1005,29 +1026,26 @@ interface PublicConfig {
         </div>
 
         <form class="composer" (ngSubmit)="sendTyped()">
-          @if (forceCardInput()) {
-            <div class="inst">
-              Fill the address card above — enter No./Unit, pick a type, select a street, then enter the postcode.
-            </div>
-          } @else {
-            <input
-              [(ngModel)]="draft"
-              name="draft"
-              placeholder="{{
-                connecting()
-                  ? 'Connecting…'
-                  : auth.principal()
-                    ? 'Type a message…'
-                    : 'Write a note…'
-              }}"
-              [disabled]="connecting()"
-              aria-label="Message input"
-            />
+          @if (cardInputHint()) {
+            <div class="card-hint">{{ cardInputHint() }}</div>
           }
+          <input
+            [(ngModel)]="draft"
+            name="draft"
+            placeholder="{{
+              connecting()
+                ? 'Connecting…'
+                : auth.principal()
+                  ? 'Type a message…'
+                  : 'Write a note…'
+            }}"
+            [disabled]="connecting()"
+            aria-label="Message input"
+          />
           <button
             class="btn-primary send-btn"
             type="submit"
-            [disabled]="sending() || connecting() || forceCardInput() || !draft.trim()"
+            [disabled]="sending() || connecting() || !draft.trim()"
           >
             <svg
               width="14"
@@ -1431,6 +1449,7 @@ interface PublicConfig {
 
       .composer {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.4rem;
         padding: 0.6rem 0.75rem;
         border-top: 1px solid var(--color-border);
@@ -1441,10 +1460,10 @@ interface PublicConfig {
         font-size: 0.88rem;
         padding: 0.9rem 0.7rem;
       }
-      .composer .inst {
-        flex: 1;
-        font-size: 0.82rem;
-        padding: 0.7rem 0.75rem;
+      .composer .card-hint {
+        flex-basis: 100%;
+        font-size: 0.78rem;
+        padding: 0 0.2rem;
         color: var(--color-muted, #888);
       }
       .send-btn {
@@ -1886,6 +1905,11 @@ export class ChatWidgetComponent
   /** A message whose send() was deferred because a reply was in flight — fired once the
    *  chat goes idle (see the flush effect), so rapid card-confirms aren't dropped. */
   private pendingDraft: string | null = null;
+  /** True when the NEXT send() is a CARD CONFIRM (tap/pick), not typed text — tells the
+   *  backend to skip the LLM and just return the next card. Set via sendConfirm(). */
+  private nextSendCardConfirm = false;
+  /** Preserves the card-confirm flag for a send queued while a reply is in flight. */
+  private pendingCardConfirm = false;
 
   /**
    * The language the customer is actually conversing in, detected from their REAL
@@ -2034,8 +2058,11 @@ export class ChatWidgetComponent
       if (!busy && this.pendingDraft) {
         const queued = this.pendingDraft;
         this.pendingDraft = null;
+        const queuedCardConfirm = this.pendingCardConfirm;
+        this.pendingCardConfirm = false;
         queueMicrotask(() => {
           this.draft = queued;
+          this.nextSendCardConfirm = queuedCardConfirm;
           this.send();
         });
       }
@@ -2467,8 +2494,10 @@ export class ChatWidgetComponent
     // Busy: don't DROP this message (that's how rapid card-confirms got lost) — queue the
     // latest and the flush effect fires it when the reply lands. collectedData on that send
     // carries the whole accumulated prefill, so no field is lost even if a turn is coalesced.
-    if (this.connecting() || this.sending() || this.forceCardInput()) {
+    if (this.connecting() || this.sending()) {
       this.pendingDraft = text;
+      this.pendingCardConfirm = this.nextSendCardConfirm;
+      this.nextSendCardConfirm = false;
       this.draft = "";
       return;
     }
@@ -2491,6 +2520,16 @@ export class ChatWidgetComponent
     } else {
       this.sendGuest(text);
     }
+    // Consumed: the request body above captured the flag's value synchronously.
+    this.nextSendCardConfirm = false;
+  }
+
+  /** Send a CARD-CONFIRM turn (date/time/address/budget/contact/question/service pick).
+   *  Flags the request so the backend skips the LLM and returns only the next card. Typed
+   *  messages use sendTyped()/send() and stay unflagged (the LLM handles those). */
+  private sendConfirm(): void {
+    this.nextSendCardConfirm = true;
+    this.send();
   }
 
   clear(): void {
@@ -2862,17 +2901,66 @@ export class ChatWidgetComponent
   addressConfirmed = signal(false);
   addressFormatted = signal("");
 
-  /** True when the address card is showing and not yet confirmed — forces the user to
-   *  fill the form instead of typing in chat. */
-  readonly forceCardInput = computed(() => {
-    if (this.addressConfirmed()) return false;
+  /** True once the review card's Submit was tapped — releases the lock the review card holds. */
+  readonly prefillSubmitted = signal(false);
+
+  /** The action cards from the assistant's most recent turn (the current "batch").
+   *  Cards reveal as separate messages, so the batch is the trailing run of assistant
+   *  messages since the last user message. */
+  private currentBatchCards(): Array<{
+    type: string;
+    data: Record<string, unknown>;
+  }> {
     const msgs = this.messages();
+    const out: Array<{ type: string; data: Record<string, unknown> }> = [];
     for (let i = msgs.length - 1; i >= 0; i--) {
-      const m = msgs[i];
-      if (m.role !== "assistant") continue;
-      if (m.actionBlocks?.some((b) => b.type === "quote_field" && b.data["key"] === "address")) return true;
+      if (msgs[i].role === "user") break;
+      for (const b of msgs[i].actionBlocks ?? []) out.push(b);
+    }
+    return out;
+  }
+
+  /** Whether one batch card still needs input from the user. Only required cards count
+   *  toward the lock: required quote_field, required quote_question, and the review card. */
+  private cardPending(b: {
+    type: string;
+    data: Record<string, unknown>;
+  }): boolean {
+    if (b.type === "quote_field") {
+      const key = b.data["key"] as string;
+      return REQUIRED_FIELDS.has(key) && !this.valueCollected(key);
+    }
+    if (b.type === "quote_question") {
+      const key = b.data["key"] as string;
+      return b.data["required"] === true && !this.answeredQuestions().includes(key);
+    }
+    if (b.type === "quote_prefill") {
+      return !this.prefillSubmitted();
     }
     return false;
+  }
+
+  /** Required, still-unfilled cards in the current batch — drive the soft input hint. */
+  private readonly pendingRequiredCards = computed(() =>
+    this.currentBatchCards().filter((b) => this.cardPending(b)),
+  );
+
+  /** Guide text shown above the input as a soft, NON-blocking nudge — one hint per pending
+   *  required card, joined, in the customer's current language. The input stays usable. */
+  readonly cardInputHint = computed(() => {
+    const hints: string[] = [];
+    const seen = new Set<string>();
+    for (const b of this.pendingRequiredCards()) {
+      let key = "";
+      if (b.type === "quote_field") key = "ph_" + (b.data["key"] as string);
+      else if (b.type === "quote_question") key = "ph_question";
+      else if (b.type === "quote_prefill") key = "ph_review";
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        hints.push(this.t(key));
+      }
+    }
+    return hints.join(" ");
   });
   locatingGps = signal(false);
   addrValidating = signal(false);
@@ -3008,7 +3096,7 @@ export class ChatWidgetComponent
       budgetMax: r.max ?? r.min,
     });
     this.draft = `${this.t("budgetMax")}: ${this.rangeLabel(r)}`;
-    this.send();
+    this.sendConfirm();
   }
 
   prefillSummary = computed(() => {
@@ -3158,7 +3246,7 @@ export class ChatWidgetComponent
     this.widget.accumulatePrefill({ preferredDate: value });
     this.dateConfirmed.set(value);
     this.draft = `${this.t("preferredDate")}: ${value}`;
-    this.send();
+    this.sendConfirm();
   }
 
   /** Record a time-slot selection (no send) - Confirm advances the flow. */
@@ -3176,7 +3264,7 @@ export class ChatWidgetComponent
     this.timeConfirmedLabel.set(label);
     this.widget.accumulatePrefill({ timeSlot: value });
     this.draft = `${this.t("timeSlot")}: ${label}`;
-    this.send();
+    this.sendConfirm();
   }
 
   /** Confirm a free-text field (name, phone, notes…) and advance the flow. */
@@ -3187,7 +3275,7 @@ export class ChatWidgetComponent
     this.confirmedTextValues.update((m) => ({ ...m, [key]: value }));
     this.draft = this.fieldSendPhrase(key, value);
     this.prefillText.set("");
-    this.send();
+    this.sendConfirm();
   }
 
   /** Natural sentence the assistant reads back after a text field is confirmed. */
@@ -3273,7 +3361,7 @@ export class ChatWidgetComponent
     this.draft = category
       ? `${this.t("service")}: ${category}`
       : this.t("service");
-    this.send();
+    this.sendConfirm();
   }
 
   /**
@@ -3383,7 +3471,7 @@ export class ChatWidgetComponent
             if (r.state) this.widget.accumulatePrefill({ state: r.state });
             this.addressConfirmed.set(true);
             this.draft = `${this.t("address")}: ${r.formattedAddress}`;
-            this.send();
+            this.sendConfirm();
           } else {
             // Geocode returned invalid — fall back to the raw composed address so the
             // flow can continue. Store both the raw string AND the structured fields
@@ -3395,7 +3483,7 @@ export class ChatWidgetComponent
             this.storeStructuredAddress();
             this.addressConfirmed.set(true);
             this.draft = `${this.t("address")}: ${composed}`;
-            this.send();
+            this.sendConfirm();
           }
         },
         error: () => {
@@ -3405,7 +3493,7 @@ export class ChatWidgetComponent
           this.storeStructuredAddress();
           this.addressConfirmed.set(true);
           this.draft = `${this.t("address")}: ${composed}`;
-          this.send();
+          this.sendConfirm();
         },
       });
   }
@@ -3428,7 +3516,7 @@ export class ChatWidgetComponent
     if (!pt) return;
     this.widget.accumulatePrefill({ propertyType: pt });
     this.draft = `${this.t("propertyType")}: ${pt}`;
-    this.send();
+    this.sendConfirm();
   }
 
   /** Confirm the combined contact card: store name + phone and advance the flow. */
@@ -3439,7 +3527,7 @@ export class ChatWidgetComponent
     this.widget.accumulatePrefill({ contactName: name, contactNumber: phone });
     this.contactConfirmed.set(true);
     this.draft = `${this.t("contactName")}: ${name}, ${this.t("contactNumber")}: ${phone}`;
-    this.send();
+    this.sendConfirm();
   }
 
   /** Confirm the phone-only card (name is collected separately as a text card). */
@@ -3448,7 +3536,7 @@ export class ChatWidgetComponent
     const phone = this.fullPhone();
     this.widget.accumulatePrefill({ contactNumber: phone });
     this.draft = `${this.t("contactNumber")}: ${phone}`;
-    this.send();
+    this.sendConfirm();
   }
 
   /** True when a field already holds a non-empty value in prefillData (public for templates). */
@@ -3573,7 +3661,7 @@ export class ChatWidgetComponent
     this.setQuestionAnswer(data, value);
     this.resetQDrafts();
     this.draft = `${this.qLabel(data)}: ${this.optLabel(data, value)}.`;
-    this.send();
+    this.sendConfirm();
   }
   toggleQCheckbox(value: string): void {
     this.qCheckbox.update((a) =>
@@ -3586,7 +3674,7 @@ export class ChatWidgetComponent
     this.setQuestionAnswer(data, sel);
     this.draft = `${this.qLabel(data)}: ${sel.map((v) => this.optLabel(data, v)).join(", ")}.`;
     this.resetQDrafts();
-    this.send();
+    this.sendConfirm();
   }
   confirmQNumber(data: Record<string, unknown>): void {
     const n = this.qNumber();
@@ -3594,7 +3682,7 @@ export class ChatWidgetComponent
     this.setQuestionAnswer(data, n);
     this.draft = `${this.qLabel(data)}: ${n}.`;
     this.resetQDrafts();
-    this.send();
+    this.sendConfirm();
   }
   confirmQText(data: Record<string, unknown>): void {
     const t = this.qText().trim();
@@ -3602,7 +3690,7 @@ export class ChatWidgetComponent
     this.setQuestionAnswer(data, t);
     this.draft = `${this.qLabel(data)}: ${t}.`;
     this.resetQDrafts();
-    this.send();
+    this.sendConfirm();
   }
   incQ(value: string): void {
     this.qQuantity.update((q) => ({ ...q, [value]: (q[value] ?? 0) + 1 }));
@@ -3623,7 +3711,7 @@ export class ChatWidgetComponent
       .map(([v, n]) => `${this.optLabel(data, v)} ×${n}`)
       .join(", ")}.`;
     this.resetQDrafts();
-    this.send();
+    this.sendConfirm();
   }
 
   goToQuoteForm(data: Record<string, unknown>): void {
@@ -3642,6 +3730,8 @@ export class ChatWidgetComponent
   submitPrefill(): void {
     const data = this.widget.prefillData();
     if (!data.categoryId) return;
+    // Releases the chat lock the review card held (user is moving on to the quote form).
+    this.prefillSubmitted.set(true);
     // Unicode-safe base64: btoa chokes on Tamil/Chinese characters.
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
     const base =
@@ -3781,7 +3871,7 @@ export class ChatWidgetComponent
         reply: string;
         createdAt?: string;
         actionBlocks?: { type: string; data: Record<string, unknown> }[];
-      }>("/chat/guest", { message: text, history, role, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() })
+      }>("/chat/guest", { message: text, history, role, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() })
       .subscribe({
         next: (r) => {
           const mapped = r.actionBlocks?.map((b) => ({
@@ -3825,7 +3915,7 @@ export class ChatWidgetComponent
         createdAt?: string;
         actions?: ChatMessage["actions"];
         actionBlocks?: { type: string; data: Record<string, unknown> }[];
-      }>(`/chat/session/${sessionAtSend}/message`, { message: text, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), ...this.formAssistBody() })
+      }>(`/chat/session/${sessionAtSend}/message`, { message: text, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() })
       .subscribe({
         next: (r) => {
           const mapped = r.actionBlocks?.map((b) => ({
@@ -4143,6 +4233,7 @@ export class ChatWidgetComponent
     this.qNumber.set(null);
     this.qQuantity.set({});
     this.qDisplay.set({});
+    this.prefillSubmitted.set(false);
   }
 
   private loadGuest(): void {

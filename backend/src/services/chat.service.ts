@@ -34,17 +34,13 @@ function roleTierIndex(role: string): number {
   return idx >= 0 ? idx : 2;
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  admin: "an admin",
+  servicer: "a servicer (service provider)",
+  guest: "a guest (not logged in)",
+};
 function userLabel(role: string): string {
-  switch (role) {
-    case "admin":
-      return "an admin";
-    case "servicer":
-      return "a servicer (service provider)";
-    case "guest":
-      return "a guest (not logged in)";
-    default:
-      return "a customer";
-  }
+  return ROLE_LABEL[role] ?? "a customer";
 }
 
 async function buildSystemPrompt(role: string = "customer"): Promise<string> {
@@ -88,33 +84,30 @@ async function buildSystemPrompt(role: string = "customer"): Promise<string> {
   }
 }
 
-function buildPrompt(role: string): string {
-  const label = userLabel(role);
+const ROLE_FACTS: Record<string, string> = {
+  guest:
+    "Platform facts: Homeowners request services like plumbing, cleaning, aircon, and catering. Nearby service providers reply with prices. No account needed — I can help you request a service right here.",
+  servicer:
+    "Platform facts: Customers submit quote requests with category, details, budget, and time. You reply with priced proposals. When selected, a booking is created. Booking lifecycle: pending confirmation, confirmed, arrived, job done. Payment is cash. Cancel a booking before arrival. A credit wallet holds promo paybacks. Rewards page shows loyalty points and tiers. Notifications appear as toasts.",
+  customer:
+    "Platform facts: A customer submits a quote request with category, details, budget, and time. Nearby servicers reply with priced proposals. Customer picks one and a booking is created. Cancel an open quote from Current Quotes before selecting. Booking lifecycle: pending confirmation, confirmed, arrived, job done. Active bookings under Upcoming Bookings; completed jobs under Order History. Cancel a booking before a servicer arrives; after arrival, report the problem. Payment is cash only. Customer confirms cash in-app after job done. A credit wallet is available for top-up. From Order History, rebook the same servicer via pre-filled editable form. Rewards page shows loyalty points, tiers, and redeemable perks. Notifications appear as bottom-left toasts with per-type toggles and category follow filters.",
+};
 
-  const facts =
-    role === "guest"
-      ? "Platform facts: Homeowners request services like plumbing, cleaning, aircon, and catering. Nearby service providers reply with prices. No account needed — I can help you request a service right here."
-      : role === "servicer"
-        ? `Platform facts: Customers submit quote requests with category, details, budget, and time. You reply with priced proposals. When selected, a booking is created. Booking lifecycle: pending confirmation, confirmed, arrived, job done. Payment is cash. Cancel a booking before arrival. A credit wallet holds promo paybacks. Rewards page shows loyalty points and tiers. Notifications appear as toasts.`
-        : `Platform facts: A customer submits a quote request with category, details, budget, and time. Nearby servicers reply with priced proposals. Customer picks one and a booking is created. Cancel an open quote from Current Quotes before selecting. Booking lifecycle: pending confirmation, confirmed, arrived, job done. Active bookings under Upcoming Bookings; completed jobs under Order History. Cancel a booking before a servicer arrives; after arrival, report the problem. Payment is cash only. Customer confirms cash in-app after job done. A credit wallet is available for top-up. From Order History, rebook the same servicer via pre-filled editable form. Rewards page shows loyalty points, tiers, and redeemable perks. Notifications appear as bottom-left toasts with per-type toggles and category follow filters.`;
+const ROLE_LINKS: Record<string, string> = {
+  guest:
+    "When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). Use relative paths starting with /.",
+  customer:
+    "When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [view your bookings](/customer/bookings), [check rewards](/customer/rewards). Use relative paths starting with /.",
+  servicer:
+    "When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [view your jobs](/servicer/jobs/pending), [manage your jobs](/servicer/jobs/pending). Use relative paths starting with /.",
+  admin:
+    "When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [admin home](/admin), [manage users](/admin/users). Use relative paths starting with /.",
+};
 
-  const links =
-    role === "guest"
-      ? `When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). Use relative paths starting with /.`
-      : role === "customer"
-        ? `When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [view your bookings](/customer/bookings), [check rewards](/customer/rewards). Use relative paths starting with /.`
-        : role === "servicer"
-          ? `When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [view your jobs](/servicer/jobs/pending), [manage your jobs](/servicer/jobs/pending). Use relative paths starting with /.`
-          : `When directing users to a page, include a clickable link using markdown link syntax: [page name](/path). For example: [admin home](/admin), [manage users](/admin/users). Use relative paths starting with /.`;
+const REPORT_TEXT =
+  '\n\nIf the user describes a booking problem, end your reply with the exact phrase "You can report a booking problem using the button below." If the user reports a technical issue with the app itself, end your reply with "You can report this bug using the button below."';
 
-  const report =
-    role === "guest"
-      ? ""
-      : `\n\nIf the user describes a booking problem, end your reply with the exact phrase "You can report a booking problem using the button below." If the user reports a technical issue with the app itself, end your reply with "You can report this bug using the button below."`;
-
-  const locationLinks =
-    role === "customer"
-      ? `\n\nNavigation rule — ALWAYS include a markdown hyperlink when directing a customer to a page:
+const CUSTOMER_LOCATION_LINKS = `\n\nNavigation rule — ALWAYS include a markdown hyperlink when directing a customer to a page:
 - "where is my booking / upcoming booking" → [My Bookings](/customer/bookings)
 - "where is my order / order history / past booking" → [Order History](/customer/history)
 - "where is my quote / current quote" → [My Quotes](/customer/quotes)
@@ -122,8 +115,14 @@ function buildPrompt(role: string): string {
 - "where are my rewards / points / vouchers" → [Rewards](/customer/rewards)
 - "where is my account / profile / settings" → [Account](/customer/account)
 - "where is my wallet / credit / balance" → [Payments](/customer/transactions) — but answer balance from the account context above; do NOT link to external bank or card pages
-- Credit card or transaction enquiries: give a SHORT text-only guide ("use the secure payment page inside the app"); NEVER provide a link to an external bank, card network, or payment portal`
-      : "";
+- Credit card or transaction enquiries: give a SHORT text-only guide ("use the secure payment page inside the app"); NEVER provide a link to an external bank, card network, or payment portal`;
+
+function buildPrompt(role: string): string {
+  const label = userLabel(role);
+  const facts = ROLE_FACTS[role] ?? ROLE_FACTS.customer;
+  const links = ROLE_LINKS[role] ?? ROLE_LINKS.customer;
+  const report = role === "guest" ? "" : REPORT_TEXT;
+  const locationLinks = role === "customer" ? CUSTOMER_LOCATION_LINKS : "";
 
   const prompt = `You are the My Home Servicer assistant, an on-demand platform connecting homeowners with local service providers for plumbing, cleaning, aircon servicing, and home cooking. Help with quotes, proposals, bookings, payments, credit, and reporting problems. Be warm, concise, plain-language. 1-4 sentences per reply. Never invent policies, prices, or features. If unsure, say so and offer to escalate.
 
@@ -1124,6 +1123,11 @@ export async function autoTranslateQuestionSchema(
   return out;
 }
 
+const LLM_DISPATCH: Record<string, typeof callOpenAi> = {
+  gemini: callGemini as typeof callOpenAi,
+  deepseek: callDeepSeek as typeof callOpenAi,
+};
+
 async function callByProvider(
   provider: string,
   apiKey: string,
@@ -1134,49 +1138,8 @@ async function callByProvider(
   model?: string,
   noFallback = false,
 ): Promise<AiReply> {
-  switch (provider) {
-    case "gemini":
-      return callGemini(
-        systemPrompt,
-        message,
-        history,
-        role,
-        apiKey,
-        model,
-        noFallback,
-      );
-    case "deepseek":
-      return callDeepSeek(
-        systemPrompt,
-        message,
-        history,
-        role,
-        apiKey,
-        model,
-        noFallback,
-      );
-    case "openai":
-    case "generic":
-      return callOpenAi(
-        systemPrompt,
-        message,
-        history,
-        role,
-        apiKey,
-        model,
-        noFallback,
-      );
-    default:
-      return callOpenAi(
-        systemPrompt,
-        message,
-        history,
-        role,
-        apiKey,
-        model,
-        noFallback,
-      );
-  }
+  const fn = LLM_DISPATCH[provider] ?? callOpenAi;
+  return fn(systemPrompt, message, history, role, apiKey, model, noFallback);
 }
 
 // 429 cooldown: once a key is rate-limited/quota-exhausted, skip it for a while
@@ -1224,10 +1187,11 @@ async function buildLlmChain(
   } catch {
     /* DB unavailable */
   }
-  const ordered = [
-    ...llmKeys.filter((k) => !k.isFallback),
-    ...llmKeys.filter((k) => k.isFallback),
-  ];
+  // Primary keys first, fallback keys last — single pass partition.
+  const primary: typeof llmKeys = [];
+  const fallback: typeof llmKeys = [];
+  for (const k of llmKeys) (k.isFallback ? fallback : primary).push(k);
+  const ordered = [...primary, ...fallback];
   for (const k of ordered) {
     attempts.push({
       id: k.id,
@@ -1306,11 +1270,7 @@ function adminLlmDiagnostic(err: unknown): string {
   if (/\b429\b|quota|rate.?limit|too many requests|exhaust/.test(msg)) {
     return "Admin notice: the AI provider returned 429, so the API key's token quota or rate limit is exhausted. Top up or rotate the key in Admin, API Keys, then try again. Until then customers fall back to the local responder.";
   }
-  if (
-    /\b401\b|\b403\b|unauthorized|forbidden|invalid|permission denied|api key/.test(
-      msg,
-    )
-  ) {
+  if (/\b401\b|\b403\b|unauthorized|forbidden|invalid|permission denied|api key/.test(msg)) {
     return "Admin notice: the AI provider rejected the key (401/403), so it is missing, invalid, or lacks access. Re-enter a valid API key in Admin, API Keys and save, then try again.";
   }
   if (/\b404\b|not found|model|endpoint/.test(msg)) {
@@ -1513,7 +1473,7 @@ function matchQuestionAnswer(
  * next control. Given the fields already collected (sent by the client), return
  * the action block(s) for the next step so the flow never dead-ends.
  */
-function nextStepBlocks(collected: string[]): ActionBlock[] {
+export function nextStepBlocks(collected: string[]): ActionBlock[] {
   const has = (k: string) => collected.includes(k);
   if (!has("preferredDate") || !has("timeSlot")) {
     return [
@@ -1547,6 +1507,124 @@ function nextStepBlocks(collected: string[]): ActionBlock[] {
   return [{ type: "quote_prefill", data: {} }];
 }
 
+// ─── Deterministic card-confirm turns (LLM skipped) ──────────────────────────────────
+// When the user CONFIRMS a card (taps a date/time/budget/address/contact/question card,
+// or picks a service) the next card is fully determined by what's been collected — the
+// LLM adds nothing but prose that can hallucinate, mistranslate, re-ask, or stall. So on
+// those turns we skip the LLM entirely: zero tokens, zero latency, zero 429, zero
+// hallucination. The LLM still handles every FREE-FORM turn (questions, disambiguation,
+// change requests, info chat). See the cardConfirm short-circuit in sendToAi.
+
+/** Localized one-line ack for a deterministic card-confirm turn. Fixed strings (never
+ *  LLM-generated), so nothing here can hallucinate or mistranslate. */
+const CARD_CONFIRM_ACK: Record<string, string> = {
+  en: "Got it.",
+  ms: "Baik.",
+  zh: "好的。",
+  ta: "சரி.",
+  rojak: "Ok, got it.",
+};
+function cardConfirmAck(lang?: string): string {
+  return (lang && CARD_CONFIRM_ACK[lang]) || CARD_CONFIRM_ACK.en;
+}
+
+interface FlowQuestion {
+  key: string;
+  label: string;
+  labelI18n?: Localized;
+  type: string;
+  required: boolean;
+  options?: Array<{ value: string; label: string; labelI18n?: Localized }>;
+  description?: string;
+  descriptionI18n?: Localized;
+}
+
+/** Load a category's active questionSchema in the shape the chat flow needs. One read,
+ *  failure-tolerant (returns [] so the flow degrades to the review card). */
+async function loadCategoryQuestions(categoryId: string): Promise<FlowQuestion[]> {
+  try {
+    const cat = await prisma.category.findFirst({
+      where: { id: categoryId, deletedAt: null },
+      select: { questionSchema: true },
+    });
+    const qs = cat?.questionSchema as unknown;
+    if (!Array.isArray(qs)) return [];
+    return qs
+      .filter(
+        (q): q is FlowQuestion & { active?: boolean } =>
+          !!q &&
+          typeof q.key === "string" &&
+          typeof q.label === "string" &&
+          typeof q.type === "string" &&
+          q.active !== false,
+      )
+      .map((q) => ({
+        key: q.key,
+        label: q.label,
+        labelI18n: q.labelI18n,
+        type: q.type,
+        required: q.required === true,
+        options: q.options,
+        description: q.description,
+        descriptionI18n: q.descriptionI18n,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Deterministic next card(s) for a card-confirm turn — NO LLM. Given what the client has
+ * collected/answered, return the next quote_field(s), the next unanswered quote_question,
+ * or the quote_prefill review. Already-collected fields are dropped so a confirmed card is
+ * never re-shown. Pure (DB-free) — unit-tested in backend/tests/unit/chat-flow.test.ts.
+ */
+export function computeNextCards(
+  collected: string[],
+  answeredQuestions: string[],
+  categoryQuestions: FlowQuestion[],
+  lang?: string,
+): ActionBlock[] {
+  const out: ActionBlock[] = [];
+  for (const nb of nextStepBlocks(collected)) {
+    if (nb.type === "quote_prefill") {
+      // Base fields done → ask the category's questions one at a time, then the review.
+      const unanswered = categoryQuestions.filter(
+        (q) => !answeredQuestions.includes(q.key),
+      );
+      if (unanswered.length > 0) {
+        const q = unanswered[0];
+        out.push({
+          type: "quote_question",
+          data: {
+            key: q.key,
+            label: pickI18n(q.label, q.labelI18n, lang),
+            qtype: q.type,
+            required: q.required,
+            options: (q.options ?? []).map((o) => ({
+              ...o,
+              label: pickI18n(o.label, o.labelI18n, lang),
+            })),
+            ...(q.description
+              ? { description: pickI18n(q.description, q.descriptionI18n, lang) }
+              : {}),
+          },
+        });
+      } else {
+        out.push(nb);
+      }
+    } else if (nb.type === "quote_field") {
+      // Drop a field the client already confirmed — never re-show a collected card.
+      const k = nb.data.key as string;
+      if (collected.includes(k)) continue;
+      out.push(nb);
+    } else {
+      out.push(nb);
+    }
+  }
+  return out;
+}
+
 function processReply(
   answer: string,
   bannedWords?: string[],
@@ -1576,6 +1654,10 @@ export async function sendToAi(
     /** Exact confirmed field values (key -> value) so the model recaps real data,
      *  never invented. From the client's prefill — see chat-widget collectedValues(). */
     collectedData?: Record<string, string>;
+    /** True when this turn is a CARD CONFIRM (user tapped a card / picked a service),
+     *  not free-form text. Lets the backend skip the LLM and emit the next card
+     *  deterministically. Set by the client only on card-confirm sends. */
+    cardConfirm?: boolean;
     formAssist?: boolean;
     formContext?: {
       step: number;
@@ -1608,6 +1690,27 @@ export async function sendToAi(
   if (message.toLowerCase().includes(MAGIC_WORD)) {
     const answer = replacer(await localFallback(message, role));
     return { answer, tokensUsed: null };
+  }
+
+  // Deterministic card-confirm turn: the user just confirmed a card (date/time/budget/
+  // address/contact/question) or picked a service. The next card is fully determined by
+  // what's collected, so SKIP the LLM entirely — no prose to hallucinate, mistranslate,
+  // re-ask, or stall, and zero tokens/429. The LLM still drives every free-form turn.
+  // Requires a locked category (categoryId): card confirms only happen once a service is
+  // chosen, and the service pick itself sets categoryId before sending.
+  if (opts?.cardConfirm && opts.categoryId) {
+    const cq = await loadCategoryQuestions(opts.categoryId);
+    const next = computeNextCards(
+      opts.collected ?? [],
+      opts.answeredQuestions ?? [],
+      cq,
+      opts.lang,
+    );
+    return {
+      answer: replacer(cardConfirmAck(opts.lang)),
+      tokensUsed: 0,
+      actionBlocks: next,
+    };
   }
 
   let categories:

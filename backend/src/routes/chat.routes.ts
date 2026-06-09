@@ -88,6 +88,7 @@ chatRouter.post(
     body('lang').optional().isIn(['en', 'ms', 'zh', 'ta', 'rojak']),
     body('categoryLocked').optional().isBoolean(),
     body('collected').optional().isArray(),
+    body('cardConfirm').optional().isBoolean(),
     body('formAssist').optional().isBoolean(),
     body('formContext').optional().isObject(),
   ]),
@@ -116,6 +117,7 @@ chatRouter.post(
       answeredQuestions: Array.isArray(req.body.answeredQuestions) ? (req.body.answeredQuestions as string[]) : [],
       lang: parseLang(req.body.lang),
       collectedData: parseCollectedData(req.body.collectedData),
+      cardConfirm: req.body.cardConfirm === true,
       formAssist: req.body.formAssist === true,
       formContext: sanitizeFormContext(req.body.formContext),
     });
@@ -484,6 +486,7 @@ chatRouter.post(
     body('message').isString().trim().isLength({ min: 1, max: 2000 }),
     body('categoryLocked').optional().isBoolean(),
     body('collected').optional().isArray(),
+    body('cardConfirm').optional().isBoolean(),
   ]),
   asyncHandler(async (req, res) => {
     const canBan = req.user!.role === 'customer' || req.user!.role === 'servicer';
@@ -571,6 +574,7 @@ chatRouter.post(
       answeredQuestions: Array.isArray(req.body.answeredQuestions) ? (req.body.answeredQuestions as string[]) : [],
       lang: parseLang(req.body.lang),
       collectedData: parseCollectedData(req.body.collectedData),
+      cardConfirm: req.body.cardConfirm === true,
       formAssist: req.body.formAssist === true,
       formContext: sanitizeFormContext(req.body.formContext),
     });
