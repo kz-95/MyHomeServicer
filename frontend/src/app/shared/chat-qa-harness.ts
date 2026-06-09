@@ -756,6 +756,9 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     host.sendText(turn);
     await waitIdle();
     flush();
+    // Respect the guest rate limit (10 req/min) — ensure at least 6 s between
+    // sends so a chain of fast LLM replies doesn't overflow the window.
+    await sleep(6000);
   }
 
   while (steps < MAX_STEPS) {
@@ -764,6 +767,10 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     // Pause like a human before reading the bot's reply and responding — replying
     // instantly raced the UI/backend and produced flaky stalls.
     await replyDelay();
+    // Respect the guest rate limit (10 req/min): at least 6 s between sends.
+    // waitIdle() blocks on the LLM stream, but fast responses (local fallback /
+    // cached replies) can slip through in <1 s and blow the window.
+    await sleep(6000);
     const rawBlocks = latestBlocks(host);
     const blocks = rawBlocks.filter((b) => ACTIONABLE.has(b.type));
     if (blocks.length) sawAnyCard = true;
