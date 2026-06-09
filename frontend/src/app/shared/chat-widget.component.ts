@@ -1004,21 +1004,25 @@ interface PublicConfig {
         </div>
 
         <form class="composer" (ngSubmit)="sendTyped()">
-          <input
-            [(ngModel)]="draft"
-            name="draft"
-            placeholder="{{
-              connecting()
-                ? 'Connecting…'
-                : forceCardInput()
-                  ? 'Fill the address form above…'
+          @if (forceCardInput()) {
+            <div class="inst">
+              Fill the address card above — enter No./Unit, pick a type, select a street, then enter the postcode.
+            </div>
+          } @else {
+            <input
+              [(ngModel)]="draft"
+              name="draft"
+              placeholder="{{
+                connecting()
+                  ? 'Connecting…'
                   : auth.principal()
                     ? 'Type a message…'
                     : 'Write a note…'
-            }}"
-            [disabled]="connecting() || forceCardInput()"
-            aria-label="Message input"
-          />
+              }}"
+              [disabled]="connecting()"
+              aria-label="Message input"
+            />
+          }
           <button
             class="btn-primary send-btn"
             type="submit"
@@ -1435,6 +1439,12 @@ interface PublicConfig {
         flex: 1;
         font-size: 0.88rem;
         padding: 0.9rem 0.7rem;
+      }
+      .composer .inst {
+        flex: 1;
+        font-size: 0.82rem;
+        padding: 0.7rem 0.75rem;
+        color: var(--color-muted, #888);
       }
       .send-btn {
         display: flex;
