@@ -246,14 +246,6 @@ interface PublicConfig {
               <button class="qa-go" (click)="qa.cancel()">Stop</button>
             } @else {
               <input
-                type="password"
-                class="qa-pin"
-                placeholder="QA PIN"
-                [ngModel]="qaPin()"
-                (ngModelChange)="qaPin.set($event)"
-                aria-label="QA PIN"
-              />
-              <input
                 type="number"
                 class="qa-runs"
                 min="1"
@@ -262,6 +254,15 @@ interface PublicConfig {
                 (ngModelChange)="setQaRuns($event)"
                 title="Number of runs (each = one full quote)"
                 aria-label="QA run count"
+              />
+              <input
+                type="password"
+                class="qa-pin"
+                placeholder="QA PIN"
+                [ngModel]="qaPin()"
+                (ngModelChange)="qaPin.set($event)"
+                (keydown.enter)="startQa()"
+                aria-label="QA PIN"
               />
               <button class="qa-go" (click)="startQa()">Run</button>
               @if (qa.status()) { <span class="qa-status">{{ qa.status() }}</span> }
