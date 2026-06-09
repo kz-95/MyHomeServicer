@@ -116,6 +116,11 @@ asks that category's irrelevant questions. This is the same A1 decision: either 
 categories (Moving, Gardening, Painting) or stop force-matching tenuous services / make
 questions skippable. Product call.
 
+> **RESOLVED (2026-06-09):** chose A-full + C — added Painting/Moving/Gardening categories
+> with their own skippable question schemas. Plus the **reject/stall** case (run 3: rejected
+> Moving → bot looped in text) is fixed: a selection-phase reply that names a service but
+> emits no card now gets that service's `quote_options` injected server-side.
+
 ---
 
 ## C. Done this session (safe, verified)

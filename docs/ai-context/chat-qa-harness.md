@@ -2,7 +2,7 @@
 
 Authoritative record of how the automated chat-QA harness works: what it simulates, the
 full persona space, how it answers, every structural check, the log format, and how to run
-it. Companion to [`aichat.md`](aichat.md) (the chatbot's own rules).
+it. Companion to [`ai-chat.md`](ai-chat.md) (the chatbot's own rules).
 
 - Pure engine: [`frontend/src/app/shared/chat-qa-harness.ts`](../../frontend/src/app/shared/chat-qa-harness.ts)
 - Runner / log writer: `chat-qa.service.ts`
@@ -28,6 +28,28 @@ need, suggest a service) calls the LLM. With no configured key every run dies at
 them in Admin → API Keys before running.
 
 ---
+
+### Drive loop (how one scenario runs)
+
+```mermaid
+flowchart TD
+    A["makeScenario()<br/>random persona + service + data"] --> B["opening turn (typed)"]
+    B --> W["waitIdle + flush<br/>log SENT / RECV / DATA"]
+    W --> C{"latest card?"}
+    C -->|quote_options| D["confirm / reject<br/>(typing-only: type 'yes')"]
+    C -->|quote_field| E["tap • ~35% free-text<br/>• typing-only: type value"]
+    C -->|quote_question| F["tap • ~40% free-text<br/>• typing-only: type answer"]
+    C -->|quote_prefill| G["SUCCESS — walk the<br/>real /quote/new form, verify"]
+    C -->|text only, no card| X["stall/loop counters tick"]
+    D --> CK
+    E --> CK
+    F --> CK
+    X --> CK
+    CK{"structural checks<br/>loop / stall / timeout /<br/>dup / language / unconfirmed"} -->|fail| FAIL["FAIL (+ reason)"]
+    CK -->|ok, more cards| W
+    G --> J["LLM judge (optional)"]
+    J --> PASS["PASS"]
+```
 
 ## 2. Persona axes (the possibility space)
 
@@ -160,8 +182,9 @@ without guessing.
   card labels (flagged by the `language` check). Hits existing categories too.
 - **Conversation language can stick** across scenarios (a zh run can bleed into the next
   EN run) — the conversation-language lock isn't reset between scenarios.
-- **reject→stall** — rejecting a valid service can leave the bot looping in text with no card
-  (fix planned: inject the named service's card + make the stuck-watchdog language-agnostic).
+- ~~**reject→stall**~~ **FIXED (2026-06-09)** — a service-selection reply that names a catalog
+  service but emits no card now gets that service's `quote_options` injected server-side; the
+  stuck-watchdog also catches non-Latin question/colon endings.
 - `unconfirmed` check over-flags values given by free text (credit a value that matches the
   scenario's intended data even if typed).
 - New categories (painting/moving/gardening) have **no seeded servicers** yet.

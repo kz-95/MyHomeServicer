@@ -702,3 +702,44 @@ sequenceDiagram
     B-->>W: { blocks: [quote_prefill] }
     W-->>U: "Here's your summary!" + ✅ Review & submit
 ```
+
+---
+
+## Recent additions (2026-06-09)
+
+### Deterministic card-confirm turn (LLM skipped)
+A card tap sets `cardConfirm:true`; the backend returns the next card with no LLM call.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant W as Widget
+    participant B as Backend
+    U->>W: taps a card (date / budget / question…)
+    W->>W: sendConfirm() → cardConfirm:true
+    W->>B: POST { collected, collectedData, cardConfirm:true, categoryId }
+    B->>B: cardConfirm && categoryId? → SKIP LLM
+    B->>B: computeNextCards(collected, answered, questions)
+    B-->>W: { reply: "Got it." (fixed ack), blocks: [next card] }
+    Note over B: zero tokens · zero 429 · zero hallucination
+```
+
+### Reject/stall recovery — named-service card inject
+If a selection-phase reply names a catalog service but emits no card, the backend injects it.
+
+```mermaid
+flowchart TD
+    A["bot reply (selection phase)<br/>names 'Renovation' in text,<br/>no quote_options emitted"] --> B{"selection phase?<br/>(no category locked,<br/>no field/question/option/lock)"}
+    B -->|yes| C["scan reply for catalog<br/>service names (linkServices)"]
+    C --> D["inject quote_options<br/>for up to 2 named services"]
+    B -->|no| E["leave as-is"]
+    D --> F["user taps the card<br/>→ flow continues (no text loop)"]
+```
+
+### Catalog + personas
+- **New services**: Painting (Home Improvement), Moving + Gardening (Home Maintenance) — own
+  question schemas (non-essential questions skippable), budget ranges, card images. repaint→
+  Painting, movers→Moving, lawn→Gardening map by name.
+- **New QA personas**: `typing_shortcut` / `typing_adhd` — never tap a card, type every answer
+  (shortcut SMS style / erratic kid input). See [chat-qa-harness.md](chat-qa-harness.md).
+- **Failed-send retry**: one auto-retry after ~3.5 s before "Could not send message".

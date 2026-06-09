@@ -26,11 +26,20 @@ All items below: `tsc` + `ng build` pass, committed to `feat/ux-polish`, pushed.
 - [x] **3 new services: Painting, Moving, Gardening** — own question schemas (non-essential
       questions skippable), budget ranges, card images. Fixes repaint→Renovation /
       movers→Carpenter / lawn→Renovation mis-match. **Run `npm run db:reset` to apply.**
-      Docs: `docs/ai-context/seed-plan.md`, `docs/ai-context/chat-qa-findings.md`, `aichat.md`.
-- [ ] **Follow-ups (need a harness run / live repro):** budget shows index not amount on the
-      quote form (B1); free-text address up front leaves no/postcode/type empty → form blocks (B2);
-      language leaks between QA scenarios (run-3 EN persona answered in Chinese). See
-      `docs/ai-context/chat-qa-findings.md`.
+      Docs: `docs/ai-context/seed-plan.md`, `docs/ai-context/chat-qa-findings.md`, `ai-chat.md`.
+- [x] **QA personas: typing_shortcut + typing_adhd** — never tap a card, type every answer
+      (terse SMS / erratic kid input) to stress free-text extraction.
+- [x] **Failed-send auto-retry** — one retry after ~3.5 s before "Could not send message".
+- [x] **Reject/stall recovery** — bot names a service but emits no card → backend injects its
+      `quote_options`; stuck-watchdog now catches non-Latin question/colon endings. Verified
+      against ChatQA_Log_222309 (run-3 stall). B1 (budget) + B2 (full address) confirmed
+      RESOLVED by the richer log's DATA lines.
+- [x] **Docs + diagrams** — `ai-chat.md` (mermaid flow + quote-flow), `chat-qa-harness.md`
+      (full rules + possibility calc + drive-loop diagram), `chat-flow-diagrams.md` (card-confirm
+      + inject diagrams). `aichat.md` renamed → `ai-chat.md`.
+- [ ] **Follow-ups (lower priority):** language leak between QA scenarios (convo-lang not reset)
+      — user deprioritized (rojak/mixed normal in MY); seeded question labels lack `labelI18n`
+      (English in non-English chats); pre-existing `tsconfig` deprecation warnings (node10/baseUrl).
 - [ ] **No servicers seeded** under painting/moving/gardening yet (browse shows 0 providers).
 
 ### Done — LLM / DeepSeek

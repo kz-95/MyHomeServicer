@@ -30,6 +30,22 @@ sendToAi() (chat.service.ts)
 Reply { answer, actionBlocks } → client renders text bubbles + cards
 ```
 
+```mermaid
+flowchart TD
+    U["User message + opts<br/>(collected, collectedData, cardConfirm, categoryId, lang)"] --> R["chat route"]
+    R --> G{"injection<br/>guard"}
+    G -->|flagged| STRIKE["strike + empty reply"]
+    G -->|ok| S["sendToAi()"]
+    S --> CC{"cardConfirm<br/>&& categoryId?"}
+    CC -->|"yes (card tap)"| DET["SKIP LLM:<br/>computeNextCards()<br/>+ fixed localized ack"]
+    CC -->|"no (free-form)"| PROMPT["build prompt<br/>(FAQ + catalog + account ctx)"]
+    PROMPT --> LLM["LLM failover chain<br/>Gemini → DeepSeek → OpenAI"]
+    LLM --> PARSE["parse + guard reply<br/>(validate blocks, strip,<br/>dedup, inject next card,<br/>inject named-service card)"]
+    DET --> OUT["Reply: answer + actionBlocks"]
+    PARSE --> OUT
+    OUT --> CLIENT["client reveals text + cards<br/>(soft hint while a required card pends)"]
+```
+
 There is **no RAG / vector DB**. Knowledge is assembled deterministically into the prompt
 (FAQs by tier, live account data via SQL, the service catalog). This is correct for the
 current corpus size — it all fits in the prompt. Revisit only if the knowledge corpus
@@ -108,6 +124,23 @@ ahead — it re-emits the current missing card every turn until it's filled:
 5. Contact     → quote_field contactName + contactNumber
 6. Questions   → quote_question, one at a time (category's questionSchema)
 7. Review      → quote_prefill (full summary; Submit → /quote/new prefilled)
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Service
+    Service --> DateTime: category locked
+    DateTime --> Address: date + time set
+    Address --> Budget: address set
+    Budget --> Contact: budgetMax set
+    Contact --> Questions: name + phone set
+    Questions --> Review: all required answered
+    Review --> [*]: Submit → /quote/new
+    note right of Service
+        nextStepBlocks re-emits the
+        current missing card every turn
+        — flow can't skip ahead
+    end note
 ```
 
 Because the order is server-enforced, the user **cannot advance past a missing required
@@ -239,6 +272,7 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
 | `CONFIRMED DETAILS` prompt block | LLM altering/inventing collected values |
 | Banned-words filter (server-side) | configured forbidden words |
 | Dash/markdown stripping | template-y prose, raw markdown |
+| Named-service card inject (§5) | bot names a service in text but emits no card → inject it (stops the reject/stall loop) |
 
 What is **not** deterministically caught: free-form prose invention (a made-up price/policy
 in a normal answer). That is covered only by the QA LLM judge today; a deterministic
