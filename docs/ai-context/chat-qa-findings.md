@@ -174,14 +174,26 @@ saying "please tap the card" and even hallucinated "confirmed" without setting `
   typed lock through the same card-confirm short-circuit as a tap (deterministic ack + next
   cards, no LLM). Only fires when exactly ONE service card is pending. Build-verified.
 
+### FIXED — budget=0 on the form for a free-text amount
+B1 root cause found: a budget given as free text ("rm1580") carries `budgetMax` but no
+bracket `budgetIndex`, and the guest form's exact min/max match failed → it silently fell
+to bracket 0 (the lowest) and submitted the wrong budget (scenario 3: RM1580 → `budget=0`).
+- **Fix (`guest-quote`):** `matchChatBudgetBracket` resolves the bracket against the loaded
+  ranges — explicit in-range index if the chat carried one, else the bracket that CONTAINS
+  the amount (or the highest open-ended bracket if it exceeds them all), else bracket 0.
+  Replaces the old `applyChatBudget` (which only carried a raw index and couldn't validate
+  it). Build-verified. NOTE: the authed `quote-form.component.ts` has the same exact-match
+  bug (`matchPrefillBudget`) — apply the same contains-fallback there.
+
+### FIXED — harness flagged every run "no-transcript"
+The judge-gate tested `/^(USER|BOT)\b/`, but transcript lines are timestamped
+(`[HH:MM:SS] USER: ...`) since the C2 trace landed — so the marker is never at column 0 and
+EVERY run was flagged "no-transcript", the LLM judge was skipped, and the FAIL count
+inflated. Fixed the regex to `/^\[\d{2}:\d{2}:\d{2}\]\s+(USER|BOT)\b/`. Build-verified.
+
 ### Still open (known, not fixed this run)
-- **B1 budget=0 on the form** — every FORM CHECK still shows `budget=0` (form reads the
-  slider `budgetIndex`, not the amount). Next.
 - **i18n card labels** — `quote_question` labels render English-only in zh/ta runs
   ("What are you moving?", "Gate/door type?"). Booking still progressed; cosmetic-ish.
-- **Harness `no-transcript` (10/10)** — the LLM judge got no transcript so every JUDGE line
-  is empty; inflated the FAIL count. Harness-reporting gap, not chat quality. The
-  SENT/RECV/DATA trace already answers "why" without the judge.
 - **2 cards + typing-only** — when the bot offers two services, a type-only user can't
   disambiguate by affirmation (correctly not auto-locked). Edge; deprioritized.
 

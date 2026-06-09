@@ -797,12 +797,28 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Apply the chat's budget bracket after the category (and its ranges) resolve. */
-  private applyChatBudget(): void {
-    const bi = this.chatPrefillData?.['budgetIndex'];
-    if (bi == null || bi === '') return;
-    const idx = Number(bi);
-    if (!Number.isNaN(idx)) { this.f.budgetIndex = String(idx); this.budgetSlider = idx; }
+  /**
+   * Pick the budget bracket for the chat's prefilled budget, against the loaded ranges:
+   *   1. the explicit index from the chat budget card, if it's in range;
+   *   2. else the bracket that CONTAINS the free-text amount (budgetMax, then budgetMin) —
+   *      or the highest open-ended bracket if it exceeds them all;
+   *   3. else the first bracket.
+   * Without (2), a free-text amount ("rm1580") carried no index and silently fell to
+   * bracket 0 (the lowest), submitting the wrong budget.
+   */
+  private matchChatBudgetBracket(ranges: { min: number; max: number | null }[]): number {
+    const p = this.chatPrefillData;
+    const bi = p?.['budgetIndex'];
+    if (bi != null && bi !== '') {
+      const idx = Number(bi);
+      if (!Number.isNaN(idx) && idx >= 0 && idx < ranges.length) return idx;
+    }
+    const amt = Number(p?.['budgetMax'] ?? p?.['budgetMin']);
+    if (!Number.isNaN(amt) && amt > 0) {
+      const within = ranges.findIndex((r) => amt >= r.min && (r.max == null || amt <= r.max));
+      return within >= 0 ? within : ranges.length - 1;
+    }
+    return 0;
   }
 
   load(): void {
@@ -814,8 +830,8 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
           const child = (r.data ?? []).find((c) => c.id === this.f.categoryId);
           if (child) this.parentId.set(child.parentCategoryId ?? '');
           this.onCategoryChange(this.f.categoryId);
-          // After onCategoryChange (which clears budget), restore the chat's bracket.
-          this.applyChatBudget();
+          // The chat's budget bracket is applied in loadBudgetRanges' callback (it needs
+          // the loaded ranges to validate the index / match a free-text amount).
         }
       },
       error: () => this.loadError.set(true),
@@ -829,10 +845,14 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (r) => {
           this.budgetRanges.set(r.ranges ?? []);
-          // Auto-select first range if none selected
-          if (this.f.budgetIndex === '' && r.ranges.length > 0) {
-            this.f.budgetIndex = '0';
-            this.budgetSlider = 0;
+          // Select the bracket for the chat's budget when none is chosen yet. A
+          // free-text amount ("rm1580") carries budgetMax but no index, so without
+          // the contains-match below it fell to bracket 0 (the lowest) and submitted
+          // the wrong budget.
+          if (this.f.budgetIndex === '' && (r.ranges?.length ?? 0) > 0) {
+            const idx = this.matchChatBudgetBracket(r.ranges);
+            this.f.budgetIndex = String(idx);
+            this.budgetSlider = idx;
           }
         },
         error: () => {},

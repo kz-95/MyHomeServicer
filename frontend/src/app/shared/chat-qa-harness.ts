@@ -1447,7 +1447,12 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     // (wrong reply language, assumed data, contradictions, ignored input, bad flow).
     if (host.judge && !judgeUnavailable) {
       const transcriptLines = log.slice(startLen);
-      const hasConversation = transcriptLines.some((l) => /^(USER|BOT)\b/.test(l));
+      // Transcript lines are timestamped ("[HH:MM:SS] USER: ..."), so the marker is
+      // after the clock prefix — match it there, not at column 0. (A bare /^(USER|BOT)/
+      // matched nothing once timestamps were added, flagging every run "no-transcript".)
+      const hasConversation = transcriptLines.some((l) =>
+        /^\[\d{2}:\d{2}:\d{2}\]\s+(USER|BOT)\b/.test(l),
+      );
       if (!hasConversation) {
         // No real exchange was captured — don't let the judge fabricate findings from
         // the RESULT line alone. Flag the run for investigation instead.
