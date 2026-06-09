@@ -105,7 +105,7 @@ export interface QaRestEntry {
 // ─── Persona axes ────────────────────────────────────────────────────────────────
 export const QA_TYPING = ["proper", "lowercase", "typos", "abbrev", "verbose", "terse", "slang"] as const;
 export const QA_TONE = ["polite", "blunt", "impatient", "friendly", "anxious", "chatty"] as const;
-export const QA_BEHAVIOR = ["cooperative", "reject_first", "oversharer", "self_correct", "rambler", "minimal"] as const;
+export const QA_BEHAVIOR = ["cooperative", "reject_first", "oversharer", "self_correct", "rambler", "minimal", "typing_shortcut", "typing_adhd"] as const;
 export const QA_SORTING = ["service_first", "dump_all", "address_first", "budget_first", "contact_first", "vague_first"] as const;
 export const QA_LANG = ["en", "ms", "zh", "ta", "rojak"] as const;
 
@@ -630,6 +630,8 @@ function intentLabel(scn: QaScenario): string {
     self_correct: "sends then corrects → tests edit path",
     rambler: "drifts between options → tests contradiction handling",
     minimal: "short/minimal answers → tests prompting",
+    typing_shortcut: "NEVER taps a card — types every answer in terse SMS shortcuts → tests pure free-text extraction",
+    typing_adhd: "NEVER taps a card — types erratic, kid/ADHD answers (off-topic then the real value) → tests recovery from chaotic input",
   };
   parts.push(behaveWhy[p.behavior] ?? p.behavior);
 
@@ -678,6 +680,9 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
   const MAX_STEPS = 40;
   let steps = 0;
   let rejectedOnce = false;
+  // Per-card "one off-topic detour already used" set for the typing_adhd persona — must
+  // persist across turns, so it lives here and is passed by reference to actOnCard.
+  const chaosUsed = new Set<string>();
   let lastSig = "";
   let sameSigCount = 0;
   let emptyTurns = 0;
@@ -980,7 +985,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     }
 
     try {
-      await actOnCard(host, b, scn, { rejectedOnce });
+      await actOnCard(host, b, scn, { rejectedOnce, chaosUsed });
       if (b.type === "quote_field" && typeof b.data["key"] === "string") {
         confirmedKeys.add(b.data["key"] as string);
       }
@@ -1174,8 +1179,110 @@ function naturalQuestionReply(b: QaBlock, scn: QaScenario): string {
   return styleLine(scn.persona, core);
 }
 
+/** The two typing-only personas never tap a card — they type every answer as free text. */
+function isTypingOnly(b: QaBehavior): boolean {
+  return b === "typing_shortcut" || b === "typing_adhd";
+}
+
+/** Heavy SMS-shortcut compression for the typing_shortcut persona. */
+function shortcutText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\bplease\b/g, "pls")
+    .replace(/\byou\b/g, "u")
+    .replace(/\byour\b/g, "ur")
+    .replace(/\btomorrow\b/g, "tmrw")
+    .replace(/\btonight\b/g, "tnite")
+    .replace(/\band\b/g, "n")
+    .replace(/\bnumber\b/g, "no")
+    .replace(/\baround\b/g, "~")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/** Kid-with-ADHD off-topic non-answer — jumpy, distracted; forces the bot to re-ask once. */
+function kidChatter(): string {
+  return pick([
+    "wait what",
+    "ummm idk",
+    "hang on",
+    "my dog just barked lol",
+    "can we go faster",
+    "oops nvm",
+    "huh",
+    "ya whatever",
+    "im hungry",
+    "one sec brb",
+    "what was the question again",
+  ]);
+}
+
+/** Free-text a customer would type for ANY field card. Extends freeTextForField to the
+ *  fields it deliberately skips (address, name, property type) — used only by the
+ *  typing-only personas, which never tap a card even at the cost of the structured-address
+ *  gap (typed addresses leave No/Postcode/Type empty — a real, worth-surfacing finding). */
+function typingFieldText(key: string, scn: QaScenario): string {
+  const ft = freeTextForField(key, scn);
+  if (ft) return ft;
+  const p = scn.persona;
+  switch (key) {
+    case "address":
+      return styleLine(p, `${scn.addr.no} ${scn.addr.street} ${scn.addr.postcode}`);
+    case "contactName":
+      return styleLine(p, pick([scn.name, `i'm ${scn.name}`, `name's ${scn.name}`]));
+    case "propertyType":
+      return styleLine(p, scn.addr.propertyType);
+    case "notes":
+      return styleLine(p, scn.notes || "no notes");
+    default:
+      return styleLine(p, "ok");
+  }
+}
+
 /** Map a card to the right host action, filling it with the scenario's data. */
-async function actOnCard(host: QaHost, b: QaBlock, scn: QaScenario, st: { rejectedOnce: boolean }): Promise<void> {
+async function actOnCard(
+  host: QaHost,
+  b: QaBlock,
+  scn: QaScenario,
+  st: { rejectedOnce: boolean; chaosUsed: Set<string> },
+): Promise<void> {
+  // Typing-only personas: never tap a card — type the answer as free text so the LLM has
+  // to extract it. (identity_confirm is a yes/no gate, not a data card — still tapped.)
+  if (isTypingOnly(scn.persona.behavior) && b.type !== "identity_confirm") {
+    const sig = `${b.type}:${(b.data["key"] as string) ?? (b.data["categoryId"] as string) ?? (b.data["qtype"] as string) ?? ""}`;
+    // ADHD: one off-topic non-answer per card before the real value (forces a single
+    // re-ask, capped so it can't trip the 4x same-card loop detector).
+    if (
+      scn.persona.behavior === "typing_adhd" &&
+      !st.chaosUsed.has(sig) &&
+      Math.random() < 0.45
+    ) {
+      st.chaosUsed.add(sig);
+      host.sendText(kidChatter());
+      return;
+    }
+    let text: string;
+    if (b.type === "quote_options") {
+      // Confirm (or reject) the service by typing, not tapping.
+      text =
+        scn.persona.behavior === "reject_first" && !st.rejectedOnce
+          ? pick(["not that", "no thats wrong", "nope"])
+          : pick([
+              qaAffirm(scn.persona.language),
+              scn.service.needs[scn.persona.language] ?? scn.service.needs.en,
+              "ya that one",
+            ]);
+    } else if (b.type === "quote_question") {
+      text = naturalQuestionReply(b, scn);
+    } else if (b.type === "quote_field") {
+      text = typingFieldText((b.data["key"] as string) ?? "", scn);
+    } else {
+      return; // quote_prefill / other — nothing to type
+    }
+    if (scn.persona.behavior === "typing_shortcut") text = shortcutText(text);
+    host.sendText(text);
+    return;
+  }
   if (b.type === "identity_confirm") {
     host.confirmIdentity(true);
     return;
