@@ -148,6 +148,7 @@ apiRouter.get(
     const u: Record<string, unknown> = {
       id: principal.id,
       email: principal.email,
+      name: principal.name,
       role: principal.role,
       creditBalance: principal.creditBalance,
       isDemo: principal.isDemo,

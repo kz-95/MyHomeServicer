@@ -21,6 +21,7 @@ export interface Principal {
   kind: 'user' | 'servicer';
   role: 'customer' | 'admin' | 'servicer';
   email: string;
+  name: string;
   isDemo: boolean;
   setupRequired?: boolean;
   creditBalance: number;
@@ -47,6 +48,7 @@ function signAccessToken(p: Principal): string {
       kind: p.kind,
       role: p.role,
       email: p.email,
+      name: p.name,
       isDemo: p.isDemo,
       creditBalance: p.creditBalance,
     };
@@ -100,6 +102,7 @@ export function inspectAccessToken(token: string): TokenInspection {
         kind: payload.kind,
         role: payload.role,
         email: payload.email,
+        name: payload.name,
         isDemo: Boolean(payload.isDemo),
         creditBalance: Number(payload.creditBalance ?? 0),
         ...(payload.setupRequired !== undefined ? { setupRequired: Boolean(payload.setupRequired) } : {}),
@@ -160,6 +163,7 @@ export async function register(input: {
     kind: 'user',
     role: 'customer',
     email: user.email,
+    name: user.name,
     isDemo: false,
     creditBalance: Number(user.creditBalance),
   };
@@ -217,6 +221,7 @@ export async function registerMerchant(input: {
     kind: 'servicer',
     role: 'servicer',
     email: merchant.email,
+    name: merchant.name,
     isDemo: false,
     creditBalance: Number(merchant.creditBalance),
     depositBalance: 0,
@@ -261,6 +266,7 @@ export async function switchToCustomer(
     kind: 'user',
     role: 'customer',
     email: user.email,
+    name: user.name,
     isDemo: user.isDemo,
     creditBalance: Number(user.creditBalance),
   };
@@ -320,6 +326,7 @@ export async function login(
     kind: account.kind,
     role: isServicer ? 'servicer' : (record as { role: 'customer' | 'admin' }).role,
     email: record.email,
+    name: isServicer ? (record as { name: string }).name : (record as { name: string }).name,
     isDemo: record.isDemo,
     creditBalance: Number(record.creditBalance),
     depositBalance,
@@ -357,6 +364,7 @@ export async function getCurrentPrincipal(
       kind,
       role: user.role,
       email: user.email,
+      name: user.name,
       isDemo: user.isDemo,
       creditBalance: Number(user.creditBalance),
     };
@@ -376,6 +384,7 @@ export async function getCurrentPrincipal(
     kind,
     role: 'servicer',
     email: merchant.email,
+    name: merchant.name,
     isDemo: merchant.isDemo,
     creditBalance: Number(merchant.creditBalance),
     depositBalance: dep ? Number(dep.currentBalance) : undefined,
@@ -422,7 +431,7 @@ export async function refresh(refreshToken: string): Promise<TokenPair> {
   if (kind === 'user') {
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) throw unauthorized('Account not found');
-    principal = { id, kind, role: user.role, email: user.email, isDemo: user.isDemo, creditBalance: Number(user.creditBalance) };
+    principal = { id, kind, role: user.role, email: user.email, name: user.name, isDemo: user.isDemo, creditBalance: Number(user.creditBalance) };
     if (user.role === 'admin' && !user.passwordChangedAt) {
       principal.setupRequired = true;
     }
@@ -433,7 +442,7 @@ export async function refresh(refreshToken: string): Promise<TokenPair> {
       where: { merchantId: merchant.id },
       select: { currentBalance: true },
     });
-    principal = { id, kind, role: 'servicer', email: merchant.email, isDemo: merchant.isDemo, creditBalance: Number(merchant.creditBalance), depositBalance: dep ? Number(dep.currentBalance) : undefined };
+    principal = { id, kind, role: 'servicer', email: merchant.email, name: merchant.name, isDemo: merchant.isDemo, creditBalance: Number(merchant.creditBalance), depositBalance: dep ? Number(dep.currentBalance) : undefined };
   }
 
   // Rotate: revoke the old refresh token, issue a fresh pair.

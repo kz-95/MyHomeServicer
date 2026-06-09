@@ -76,6 +76,13 @@ export class ChatQaService {
       this.status.set(
         (this.running() ? "Saved " : "Stopped — saved ") + `logs/${resolvedName}.log`,
       );
+    } catch (e) {
+      // Always finish the log on an unexpected error, so a run that hit an issue still
+      // leaves a readable file instead of a half-written one (the per-scenario chunks
+      // are already on disk; append the error + close it out).
+      const msg = (e as Error)?.message ?? String(e);
+      await writeChunk(`\n\n---\n## RUN ERROR\nThe run stopped unexpectedly: ${msg}\n`);
+      this.status.set("Run errored — partial log saved");
     } finally {
       this.running.set(false);
     }

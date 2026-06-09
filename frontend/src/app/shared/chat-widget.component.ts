@@ -30,6 +30,7 @@ import {
 } from "./places-autocomplete.component";
 import { ChatQaService } from "./chat-qa.service";
 import { QaHost, QaBlock, QaAnswer } from "./chat-qa-harness";
+import { QaFormBridge } from "./qa-form-bridge.service";
 import { environment } from "../../environments/environment";
 
 /** PIN that unlocks the dev-only automated chat QA run. */
@@ -79,6 +80,7 @@ const CARD_T: Record<string, Record<CardLang, string>> = {
   enterStreetPostcode: { en: "⚠️ Enter a street and a 5-digit postcode.", ms: "⚠️ Masukkan jalan dan poskod 5 digit.", zh: "⚠️ 请输入街道和5位邮编。", ta: "⚠️ தெரு மற்றும் 5 இலக்க அஞ்சல் குறியீட்டை உள்ளிடவும்." },
   enterStreet: { en: "⚠️ Enter a street from the dropdown above.", ms: "⚠️ Pilih jalan dari senarai di atas.", zh: "⚠️ 请从上方列表选择街道。", ta: "⚠️ மேலே உள்ள பட்டியலில் தெருவைத் தேர்ந்தெடுக்கவும்." },
   enterPostcode: { en: "⚠️ Enter a valid 5-digit postcode (e.g. 47100).", ms: "⚠️ Masukkan poskod 5 digit yang sah (cth. 47100).", zh: "⚠️ 请输入有效的5位邮编（例如 47100）。", ta: "⚠️ சரியான 5 இலக்க அஞ்சல் குறியீட்டை உள்ளிடவும் (எ.கா. 47100)." },
+  enterNoType: { en: "⚠️ Enter the unit No. and pick a property type.", ms: "⚠️ Masukkan No. unit dan pilih jenis hartanah.", zh: "⚠️ 请输入门牌号并选择房产类型。", ta: "⚠️ யூனிட் எண்ணை உள்ளிட்டு சொத்து வகையைத் தேர்ந்தெடுக்கவும்." },
   validPhone: { en: "Enter a valid phone number.", ms: "Masukkan nombor telefon yang sah.", zh: "请输入有效的电话号码。", ta: "சரியான தொலைபேசி எண்ணை உள்ளிடவும்." },
   allCollected: { en: "All information collected", ms: "Semua maklumat lengkap", zh: "所有资料已收集", ta: "அனைத்து தகவல்களும் சேகரிக்கப்பட்டன" },
   reviewSubmitNote: { en: "Review above and submit your quote request.", ms: "Semak di atas dan hantar permintaan sebut harga anda.", zh: "请检查以上信息并提交您的报价请求。", ta: "மேலே உள்ளதைச் சரிபார்த்து உங்கள் கோரிக்கையைச் சமர்ப்பிக்கவும்." },
@@ -502,9 +504,11 @@ interface PublicConfig {
                                     }}</span>
                                   }
                                 </div>
-                                @if (!addrStreet().trim() || !postcodeValid()) {
+                                @if (!addrNo().trim() || !addrStreet().trim() || !postcodeValid() || !addrPropertyType()) {
                                   <p class="addr-reminder">
-                                    @if (!addrStreet().trim() && !postcodeValid()) {
+                                    @if (!addrNo().trim() || !addrPropertyType()) {
+                                      {{ t('enterNoType') }}
+                                    } @else if (!addrStreet().trim() && !postcodeValid()) {
                                       {{ t('enterStreetPostcode') }}
                                     } @else if (!addrStreet().trim()) {
                                       {{ t('enterStreet') }}
@@ -517,6 +521,8 @@ interface PublicConfig {
                                   type="button"
                                   class="btn-primary ac-confirm"
                                   [disabled]="
+                                    !addrNo().trim() ||
+                                    !addrPropertyType() ||
                                     !addrStreet().trim() ||
                                     !postcodeValid() ||
                                     addrValidating() ||
@@ -1859,10 +1865,14 @@ export class ChatWidgetComponent
   private sanitizer = inject(DomSanitizer);
   private pin = inject(PinService);
   private assist = inject(QuoteAssistBridge);
+  private qaFormBridge = inject(QaFormBridge);
 
   draft = "";
   sending = signal(false);
   connecting = signal(false);
+  /** A message whose send() was deferred because a reply was in flight — fired once the
+   *  chat goes idle (see the flush effect), so rapid card-confirms aren't dropped. */
+  private pendingDraft: string | null = null;
 
   /**
    * The language the customer is actually conversing in, detected from their REAL
@@ -1999,6 +2009,22 @@ export class ChatWidgetComponent
     effect(() => {
       if (!this.widget.isOpen()) {
         this.cancelPendingReply();
+      }
+    }, opts);
+    // Queue, don't drop. Confirming a second card (or typing) WHILE a reply is in flight
+    // had its send() dropped by the busy guard, so the bot never received it and re-asked
+    // ("I gave you the date"). When the chat goes idle, fire the queued message — its
+    // collectedData carries the full accumulated prefill, so the bot catches up on every
+    // field even if an intermediate ack was skipped.
+    effect(() => {
+      const busy = this.sending() || this.connecting();
+      if (!busy && this.pendingDraft) {
+        const queued = this.pendingDraft;
+        this.pendingDraft = null;
+        queueMicrotask(() => {
+          this.draft = queued;
+          this.send();
+        });
       }
     }, opts);
     // Load the category's budget ranges once a category is confirmed, so the
@@ -2422,7 +2448,15 @@ export class ChatWidgetComponent
     const text = this.draft.trim();
     // Guard double-submit: input stays enabled while a reply is in flight (so
     // keyboard focus is never lost), but we must not fire a second request.
-    if (!text || this.connecting() || this.sending()) return;
+    if (!text) return;
+    // Busy: don't DROP this message (that's how rapid card-confirms got lost) — queue the
+    // latest and the flush effect fires it when the reply lands. collectedData on that send
+    // carries the whole accumulated prefill, so no field is lost even if a turn is coalesced.
+    if (this.connecting() || this.sending()) {
+      this.pendingDraft = text;
+      this.draft = "";
+      return;
+    }
 
     // Gated "clear my quote": handled locally with a 2-confirmation gate; never reaches
     // the backend until confirmed, so an offhand "reset" can't wipe a half-finished quote.
@@ -2536,6 +2570,28 @@ export class ChatWidgetComponent
       refresh: () => {
         this.guestMsgs.set([]);
         this.loadGuest();
+      },
+      // Press "Review & submit", land on /quote/new, walk the quote form to the Summary
+      // (stop, no submit), collect a per-page report, then go back home for the next run.
+      submitAndVerifyForm: async () => {
+        const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+        this.submitPrefill(); // navigates to /quote/new?prefill=…
+        const t0 = Date.now();
+        while (!this.qaFormBridge.active() && Date.now() - t0 < 8000) await wait(200);
+        await wait(1600); // let the prefill + budget ranges apply
+        let lines: string[];
+        if (this.qaFormBridge.active()) {
+          try {
+            lines = await this.qaFormBridge.walk();
+          } catch (e) {
+            lines = [`FORM CHECK ERROR: ${(e as Error)?.message ?? String(e)}`];
+          }
+        } else {
+          lines = ["FORM CHECK: quote form did not load within 8s"];
+        }
+        this.router.navigate(["/"]); // back to home for the next run
+        await wait(500);
+        return lines;
       },
       messages: () =>
         this.messages().map((m) => ({
@@ -3260,7 +3316,15 @@ export class ChatWidgetComponent
    * confirmed - we only advance with a real, Google-resolved address.
    */
   confirmAddress(): void {
-    if (!this.addrStreet().trim()) return;
+    // Require every field the quote form marks * (No, Type, Street, Postcode) so the
+    // handoff can't land with a half-empty address.
+    if (
+      !this.addrNo().trim() ||
+      !this.addrStreet().trim() ||
+      !this.postcodeValid() ||
+      !this.addrPropertyType()
+    )
+      return;
     const composed = this.composedAddress();
     this.addrError.set("");
     this.addrValidating.set(true);
@@ -3268,6 +3332,8 @@ export class ChatWidgetComponent
       .post<{
         valid: boolean;
         formattedAddress?: string;
+        city?: string;
+        state?: string;
         lat?: number;
         lng?: number;
       }>("/chat/validate-address", { address: `${composed}, Malaysia` })
@@ -3286,6 +3352,10 @@ export class ChatWidgetComponent
               postcode: this.addrPostcode().trim(),
               propertyType: this.addrPropertyType(),
             });
+            // District + State from the geocode → carried to the /quote/new form so the
+            // full address is pre-filled (the chat card doesn't show these fields).
+            if (r.city) this.widget.accumulatePrefill({ district: r.city });
+            if (r.state) this.widget.accumulatePrefill({ state: r.state });
             this.addressConfirmed.set(true);
             this.draft = `${this.t("address")}: ${r.formattedAddress}`;
             this.send();
@@ -3757,7 +3827,7 @@ export class ChatWidgetComponent
     const isGuest = forSessionId === undefined;
     const parts = this.splitReply(reply);
     const ms =
-      this.auth.principal()?.role === "admin" ? 0 : 2000 + Math.random() * 3000;
+      this.auth.principal()?.role === "admin" ? 0 : 300 + Math.random() * 500;
     if (this.replyTimeoutId !== null) clearTimeout(this.replyTimeoutId);
     // First bubble after the main typing delay; remaining bubbles drip in one by
     // one (revealParts) with a short typing pause between each.
@@ -3827,7 +3897,7 @@ export class ChatWidgetComponent
     if (moreText) {
       // Keep the typing indicator up, then drip the next text part.
       this.sending.set(true);
-      const gap = 500 + Math.random() * 1000;
+      const gap = 300 + Math.random() * 500;
       this.replyTimeoutId = setTimeout(() => {
         this.replyTimeoutId = null;
         this.revealParts(
@@ -3891,7 +3961,7 @@ export class ChatWidgetComponent
     else this.authMsgs.update((m) => [...m, cardMsg]);
     this.scrollBottom = true;
     this.sending.set(true);
-    const gap = 400 + Math.random() * 600;
+    const gap = 300 + Math.random() * 500;
     this.replyTimeoutId = setTimeout(() => {
       this.replyTimeoutId = null;
       this.revealCards(blocks, idx + 1, createdAt, forSessionId, isGuest);

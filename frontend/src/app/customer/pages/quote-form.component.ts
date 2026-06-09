@@ -1396,6 +1396,8 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
     if (typeof p['addressNo'] === 'string') this.f.addressNo = p['addressNo'];
     if (typeof p['streetDetails'] === 'string') this.f.streetDetails = p['streetDetails'];
     if (typeof p['postcode'] === 'string') this.f.newAddressPostcode = p['postcode'];
+    if (typeof p['district'] === 'string') this.f.newAddressDistrict = p['district'];
+    if (typeof p['state'] === 'string') this.f.newAddressState = p['state'];
     if (typeof p['propertyType'] === 'string') this.f.newAddressPropertyType = p['propertyType'];
     if (typeof p['address'] === 'string') {
       this.f.notes = (this.f.notes ? this.f.notes + '\n' : '') + `Address: ${p['address']}`;

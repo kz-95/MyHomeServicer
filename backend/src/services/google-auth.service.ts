@@ -40,6 +40,7 @@ export async function handleGoogleAuth(
       kind: 'user',
       role,
       email: existingUser.email,
+      name: existingUser.name,
       isDemo: existingUser.isDemo,
       creditBalance: Number(existingUser.creditBalance),
     };
@@ -64,6 +65,7 @@ export async function handleGoogleAuth(
     kind: 'user',
     role: user.role as 'customer' | 'admin',
     email: user.email,
+    name: user.name,
     isDemo: false,
     creditBalance: Number(user.creditBalance),
   };

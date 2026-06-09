@@ -124,7 +124,20 @@ interface LlmKey {
           <div class="section-header">
             <h2>LLM API Keys</h2>
             <span class="priority-hint">Priority: top &rarr; bottom</span>
+            <span class="demo-keys-area">
+              @if (demoPinOpen()) {
+                <input class="demo-pin-input" type="password" inputmode="numeric" maxlength="8" placeholder="Demo PIN" [(ngModel)]="demoPin" (keydown.enter)="seedDemoKeys()" [disabled]="demoSeeding()" />
+                <button class="btn-demo-confirm" (click)="seedDemoKeys()" [disabled]="demoSeeding() || !demoPin">Go</button>
+                <button class="btn-demo-cancel" (click)="closeDemoPin()">✕</button>
+              }
+              <button class="btn-demo" (click)="openDemoPin()" [disabled]="demoSeeding()">
+                {{ demoSeeding() ? 'Seeding…' : '+Demo Keys' }}
+              </button>
+            </span>
           </div>
+          @if (demoError()) {
+            <p class="demo-error">{{ demoError() }}</p>
+          }
 
           @if (keys().length > 0) {
             <div cdkDropList class="keys-list" (cdkDropListDropped)="drop($event)">
@@ -239,6 +252,16 @@ interface LlmKey {
     .section-header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 0.25rem; }
     .priority-hint { color: var(--color-muted, #888); font-size: 0.8rem; }
 
+    .demo-keys-area { margin-left: auto; display: flex; align-items: center; gap: 0.35rem; }
+    .demo-pin-input { width: 90px; padding: 0.3rem 0.5rem; border: 1px solid var(--color-border, #ccc); border-radius: 6px; font-size: 0.78rem; font-family: monospace; }
+    .btn-demo { padding: 0.35rem 0.75rem; border: 1px solid var(--color-primary, #2563eb); border-radius: 6px; background: transparent; color: var(--color-primary, #2563eb); cursor: pointer; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+    .btn-demo:hover { background: #eff6ff; }
+    .btn-demo:disabled { opacity: 0.5; cursor: default; }
+    .btn-demo-confirm { padding: 0.3rem 0.55rem; border: none; border-radius: 6px; background: #16a34a; color: #fff; cursor: pointer; font-size: 0.75rem; }
+    .btn-demo-confirm:disabled { opacity: 0.5; }
+    .btn-demo-cancel { background: none; border: none; cursor: pointer; color: var(--color-muted, #888); font-size: 0.85rem; padding: 0.2rem; }
+    .demo-error { color: #dc2626; font-size: 0.78rem; margin: 0.25rem 0 0; }
+
     .fallback-section { background: var(--color-surface-alt, #f8fafb); border: 1px solid var(--color-border, #e2e8f0); border-radius: 10px; padding: 1.25rem; }
     .fallback-section.empty { background: none; border: 1px dashed var(--color-border, #ccc); }
 
@@ -325,6 +348,10 @@ export class ApiKeysComponent {
   protected keys = signal<LlmKey[]>([]);
   protected fallbackKey = signal<LlmKey | null>(null);
   protected notesOpen = signal(false);
+  protected demoSeeding = signal(false);
+  protected demoPinOpen = signal(false);
+  protected demoPin = '';
+  protected demoError = signal('');
 
   protected providers = PROVIDERS;
 
@@ -401,6 +428,39 @@ export class ApiKeysComponent {
 
   toggleNotes(): void {
     this.notesOpen.update((v) => !v);
+  }
+
+  openDemoPin(): void {
+    this.demoPin = '';
+    this.demoError.set('');
+    this.demoPinOpen.set(true);
+  }
+
+  closeDemoPin(): void {
+    this.demoPinOpen.set(false);
+    this.demoPin = '';
+    this.demoError.set('');
+  }
+
+  seedDemoKeys(): void {
+    if (this.demoSeeding() || !this.demoPin) return;
+    this.demoSeeding.set(true);
+    this.demoError.set('');
+    this.http.post<{ ok: boolean; count: number; message?: string }>('/api/v1/admin/llm-keys/demo-seed', { pin: this.demoPin }).subscribe({
+      next: (r) => {
+        this.demoSeeding.set(false);
+        if (r.count > 0) {
+          this.closeDemoPin();
+          this.load();
+        } else {
+          this.demoError.set(r.message || 'No keys found in .env');
+        }
+      },
+      error: (err) => {
+        this.demoSeeding.set(false);
+        this.demoError.set(err?.error?.message || err?.message || 'Demo seed failed');
+      },
+    });
   }
 
   addFallback(): void {
@@ -585,7 +645,13 @@ export class ApiKeysComponent {
 
     if (entry.id) {
       this.http.put(`/api/v1/admin/llm-keys/${entry.id}`, payload, { headers: this.pinHeaders() }).subscribe({
-        next: () => this.load(),
+        next: () => {
+          entry.label = entry.editLabel?.trim() || entry.label;
+          entry.provider = provider;
+          entry.model = entry.editModel?.trim() || '';
+          entry.editing = false;
+          entry.saveError = undefined;
+        },
         error: (err) => {
           entry.saveError = err?.error?.message || err?.message || 'Save failed.';
         },

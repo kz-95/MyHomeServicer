@@ -38,6 +38,8 @@ const envSchema = z.object({
   S3_SECRET_KEY: z.string().default(''),
   S3_BASE_URL: z.string().default(''),
 
+  G_LLM_API_Token: z.string().default(''),
+  DS_LLM_API_Token: z.string().default(''),
   AICHAT_LLM_API_KEY: z.string().default(''),
   AICHAT_LLM_FALLBACK_API_KEY: z.string().default(''),
   GOOGLE_MAPS_API_KEY: z.string().default(''),

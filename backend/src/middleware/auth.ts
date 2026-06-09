@@ -138,6 +138,19 @@ export function requireAdmin(req: Request, _res: Response, next: NextFunction): 
   next();
 }
 
+/** Require a user-kind principal (customer or admin — not servicer). */
+export function requireUser(req: Request, _res: Response, next: NextFunction): void {
+  if (!req.user) {
+    next(unauthorized());
+    return;
+  }
+  if (req.user.kind !== 'user') {
+    next(forbidden('User account required'));
+    return;
+  }
+  next();
+}
+
 /** Require a plain customer account (not merchant, not admin). */
 export function requireCustomer(req: Request, _res: Response, next: NextFunction): void {
   if (!req.user) {

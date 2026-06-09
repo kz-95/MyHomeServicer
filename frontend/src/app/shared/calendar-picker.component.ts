@@ -192,7 +192,7 @@ const WEEKDAY_NAMES = [
 export class CalendarPickerComponent {
   @Input() selectedDate = '';
   @Input() selectedSlot = '';
-  @Input() minDate = new Date().toISOString().slice(0, 10);
+  @Input() minDate = this.ymd(new Date());
   @Input() availableSlots: string[] = TIME_SLOTS.map((s) => s.value);
 
   @Output() selectedDateChange = new EventEmitter<string>();
@@ -217,12 +217,14 @@ export class CalendarPickerComponent {
     const startDate = new Date(this.viewYear, this.viewMonth, 1 + startOffset);
 
     const result: { date: string; dayOfMonth: number; isPast: boolean; isToday: boolean }[] = [];
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = this.ymd(new Date());
 
     for (let i = 0; i < 42; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
-      const dateStr = d.toISOString().slice(0, 10);
+      // LOCAL Y-M-D, never toISOString — the cells are local-midnight dates, so UTC
+      // conversion (UTC+8) rolled them back a day: the cell showed 18 but emitted "…-17".
+      const dateStr = this.ymd(d);
       result.push({
         date: dateStr,
         dayOfMonth: d.getDate(),
@@ -232,6 +234,11 @@ export class CalendarPickerComponent {
     }
 
     return result;
+  }
+
+  /** Local YYYY-MM-DD (no UTC conversion) — keeps the emitted date equal to the day shown. */
+  private ymd(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
   get visibleSlots() {

@@ -46,6 +46,9 @@ export interface QaHost {
   /** Reload state from storage WITHOUT wiping it — simulates a page refresh, so the
    *  returning-guest "is this {name}?" restore flow can be tested (vs clear()). */
   refresh(): void;
+  /** Press "Review & submit", walk the live quote form to the Summary (no submit), and
+   *  return a per-page report; then navigate back home. Optional (QA-only). */
+  submitAndVerifyForm?(): Promise<string[]>;
   /** Full transcript snapshot (oldest first). */
   messages(): QaMsg[];
   /** True while a reply is in flight. */
@@ -169,7 +172,9 @@ export const QA_PRESETS: QaPreset[] = [
   { name: "Hafiz Omar", phoneLocal: "194445566", addr: { no: "33", street: "Jalan Ampang, Kuala Lumpur", postcode: "50450", propertyType: "office" }, note: "office hours" },
   { name: "Priya Nair", phoneLocal: "187776655", addr: { no: "6", street: "Jalan SS15/4, Subang Jaya", postcode: "47500", propertyType: "apartment" }, note: "gate code 4321" },
 ];
-const QA_PROPERTY_TYPES = ["house", "apartment", "office", "shop"];
+// Must match the address card / address-fields <select> values, else the picked type
+// can't be displayed/confirmed and lands empty in the quote form (landed|condo|commercial).
+const QA_PROPERTY_TYPES = ["landed", "condo", "commercial"];
 const QA_DATE_WORDS = ["this saturday", "tomorrow", "next monday", "this friday", "this sunday", "tonight", "next week tuesday"];
 const QA_TIME_SLOTS = ["morning", "noon", "afternoon", "evening", "night"];
 
@@ -399,7 +404,6 @@ function composeOpening(
  * must use the card, so we never free-text them.
  */
 function freeTextForField(key: string, scn: QaScenario): string | null {
-  const a = scn.addr;
   switch (key) {
     case "budgetMin":
     case "budgetMax": {
@@ -411,8 +415,10 @@ function freeTextForField(key: string, scn: QaScenario): string | null {
       return styleLine(scn.persona, pick([scn.dateWords, `${scn.dateWords} works`, `let's do ${scn.dateWords}`]));
     case "timeSlot":
       return styleLine(scn.persona, pick([scn.timeSlot, `${scn.timeSlot} please`, `in the ${scn.timeSlot}`]));
-    case "address":
-      return styleLine(scn.persona, `${a.no} ${a.street}, ${a.postcode}`);
+    // NOTE: address is intentionally NOT free-texted. It is STRUCTURED (No / Street /
+    // Postcode / Type); the backend only extracts the formatted `address` string from
+    // free text, leaving the component fields empty so the quote form can't split them.
+    // The address card captures all four, so always use the card.
     case "contactNumber":
       return styleLine(scn.persona, pick([`0${scn.phoneLocal}`, `my number is 0${scn.phoneLocal}`, `call me at 0${scn.phoneLocal}`]));
     default:
@@ -500,10 +506,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Human-like pause (0.5–1s) before the customer responds — replying instantly raced
+/** Human-like pause (0.3–0.8s) before the customer responds — replying instantly raced
  *  the UI/backend and caused flaky stalls. Varied per turn so it isn't robotic. */
 function replyDelay(): Promise<void> {
-  return sleep(randInt(500, 1000));
+  return sleep(randInt(300, 800));
 }
 
 /**
@@ -565,6 +571,8 @@ export interface QaRunResult {
   ok: boolean;
   steps: number;
   issues: string[];
+  /** True when the in-chat flow reached the review card (so the form check can run). */
+  reachedReview: boolean;
 }
 
 interface RunHandle {
@@ -653,7 +661,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
 
   // Opening turn(s).
   for (const turn of scn.openingTurns) {
-    if (h.cancelled()) return { label: scn.label, ok: false, steps, issues: ["cancelled"] };
+    if (h.cancelled()) return { label: scn.label, ok: false, steps, issues: ["cancelled"], reachedReview: false };
     await replyDelay();
     host.sendText(turn);
     await waitIdle();
@@ -880,7 +888,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
       i.startsWith("looping"),
   );
 
-  return { label: scn.label, ok: success && !terminal && missing.length === 0 && !qualityFail, steps, issues };
+  return { label: scn.label, ok: success && !terminal && missing.length === 0 && !qualityFail, steps, issues, reachedReview: success };
 }
 
 /**
@@ -1083,14 +1091,30 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
       host.clear();
     }
     await sleep(700);
-    const res = await driveScenario(
-      host,
-      scn,
-      { log: push, cancelled },
-      doRefresh,
-    );
+    let res: QaRunResult;
+    try {
+      res = await driveScenario(host, scn, { log: push, cancelled }, doRefresh);
+    } catch (e) {
+      // One scenario crashing must NOT abort the whole suite (and skip the final
+      // summary) — record it as a failed run and carry on so the log still completes.
+      const msg = (e as Error)?.message ?? String(e);
+      push(`SCENARIO ERROR: ${msg}`);
+      res = { label: scn.label, ok: false, steps: 0, issues: [`error: ${msg}`], reachedReview: false };
+    }
     results.push(res);
     push(`RESULT: ${res.ok ? "PASS" : "FAIL"} (${res.steps} steps)${res.issues.length ? " — " + res.issues.join("; ") : ""}`);
+
+    // Reached the review → press "Review & submit" and walk the real quote form to the
+    // Summary (no submit), logging each page, then the host returns home for the next run.
+    if (res.reachedReview && host.submitAndVerifyForm && !cancelled()) {
+      push("--- FORM CHECK (Review & submit → quote page) ---");
+      try {
+        for (const line of await host.submitAndVerifyForm()) push(line);
+      } catch (e) {
+        push(`FORM CHECK ERROR: ${(e as Error)?.message ?? String(e)}`);
+      }
+      await flushChunk();
+    }
 
     // LLM judge — catch logical/conversational issues the heuristic checker can't see
     // (wrong reply language, assumed data, contradictions, ignored input, bad flow).

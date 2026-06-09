@@ -63,6 +63,10 @@ export interface AddressValidation {
   street?: string;
   /** Postal code, when resolvable. */
   postcode?: string;
+  /** City / district (locality), when resolvable — maps to the quote form's District. */
+  city?: string;
+  /** State (administrative_area_level_1), when resolvable. */
+  state?: string;
   lat?: number;
   lng?: number;
 }
@@ -102,7 +106,8 @@ export async function validateAddress(address: string): Promise<AddressValidatio
 
   const { lat, lng } = body.results[0].geometry.location;
   const formattedAddress = body.results[0].formatted_address;
-  return { valid: true, formattedAddress, lat, lng };
+  const { street, postcode, city, state } = parseComponents(body.results[0].address_components);
+  return { valid: true, formattedAddress, street, postcode, city, state, lat, lng };
 }
 
 /**
@@ -141,25 +146,40 @@ export async function reverseGeocode(lat: number, lng: number): Promise<AddressV
 
   const result = body.results[0];
   const formattedAddress = result.formatted_address;
-  const { street, postcode } = parseComponents(result.address_components);
-  return { valid: true, formattedAddress, street, postcode, lat, lng };
+  const { street, postcode, city, state } = parseComponents(result.address_components);
+  return { valid: true, formattedAddress, street, postcode, city, state, lat, lng };
 }
 
-/** Pull street (number + route) and postal code out of geocode components. */
+/** Pull street (number + route), postal code, city/district and state out of components. */
 function parseComponents(
   components?: Array<{ long_name: string; short_name: string; types: string[] }>,
-): { street?: string; postcode?: string } {
+): { street?: string; postcode?: string; city?: string; state?: string } {
   if (!components) return {};
   let streetNumber = '';
   let route = '';
   let postcode = '';
+  let locality = '';
+  let sublocality = '';
+  let adminLvl2 = '';
+  let state = '';
   for (const c of components) {
     if (c.types.includes('street_number')) streetNumber = c.long_name;
     else if (c.types.includes('route')) route = c.long_name;
     else if (c.types.includes('postal_code')) postcode = c.long_name;
+    else if (c.types.includes('locality')) locality = c.long_name;
+    else if (c.types.includes('sublocality') || c.types.includes('sublocality_level_1')) sublocality = c.long_name;
+    else if (c.types.includes('administrative_area_level_2')) adminLvl2 = c.long_name;
+    else if (c.types.includes('administrative_area_level_1')) state = c.long_name;
   }
   const street = [streetNumber, route].filter(Boolean).join(' ').trim();
-  return { street: street || undefined, postcode: postcode || undefined };
+  // Malaysian "district" ≈ city/locality; fall back to sublocality or admin level 2.
+  const city = locality || sublocality || adminLvl2;
+  return {
+    street: street || undefined,
+    postcode: postcode || undefined,
+    city: city || undefined,
+    state: state || undefined,
+  };
 }
 
 interface GeocodeResponse {

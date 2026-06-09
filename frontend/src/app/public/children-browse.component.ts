@@ -60,7 +60,7 @@ interface Category {
             @for (cat of children(); track cat.id) {
               <button class="svc-card" [class.is-loading]="!isLoaded(cat.id)" (click)="pick(cat)" [style]="{'--cat-color': cat.cardColor || 'var(--color-primary)'}">
                 <span class="svc-wash"></span>
-                <span class="svc-photo" [class.shown]="isLoaded(cat.id)" [style.background-image]="isLoaded(cat.id) ? ('url(' + thumbUrl(cat) + ')') : 'none'" [style.background-size]="(cat.bgZoom ?? 100) + '%'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
+                <span class="svc-photo" [class.shown]="isLoaded(cat.id)" [style.background-image]="isLoaded(cat.id) ? ('url(' + thumbUrl(cat) + ')') : 'none'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
                 @if (!isLoaded(cat.id)) {
                   <span class="svc-scan"><span class="bw-scan"></span><span class="bw-sweep"></span></span>
                 }
@@ -172,10 +172,6 @@ interface Category {
         background-size: cover;
         background-position: center top;
         background-repeat: no-repeat;
-        /* zoom + anchor top so the AI-image watermark at the bottom is cropped off the card */
-        transform: scale(1.12);
-        transform-origin: top center;
-        /* Reveal only once the thumbnail has finished preloading (see .shown). */
         opacity: 0;
         transition: opacity 0.45s ease;
       }

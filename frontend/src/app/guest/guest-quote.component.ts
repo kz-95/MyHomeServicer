@@ -11,6 +11,7 @@ import { PhoneInputComponent } from '../shared/phone-input.component';
 import { CalendarPickerComponent } from '../shared/calendar-picker.component';
 import { TIME_SLOTS } from '../shared/constants/time-slots';
 import { normalizeMyPhone } from '../shared/phone.util';
+import { QaFormBridge } from '../shared/qa-form-bridge.service';
 
 interface Category {
   id: string; name: string; icon?: string;
@@ -647,6 +648,9 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   protected stripePayment = inject(StripePaymentService);
+  private qaForm = inject(QaFormBridge);
+  /** Stable ref so unregister matches the exact callback registered in ngOnInit. */
+  private qaWalker = (): Promise<string[]> => this.qaWalkAndVerify();
 
   guestCountdown = signal(3);
   private guestCountdownTimer: ReturnType<typeof setInterval> | null = null;
@@ -687,6 +691,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.qaForm.register(this.qaWalker);
     const submitted = this.route.snapshot.queryParamMap.get('submitted') === 'true';
 
     // If this window is a popup/tab returning from Stripe, communicate result to opener and close
@@ -773,6 +778,8 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     if (str('streetDetails')) this.f.streetDetails = str('streetDetails')!;
     if (str('address') && !str('streetDetails')) this.f.streetDetails = str('address')!;
     if (str('postcode')) this.f.newAddressPostcode = str('postcode')!;
+    if (str('district')) this.f.newAddressDistrict = str('district')!;
+    if (str('state')) this.f.newAddressState = str('state')!;
     if (str('propertyType')) this.f.newAddressPropertyType = str('propertyType')!;
     if (str('newAddressPostcode') && !str('postcode')) this.f.newAddressPostcode = str('newAddressPostcode')!;
     if (typeof p['newAddressLat'] === 'number') this.f.newAddressLat = p['newAddressLat'] as number;
@@ -1085,7 +1092,40 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.qaForm.unregister(this.qaWalker);
     if (this.guestCountdownTimer) { clearInterval(this.guestCountdownTimer); this.guestCountdownTimer = null; }
+  }
+
+  /**
+   * QA walk: step the form Service → Contact → Summary, capturing each page's prefilled
+   * values + any validation block, then STOP at the Summary (no submit, no DB write).
+   * Returns one log line per page for the QA report.
+   */
+  private async qaWalkAndVerify(): Promise<string[]> {
+    const out: string[] = [];
+    const v = (s: string | undefined | null) => (s && String(s).trim() ? String(s).trim() : "-");
+    const snap = () =>
+      `cat=${this.f.categoryId ? "set" : "-"} date=${v(this.f.preferredDate)} time=${v(this.f.timeSlot)} ` +
+      `no=${v(this.f.addressNo)} street=${v(this.f.streetDetails)} postcode=${v(this.f.newAddressPostcode)} ` +
+      `district=${v(this.f.newAddressDistrict)} state=${v(this.f.newAddressState)} type=${v(this.f.newAddressPropertyType)} ` +
+      `budget=${this.f.budgetIndex === "" ? "-" : this.f.budgetIndex} name=${v(this.f.contactName)} phone=${v(this.f.contactNumber)}`;
+
+    out.push(`FORM page 1 (Service & Details): ${snap()}`);
+    this.goToContact();
+    if (this.step() === 1) {
+      out.push(`  FORM ISSUE: blocked at page 1 — "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
+      return out;
+    }
+
+    out.push(`FORM page 2 (Contact): ${snap()}`);
+    this.goToSummary();
+    if (this.step() === 2) {
+      out.push(`  FORM ISSUE: blocked at page 2 — "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
+      return out;
+    }
+
+    out.push(`FORM page 3 (Summary) reached OK — verified, stopping (no submit): ${snap()}`);
+    return out;
   }
 
   save(): void {
