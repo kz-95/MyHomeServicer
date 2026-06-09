@@ -147,6 +147,46 @@ false-positive visible at the data level on the next run — no more guessing. C
 
 ---
 
+## Update — run ChatQA_Log_000810062601 (10 scenarios, 9 FAIL) + fixes (2026-06-10)
+
+9/10 FAIL looked catastrophic, but the SENT/RECV/DATA trace (C2) pinned the causes —
+~half were harness artifacts, ~half real chat bugs. Two real bugs fixed this session.
+
+### FIXED — language pinned across customers (the dominant failure)
+`clear()` wiped quote state + prefill but NOT `convoLang`, so a fresh scenario inherited
+the previous thread's language. Scenario 8 (English persona) sent `lang=zh` on its FIRST
+message → bot replied 100% Chinese, looped 4× on the address card, FAIL. Real production
+bug, not just harness: any customer following a zh/ta user got the wrong language.
+- **Fix (`chat-widget`):** `clear()` and a "no, not me" identity answer reset `convoLang`
+  to `en`; "yes it's me" / "continue last session" re-derive it from the restored thread
+  (`deriveConvoLang`). Build-verified.
+
+### FIXED — typed "yes" never locked the category (killed the typing-only personas)
+`maybeTextConfirmCategory` (the deterministic text-confirm backstop) already existed but its
+regex was **English-only and anchored to the first word**. So `yes pls go ahead` locked fine
+(scenario 8, `cat=set`) but `对，就是这个` / `ya correct lah` / `ya that one` did not — the
+typing_shortcut / typing_adhd personas (who never tap) looped forever while the bot kept
+saying "please tap the card" and even hallucinated "confirmed" without setting `categoryId`
+(scenarios 1, 7, 10).
+- **Fix:** widened the regex to multilingual affirmatives (zh 对/没错/就是这个, ms ya/betul/
+  boleh, ta ஆம்/சரி), de-anchored it (tolerates a leading "eh boss," / "ya"), added negation
+  + short-message guards (so "yes but I need a plumber" can't mis-lock), and routed the
+  typed lock through the same card-confirm short-circuit as a tap (deterministic ack + next
+  cards, no LLM). Only fires when exactly ONE service card is pending. Build-verified.
+
+### Still open (known, not fixed this run)
+- **B1 budget=0 on the form** — every FORM CHECK still shows `budget=0` (form reads the
+  slider `budgetIndex`, not the amount). Next.
+- **i18n card labels** — `quote_question` labels render English-only in zh/ta runs
+  ("What are you moving?", "Gate/door type?"). Booking still progressed; cosmetic-ish.
+- **Harness `no-transcript` (10/10)** — the LLM judge got no transcript so every JUDGE line
+  is empty; inflated the FAIL count. Harness-reporting gap, not chat quality. The
+  SENT/RECV/DATA trace already answers "why" without the judge.
+- **2 cards + typing-only** — when the bot offers two services, a type-only user can't
+  disambiguate by affirmation (correctly not auto-locked). Edge; deprioritized.
+
+---
+
 ## Suggested order when you're back
 1. Decide **A1** (new Repaint category vs conditional questions).
 2. Run the harness once (now with C1) to reproduce **B1** + **B2** deterministically.

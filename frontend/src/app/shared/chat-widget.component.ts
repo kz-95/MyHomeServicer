@@ -1960,6 +1960,24 @@ export class ChatWidgetComponent
     if (this.convoLang() === "en") this.convoLang.set("en");
   }
 
+  /**
+   * Re-establish the pinned conversation language from a restored thread (returning
+   * guest "it's me" / "continue last session"), scanning the user's messages newest
+   * first. Without this, a restore keeps the in-memory default (en) and the bot
+   * answers a returning Malay/Chinese/Tamil customer in the wrong language.
+   */
+  private deriveConvoLang(msgs: ChatMessage[] | null | undefined): void {
+    if (!msgs) return;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role !== "user") continue;
+      const d = this.detectLang(msgs[i].content);
+      if (d) {
+        this.convoLang.set(d);
+        return;
+      }
+    }
+  }
+
   /** Composer submit: detect the human's language, then send. */
   protected sendTyped(): void {
     const t = this.draft.trim();
@@ -2540,6 +2558,11 @@ export class ChatWidgetComponent
   clear(): void {
     this.clearing.set(true);
     this.qaRestLog = []; // fresh REST trace per QA scenario (clear() runs between scenarios)
+    // Reset the pinned conversation language — a cleared chat is a brand-new
+    // customer, so it must not keep answering in the previous thread's language.
+    // (A returning "it's me" restore re-derives the language instead; see
+    // confirmIdentity / deriveConvoLang.)
+    this.convoLang.set("en");
     // Wipe EVERYTHING: in-progress quote data (name/phone/date/category), the
     // persisted guest prefill, and the archived prior thread — a cleared chat must
     // not keep remembering "Brian" or offer to continue an old session.
@@ -2815,12 +2838,17 @@ export class ChatWidgetComponent
         this.widget.prefillData()["contactName"] as string | undefined
       )?.trim() ?? "";
     if (yes) {
+      // It's the same returning customer — keep replying in the language their
+      // archived thread used, rather than the en default.
+      this.deriveConvoLang(this.archivedGuestMsgs);
       this.appendAssistantBubble(
         name
           ? `Great, welcome back ${name}! How can I help you today?`
           : "Welcome back! How can I help you today?",
       );
     } else {
+      // A different person on this device — start the language fresh.
+      this.convoLang.set("en");
       // Drop the remembered identity + address; keep nothing personal.
       this.widget.accumulatePrefill({
         contactName: "",
@@ -3362,12 +3390,29 @@ export class ChatWidgetComponent
    */
   private maybeTextConfirmCategory(text: string): void {
     if (this.widget.prefillData()["categoryId"]) return;
+    // Never auto-lock on a rejection / "wrong one" — let the assistant re-suggest.
     if (
-      !/^\s*(yep|yes|yeah|yup|sure|ok(ay)?|correct|right|that('?s| is)?( it| the one)?|the first( one)?|do it|proceed|go ahead|confirm(ed)?|let'?s go|sounds good)\b/i.test(
-        text,
-      )
+      /\b(no|nope|not|don'?t|wrong|bukan|tak|salah)\b/i.test(text) ||
+      /不是|不对|别|別/.test(text)
     )
       return;
+    // A short affirmation in any supported language confirms the single pending
+    // service. Don't anchor to the first word (rojak leads with "ya"/"eh boss"),
+    // but DO require a short message so "yes but I actually need a plumber" can't
+    // lock the wrong category. CJK/Tamil have no spaces, so gate them by length.
+    const affirmative =
+      /(^|\b)(yep|yes+|yeah|yup|ya|yer|sure|ok(ay)?|correct|betul|boleh|setuju|that'?s? (it|right|the one)|that one|this one|the first( one)?|do it|proceed|go ?ahead|confirm(ed)?|let'?s go|sounds good)(\b|$)/i.test(
+        text,
+      ) ||
+      /对|没错|是的|好的?|可以|就是(这个|那个|它)|要这个|确认/.test(text) ||
+      /ஆம்|சரி|வேண்டும்|இதுதான்/.test(text);
+    if (!affirmative) return;
+    const isCjkOrTamil = /[一-鿿஀-௿]/.test(text);
+    if (isCjkOrTamil) {
+      if (text.trim().length > 14) return;
+    } else if (text.trim().split(/\s+/).filter(Boolean).length > 6) {
+      return;
+    }
     const resolved = new Set(this.resolvedCards());
     const pending: string[] = [];
     for (const m of this.messages()) {
@@ -3382,6 +3427,11 @@ export class ChatWidgetComponent
     if (pending.length === 1) {
       this.widget.accumulatePrefill({ categoryId: pending[0] });
       this.markCardResolved(pending[0]);
+      // Route this typed confirmation through the same deterministic short-circuit
+      // as tapping "Yes, that's it": the backend skips the LLM, returns the localized
+      // ack + the next field cards. Keeps the typed-yes path from looping on the
+      // model (which was re-emitting the same suggestion instead of advancing).
+      this.nextSendCardConfirm = true;
     }
   }
 
@@ -3876,6 +3926,8 @@ export class ChatWidgetComponent
       const archived = this.archivedGuestMsgs;
       this.archivedGuestMsgs = null;
       this.identityConfirmed.set(true);
+      // Resume in the language the archived thread used.
+      this.deriveConvoLang(archived);
       this.guestMsgs.set([
         ...archived,
         { role: "user", content: text, createdAt: new Date().toISOString() },

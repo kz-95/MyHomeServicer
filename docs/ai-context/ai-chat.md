@@ -191,6 +191,12 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
   rojak). `opts.lang` pins the language and overrides per-turn detection — templated card
   confirmations ("My budget is RM150") are button clicks, NOT a language switch.
 - Service names from the catalog stay in their original form.
+- **`convoLang` lifecycle (frontend, `chat-widget`):** the pinned language is sticky
+  within a thread (a non-English signal wins; a bare Latin field value won't flip it back).
+  It **resets to `en` on `clear()`** (a cleared chat is a new customer) and on a "no, not me"
+  identity answer; it is **re-derived from the restored thread** on "yes, it's me" and
+  "continue last session" (`deriveConvoLang`). Without the reset, a new customer inherited
+  the previous thread's language (e.g. English user answered entirely in Chinese).
 
 **Action-block discipline (guest/customer)**
 - Naming a service, asking a date, asking a question, or confirming → MUST emit the
@@ -200,6 +206,13 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
 - Resolve relative dates ("tonight", "next Sunday") to a concrete future `YYYY-MM-DD`.
 - One service-question at a time; map free-text answers to the closest option.
 - Emit `category_lock` the moment the user confirms a service (by tap OR text).
+  - **Client deterministic backstop (`maybeTextConfirmCategory`):** when exactly ONE
+    service card is pending and the user types a short affirmation in any supported
+    language (en yes/ok/that's it · ms ya/betul/boleh · zh 对/没错/就是这个 · ta ஆம்/சரி),
+    the frontend locks that category itself and routes the turn through the card-confirm
+    short-circuit — it does NOT wait for the model to emit `category_lock` (which it often
+    forgets). Negations and long messages are excluded. This is what stops typing-only
+    customers (who never tap) from looping forever on "please tap the card".
 - After a rejection, ask ONE clarifying question max, then act (re-offer the best fit).
 - Never re-list collected values in prose (the review card is the single source of truth).
 
