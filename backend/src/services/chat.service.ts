@@ -2257,6 +2257,16 @@ export async function sendToAi(
     // details from being re-shown as cards every turn (the "repeat cards" bug).
     for (const k of Object.keys(opts?.collectedData ?? {}))
       confirmedFields.add(k);
+    // Fields pre-filled by deterministic extraction THIS turn (added to outBlocks with a
+    // value) are also collected — without this, the model re-emitting the same fields
+    // alongside the deterministically-injected ones creates duplicate cards.
+    for (const b of outBlocks) {
+      if (b.type === "quote_field") {
+        const v = b.data.value;
+        const k = b.data.key;
+        if (typeof k === "string" && v != null && v !== "") confirmedFields.add(k);
+      }
+    }
     const answeredQs = new Set(opts?.answeredQuestions ?? []);
     const wantsEdit =
       /\b(change|edit|update|correct|fix|wrong|different|instead|actually|amend|re-?do|re-?enter|modify|mistake|typo)\b/i.test(
