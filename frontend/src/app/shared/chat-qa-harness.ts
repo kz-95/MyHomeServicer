@@ -636,13 +636,20 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
       // Strip stale [⚙ ...] annotations from logged content so the log is clean.
       const txt = (m.content || "").replace(/\[⚙[^\]]*\]\s*/g, "").replace(/\n+/g, " ").trim();
       const blocks = m.blocks?.length ? ` [${m.blocks.map(blockTag).join(", ")}]` : "";
-      // QA-only: flag when bot describes a card/button but emitted no actionable action block.
-      // Warns both when there are zero blocks AND when only non-actionable blocks (link, retry)
-      // are present — a "link" block is not a pickable card the user interacts with.
-      const hasActionableBlock = m.blocks?.some((bk) => ACTIONABLE.has(bk.type));
-      const noCardWarn = (m.role === "assistant" && NO_CARD_RE.test(m.content ?? "") && !hasActionableBlock)
-        ? " ⚠ NO CARD" : "";
-      h.log(`${tag}: ${txt || (blocks ? "" : "(empty reply)")}${blocks}${noCardWarn}`.trimEnd());
+      h.log(`${tag}: ${txt || (blocks ? "" : "(empty reply)")}${blocks}`.trimEnd());
+    }
+    // Batch-level ⚠ NO CARD check: scan trailing assistant messages since last user turn.
+    // If COMBINED text mentions card/button but combined blocks have no actionable ones,
+    // warn once. This avoids false positives when blocks arrive in a SEPARATE message from
+    // the text that describes them (common LLM streaming behavior).
+    {
+      const batch = msgs.slice(logged);
+      const combined = batch.filter((m) => m.role === "assistant");
+      const text = combined.map((m) => m.content ?? "").join(" ");
+      const allBlocks = combined.flatMap((m) => m.blocks ?? []);
+      if (NO_CARD_RE.test(text) && !allBlocks.some((bk) => ACTIONABLE.has(bk.type))) {
+        h.log("⚠ NO CARD");
+      }
     }
     logged = msgs.length;
   };

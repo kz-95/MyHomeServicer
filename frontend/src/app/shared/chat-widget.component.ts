@@ -3377,14 +3377,24 @@ export class ChatWidgetComponent
             this.draft = `${this.t("address")}: ${r.formattedAddress}`;
             this.send();
           } else {
+            // Geocode returned invalid — fall back to the raw composed address so the
+            // flow can continue (the backend's extractAddress will find it in text).
             this.addrError.set(
               "We couldn't verify this address. Check the street and postcode, or pick a suggestion from the dropdown.",
             );
+            this.widget.accumulatePrefill({ address: composed });
+            this.addressConfirmed.set(true);
+            this.draft = `${this.t("address")}: ${composed}`;
+            this.send();
           }
         },
         error: () => {
           this.addrValidating.set(false);
-          this.addrError.set("Address check failed, please try again.");
+          // Geocode API unavailable — fall back to raw address so the flow continues.
+          this.widget.accumulatePrefill({ address: composed });
+          this.addressConfirmed.set(true);
+          this.draft = `${this.t("address")}: ${composed}`;
+          this.send();
         },
       });
   }
@@ -3595,7 +3605,8 @@ export class ChatWidgetComponent
   goToQuoteForm(data: Record<string, unknown>): void {
     const categoryId = data["categoryId"] as string;
     const prefill = { ...this.widget.prefillData(), categoryId };
-    const encoded = btoa(JSON.stringify(prefill));
+    // Unicode-safe base64: btoa chokes on Tamil/Chinese characters.
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(prefill))));
     const base =
       this.auth.principal()?.role === "customer" ? "/customer" : "/guest";
     this.router.navigate([`${base}/quote/new`], {
@@ -3607,7 +3618,8 @@ export class ChatWidgetComponent
   submitPrefill(): void {
     const data = this.widget.prefillData();
     if (!data.categoryId) return;
-    const encoded = btoa(JSON.stringify(data));
+    // Unicode-safe base64: btoa chokes on Tamil/Chinese characters.
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
     const base =
       this.auth.principal()?.role === "customer" ? "/customer" : "/guest";
     this.router.navigate([`${base}/quote/new`], {

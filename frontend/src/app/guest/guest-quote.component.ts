@@ -713,8 +713,13 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     // Never make the user re-enter what they already told the assistant.
     const prefillParam = this.route.snapshot.queryParamMap.get('prefill');
     if (prefillParam) {
-      try { this.chatPrefillData = JSON.parse(atob(prefillParam)) as Record<string, unknown>; }
-      catch { /* ignore invalid prefill */ }
+      try {
+        // Unicode-safe base64 fallback chain: new format → old format.
+        this.chatPrefillData = JSON.parse(decodeURIComponent(escape(atob(prefillParam)))) as Record<string, unknown>;
+      } catch {
+        try { this.chatPrefillData = JSON.parse(atob(prefillParam)) as Record<string, unknown>; }
+        catch { /* ignore invalid prefill */ }
+      }
     }
     if (!this.chatPrefillData) {
       try {

@@ -1319,8 +1319,12 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
     let chatPrefill: Record<string, unknown> | null = null;
     if (prefillParam) {
       try {
-        chatPrefill = JSON.parse(atob(prefillParam));
-      } catch { /* ignore invalid prefill */ }
+        // Unicode-safe base64: new format first, fall back to old.
+        chatPrefill = JSON.parse(decodeURIComponent(escape(atob(prefillParam))));
+      } catch {
+        try { chatPrefill = JSON.parse(atob(prefillParam)); }
+        catch { /* ignore invalid prefill */ }
+      }
     }
     // Fallback for service hyperlinks opened in new tab (sessionStorage per-tab).
     if (!chatPrefill) {
