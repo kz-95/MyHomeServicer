@@ -1437,6 +1437,38 @@ function extractBudget(text: string): number | undefined {
 }
 
 /**
+ * Extract a free-text street address from a user message, conservatively: only when
+ * it carries a 5-digit Malaysian postcode OR a strong street marker (jalan/lorong/…)
+ * with a house/unit number. Returns the trimmed line so the address card can be
+ * pre-filled and marked collected — otherwise a typed address never registers and the
+ * bot re-asks it every turn (the "address card loops forever" bug). The frontend still
+ * geocodes the value to populate the structured sub-fields.
+ */
+export function extractAddress(text: string): string | undefined {
+  // Scan line by line; pick the line that looks most like an address.
+  const lines = text
+    .split(/\n|(?<=[.!?])\s+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const POSTCODE = /\b\d{5}\b/;
+  const STREET =
+    /\b(jalan|jln|lorong|lrg|persiaran|lebuh(raya)?|lengkok|medan|taman|no\.?|unit|block|blok)\b/i;
+  let best: string | undefined;
+  for (const line of lines) {
+    const hasPostcode = POSTCODE.test(line);
+    const hasStreet = STREET.test(line);
+    const hasNumber = /\d/.test(line);
+    // Require a postcode, OR a street marker with some number (house no / unit).
+    if ((hasPostcode || (hasStreet && hasNumber)) && line.length >= 8) {
+      // Prefer the richest candidate (longest line with a postcode wins).
+      if (!best || (hasPostcode && !POSTCODE.test(best)) || line.length > best.length)
+        best = line;
+    }
+  }
+  return best;
+}
+
+/**
  * Match a bare answer the user typed against a pending service question, so an
  * answer given in text (e.g. "50" for an attendees question) is captured and the
  * question is never re-asked. Only the unambiguous types: number/quantity (a
@@ -2232,10 +2264,16 @@ export async function sendToAi(
         if (hasDateIntent) fillField("preferredDate", parsed.date);
         if (hasTimeIntent) fillField("timeSlot", parsed.slot);
       }
-      // Address is NOT pre-filled from text extraction — it requires structured fields
-      // (No., Property Type, Street, Postcode) that the address card UI collects.
-      // Auto-filling a flat string bypasses the card, leaving structured fields empty
-      // in the quote form, which blocks the submission. Let the card always handle it.
+      // Address: credit a free-text address the user typed so it registers and the
+      // card stops re-appearing every turn (the "address loops forever" bug). We emit
+      // it WITH the value; the frontend geocodes that value to fill the structured
+      // sub-fields (No./Postcode/Property Type). Only when not already collected, and
+      // only a confident match (postcode or street-marker+number) so a stray line
+      // ("need this asap") can't be mistaken for an address.
+      if (!new Set(opts?.collected ?? []).has("address")) {
+        const addr = extractAddress(`${message}\n${userConvo}`);
+        if (addr) fillField("address", addr);
+      }
       // Budget + phone are extracted from the USER's own words only (userConvo), never
       // the assistant's prose. extractBudget on the full transcript grabbed a number
       // from the assistant narrating a bracket ("RM500–1000") and pre-filled budgetMax
@@ -2350,6 +2388,35 @@ export async function sendToAi(
           outBlocks.push(nb);
         }
       }
+
+      // Deterministic collapse: during field collection show ONLY the canonical next
+      // step. The model loves to stack future cards (e.g. contactName + contactNumber
+      // while the address is still pending), rendering 3-4 cards at once and making the
+      // flow look stuck / loop. Keep a quote_field/quote_question card only if it is the
+      // actual next step OR carries a value we just captured (shown once so the client
+      // can store it); show the review only once base fields + questions are done.
+      // Non-quote blocks (link/retry/category_lock/quote_options) are untouched. This
+      // does not run on card-confirm turns (those short-circuit earlier via
+      // computeNextCards), so taps are unaffected.
+      const nextStep = nextStepBlocks([...done]);
+      const nextFieldKeys = new Set(
+        nextStep
+          .filter((b) => b.type === "quote_field")
+          .map((b) => b.data.key as string),
+      );
+      const baseFieldsDone = nextStep.some((b) => b.type === "quote_prefill");
+      const nextQKey = unansweredQ[0]?.key;
+      const carriesValue = (b: ActionBlock) =>
+        b.data.value != null && b.data.value !== "";
+      outBlocks = outBlocks.filter((b) => {
+        if (b.type === "quote_field")
+          return nextFieldKeys.has(b.data.key as string) || carriesValue(b);
+        if (b.type === "quote_question")
+          return (baseFieldsDone && b.data.key === nextQKey) || carriesValue(b);
+        if (b.type === "quote_prefill")
+          return baseFieldsDone && unansweredQ.length === 0;
+        return true;
+      });
     }
   }
 

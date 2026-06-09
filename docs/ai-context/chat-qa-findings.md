@@ -199,6 +199,50 @@ inflated. Fixed the regex to `/^\[\d{2}:\d{2}:\d{2}\]\s+(USER|BOT)\b/`. Build-ve
 
 ---
 
+## Update — run ChatQA_Log_025110062601 (1 scenario, typing_adhd) + fixes (2026-06-10)
+
+The prior fixes verified live: JUDGE now produces real verdicts (no-transcript gone),
+`budgetMax` captured, `lang=en` held, "ya that one" locked the category. But this run
+exposed three serious bugs in the field-collection flow.
+
+### FIXED — free-text address never registered → address card looped forever (鬼打墙)
+The backend DELIBERATELY refused to extract a free-text address (`chat.service.ts`: "Address
+is NOT pre-filled from text extraction"). So a typing-only customer who typed their address
+5× never had it registered — `nextStepBlocks` kept returning the address card, the bot
+re-emitted it every turn and lied "I've noted that address" while `addr=-`.
+- **Fix:** new `extractAddress()` (conservative — needs a 5-digit postcode or a street
+  marker + number) credits the typed address as a valued `quote_field:address` card; the
+  frontend accumulates it into prefill so it registers and the card stops. Unit-tested
+  (5 cases). The structured sub-fields (No./postcode/type) are still the known B2 gap
+  (form-side), but the LOOP is gone.
+
+### FIXED — cards stacked / out-of-order (3-4 cards per turn)
+The reconciliation INJECTED the deterministic next card but kept the model's stacked future
+cards too (e.g. `contactName + contactNumber` emitted while the address was still pending →
+4 cards at once, flow looks stuck). Added a **deterministic collapse**: during field
+collection, keep a `quote_field`/`quote_question` card only if it's the actual next step OR
+carries a just-captured value; show the review only when base fields + questions are done.
+Card-confirm turns are unaffected (they short-circuit earlier). The existing valid-key filter
+also drops hallucinated questions (e.g. a stray "area" card for a Plumber job).
+
+### FIXED — harness checks: added "not-registered" (the "not picking up info" signal)
+`duplicate` and `looping` detectors already existed; added **`not-registered`** — a field the
+user PROVIDED (tapped or typed, so it's in `confirmedKeys`) that never landed in the prefill.
+This is the precise signal for the address-loop class and now FAILs the run + tallies in the
+SUMMARY breakdown (which auto-counts any `kind:` prefix).
+
+### Still open after this run
+- **Prose hallucination** — the model still NAMES wrong services in text ("Moving"/
+  "Renovation" for a plumbing job) even though the CARDS are now correct/deterministic.
+  Prompt-level, not card-level. Deferred.
+- **Free-text answer to a radio question** — "bathtub" typed for an "area" radio question
+  isn't matched by `matchQuestionAnswer` (number/radio only) → that one question can still
+  re-ask. The collapse limits it to a single card, but the match gap remains.
+- **B2 structured address** — a credited free-text address still leaves No./postcode/type
+  empty for the /quote form (needs frontend geocode-on-prefill).
+
+---
+
 ## Suggested order when you're back
 1. Decide **A1** (new Repaint category vs conditional questions).
 2. Run the harness once (now with C1) to reproduce **B1** + **B2** deterministically.

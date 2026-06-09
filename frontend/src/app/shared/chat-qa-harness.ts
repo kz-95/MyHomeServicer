@@ -1023,6 +1023,21 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
       if (v === undefined || v === null || v === "") missing.push(k);
     }
     if (missing.length) issues.push(`incomplete prefill: missing ${missing.join(", ")}`);
+
+    // "Not picking up info": the user PROVIDED a field (tapped its card or typed the
+    // value — so it's in confirmedKeys) but it never landed in the prefill. This is the
+    // bot ignoring input the customer clearly gave — e.g. a typed address that never
+    // registered, so the address card kept re-appearing. Distinct from "incomplete"
+    // (a field never asked/given) and from "unconfirmed" (in the review yet never on a
+    // card). This is the precise signal for the address-loop / 鬼打墙 class of bug.
+    const notRegistered = [...confirmedKeys].filter((k) => {
+      const v = pf[k];
+      return v === undefined || v === null || v === "";
+    });
+    if (notRegistered.length)
+      issues.push(
+        `not-registered: user gave ${notRegistered.join(", ")} but the bot never captured it (kept re-asking)`,
+      );
   }
 
   // Reached the review with a single-card field present that we never actually confirmed
@@ -1047,6 +1062,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
       i.startsWith("redundant:") ||
       i.startsWith("duplicate:") ||
       i.startsWith("unconfirmed:") ||
+      i.startsWith("not-registered:") ||
       i.startsWith("refresh:") ||
       i.startsWith("flow:") ||
       i.startsWith("stuck") ||

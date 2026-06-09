@@ -12,7 +12,7 @@
  * No DB, no LLM, no mocks.
  */
 
-import { nextStepBlocks, computeNextCards } from '../../src/services/chat.service';
+import { nextStepBlocks, computeNextCards, extractAddress } from '../../src/services/chat.service';
 
 const ALL_BASE = [
   'preferredDate',
@@ -132,5 +132,30 @@ describe('computeNextCards — card-confirm turn (LLM skipped)', () => {
   it('falls back to the canonical label when no translation exists for the language', () => {
     const [card] = computeNextCards(ALL_BASE, [], [question('q1')], 'zh');
     expect(card.data['label']).toBe('Question q1');
+  });
+});
+
+describe('extractAddress — free-text address crediting (breaks the address loop)', () => {
+  it('captures an address with a 5-digit postcode', () => {
+    expect(extractAddress('88 jalan pju 5/20, kota damansara, petaling jaya 47810')).toContain('47810');
+  });
+
+  it('captures an address from a street marker + number (no postcode)', () => {
+    expect(extractAddress('no 12 jalan ampang')).toMatch(/jalan ampang/i);
+  });
+
+  it('picks the address line out of a noisy message', () => {
+    const got = extractAddress('need this asap please. 6 jalan ss15/4, subang jaya 47500. thanks');
+    expect(got).toContain('47500');
+  });
+
+  it('returns undefined for a message with no address signal', () => {
+    expect(extractAddress('need this asap please')).toBeUndefined();
+    expect(extractAddress('ya that one')).toBeUndefined();
+    expect(extractAddress('huh')).toBeUndefined();
+  });
+
+  it('does not treat a bare number / budget as an address', () => {
+    expect(extractAddress('budget around rm1239')).toBeUndefined();
   });
 });
