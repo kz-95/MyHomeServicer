@@ -1477,24 +1477,6 @@ function extractBudget(text: string): number | undefined {
 }
 
 /**
- * Extract a Malaysian street address the user gave (the LLM sometimes skips it
- * while parsing a one-line dump). Anchors on a street keyword (Jalan/No./Lorong/
- * Taman...) running up to the 5-digit postcode, so "Jalan Tempua 5 No.18, 47100"
- * is captured without grabbing the name/phone that follow it.
- */
-function extractAddress(text: string): string | undefined {
-  const m = text.match(
-    /((?:no\.?\s*\d+[a-z]?|jalan|jln|lorong|lrg|persiaran|lebuh|lengkok|taman|tmn|kampung|kg|seksyen|block|blok)\b[^\n]*?\b\d{5})\b/i,
-  );
-  if (!m) return undefined;
-  const addr = m[1]
-    .replace(/\s{2,}/g, " ")
-    .replace(/[,\s]+$/, "")
-    .trim();
-  return addr.length >= 8 ? addr : undefined;
-}
-
-/**
  * Match a bare answer the user typed against a pending service question, so an
  * answer given in text (e.g. "50" for an attendees question) is captured and the
  * question is never re-asked. Only the unambiguous types: number/quantity (a
@@ -2115,7 +2097,6 @@ export async function sendToAi(
         /\b(morning|noon|midday|afternoon|evening|night|tonight)\b/i.test(
           userText,
         );
-      const convoText = history.map((h) => h.content).join("\n");
       const fillField = (key: string, val?: string) => {
         if (!val) return;
         const existing = outBlocks.find(
@@ -2144,8 +2125,10 @@ export async function sendToAi(
         if (hasDateIntent) fillField("preferredDate", parsed.date);
         if (hasTimeIntent) fillField("timeSlot", parsed.slot);
       }
-      const addrText = `${message}\n${convoText}`;
-      fillField("address", extractAddress(addrText));
+      // Address is NOT pre-filled from text extraction — it requires structured fields
+      // (No., Property Type, Street, Postcode) that the address card UI collects.
+      // Auto-filling a flat string bypasses the card, leaving structured fields empty
+      // in the quote form, which blocks the submission. Let the card always handle it.
       // Budget + phone are extracted from the USER's own words only (userConvo), never
       // the assistant's prose. extractBudget on the full transcript grabbed a number
       // from the assistant narrating a bracket ("RM500–1000") and pre-filled budgetMax

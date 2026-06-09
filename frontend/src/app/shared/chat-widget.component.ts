@@ -2404,8 +2404,10 @@ export class ChatWidgetComponent
         this.timeConfirmed.set(value);
         this.timeConfirmedLabel.set(this.tSlot(value));
       } else if (key === "address") {
+        // Pre-fill the street field but do NOT auto-confirm: the address card needs
+        // structured fields (No., Property Type, Postcode) that only the card UI
+        // can collect. Auto-confirming skips the form and leaves them empty.
         this.addrStreet.set(value);
-        this.addressConfirmed.set(true);
       } else if (key === "budgetMax" || key === "budgetMin") {
         // The stated amount is the user's CEILING - pick the lowest bracket whose
         // top covers it (never a bracket that starts above their budget). If ranges
