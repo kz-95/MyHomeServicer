@@ -78,7 +78,7 @@ const STAGGER_MS = 100;
                   [style]="{'--cat-color': cat.cardColor || 'var(--color-primary)'}"
                 >
                   <span class="bw-wash"></span>
-                  <span class="bw-photo" [style.background-image]="'url(' + (cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug)) + ')'" [style.background-size]="(cat.bgZoom ?? 100) + '%'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
+                  <span class="bw-photo" [style.background-image]="'url(' + (cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug)) + ')'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
                   <span class="bw-body">
                     <span class="bw-ic"><app-icon [name]="cat.icon || 'home'" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
                     <strong>{{ cat.name }}</strong>
@@ -181,9 +181,6 @@ const STAGGER_MS = 100;
         background-size: cover;
         background-position: center top;
         background-repeat: no-repeat;
-        /* zoom + anchor top so the AI-image watermark at the bottom is cropped off the card */
-        transform: scale(1.12);
-        transform-origin: top center;
       }
       .bw-body {
         position: relative;

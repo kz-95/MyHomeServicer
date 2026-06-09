@@ -20,7 +20,17 @@ interface CalendarBooking {
   timeSlot: string;
   status: string;
   price: number;
+  paymentMode: string;
+  paid: boolean;
   category: string;
+  contactName: string;
+  contactNumber: string;
+  address: string;
+  postcode: string;
+  district: string;
+  state: string;
+  notes: string | null;
+  serviceDetails: Record<string, unknown> | null;
   customerName: string;
 }
 
@@ -188,23 +198,66 @@ interface CalendarData {
 
     <!-- ───────────── DAY DETAIL OVERLAY ───────────── -->
     @if (dayModalOpen()) {
-      <app-modal [open]="true" [title]="selectedDayTitle()" (closed)="dayModalOpen.set(false)">
+      <app-modal [open]="true" [title]="selectedDayTitle()" (closed)="closeDayModal()">
         @if (selectedDay()?.bookings?.length) {
           <div class="day-modal-list">
             @for (b of selectedDay()!.bookings; track b.id) {
-              <div class="dm-item">
-                <div class="dm-head">
+              <div class="dm-card">
+                <!-- Row 1: Status + Time + Payment + Price -->
+                <div class="dm-row1">
                   <span class="dm-status-dot" [class]="statusCls(b.status)"></span>
                   <span class="dm-status-label">{{ statusLabel(b.status) }}</span>
+                  <span class="dm-time">{{ slotLabelFor(b.timeSlot) }}</span>
+                  <span class="dm-payment">{{ paymentLabel(b) }}</span>
                   <span class="dm-price">RM {{ b.price.toFixed(2) }}</span>
                 </div>
-                <div class="dm-cat">{{ b.category }}</div>
-                <div class="dm-meta">
-                  <span>🕑 {{ slotLabelFor(b.timeSlot) }}</span>
-                  <span class="dm-sep">·</span>
-                  <span>👤 {{ b.customerName }}</span>
+
+                <!-- Row 2: Category -->
+                <div class="dm-category">{{ b.category }}</div>
+
+                <!-- Row 3: Contact + Phone with copy -->
+                <div class="dm-row3">
+                  <span class="dm-contact">👤 {{ b.contactName || b.customerName }}</span>
+                  <span class="dm-phone">📞 {{ b.contactNumber }}</span>
+                  @if (b.contactNumber) {
+                    <button type="button" class="btn-copy" (click)="copyText(b.contactNumber)">📋 Copy</button>
+                  }
                 </div>
-                <button type="button" class="btn-outline dm-link" (click)="openJob(b)">View job →</button>
+
+                <!-- Row 4: Address with copy -->
+                @if (b.address) {
+                  <div class="dm-row4">
+                    <span class="dm-addr">📍 {{ fullAddress(b) }}</span>
+                    <button type="button" class="btn-copy" (click)="copyText(fullAddress(b))">📋 Copy</button>
+                  </div>
+                }
+
+                <!-- Row 5: Job Description (expandable) + View Job -->
+                <div class="dm-row5">
+                  <button type="button" class="dm-expand" (click)="toggleExpand(b.id)">
+                    {{ expandedJobId() === b.id ? '▾' : '▸' }} Job Description
+                  </button>
+                  <button type="button" class="btn-outline dm-view-job" (click)="viewJob(b.id)">View Job ↗</button>
+                </div>
+
+                <!-- Expanded description -->
+                @if (expandedJobId() === b.id) {
+                  <div class="dm-description">
+                    @if (b.notes) {
+                      <p class="dm-notes">"{{ b.notes }}"</p>
+                    }
+                    @if (b.serviceDetails) {
+                      <ul class="dm-details">
+                        @for (entry of flattenDetails(b.serviceDetails); track entry.key) {
+                          <li><strong>{{ entry.key }}:</strong> {{ entry.value }}</li>
+                        }
+                      </ul>
+                    }
+                    @if (!b.notes && (!b.serviceDetails || !hasDetailContent(b.serviceDetails))) {
+                      <p class="muted">No description provided.</p>
+                    }
+                  </div>
+                }
               </div>
             }
           </div>
@@ -269,9 +322,12 @@ interface CalendarData {
       border-radius: 999px;
       font-size: 0.72rem;
       font-weight: 600;
-      padding: 0.2rem 0.6rem;
+      padding: 0.35rem 0.65rem;
       cursor: pointer;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
     }
     .sf-all:hover { border-color: var(--color-primary); color: var(--color-primary); }
     .sf-all.on { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
@@ -284,9 +340,10 @@ interface CalendarData {
       border-radius: 999px;
       font-size: 0.72rem;
       color: var(--color-text);
-      padding: 0.2rem 0.6rem 0.2rem 0.4rem;
+      padding: 0.35rem 0.6rem 0.35rem 0.4rem;
       cursor: pointer;
       transition: opacity 0.15s, border-color 0.15s;
+      min-height: 36px;
     }
     .sf-btn:hover { border-color: var(--color-primary); }
     .sf-btn.off { opacity: 0.45; }
@@ -296,11 +353,12 @@ interface CalendarData {
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
-      padding: 0.3rem 0.7rem;
+      padding: 0.45rem 0.75rem;
       font-size: 0.9rem;
       cursor: pointer;
       color: var(--color-text);
       transition: background var(--transition);
+      min-height: 38px;
     }
     .nav-btn:hover { background: var(--color-bg); }
     .nav-title { font-size: 1.05rem; min-width: 130px; text-align: center; }
@@ -342,28 +400,92 @@ interface CalendarData {
     .day-modal-list {
       display: flex;
       flex-direction: column;
-      gap: 0.6rem;
-      max-height: 60vh;
+      gap: 0.75rem;
+      max-height: 65vh;
       overflow-y: auto;
       overscroll-behavior: contain;
     }
-    .dm-item {
+    .dm-card {
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
-      padding: 0.7rem;
+      padding: 0.75rem;
       background: var(--color-bg);
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
+      gap: 0.45rem;
     }
-    .dm-head { display: flex; align-items: center; gap: 0.5rem; }
+    .dm-row1 {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.6rem;
+    }
     .dm-status-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
-    .dm-status-label { font-size: 0.78rem; font-weight: 600; color: var(--color-muted); }
-    .dm-price { margin-left: auto; font-weight: 600; }
-    .dm-cat { font-weight: 600; font-size: 0.95rem; }
-    .dm-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 0.82rem; color: var(--color-muted); }
-    .dm-sep { opacity: 0.5; }
-    .dm-link { align-self: flex-start; margin-top: 0.2rem; font-size: 0.82rem; padding: 0.35rem 0.7rem; }
+    .dm-status-label { font-size: 0.76rem; font-weight: 600; color: var(--color-muted); }
+    .dm-time { font-size: 0.82rem; color: var(--color-muted); white-space: nowrap; }
+    .dm-payment { font-size: 0.78rem; color: var(--color-muted); white-space: nowrap; }
+    .dm-price { margin-left: auto; font-weight: 700; font-size: 1rem; white-space: nowrap; }
+
+    .dm-category { font-weight: 700; font-size: 1rem; }
+
+    .dm-row3, .dm-row4 {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.84rem;
+    }
+    .dm-contact, .dm-phone, .dm-addr { color: var(--color-text); }
+    .dm-addr { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dm-phone  { white-space: nowrap; }
+
+    .btn-copy {
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.55rem;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      background: var(--color-surface);
+      color: var(--color-muted);
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .btn-copy:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+    .dm-row5 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: 0.15rem;
+    }
+    .dm-expand {
+      background: transparent;
+      border: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--color-primary);
+      cursor: pointer;
+      padding: 0.4rem 0;
+      text-align: left;
+      min-height: 36px;
+      touch-action: manipulation;
+    }
+    .dm-expand:hover { text-decoration: underline; }
+    .dm-view-job {
+      font-size: 0.78rem;
+      padding: 0.3rem 0.7rem;
+      white-space: nowrap;
+    }
+
+    .dm-description {
+      padding: 0.5rem 0 0.15rem;
+      border-top: 1px solid var(--color-border);
+    }
+    .dm-notes { font-style: italic; color: var(--color-muted); margin: 0 0 0.5rem; font-size: 0.84rem; }
+    .dm-details { margin: 0; padding-left: 1.2rem; font-size: 0.82rem; }
+    .dm-details li { margin-bottom: 0.2rem; }
+    .dm-details strong { text-transform: capitalize; }
     .cal-cell.today .day-num {
       background: var(--color-primary);
       color: #fff;
@@ -483,9 +605,171 @@ interface CalendarData {
     .pin-form input { max-width: 180px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
 
-    @media (max-width: 700px) {
-      .cal-cell { min-height: 60px; }
-      .day-booking { font-size: 0.58rem; }
+    /* ── Responsive: tablet (≤760px) ── */
+    @media (max-width: 760px) {
+      .cal-nav {
+        justify-content: center;
+      }
+      .nav-title {
+        min-width: 0;
+        flex: 1 0 100%;
+        order: -1;
+      }
+      .btn-today { margin-left: 0; }
+
+      .cal-cell {
+        min-height: 72px;
+        padding: 0.2rem 0.15rem;
+      }
+      .day-num { font-size: 0.72rem; }
+      .day-booking {
+        font-size: 0.55rem;
+        padding: 0.08rem 0.2rem;
+      }
+      .cal-cell.today .day-num {
+        width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+      }
+
+      /* Work hours: shrink label column */
+      .schedule-header,
+      .schedule-row {
+        grid-template-columns: 90px repeat(7, minmax(36px, 1fr));
+      }
+      .schedule-row-label {
+        font-size: 0.7rem;
+        padding: 0 0.15rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .schedule-cell { height: 48px; font-size: 0.72rem; }
+      .schedule-corner { font-size: 0.65rem; padding: 0.2rem 0.25rem; }
+      .schedule-col-head { font-size: 0.65rem; }
+    }
+
+    /* ── Responsive: mobile (≤560px) ── */
+    @media (max-width: 560px) {
+      .tabs {
+        gap: 0;
+      }
+      .tab {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.82rem;
+      }
+
+      /* Nav: stack month title above nav buttons */
+      .cal-nav {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas:
+          "title title title"
+          "prev today next";
+        gap: 0.4rem;
+        align-items: center;
+        margin-bottom: 0.6rem;
+      }
+      .nav-title {
+        grid-area: title;
+        text-align: center;
+        font-size: 0.95rem;
+        min-width: 0;
+        flex: none;
+        order: 0;
+      }
+      .nav-btn { grid-area: auto; font-size: 0.82rem; padding: 0.4rem 0.55rem; }
+      .btn-today { grid-area: today; margin-left: 0; }
+
+      /* Status filters: full-width scroll row */
+      .status-filters {
+        order: 999;
+        width: 100%;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 0.25rem;
+        padding-bottom: 0.2rem;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .status-filters::-webkit-scrollbar { display: none; }
+      .sf-all, .sf-btn {
+        font-size: 0.68rem;
+        padding: 0.35rem 0.55rem;
+        flex-shrink: 0;
+        white-space: nowrap;
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      /* Calendar grid: compact cells, hide booking text */
+      .cal-header { font-size: 0.65rem; }
+      .cal-cell {
+        min-height: 56px;
+        padding: 0.15rem 0.1rem;
+        gap: 1px;
+      }
+      .day-num { font-size: 0.68rem; }
+      .cal-cell.today .day-num {
+        width: 18px;
+        height: 18px;
+        font-size: 0.65rem;
+      }
+      .day-booking {
+        font-size: 0.5rem;
+        padding: 0.06rem 0.15rem;
+      }
+      .bk-cat { font-size: 0.48rem; }
+      .bk-time { display: none; }
+      .bk-more { font-size: 0.5rem; }
+
+      /* Work hours: minimal label, full-width scroll */
+      .schedule-header,
+      .schedule-row {
+        grid-template-columns: 52px repeat(7, minmax(32px, 1fr));
+      }
+      .schedule-row-label {
+        font-size: 0.62rem;
+        padding: 0 0.1rem;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .schedule-cell { height: 40px; font-size: 0.68rem; border-radius: 4px; }
+      .schedule-corner { font-size: 0.6rem; padding: 0.15rem 0.2rem; }
+      .schedule-col-head { font-size: 0.6rem; padding: 0.15rem 0; }
+
+      /* Day modal cards */
+      .dm-row1 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+      }
+      .dm-price { margin-left: 0; }
+      .dm-row3, .dm-row4 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+      }
+      .dm-addr { white-space: normal; overflow: visible; }
+      .dm-row5 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+      }
+      .dm-view-job {
+        width: 100%;
+        text-align: center;
+      }
+      .btn-copy {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.72rem;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+      }
     }
   `]
 })
@@ -563,10 +847,65 @@ export class ServicerCalendarComponent implements OnInit {
     return this.SLOT_LABELS[slot] ?? slot;
   }
 
-  /** Redirect to the jobs page for this booking, closing the overlay. */
-  openJob(b: CalendarBooking): void {
+  /** Close the day modal and reset expanded state. */
+  closeDayModal(): void {
     this.dayModalOpen.set(false);
-    this.router.navigate(['/servicer/jobs'], { queryParams: { focus: b.id } });
+    this.expandedJobId.set(null);
+  }
+
+  /** Payment mode + paid/unpaid label. */
+  paymentLabel(b: CalendarBooking): string {
+    const u = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    if (b.paymentMode === 'pay_now')   return `${u(b.paymentMode)} · Paid`;
+    if (b.paymentMode === 'cash')       return `${u(b.paymentMode)} · ${b.paid ? 'Paid' : 'Unpaid'}`;
+    return `${u(b.paymentMode)} · Unpaid`;
+  }
+
+  /** Full address line from components. */
+  fullAddress(b: CalendarBooking): string {
+    return [b.address, b.postcode, b.district, b.state].filter(Boolean).join(', ');
+  }
+
+  /** Copy text to clipboard. */
+  async copyText(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      this.toast.success('Copied to clipboard');
+    } catch {
+      this.toast.error('Copy failed');
+    }
+  }
+
+  /** Expand/collapse job description — only one open at a time. */
+  expandedJobId = signal<string | null>(null);
+  toggleExpand(id: string): void {
+    this.expandedJobId.set(this.expandedJobId() === id ? null : id);
+  }
+
+  /** View Job — navigate (mobile) or open in new tab (desktop). */
+  viewJob(id: string): void {
+    const url = this.router.serializeUrl(
+      this.router.createUrlTree(['/servicer/jobs', id]),
+    );
+    if (window.innerWidth <= 760) {
+      this.dayModalOpen.set(false);
+      this.router.navigate(['/servicer/jobs', id]);
+    } else {
+      window.open(url, '_blank');
+    }
+  }
+
+  /** Flatten serviceDetails object to key/value pairs for display. */
+  flattenDetails(details: Record<string, unknown>): { key: string; value: string }[] {
+    return Object.entries(details).map(([key, val]) => ({
+      key: key.replace(/_/g, ' '),
+      value: Array.isArray(val) ? val.join(', ') : String(val ?? ''),
+    }));
+  }
+
+  /** Check if serviceDetails has any meaningful content. */
+  hasDetailContent(details: Record<string, unknown>): boolean {
+    return Object.values(details).some(v => v !== null && v !== undefined && v !== '');
   }
 
   private readonly weekdayOffset = 1; // Monday-first

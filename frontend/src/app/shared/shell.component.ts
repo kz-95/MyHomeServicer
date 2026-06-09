@@ -2012,9 +2012,11 @@ export class ShellComponent implements OnInit, OnDestroy {
       });
   }
 
-  /** The logo title returns to the public home page. */
+  /** The logo title navigates to dashboard when logged in, home page otherwise. */
   goHome(): void {
-    this.router.navigate(["/"]);
+    const role = this.auth.principal()?.role;
+    const path = role === 'admin' ? '/admin' : role === 'servicer' ? '/servicer' : role === 'customer' ? '/customer' : '/';
+    window.location.href = path;
   }
 
   /** Label of the page currently shown - the deepest matching nav item. */

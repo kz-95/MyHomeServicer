@@ -7,6 +7,7 @@ import { PinService } from './pin.service';
 export interface Principal {
   id: string;
   email: string;
+  name?: string;
   role: 'customer' | 'admin' | 'servicer';
   creditBalance?: number;
   depositBalance?: number;

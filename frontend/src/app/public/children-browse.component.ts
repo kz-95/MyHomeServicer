@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../core/services/api.service';
 import { AuthService } from '../core/services/auth.service';
@@ -58,9 +58,12 @@ interface Category {
           <h2>{{ parentName() }}</h2>
           <div class="svc-grid">
             @for (cat of children(); track cat.id) {
-              <button class="svc-card" (click)="pick(cat)" [style]="{'--cat-color': cat.cardColor || 'var(--color-primary)'}">
+              <button class="svc-card" [class.is-loading]="!isLoaded(cat.id)" (click)="pick(cat)" [style]="{'--cat-color': cat.cardColor || 'var(--color-primary)'}">
                 <span class="svc-wash"></span>
-                <span class="svc-photo" [style.background-image]="'url(' + (cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug)) + ')'" [style.background-size]="(cat.bgZoom ?? 100) + '%'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
+                <span class="svc-photo" [class.shown]="isLoaded(cat.id)" [style.background-image]="isLoaded(cat.id) ? ('url(' + thumbUrl(cat) + ')') : 'none'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
+                @if (!isLoaded(cat.id)) {
+                  <span class="svc-scan"><span class="bw-scan"></span><span class="bw-sweep"></span></span>
+                }
                 <span class="svc-body">
                   <span class="svc-row">
                     <span class="svc-ic"><app-icon [name]="cat.icon || 'home'" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
@@ -169,10 +172,20 @@ interface Category {
         background-size: cover;
         background-position: center top;
         background-repeat: no-repeat;
-        /* zoom + anchor top so the AI-image watermark at the bottom is cropped off the card */
-        transform: scale(1.12);
-        transform-origin: top center;
+        opacity: 0;
+        transition: opacity 0.45s ease;
       }
+      .svc-photo.shown { opacity: 1; }
+      /* Per-card scanning overlay shown until this card's thumbnail is ready. */
+      .svc-scan {
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        overflow: hidden;
+        pointer-events: none;
+        border-radius: var(--radius);
+      }
+      .svc-card.is-loading { animation: border-glow 1.2s cubic-bezier(0.85, 0, 0.15, 1) infinite; }
       .svc-body {
         position: relative;
         z-index: 3;
@@ -235,22 +248,23 @@ interface Category {
         50%      { border-color: rgba(240,160,30,0.35); box-shadow: 0 0 0 1.5px rgba(240,160,30,0.12), var(--shadow-md); }
         85%      { border-color: rgba(240,160,30,0.15); box-shadow: 0 0 0 1px rgba(240,160,30,0.06), var(--shadow); }
       }
-      /* ── Scan + Sweep light bars ── 4 layers ── */
+      /* ── Scan + Sweep light bars ── 4 layers, all entering from OUTSIDE the
+         left edge and sweeping fully past the right, looping ── */
       @keyframes bw-scan1 {
-        0%   { transform: skewX(-24deg) translateX(-98%); }
-        100% { transform: skewX(-24deg) translateX(245%); }
+        0%   { transform: skewX(-24deg) translateX(-130%); }
+        100% { transform: skewX(-24deg) translateX(250%); }
       }
       @keyframes bw-scan2 {
-        0%   { transform: skewX(-24deg) translateX(-53%); }
-        100% { transform: skewX(-24deg) translateX(107%); }
+        0%   { transform: skewX(-24deg) translateX(-130%); }
+        100% { transform: skewX(-24deg) translateX(250%); }
       }
       @keyframes bw-sweep1 {
-        0%   { transform: skewX(-24deg) translateX(-103%); }
-        100% { transform: skewX(-24deg) translateX(295%); }
+        0%   { transform: skewX(-24deg) translateX(-130%); }
+        100% { transform: skewX(-24deg) translateX(280%); }
       }
       @keyframes bw-sweep2 {
-        0%   { transform: skewX(-24deg) translateX(-53%); }
-        100% { transform: skewX(-24deg) translateX(118%); }
+        0%   { transform: skewX(-24deg) translateX(-130%); }
+        100% { transform: skewX(-24deg) translateX(250%); }
       }
 
       .bw-scan, .bw-sweep {
@@ -355,7 +369,7 @@ interface Category {
     `,
   ],
 })
-export class ChildrenBrowseComponent implements OnInit {
+export class ChildrenBrowseComponent implements OnInit, OnDestroy {
   placeholderUrl = placeholderUrl;
   private api = inject(ApiService);
   private router = inject(Router);
@@ -366,9 +380,42 @@ export class ChildrenBrowseComponent implements OnInit {
   parentName = signal('');
   loading = signal(true);
   error = signal(false);
+  /** Category ids whose thumbnail has finished preloading (then the photo reveals). */
+  loadedIds = signal<Set<string>>(new Set());
   private currentSlug = '';
+  private destroyed = false;
+
+  isLoaded(id: string): boolean { return this.loadedIds().has(id); }
+  thumbUrl(cat: Category): string { return cat.bannerUrl || cat.imageUrl || this.placeholderUrl(cat.slug); }
+
+  ngOnDestroy(): void { this.destroyed = true; }
+
+  /** Preload thumbnails ONE BY ONE: a card keeps its scanning animation until its
+   *  own image is fully decoded, then reveals; a short gap staggers the reveals so
+   *  they don't all pop at once. Errors still reveal (the placeholder). */
+  private preloadSequential(cats: Category[]): void {
+    let i = 0;
+    const next = () => {
+      if (this.destroyed || i >= cats.length) return;
+      const cat = cats[i++];
+      const img = new Image();
+      const done = () => {
+        if (this.destroyed) return;
+        this.loadedIds.update((s) => { const n = new Set(s); n.add(cat.id); return n; });
+        setTimeout(next, 160);
+      };
+      img.onload = done;
+      img.onerror = done;
+      img.src = this.thumbUrl(cat);
+    };
+    next();
+  }
 
   ngOnInit(): void {
+    // Land at the top so the service cards are visible immediately — without this, a
+    // navigation from a scrolled page keeps the old scroll offset and the cards start
+    // off-screen below the fold.
+    window.scrollTo({ top: 0, left: 0 });
     this.currentSlug = this.route.snapshot.paramMap.get('parentSlug') ?? '';
     if (this.currentSlug) {
       this.parentName.set(this.currentSlug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
@@ -384,8 +431,11 @@ export class ChildrenBrowseComponent implements OnInit {
 
     this.api.get<{ data: Category[] }>('/categories', { parent: slug }).subscribe({
       next: (res) => {
-        this.children.set(res.data ?? []);
+        const cats = res.data ?? [];
+        this.loadedIds.set(new Set());
+        this.children.set(cats);
         this.loading.set(false);
+        this.preloadSequential(cats);
       },
       error: () => {
         this.error.set(true);

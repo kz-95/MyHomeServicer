@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { ChatWidgetService } from '../../core/services/chat-widget.service';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
@@ -500,6 +501,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   private dialog = inject(DialogService);
   private toast = inject(ToastService);
   private router = inject(Router);
+  private widget = inject(ChatWidgetService);
   private stripePay = inject(StripePaymentService);
 
   readonly skeletonSlots = Array.from({ length: SKELETON_COUNT }, (_, i) => i);
@@ -719,9 +721,9 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
         contextId: b.id,
       })
       .subscribe({
-        next: (r) => {
+        next: () => {
           this.reporting.set(null);
-          this.router.navigate(['/customer/chat'], { queryParams: { session: r.sessionId } });
+          this.widget.openWithQuestion('I need help with this booking.');
         },
         error: (e) => {
           this.reporting.set(null);

@@ -244,6 +244,10 @@ npm run seed                  # Seed demo data (wipes + recreates all)
 npm run unseed                # Remove all seeded data
 npm run reseed                # Reset everything (unseed + seed)
 npm run db:reset              # Force-push schema + regenerate client + seed
+npm run seed:settings         # Upsert platform settings ONLY (budget ranges, chat
+                              #   config, greeting tiers) — NON-destructive, no data
+                              #   wipe. Run after a settings default changes instead
+                              #   of a full reset, then restart the backend.
 
 npm run seed:test             # Lightweight test seed (4 servicers, 32 bookings)
 npm run db:reset-test         # Force-push schema + regenerate client + test seed

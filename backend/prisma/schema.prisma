@@ -480,6 +480,8 @@ model Servicer {
   invoiceNextNumber          Int       @default(1) @map("invoice_next_number")
   rating                     Float     @default(0)
   isBanned                   Boolean   @default(false) @map("is_banned")
+  chatBanned                 Boolean   @default(false) @map("chat_banned")
+  chatStrikeCount            Int       @default(0) @map("chat_strike_count")
   weeklyNoshow               Int       @default(0) @map("weekly_noshow")
   consecutiveNoshow          Int       @default(0) @map("consecutive_noshow")
   // Notification settings — same shape as User.notificationPrefs.
@@ -515,6 +517,7 @@ model Servicer {
   notifications             Notification[]
   pricingModules            PricingModule[]
   identityChangeRequests    ServicerIdentityChangeRequest[]
+  chatSessions              ChatSession[]
 
   @@index([email])
   @@index([isOnline, isBanned])
@@ -1074,7 +1077,8 @@ model JobQueue {
 
 model ChatSession {
   id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId              String          @map("user_id") @db.Uuid
+  userId              String?         @map("user_id") @db.Uuid
+  servicerId          String?         @map("servicer_id") @db.Uuid
   contextType         ChatContextType @map("context_type")
   contextId           String?         @map("context_id") @db.Uuid
   difyConversationId  String?         @map("dify_conversation_id")
@@ -1083,10 +1087,12 @@ model ChatSession {
   createdAt           DateTime        @default(now()) @map("created_at")
   updatedAt           DateTime        @updatedAt @map("updated_at")
 
-  user     User          @relation(fields: [userId], references: [id])
+  user     User?          @relation(fields: [userId], references: [id])
+  servicer Servicer?      @relation(fields: [servicerId], references: [id])
   messages ChatMessage[]
 
   @@index([userId])
+  @@index([servicerId])
   @@map("chat_sessions")
 }
 

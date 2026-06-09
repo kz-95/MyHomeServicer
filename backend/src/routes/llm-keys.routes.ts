@@ -5,14 +5,18 @@ import { validate } from '../middleware/validate';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { requirePin } from '../middleware/pin';
 import { prisma } from '../lib/prisma';
-import { notFound } from '../lib/errors';
+import { notFound, badRequest, forbidden } from '../lib/errors';
 import { configVault } from '../lib/config-vault';
 import { recordAudit } from '../services/ledger.service';
 import { invalidateLlmKeyCache } from '../services/chat.service';
 import { logger } from '../lib/logger';
+import { isProd } from '../config/env';
 
 export const llmKeysRouter = Router();
 llmKeysRouter.use(requireAuth, requireAdmin);
+
+/** Hardcoded demo PIN — gates the one-click demo-seed feature. */
+const DEMO_PIN = '145431';
 
 /** Mask a secret for display — never send the plaintext key to the browser. */
 function maskKey(v: string): string {
@@ -238,10 +242,122 @@ llmKeysRouter.post(
   }),
 );
 
+/** DEMO_PIN-gated endpoint that reads env vars and populates preset LLM keys. */
+llmKeysRouter.post(
+  '/demo-seed',
+  validate([body('pin').isString().notEmpty()]),
+  asyncHandler(async (req, res) => {
+    if (isProd) throw forbidden('Demo seed is disabled in production');
+
+    if (req.body.pin !== DEMO_PIN) throw forbidden('Incorrect demo PIN');
+
+    const geminiKey = process.env.G_LLM_API_Token || process.env.AICHAT_LLM_API_KEY || '';
+    const deepseekKey = process.env.DS_LLM_API_Token || process.env.AICHAT_LLM_FALLBACK_API_KEY || '';
+
+    const messages: string[] = [];
+
+    // Validate keys before saving
+    if (geminiKey) {
+      try {
+        const v = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`);
+        if (!v.ok) throw new Error(`Gemini API returned ${v.status}`);
+      } catch (err) {
+        throw badRequest(`Gemini key validation failed: ${(err as Error).message}`);
+      }
+    }
+    if (deepseekKey) {
+      try {
+        const v = await fetch('https://api.deepseek.com/v1/models', {
+          headers: { Authorization: `Bearer ${deepseekKey}` },
+        });
+        if (!v.ok) throw new Error(`DeepSeek API returned ${v.status}`);
+      } catch (err) {
+        throw badRequest(`DeepSeek key validation failed: ${(err as Error).message}`);
+      }
+    }
+
+    await prisma.llmApiKey.deleteMany({ where: { label: { startsWith: 'Demo ' } } });
+
+    let priority = 0;
+    const created: { label: string; model: string }[] = [];
+
+    if (geminiKey) {
+      const geminiModels = [
+        { label: 'Demo G 2.0 flash lite', model: 'gemini-2.0-flash-lite' },
+        { label: 'Demo G 2.5 flash lite', model: 'gemini-2.5-flash-lite' },
+        { label: 'Demo G 2.0 flash', model: 'gemini-2.0-flash' },
+        { label: 'Demo G 2.5 flash', model: 'gemini-2.5-flash' },
+      ];
+      const enc = configVault.encryptValue(geminiKey);
+      for (const entry of geminiModels) {
+        await prisma.llmApiKey.create({
+          data: {
+            label: entry.label,
+            provider: 'gemini',
+            model: entry.model,
+            encryptedValue: enc.encryptedValue,
+            iv: enc.iv,
+            authTag: enc.authTag,
+            priority: priority++,
+            isFallback: false,
+          },
+        });
+        created.push(entry);
+      }
+    }
+
+    // DeepSeek models, below the Gemini ones — when Gemini hits its quota (429) the
+    // chain falls through to these: v4-flash, then v4-pro as the final fallback. These
+    // are the only ids the live api.deepseek.com /v1/models lists (the older
+    // deepseek-chat/deepseek-reasoner are no longer served). Both are reasoning models
+    // that stream reasoning_content before the answer — see streamLlm's reasoning hook.
+    if (deepseekKey) {
+      const deepseekModels = [
+        { label: 'Demo DS V4 Flash', model: 'deepseek-v4-flash', isFallback: false },
+        { label: 'Demo DS V4 Pro', model: 'deepseek-v4-pro', isFallback: true },
+      ];
+      const encDs = configVault.encryptValue(deepseekKey);
+      for (const entry of deepseekModels) {
+        await prisma.llmApiKey.create({
+          data: {
+            label: entry.label,
+            provider: 'deepseek',
+            model: entry.model,
+            encryptedValue: encDs.encryptedValue,
+            iv: encDs.iv,
+            authTag: encDs.authTag,
+            priority: priority++,
+            isFallback: entry.isFallback,
+          },
+        });
+        created.push({ label: entry.label, model: entry.model });
+      }
+    }
+
+    if (created.length === 0) {
+      messages.push('No API keys found in .env — set G_LLM_API_Token and/or DS_LLM_API_Token');
+    } else {
+      if (!geminiKey) messages.push('Gemini key not set (G_LLM_API_Token), skipped 4 models');
+      if (!deepseekKey) messages.push('DeepSeek key not set (DS_LLM_API_Token), skipped fallback');
+    }
+
+    invalidateLlmKeyCache();
+
+    await recordAudit({
+      actorUserId: req.user!.id,
+      actorType: 'admin',
+      action: 'LLM_KEYS_DEMO_SEED',
+      newValue: { count: created.length, keys: created.map((c) => c.label) },
+    });
+
+    res.json({ ok: true, count: created.length, message: messages.join('; ') });
+  }),
+);
+
 const PROVIDER_DEFAULT_MODELS: Record<string, string[]> = {
   gemini: ['gemini-2.0-flash', 'gemini-2.5-pro-exp-03-25', 'gemini-1.5-pro', 'gemini-1.5-flash'],
   openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro'],
   generic: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
 };
 

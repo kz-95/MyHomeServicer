@@ -1,13 +1,16 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 import rateLimit from 'express-rate-limit';
+import { writeFile, mkdir } from 'fs/promises';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { asyncHandler } from '../lib/async-handler';
 import { requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { chatLimiter, chatDailyLimiter } from '../middleware/rate-limit';
 import { notFound, forbidden } from '../lib/errors';
-import { sendToAi } from '../services/chat.service';
+import { sendToAi, judgeConversation } from '../services/chat.service';
 import { checkInjection } from '../services/chatGuard';
 import { recordAudit } from '../services/ledger.service';
 import { createBugReport } from '../services/booking.service';
@@ -15,6 +18,26 @@ import { validateAddress, reverseGeocode } from '../lib/geocoding';
 import { verifyPin } from '../middleware/pin';
 import { badRequest } from '../lib/errors';
 import { updateMerchantProfile } from '../services/servicer-account.service';
+
+/** Client-detected conversation languages the chat can be pinned to. */
+const CHAT_LANGS = ['en', 'ms', 'zh', 'ta', 'rojak'] as const;
+function parseLang(v: unknown): (typeof CHAT_LANGS)[number] | undefined {
+  return typeof v === 'string' && (CHAT_LANGS as readonly string[]).includes(v)
+    ? (v as (typeof CHAT_LANGS)[number])
+    : undefined;
+}
+
+/** Sanitize the client's confirmed-field values: string keys/values only, capped. */
+function parseCollectedData(v: unknown): Record<string, string> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof k === 'string' && typeof val === 'string' && val.trim() !== '') {
+      out[k.slice(0, 40)] = val.slice(0, 300);
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 /** In-memory IP-based strike tracking for injection detection (guest + auth). */
 const ipStrikes = new Map<string, { count: number; bannedUntil: number | null }>();
@@ -62,39 +85,23 @@ chatRouter.post(
     body('message').isString().trim().isLength({ min: 1, max: 2000 }),
     body('history').optional().isArray(),
     body('role').optional().isIn(['guest', 'customer', 'servicer', 'admin']),
+    body('lang').optional().isIn(['en', 'ms', 'zh', 'ta', 'rojak']),
     body('categoryLocked').optional().isBoolean(),
     body('collected').optional().isArray(),
+    body('cardConfirm').optional().isBoolean(),
     body('formAssist').optional().isBoolean(),
     body('formContext').optional().isObject(),
   ]),
   asyncHandler(async (req, res) => {
     const ip = req.ip ?? 'unknown';
 
-    const ipBan = ipStrikes.get(ip);
-    if (ipBan?.bannedUntil && Date.now() < ipBan.bannedUntil) {
-      throw forbidden('Your chat access has been temporarily suspended due to repeated policy violations.');
-    }
-    if (ipBan?.bannedUntil && Date.now() >= ipBan.bannedUntil) {
-      ipStrikes.delete(ip);
-    }
-
     const message = req.body.message as string;
 
     const injection = checkInjection(message);
     if (injection.flagged) {
-      const entry = ipStrikes.get(ip) ?? { count: 0, bannedUntil: null };
-      entry.count += 1;
-      if (entry.count >= STRIKE_LIMIT) {
-        entry.bannedUntil = Date.now() + BAN_DURATION_MS;
-        ipStrikes.set(ip, entry);
-        throw forbidden('Your chat access has been temporarily suspended due to repeated policy violations.');
-      }
-      ipStrikes.set(ip, entry);
-      const left = STRIKE_LIMIT - entry.count;
-      throw forbidden(
-        `We have detected an attempt to interfere with the assistant. ` +
-        `This is warning ${entry.count} of ${STRIKE_LIMIT}. ${left} more will result in a temporary ban.`,
-      );
+      await recordStrike(ip, undefined);
+      res.json({ reply: '', createdAt: new Date().toISOString() });
+      return;
     }
 
     const raw = (req.body.history ?? []) as Array<{ role: string; content: string }>;
@@ -108,6 +115,9 @@ chatRouter.post(
       collected: Array.isArray(req.body.collected) ? (req.body.collected as string[]) : [],
       categoryId: typeof req.body.categoryId === 'string' ? req.body.categoryId : undefined,
       answeredQuestions: Array.isArray(req.body.answeredQuestions) ? (req.body.answeredQuestions as string[]) : [],
+      lang: parseLang(req.body.lang),
+      collectedData: parseCollectedData(req.body.collectedData),
+      cardConfirm: req.body.cardConfirm === true,
       formAssist: req.body.formAssist === true,
       formContext: sanitizeFormContext(req.body.formContext),
     });
@@ -118,6 +128,101 @@ chatRouter.post(
     });
   }),
 );
+
+/**
+ * POST /chat/qa-log — persist an automated-QA transcript to <repo-root>/logs/.
+ *
+ * DEV/QA ONLY: registered exclusively when NODE_ENV !== 'production', so it never
+ * exists on the live server (the chat QA button is likewise dev-build only). The
+ * client-side QA PIN is a UX gate, NOT auth — the real protection is this env guard.
+ * The name is hard-sanitised to a filename token and the extension is forced to .log,
+ * so the write stays inside logs/; writes are exclusive ('wx') with a random suffix on
+ * collision, so a client-supplied name can never overwrite an existing log.
+ */
+if (process.env.NODE_ENV !== 'production') {
+  chatRouter.post(
+    '/qa-log',
+    guestChatLimiter,
+    validate([
+      body('name').isString().matches(/^[A-Za-z0-9_-]{1,72}$/),
+      body('content').isString().isLength({ min: 0, max: 5_000_000 }),
+      body('append').optional().isBoolean(),
+    ]),
+    asyncHandler(async (req, res) => {
+      const reqName = (req.body.name as string).replace(/[^A-Za-z0-9_-]/g, '');
+      const content = req.body.content as string;
+      const append = req.body.append === true;
+      // The server runs from backend/; logs/ lives at the repo root one level up. If
+      // launched from the repo root instead, use that directly.
+      const cwd = process.cwd();
+      const repoRoot = cwd.endsWith(`${path.sep}backend`) ? path.resolve(cwd, '..') : cwd;
+      const logsDir = path.join(repoRoot, 'logs');
+      await mkdir(logsDir, { recursive: true });
+      const rel = (f: string) => path.relative(repoRoot, f).split(path.sep).join('/');
+
+      // Append mode: write incrementally to the already-created file, so a run that is
+      // stopped or crashes mid-way is still recorded on disk. Retry on EBUSY (Windows
+      // file lock — user has the log open in an editor) with backoff.
+      if (append) {
+        const file = path.join(logsDir, `${reqName}.log`);
+        let delay = 200;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            await writeFile(file, content, { encoding: 'utf8', flag: 'a' });
+            break;
+          } catch (e) {
+            const code = (e as NodeJS.ErrnoException).code;
+            if ((code === 'EBUSY' || code === 'EPERM' || code === 'EACCES') && attempt < 4) {
+              await new Promise((r) => setTimeout(r, delay));
+              delay *= 2;
+              continue;
+            }
+            throw e;
+          }
+        }
+        res.json({ ok: true, name: reqName, file: rel(file) });
+        return;
+      }
+      // Create exclusively — never truncate an existing log; add a random suffix on
+      // collision and return the RESOLVED name so the client appends to the right file.
+      let name = reqName;
+      let file = path.join(logsDir, `${name}.log`);
+      try {
+        await writeFile(file, content, { encoding: 'utf8', flag: 'wx' });
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
+          name = `${reqName}_${randomUUID().slice(0, 8)}`;
+          file = path.join(logsDir, `${name}.log`);
+          await writeFile(file, content, { encoding: 'utf8', flag: 'wx' });
+        } else {
+          throw e;
+        }
+      }
+      res.json({ ok: true, name, file: rel(file) });
+    }),
+  );
+
+  /**
+   * POST /chat/qa-judge — LLM review of a QA transcript (or batch of findings).
+   * DEV/QA ONLY (same env guard). mode 'run' returns logical findings for one
+   * conversation; mode 'conclude' returns an overall verdict. Reuses the chatbot's
+   * own LLM failover chain.
+   */
+  chatRouter.post(
+    '/qa-judge',
+    guestChatLimiter,
+    validate([
+      body('transcript').isString().isLength({ min: 1, max: 200_000 }),
+      body('mode').optional().isIn(['run', 'conclude']),
+    ]),
+    asyncHandler(async (req, res) => {
+      const transcript = req.body.transcript as string;
+      const mode = req.body.mode === 'conclude' ? 'conclude' : 'run';
+      const result = await judgeConversation(transcript, mode);
+      res.json({ result });
+    }),
+  );
+}
 
 /**
  * POST /chat/validate-address — validate an address using Google Geocoding API.
@@ -254,12 +359,12 @@ chatRouter.post(
   }),
 );
 
-/** GET /chat/sessions — the customer's chat sessions (latest 50). */
+/** GET /chat/sessions — the principal's chat sessions (latest 50). */
 chatRouter.get(
   '/sessions',
   asyncHandler(async (req, res) => {
     const data = await prisma.chatSession.findMany({
-      where: { userId: req.user!.id },
+      where: ownerWhere(req),
       orderBy: { updatedAt: 'desc' },
       take: 50,
     });
@@ -277,7 +382,7 @@ chatRouter.post(
   asyncHandler(async (req, res) => {
     const session = await prisma.chatSession.create({
       data: {
-        userId: req.user!.id,
+        ...ownerWhere(req),
         contextType: req.body.contextType,
         contextId: req.body.contextId ?? null,
       },
@@ -296,7 +401,7 @@ chatRouter.get(
   ]),
   asyncHandler(async (req, res) => {
     const session = await prisma.chatSession.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+      where: { id: req.params.id, ...ownerWhere(req) },
     });
     if (!session) throw notFound('Chat session not found');
 
@@ -360,7 +465,7 @@ chatRouter.delete(
   validate([param('id').isUUID()]),
   asyncHandler(async (req, res) => {
     const session = await prisma.chatSession.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+      where: { id: req.params.id, ...ownerWhere(req) },
     });
     if (!session) throw notFound('Chat session not found');
     await prisma.chatMessage.deleteMany({ where: { sessionId: session.id } });
@@ -381,74 +486,58 @@ chatRouter.post(
     body('message').isString().trim().isLength({ min: 1, max: 2000 }),
     body('categoryLocked').optional().isBoolean(),
     body('collected').optional().isArray(),
+    body('cardConfirm').optional().isBoolean(),
   ]),
   asyncHandler(async (req, res) => {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: { chatBanned: true, chatStrikeCount: true },
-    });
-    if (!user) throw notFound('User not found');
+    const canBan = req.user!.role === 'customer' || req.user!.role === 'servicer';
 
-    const ip = req.ip ?? 'unknown';
-
-    const ipBan = ipStrikes.get(ip);
-    if (ipBan?.bannedUntil && Date.now() < ipBan.bannedUntil) {
-      throw forbidden('Your chat access has been temporarily suspended due to repeated policy violations.');
+    let banned = false;
+    if (canBan) {
+      if (req.user!.kind === 'user') {
+        const u = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { chatBanned: true, chatStrikeCount: true },
+        });
+        if (!u) throw notFound('User not found');
+        banned = u.chatBanned;
+      } else {
+        const s = await prisma.servicer.findUnique({
+          where: { id: req.user!.id },
+          select: { chatBanned: true, chatStrikeCount: true },
+        });
+        if (!s) throw notFound('Servicer not found');
+        banned = s.chatBanned;
+      }
     }
-    if (ipBan?.bannedUntil && Date.now() >= ipBan.bannedUntil) {
-      ipStrikes.delete(ip);
-    }
-
-    if (user.chatBanned) {
-      throw forbidden(
-        'Your chat access has been suspended due to repeated policy violations. ' +
-        'You may request a review by sending a message explaining why you believe the suspension should be lifted.',
-      );
+    if (banned) {
+      await prisma.chatMessage.create({
+        data: { sessionId: req.params.id, role: 'user', content: req.body.message },
+      });
+      res.json({ reply: '' });
+      return;
     }
 
     const session = await prisma.chatSession.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+      where: { id: req.params.id, ...ownerWhere(req) },
     });
     if (!session) throw notFound('Chat session not found');
 
-    const message = req.body.message as string;
+    const ip = req.ip ?? 'unknown';
 
-    const injection = checkInjection(message);
+    const injection = checkInjection(req.body.message);
     if (injection.flagged) {
-      const ipEntry = ipStrikes.get(ip) ?? { count: 0, bannedUntil: null };
-      ipEntry.count += 1;
-      if (ipEntry.count >= STRIKE_LIMIT) {
-        ipEntry.bannedUntil = Date.now() + BAN_DURATION_MS;
-        ipStrikes.set(ip, ipEntry);
-      } else {
-        ipStrikes.set(ip, ipEntry);
-      }
-
-      const newCount = user.chatStrikeCount + 1;
-      if (newCount >= 3) {
-        await prisma.user.update({
-          where: { id: req.user!.id },
-          data: { chatBanned: true, chatStrikeCount: newCount },
-        });
-        const msg = ipEntry.bannedUntil
-          ? 'Your chat access has been suspended due to repeated policy violations.'
-          : 'Your chat access has been suspended due to repeated policy violations. ' +
-            'You may request a review by sending a message explaining why you believe the suspension should be lifted.';
-        throw forbidden(msg);
-      }
-      await prisma.user.update({
-        where: { id: req.user!.id },
-        data: { chatStrikeCount: newCount },
+      await recordStrike(ip, req);
+      await prisma.chatMessage.create({
+        data: { sessionId: session.id, role: 'user', content: req.body.message },
       });
-      const left = 3 - newCount;
-      throw forbidden(
-        `We have detected an attempt to interfere with the assistant. ` +
-        `This is warning ${newCount} of 3. ${left} more will result in a chat suspension.`,
-      );
+      res.json({ reply: '' });
+      return;
     }
 
+    const msg = req.body.message as string;
+
     await prisma.chatMessage.create({
-      data: { sessionId: session.id, role: 'user', content: message },
+      data: { sessionId: session.id, role: 'user', content: msg },
     });
 
     // Keep only the latest 50 messages per session.
@@ -478,11 +567,14 @@ chatRouter.post(
       }
     }
 
-    const reply = await sendToAi(message, history, req.user!.role, req.user!.id, {
+    const reply = await sendToAi(msg, history, req.user!.role, req.user!.id, {
       suppressCategorySuggest: req.body.categoryLocked === true,
       collected: Array.isArray(req.body.collected) ? (req.body.collected as string[]) : [],
       categoryId: typeof req.body.categoryId === 'string' ? req.body.categoryId : undefined,
       answeredQuestions: Array.isArray(req.body.answeredQuestions) ? (req.body.answeredQuestions as string[]) : [],
+      lang: parseLang(req.body.lang),
+      collectedData: parseCollectedData(req.body.collectedData),
+      cardConfirm: req.body.cardConfirm === true,
       formAssist: req.body.formAssist === true,
       formContext: sanitizeFormContext(req.body.formContext),
     });
@@ -498,7 +590,7 @@ chatRouter.post(
 
     await recordAudit({
       actorUserId: req.user!.id,
-      actorType: 'customer',
+      actorType: req.user!.role,
       action: 'chat.message',
       entityType: 'ChatSession',
       entityId: session.id,
@@ -565,6 +657,13 @@ chatRouter.post(
   }),
 );
 
+/** Build a Prisma `where` clause that scopes to the current principal's own sessions. */
+function ownerWhere(req: import('express').Request): { userId: string } | { servicerId: string } {
+  return req.user!.kind === 'user'
+    ? { userId: req.user!.id }
+    : { servicerId: req.user!.id };
+}
+
 /** Scan the AI reply for keywords and surface relevant action buttons. */
 /** Coerce an untrusted formContext body into the shape sendToAi expects. */
 function sanitizeFormContext(
@@ -595,4 +694,38 @@ function detectActions(reply: string): Array<{ action: string; label: string }> 
   }
 
   return actions;
+}
+
+/**
+ * Silently record an injection-detection strike. Tracks IP-level strikes for all
+ * principals (including guests), and account-level strikes for customers/servicers.
+ * On strike 3 the account is auto-banned. Never throws — the caller returns a
+ * silent empty response so the user never knows they were flagged.
+ */
+async function recordStrike(ip: string, req?: import('express').Request): Promise<void> {
+  const entry = ipStrikes.get(ip) ?? { count: 0, bannedUntil: null };
+  entry.count += 1;
+  if (entry.count >= STRIKE_LIMIT) {
+    entry.bannedUntil = Date.now() + BAN_DURATION_MS;
+  }
+  ipStrikes.set(ip, entry);
+
+  if (!req) return;
+  const canBan = req.user!.role === 'customer' || req.user!.role === 'servicer';
+  if (!canBan) return;
+
+  const account = req.user!.kind === 'user'
+    ? await prisma.user.findUnique({ where: { id: req.user!.id }, select: { chatStrikeCount: true } })
+    : await prisma.servicer.findUnique({ where: { id: req.user!.id }, select: { chatStrikeCount: true } });
+  if (!account) return;
+
+  const newCount = account.chatStrikeCount + 1;
+  const data = newCount >= 3
+    ? { chatBanned: true as const, chatStrikeCount: newCount }
+    : { chatStrikeCount: newCount };
+  if (req.user!.kind === 'user') {
+    await prisma.user.update({ where: { id: req.user!.id }, data });
+  } else {
+    await prisma.servicer.update({ where: { id: req.user!.id }, data });
+  }
 }

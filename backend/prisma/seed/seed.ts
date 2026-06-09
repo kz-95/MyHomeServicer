@@ -17,6 +17,7 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient, Prisma, Weekday, TimeSlot } from '@prisma/client';
 import { categories, children, platformSettings, penaltyRules, featureFlags, chatKnowledge } from './data/static';
 import { merchants, customers, DEMO_PASSWORD, ADMIN_PIN } from './data/accounts';
+import { BUDGET_RANGE_PRESETS } from './data/budget-ranges';
 
 const prisma = new PrismaClient();
 const MANIFEST = join(__dirname, 'seeded-ids.json');
@@ -84,6 +85,8 @@ async function main(): Promise<void> {
         published: true,
         photosEnabled: c.photosEnabled ?? false,
         requiresInspection: c.requiresInspection ?? false,
+        ...(c.description ? { description: c.description } : {}),
+        ...(c.imageUrl ? { imageUrl: c.imageUrl } : {}),
         ...(c.questions
           ? { questionSchema: c.questions as unknown as Prisma.InputJsonValue }
           : {}),
@@ -93,44 +96,11 @@ async function main(): Promise<void> {
   }
   console.log(`  ✓ ${categories.length} parent categories + ${children.length} child categories`);
 
-  // ── Per-category budget range presets ──
-  const budgetRangePresets: Record<string, { min: number; max: number | null }[]> = {
-    'plumber':                [{ min: 50, max: 150 }, { min: 150, max: 300 }, { min: 300, max: 500 }, { min: 500, max: null }],
-    'aircond-servicer':       [{ min: 50, max: 150 }, { min: 150, max: 250 }, { min: 250, max: 400 }, { min: 400, max: null }],
-    'electrical-wiring':      [{ min: 50, max: 150 }, { min: 150, max: 300 }, { min: 300, max: 500 }, { min: 500, max: null }],
-    'home-cleaning':          [{ min: 30, max: 100 }, { min: 100, max: 200 }, { min: 200, max: 350 }, { min: 350, max: null }],
-    'sofa-mattress-cleaning': [{ min: 30, max: 80 },  { min: 80, max: 150 },  { min: 150, max: 250 }, { min: 250, max: null }],
-    'carpet-cleaning':        [{ min: 30, max: 80 },  { min: 80, max: 150 },  { min: 150, max: 250 }, { min: 250, max: null }],
-    'curtain-cleaning':       [{ min: 20, max: 60 },  { min: 60, max: 120 },  { min: 120, max: 200 }, { min: 200, max: null }],
-    'event-planner':          [{ min: 1000, max: 3000 }, { min: 3000, max: 6000 }, { min: 6000, max: 10000 }, { min: 10000, max: null }],
-    'catering':               [{ min: 100, max: 300 }, { min: 300, max: 600 }, { min: 600, max: 1000 }, { min: 1000, max: null }],
-    'professional-organizer': [{ min: 50, max: 120 }, { min: 120, max: 250 }, { min: 250, max: 400 }, { min: 400, max: null }],
-    'aircond-installer':      [{ min: 200, max: 500 }, { min: 500, max: 1000 }, { min: 1000, max: 2000 }, { min: 2000, max: null }],
-    'carpenter':              [{ min: 80, max: 200 }, { min: 200, max: 400 }, { min: 400, max: 800 }, { min: 800, max: null }],
-    'renovation':             [{ min: 300, max: 1000 }, { min: 1000, max: 3000 }, { min: 3000, max: 7000 }, { min: 7000, max: null }],
-    'interior-design':        [{ min: 200, max: 600 }, { min: 600, max: 1500 }, { min: 1500, max: 4000 }, { min: 4000, max: null }],
-    'door-gate':              [{ min: 50, max: 150 }, { min: 150, max: 300 }, { min: 300, max: 500 }, { min: 500, max: null }],
-    'roof':                   [{ min: 150, max: 400 }, { min: 400, max: 700 }, { min: 700, max: 1200 }, { min: 1200, max: null }],
-    'washing-machine-repair': [{ min: 40, max: 100 }, { min: 100, max: 200 }, { min: 200, max: 350 }, { min: 350, max: null }],
-    'refrigerator-repair':    [{ min: 40, max: 100 }, { min: 100, max: 200 }, { min: 200, max: 350 }, { min: 350, max: null }],
-    'tv-repair':              [{ min: 30, max: 80 },  { min: 80, max: 150 },  { min: 150, max: 250 }, { min: 250, max: null }],
-    'oven-repair':            [{ min: 40, max: 100 }, { min: 100, max: 200 }, { min: 200, max: 300 }, { min: 300, max: null }],
-    'water-heater-repair':    [{ min: 40, max: 100 }, { min: 100, max: 200 }, { min: 200, max: 350 }, { min: 350, max: null }],
-    'ceiling-fan-repair':     [{ min: 30, max: 80 },  { min: 80, max: 150 },  { min: 150, max: 250 }, { min: 250, max: null }],
-    'aircond-repair':         [{ min: 50, max: 120 }, { min: 120, max: 250 }, { min: 250, max: 400 }, { min: 400, max: null }],
-    'art-class':              [{ min: 30, max: 80 },  { min: 80, max: 150 },  { min: 150, max: 250 }, { min: 250, max: null }],
-    'language-class':         [{ min: 30, max: 80 },  { min: 80, max: 150 },  { min: 150, max: 250 }, { min: 250, max: null }],
-    'music-class':            [{ min: 40, max: 100 }, { min: 100, max: 200 }, { min: 200, max: 300 }, { min: 300, max: null }],
-    'home-tutoring':          [{ min: 30, max: 80 },  { min: 80, max: 150 },  { min: 150, max: 300 }, { min: 300, max: null }],
-    'cooking-class':          [{ min: 50, max: 120 }, { min: 120, max: 250 }, { min: 250, max: 400 }, { min: 400, max: null }],
-    'gym-trainer':            [{ min: 40, max: 100 }, { min: 100, max: 200 }, { min: 200, max: 300 }, { min: 300, max: null }],
-    '3d-modeling-class':      [{ min: 60, max: 150 }, { min: 150, max: 300 }, { min: 300, max: 500 }, { min: 500, max: null }],
-    'alarm-cctv':             [{ min: 100, max: 300 }, { min: 300, max: 600 }, { min: 600, max: 1200 }, { min: 1200, max: null }],
-  };
+  // ── Per-category budget range presets (shared with seed-settings.ts) ──
   const budgetRangeByCategoryId: Record<string, { min: number; max: number | null }[]> = {};
-  for (const slug of Object.keys(budgetRangePresets)) {
+  for (const slug of Object.keys(BUDGET_RANGE_PRESETS)) {
     const catId = categoryBySlug[slug];
-    if (catId) budgetRangeByCategoryId[catId] = budgetRangePresets[slug];
+    if (catId) budgetRangeByCategoryId[catId] = BUDGET_RANGE_PRESETS[slug];
   }
   await prisma.platformSettings.create({
     data: {

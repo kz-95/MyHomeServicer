@@ -11,6 +11,7 @@ import { PhoneInputComponent } from '../shared/phone-input.component';
 import { CalendarPickerComponent } from '../shared/calendar-picker.component';
 import { TIME_SLOTS } from '../shared/constants/time-slots';
 import { normalizeMyPhone } from '../shared/phone.util';
+import { QaFormBridge } from '../shared/qa-form-bridge.service';
 
 interface Category {
   id: string; name: string; icon?: string;
@@ -647,6 +648,9 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   protected stripePayment = inject(StripePaymentService);
+  private qaForm = inject(QaFormBridge);
+  /** Stable ref so unregister matches the exact callback registered in ngOnInit. */
+  private qaWalker = (): Promise<string[]> => this.qaWalkAndVerify();
 
   guestCountdown = signal(3);
   private guestCountdownTimer: ReturnType<typeof setInterval> | null = null;
@@ -687,6 +691,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.qaForm.register(this.qaWalker);
     const submitted = this.route.snapshot.queryParamMap.get('submitted') === 'true';
 
     // If this window is a popup/tab returning from Stripe, communicate result to opener and close
@@ -702,28 +707,44 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // AI Smart Assistant prefill: base64-encoded JSON from chat widget
+    // AI Smart Assistant prefill: from the ?prefill= param (Review & submit) OR the
+    // chat's own sessionStorage, so the collected details carry over even if the
+    // user reached this page another way (e.g. tapped a service link mid-chat).
+    // Never make the user re-enter what they already told the assistant.
     const prefillParam = this.route.snapshot.queryParamMap.get('prefill');
     if (prefillParam) {
       try {
-        const chatPrefill = JSON.parse(atob(prefillParam)) as Record<string, unknown>;
-        if (typeof chatPrefill['contactName'] === 'string') this.f.contactName = chatPrefill['contactName'];
-        if (typeof chatPrefill['contactNumber'] === 'string') this.f.contactNumber = chatPrefill['contactNumber'];
-        if (typeof chatPrefill['address'] === 'string') this.f.streetDetails = chatPrefill['address'];
-        if (typeof chatPrefill['timeSlot'] === 'string') this.f.timeSlot = chatPrefill['timeSlot'];
-        if (typeof chatPrefill['preferredDate'] === 'string') this.f.preferredDate = chatPrefill['preferredDate'];
-        if (typeof chatPrefill['notes'] === 'string') this.f.notes = chatPrefill['notes'];
-        if (typeof chatPrefill['categoryId'] === 'string') this.f.categoryId = chatPrefill['categoryId'];
-      } catch { /* ignore invalid prefill */ }
+        // Unicode-safe base64 fallback chain: new format → old format.
+        this.chatPrefillData = JSON.parse(decodeURIComponent(escape(atob(prefillParam)))) as Record<string, unknown>;
+      } catch {
+        try { this.chatPrefillData = JSON.parse(atob(prefillParam)) as Record<string, unknown>; }
+        catch { /* ignore invalid prefill */ }
+      }
     }
+    if (!this.chatPrefillData) {
+      try {
+        const raw = sessionStorage.getItem('msvc_guest_prefill');
+        if (raw) this.chatPrefillData = JSON.parse(raw) as Record<string, unknown>;
+      } catch { /* ignore */ }
+    }
+    // Fallback for service hyperlinks opened in new tab (sessionStorage per-tab).
+    if (!this.chatPrefillData) {
+      try {
+        const raw = localStorage.getItem('msvc_latest_chat_prefill');
+        if (raw) this.chatPrefillData = JSON.parse(raw) as Record<string, unknown>;
+      } catch { /* ignore */ }
+    }
+    if (this.chatPrefillData) this.applyChatPrefill(this.chatPrefillData);
 
     // Direct service link from the chat (e.g. ?category=<childId>): preselect the
     // category. load() then resolves its parent + child dropdowns.
     const categoryParam = this.route.snapshot.queryParamMap.get('category');
     if (categoryParam) this.f.categoryId = categoryParam;
 
+    // Chat prefill is the most recent intent — let it win over older saved guest
+    // data so we never overwrite what the assistant just collected.
     const saved = this.auth.getGuestData();
-    if (saved) this.restoreForm(saved);
+    if (saved && !this.chatPrefillData) this.restoreForm(saved);
     this.load();
   }
 
@@ -747,6 +768,43 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Chat-assistant prefill (param or sessionStorage), kept so budget can be applied
+   *  AFTER the category resolves (onCategoryChange resets the budget). */
+  private chatPrefillData: Record<string, unknown> | null = null;
+
+  /** Apply every field the chat collected. Budget is applied later (load()), after
+   *  onCategoryChange has reset it. */
+  private applyChatPrefill(p: Record<string, unknown>): void {
+    const str = (k: string) => (typeof p[k] === 'string' && p[k] ? (p[k] as string) : undefined);
+    if (str('categoryId')) this.f.categoryId = str('categoryId')!;
+    if (str('contactName')) this.f.contactName = str('contactName')!;
+    if (str('contactNumber')) this.f.contactNumber = str('contactNumber')!;
+    if (str('addressNo')) this.f.addressNo = str('addressNo')!;
+    if (str('streetDetails')) this.f.streetDetails = str('streetDetails')!;
+    if (str('address') && !str('streetDetails')) this.f.streetDetails = str('address')!;
+    if (str('postcode')) this.f.newAddressPostcode = str('postcode')!;
+    if (str('district')) this.f.newAddressDistrict = str('district')!;
+    if (str('state')) this.f.newAddressState = str('state')!;
+    if (str('propertyType')) this.f.newAddressPropertyType = str('propertyType')!;
+    if (str('newAddressPostcode') && !str('postcode')) this.f.newAddressPostcode = str('newAddressPostcode')!;
+    if (typeof p['newAddressLat'] === 'number') this.f.newAddressLat = p['newAddressLat'] as number;
+    if (typeof p['newAddressLng'] === 'number') this.f.newAddressLng = p['newAddressLng'] as number;
+    if (str('timeSlot')) this.f.timeSlot = str('timeSlot')!;
+    if (str('preferredDate')) this.f.preferredDate = str('preferredDate')!;
+    if (str('notes')) this.f.notes = str('notes')!;
+    if (p['serviceDetails'] && typeof p['serviceDetails'] === 'object') {
+      this.f.answers = { ...(p['serviceDetails'] as Record<string, unknown>) };
+    }
+  }
+
+  /** Apply the chat's budget bracket after the category (and its ranges) resolve. */
+  private applyChatBudget(): void {
+    const bi = this.chatPrefillData?.['budgetIndex'];
+    if (bi == null || bi === '') return;
+    const idx = Number(bi);
+    if (!Number.isNaN(idx)) { this.f.budgetIndex = String(idx); this.budgetSlider = idx; }
+  }
+
   load(): void {
     this.loadError.set(false);
     this.api.get<{ data: Category[] }>('/categories', { scope: 'all' }).subscribe({
@@ -756,6 +814,8 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
           const child = (r.data ?? []).find((c) => c.id === this.f.categoryId);
           if (child) this.parentId.set(child.parentCategoryId ?? '');
           this.onCategoryChange(this.f.categoryId);
+          // After onCategoryChange (which clears budget), restore the chat's bracket.
+          this.applyChatBudget();
         }
       },
       error: () => this.loadError.set(true),
@@ -1037,7 +1097,40 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.qaForm.unregister(this.qaWalker);
     if (this.guestCountdownTimer) { clearInterval(this.guestCountdownTimer); this.guestCountdownTimer = null; }
+  }
+
+  /**
+   * QA walk: step the form Service → Contact → Summary, capturing each page's prefilled
+   * values + any validation block, then STOP at the Summary (no submit, no DB write).
+   * Returns one log line per page for the QA report.
+   */
+  private async qaWalkAndVerify(): Promise<string[]> {
+    const out: string[] = [];
+    const v = (s: string | undefined | null) => (s && String(s).trim() ? String(s).trim() : "-");
+    const snap = () =>
+      `cat=${this.f.categoryId ? "set" : "-"} date=${v(this.f.preferredDate)} time=${v(this.f.timeSlot)} ` +
+      `no=${v(this.f.addressNo)} street=${v(this.f.streetDetails)} postcode=${v(this.f.newAddressPostcode)} ` +
+      `district=${v(this.f.newAddressDistrict)} state=${v(this.f.newAddressState)} type=${v(this.f.newAddressPropertyType)} ` +
+      `budget=${this.f.budgetIndex === "" ? "-" : this.f.budgetIndex} name=${v(this.f.contactName)} phone=${v(this.f.contactNumber)}`;
+
+    out.push(`FORM page 1 (Service & Details): ${snap()}`);
+    this.goToContact();
+    if (this.step() === 1) {
+      out.push(`  FORM ISSUE: blocked at page 1 — "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
+      return out;
+    }
+
+    out.push(`FORM page 2 (Contact): ${snap()}`);
+    this.goToSummary();
+    if (this.step() === 2) {
+      out.push(`  FORM ISSUE: blocked at page 2 — "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
+      return out;
+    }
+
+    out.push(`FORM page 3 (Summary) reached OK — verified, stopping (no submit): ${snap()}`);
+    return out;
   }
 
   save(): void {

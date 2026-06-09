@@ -1,27 +1,367 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-07 (AI-chat quote flow: outstanding fixes + questionSchema-in-chat spec)
+> **State: 🟢 ACTIVE** — 2026-06-09 (QA harness fixes: NO CARD batch check, Unicode btoa, geocode fallback, address input lock)
 
 ---
+
+## 🔨 Chat QA harness + booking-flow hardening (2026-06-09)
+
+Driven by automated chat-QA runs (`chat-qa-harness.ts`, logs in `logs/ChatQA_*.log`).
+All items below: `tsc` + `ng build` pass, committed to `feat/ux-polish`, pushed.
+
+### Done — 2026-06-09 chat reliability + new services
+- [x] **Deterministic card-confirm turns** — when the user taps a card (date/time/budget/
+      address/contact/question/service), the backend skips the LLM and returns the next card
+      from `computeNextCards()`. Zero tokens / 429 / hallucination on those turns. Client flags
+      `cardConfirm`; LLM still drives free-form turns. (`chat.service.ts`, `chat.routes.ts`,
+      `chat-widget.component.ts`)
+- [x] **Soft input hint replaces the input LOCK** — input always usable; a non-blocking hint
+      (`cardInputHint`) shows above it while a required card is pending. Filled cards stay collapsed.
+- [x] **Unit regression net** — `backend/tests/unit/chat-flow.test.ts` pins `nextStepBlocks` +
+      `computeNextCards` (17 cases). Run `npx jest chat-flow`.
+- [x] **QA harness: types custom answers** — ~40% of service questions answered as free text
+      (through the LLM) instead of tapping the option.
+- [x] **QA harness: richer log** — per turn shows `[time] role: content`, `SENT` (frontend
+      request body), `RECV` (backend reply), `DATA` (actual prefill incl. budgetMax vs budgetIndex).
+- [x] **3 new services: Painting, Moving, Gardening** — own question schemas (non-essential
+      questions skippable), budget ranges, card images. Fixes repaint→Renovation /
+      movers→Carpenter / lawn→Renovation mis-match. **Run `npm run db:reset` to apply.**
+      Docs: `docs/ai-context/seed-plan.md`, `docs/ai-context/chat-qa-findings.md`, `ai-chat.md`.
+- [x] **QA personas: typing_shortcut + typing_adhd** — never tap a card, type every answer
+      (terse SMS / erratic kid input) to stress free-text extraction.
+- [x] **Failed-send auto-retry** — one retry after ~3.5 s before "Could not send message".
+- [x] **Reject/stall recovery** — bot names a service but emits no card → backend injects its
+      `quote_options`; stuck-watchdog now catches non-Latin question/colon endings. Verified
+      against ChatQA_Log_222309 (run-3 stall). B1 (budget) + B2 (full address) confirmed
+      RESOLVED by the richer log's DATA lines.
+- [x] **Docs + diagrams** — `ai-chat.md` (mermaid flow + quote-flow), `chat-qa-harness.md`
+      (full rules + possibility calc + drive-loop diagram), `chat-flow-diagrams.md` (card-confirm
+      + inject diagrams). `aichat.md` renamed → `ai-chat.md`.
+- [ ] **Follow-ups (lower priority):** language leak between QA scenarios (convo-lang not reset)
+      — user deprioritized (rojak/mixed normal in MY); seeded question labels lack `labelI18n`
+      (English in non-English chats); pre-existing `tsconfig` deprecation warnings (node10/baseUrl).
+- [ ] **No servicers seeded** under painting/moving/gardening yet (browse shows 0 providers).
+
+### Done — LLM / DeepSeek
+- [x] DeepSeek `first-token timeout` root cause: `deepseek-v4-*` are **reasoning models**
+      (stream `reasoning_content` before `content`); `streamLlm` now clears the first-token
+      timer on reasoning so a working model isn't aborted. Reasoning is not added to the answer.
+- [x] Live `/v1/models` = `deepseek-v4-flash`, `deepseek-v4-pro` only (chat/reasoner gone).
+      Demo seed chain reordered: Gemini ×4 → DS v4-flash → DS v4-pro (fallback); default model
+      + valid-models list updated.
+- [x] QA judge pinned to `deepseek-v4-flash`; judge never substitutes the customer-facing
+      `localFallback` (was polluting QA logs as fake verdicts) — `noFallback` flag threaded.
+
+### Done — QA harness hardening (2026-06-09 batch)
+- [x] ZERO-TOLERANCE: shrunk from ~20-line bullet-point bloat to 6-line compact version.
+      Bloat pushed critical flow rules out of the model's attention window → "ghost wall" looping.
+- [x] `⚠ NO CARD` false positive: now checks trailing assistant message BATCH (not per-message),
+      so blocks arriving in a separate message no longer trigger false warnings.
+- [x] `btoa` → Unicode-safe (encodeURIComponent+unescape) for Tamil/Chinese prefill data.
+      Updated all encode/decode sites with backward-compat fallback.
+- [x] `confirmAddress` geocode fallback: when API fails or returns invalid, falls back to
+      sending raw composed address text → flow never dead-ends on missing geocode API.
+- [x] `forceCardInput` signal: disables chat input/send when address card is showing,
+      replacing input with visible instruction text.
+- [x] Adjacent-service fallback: 1st refusal = warm "not in catalog" (no card); 2nd+ ask =
+      suggest closest catalog category with a real card. Fixes bot repeating "we don't offer
+      that" 3× without giving the user anything to tap.
+- [x] QA log resilience: client buffers chunks when file-locked, retries on next write;
+      server retries `append` on EBUSY/EPERM/EACCES with exponential backoff (200→1600ms).
+      Fixes runs losing the 2nd scenario when the log file is open in an editor.
+
+### Done — prompt hardening (ZERO-TOLERANCE)
+- [x] ZERO-TOLERANCE rule: "The tag IS the card" — covers ALL action types (quote_options,
+      quote_field, quote_question, quote_prefill) with CORRECT/WRONG examples per type.
+- [x] BUTTON CONFUSION rule: when user repeats instead of tapping, re-emit the card + ask
+      kindly; after 2 re-emits, try different approach → escalate.
+- [x] SELF-RECOVERY rule: if previous turn slipped, own it, apologise, emit the correct card.
+- [x] QA harness: `⚠ NO CARD` warns when bot mentions card/button but emits zero actionable
+      blocks (also warns when only link/retry blocks exist, not real cards).
+- [x] QA harness: escalating nudge system (need → reworded → "I don't see a card, re-send?").
+- [x] QA harness: `[⚙ ...]` annotation ghosts sanitized from content before LLM sees them.
+
+### Done — bot booking flow
+- [x] Phone-loop: `extractPhone` matched the booking date (`2026-06-19`) → false `contactNumber`;
+      now strips date tokens + tightens length.
+- [x] Hallucinated final recap: prompt no longer re-lists collected values in text (the review
+      card is the source of truth); `collectedData` (exact values) sent so any recap is grounded.
+- [x] Repeat cards: front-loaded/text-extracted fields now counted via `collectedData` so the
+      bot stops re-showing filled field cards every turn.
+- [x] Re-ask loop (e.g. Tamil): strip `quote_question` cards whose key isn't a real schema key
+      (LLM invented `whatDoYouNeed`/`serviceType` variants → answered-tracking never matched).
+- [x] Reject-recovery: prompt — ask a clarifying question once; on re-stated need, re-offer the
+      best-fit service instead of looping.
+- [x] Language pin (`lang`) + strict reply-language directive; convoLang detection made sticky
+      (a Latin field value / phone digits no longer flips an established ms/zh/ta to English);
+      synthetic button-echo drafts localized.
+- [x] `questionSchema` auto-translate on save (`labelI18n`/`descriptionI18n`) + chat resolves
+      to conversation lang; `POST /admin/categories/backfill-translations` for existing rows.
+- [x] Service-name links carry the in-progress prefill (wired `goToQuoteForm`); gated
+      "clear my quote" (2-confirmation count) via chat.
+
+### Done — QA harness
+- [x] Human-like answers, info-count distribution (0–7), free-text field answers, repeat-info
+      (idempotency) test, refresh/"is this {name}?" restore test, 0.5–1s reply delay.
+- [x] Checks: `language` / `duplicate` / `redundant` / `unconfirmed` / `flow` (out-of-order) /
+      `refresh`; text-only replies tolerated (re-state need, not auto-fail); keyed transcript +
+      backend decision log. Conclusion honesty: structural pass/fail + judge coverage fed to the
+      conclude (no more "excellent" when the judge was down).
+
+### Pending — operational (not code)
+- [x] **contactNumber dedup fix**: `confirmedFields` filter was removing pre-filled contactNumber
+      blocks (line 2279-2286). Blocks with non-empty values now pass through so the frontend
+      receives extracted phone data. Was root cause of 7/8 QA failures. (2026-06-09 ChatQA)
+- [ ] Restart BE + reload FE; re-seed demo keys (chain order); run `backfill-translations` once.
+- [ ] Re-run QA (10 runs) to verify contactNumber fix; expect 7-8/10 passes min.
+
+---
+
+## 🔨 IN PROGRESS — App-Wide Route Redesign (2026-06-08)
+
+**Specs:** `docs/superpowers/specs/2026-06-08-route-redesign.md` (frontend route map)
++ `docs/superpowers/specs/2026-06-08-route-redesign-completeness-design.md` (full reroute
+surface: backend emitters, seed FAQ, redirects, dynamic routes, **security review**).
+
+Restructure all portal URLs from flat/in-component-tab patterns to RESTful,
+hierarchical paths with tabs as URL segments and filters as query params.
+
+> ⚠️ Two gaps in the original spec's route-config examples (completeness §6/§9f): add
+> backward-compat `redirectTo` entries, and carry `adminActionPinGuard` (`canActivate`)
+> onto the restructured `queues`/`users`/`api-keys` routes — copying the examples verbatim
+> makes the demo PIN gate (token + accidental-admin-edit safeguard) stop firing.
+
+### Phase 1 — Servicer jobs ✅ (2026-06-08)
+- [x] `servicer.routes.ts` — `jobs` parent + `pending`/`active`/`history` children (each
+      `ServicerJobsComponent` with `data.tab`), `'' → pending` redirect, and `:id`
+      (opens dispatch overlay via `data.detail`). `jobs/history/:id` deferred to Phase 5.
+- [x] `jobs.component.ts` — tab read from route `data.tab`; tab buttons use `routerLink`;
+      filter/sort/search hydrate from query params on init and an `effect()` mirrors them
+      back to the URL (`?filter=`, `?sort=`, `?search=`, history `?days=`). `:id` deep
+      link opens the overlay.
+- [x] `servicer-shell.component.ts` — left at `/servicer/jobs` (redirects to pending;
+      non-exact `routerLinkActive` keeps "My Jobs" lit across all `/jobs/*`).
+- [x] `calendar.component.ts` — `viewJob()` already navigates to `/servicer/jobs/:id`
+      (done in the calendar-card commit). Both `tsc` + `ng build` pass.
+
+### Phase 2 — Customer bookings
+- [ ] Restructure bookings + history under `/customer/bookings/*`
+
+### Phase 3 — Admin settings + queues nesting
+- [ ] Nest flat settings under `/admin/settings/*`, queues under `/admin/queues/*`
+
+### Phase 4 — Shared links + dead link fixes
+- [ ] Fix `/customer/chat`, `/contact`, `/admin/dashboard` dead links
+- [ ] Update notification service routes (`linkReorder` → `/customer/bookings/history`)
+
+### Phase 5 — New detail pages (stretch)
+- [ ] Job history detail, booking detail, user detail, merchant detail
+- [ ] Each `:id` detail route enforces server-side ownership/role (IDOR — completeness §9d)
+
+### Phase 6 — Backend & dynamic links (NEW, from completeness audit)
+- [ ] Backend `linkUrl` emitters → new routes: `booking.service` (5), `quote.service` (3),
+      `dispatch.service` (2, incl. dead `/bookings`), `stripe.routes` (1)
+- [ ] Stripe return URLs (`booking.service` 839/840, `stripe.routes` 93/94) → `/bookings/active`
+- [ ] Global-search `route` fields (`index.ts` 390/421)
+- [ ] Chat AI prompt (`chat.service` 83-102,518) → new routes + fix 4 dead links
+- [ ] Seed FAQ knowledge base (`static.ts` ~5 lines, incl. dead `/admin/money`) + reseed
+- [ ] Servicer dashboard quickLinks (`dashboard.component.ts` 93/294/295/296, incl. dead
+      `/servicer/history`)
+- [ ] `routeFor()` relative-path guard (`notification.service`) — defense-in-depth
+
+### ✅ Dead-link hotfix — DONE (2026-06-08)
+**Plan:** `docs/superpowers/plans/2026-06-08-dead-link-hotfix.md`. All 9 dead links
+re-pointed to routes that exist today (renamed-route re-points still deferred to Phases 2/3/6).
+- [x] `/servicer/history` → `/servicer/jobs/history` (servicer dashboard quickLink) — `4fc4822`
+- [x] `/admin/dashboard` → `/admin` (setup-wizard) — `8ee0c55`
+- [x] `/customer/chat` + `/contact` → open chat widget in place (my-bookings, chat-widget) — `0eab573`
+- [x] `/bookings` → `/customer/bookings` (dispatch.service notification) — `444d7bf`
+- [x] `/admin/money` → `/admin/money-settings` (seed FAQ) — `9114f05`
+- [~] `/servicer/quotes`, `/admin/dashboard`, `/customer/proposals`, `/customer/deposit`
+      (chat.service AI prompt) — **applied + tsc-verified, commit held**: `chat.service.ts` has
+      unrelated in-progress chat-infra work in the tree; my prompt fix will land when that file
+      is committed (auto-committer) or on explicit request.
+- [ ] **Reseed deferred** (T6): `npm run db:reset` needed for the FAQ string to reach an
+      already-seeded DB — NOT auto-run (destructive; would wipe demo data). Run when ready.
+- Gates: backend + frontend `tsc` pass (2 pre-existing `tsconfig.json` TS5101/5107 deprecation
+  errors are unrelated); grep guard clean (only false-positive = `/bookings` API call).
+
+---
+
+## 🐛 FIXED (uncommitted) — AI chat: name/budget/flow bugs (2026-06-08)
+
+**Plan:** `docs/ai-context/chat-bugfix-plan.md`
+
+From real transcript. 3 root causes — all fixed; `tsc` backend + frontend pass:
+- [x] **A (name):** "is this From?" — backend `extractName` disable (already in tree) +
+      frontend `isPlausibleName()` guard on the returning-guest greeting; poisoned
+      `contactName` dropped from `sessionStorage` on load.
+      (`chat-widget.component.ts` `loadGuest` + new helpers.)
+- [x] **B (budget):** "budget 1000" pre-filled — `extractBudget`/`extractPhone` now run
+      on `userConvo` (user words only), not the assistant's prose. (`chat.service.ts:1679`.)
+- [x] **C (flow):** gave info first → skipped service pick → jumped to review. Field
+      collection now requires a real category context (`hasCategoryContext`); premature
+      `quote_field`/`quote_prefill` cards stripped until a service is settled.
+      (`chat.service.ts` `collectingFields` gate.)
+
+### Chat QA harness — card-driving E2E (2026-06-08)
+Standalone, shared, dev-only automated QA that completes a FULL quote to the review card.
+- [x] **Architecture (separated for tidiness):**
+      - `frontend/src/app/shared/chat-qa-harness.ts` — pure engine: persona model, data
+        pools, procedural scenario generator, card-driving loop + per-run checker.
+      - `frontend/src/app/shared/chat-qa.service.ts` — `@Injectable({providedIn:root})`
+        shared runner (run state signals, log-name, POSTs the log). Reusable by any component.
+      - `chat-widget.component.ts` — only the `QaHost` adapter (`buildQaHost`) mapping
+        harness card actions onto the real handlers (continueQuoteInChat, confirmDate,
+        confirmBudget, answerRadio, submitPrefill…), plus `qaAnswerQuestion`.
+- [x] **Card-driving:** inspects the card the bot shows and calls the real handler →
+      goes through base fields AND the service question schema → success = the
+      `quote_prefill` review card appears (does NOT navigate away). Fixes the old
+      text-only harness that could never finish a card-driven flow.
+- [x] **Persona model (per run):** {Typing}{Tone}{Behavior}{Sorting}{Language} +
+      **Customer Preset** (customer-mode 6th axis — named test customers). Procedural.
+- [x] **Run count:** inline number input next to the QA button (default 1, max 500);
+      each run = one full procedurally-random quote.
+- [x] **Personas extended:** Typing adds `slang`; Language adds `ta` (Tamil) + improved
+      `rojak`. Malay short typing styles apply SMS shortcuts (saya→i, tak→x, perlu→prlu,
+      ambil→ambik, boleh→blh, lah→la, kan→kn…); rojak mixes English + Manglish particles
+      (lah/lor/mah/sia/leh/liao + "can anot"); Tamil service needs added so Tamil cards
+      are actually exercised.
+- [x] **Incremental log writing:** `/chat/qa-log` gains an `append` mode (returns the
+      resolved name on create-collision). The harness streams chunks (`onChunk`) — header,
+      each scenario, then summary — so the file is written to disk AS the run goes. A
+      Stop or crash still leaves everything-so-far recorded (file now chronological).
+- [x] **Guest + customer mode** (adapter uses mode-agnostic send/clear/messages).
+- [x] **Heuristic checker** logs per run: missing fields / loop / stall / timeout /
+      redundant re-ask. Skips cards for fields already in prefill (no parroting).
+- [x] **LLM judge** (`POST /chat/qa-judge`, dev-only) reviews each transcript for
+      LOGICAL issues the heuristics miss: wrong reply language, assumed/hallucinated
+      data, contradictions, ignored input, illogical flow, tone. Reuses the chatbot's
+      LLM chain (Gemini→DeepSeek→OpenAI). Findings logged per run.
+- [x] **Final conclusion:** one LLM pass over all findings → overall verdict + top
+      fixes, written at the TOP of the log (CONCLUSION + SUMMARY incl. logical-issue
+      count). `JUDGE_UNAVAILABLE` when no LLM key configured.
+- [x] **Bot language match:** `buildAssistantPrompt` now instructs the assistant to
+      reply in the user's language (Malay→Malay, Chinese→Chinese, Tamil→Tamil, rojak mirrored).
+- [x] **Card i18n (EN / Malay / CN / Tamil):** quote-flow card UI translated via a
+      `CARD_T` dictionary + `t(key)`/`tSlot()` helpers. `cardLang` is detected from the
+      last few user messages (Tamil/Chinese script → ta/zh, Malay markers → ms, else en);
+      rojak resolves to its non-English side instead of always English. Covers category
+      Yes/No, Confirm buttons, time slots, field labels, address form (options,
+      placeholders, validation), budget, review summary, identity confirm. Profile/PIN/
+      link cards (servicer/admin context) left in English.
+- [x] **PIN-gated** (`5201314`) on press; **dev-build only** (`!environment.production`).
+- [x] **Log output:** `POST /chat/qa-log` writes `<repo-root>/logs/ChatQA_Log_<HHMMDDMMYYXX>.log`
+      (name sanitised, write confined to logs/). `logs/` git-kept, `*.log` ignored.
+- [x] **Security (review fix):** `/chat/qa-log` registered ONLY when `NODE_ENV !==
+      'production'` (the PIN is a UX gate, not auth — env guard is the real protection);
+      exclusive write (`flag: 'wx'`) + random suffix on collision so a client name can
+      never overwrite an existing log.
+
+Verified: backend tsc + frontend tsc clean, ng build green.
+
+---
+
+## 🐛 FIXED — Calendar day-click crash + card redesign (2026-06-08)
+
+**Root cause:** `b.price` (Prisma Decimal) serialized as string in JSON → `.toFixed(2)`
+threw TypeError, crashing modal rendering for days with bookings.
+
+**Fix applied:**
+- `backend/src/routes/servicer.routes.ts` — `Number(b.price)` cast; enriched endpoint
+  with `paymentMode`, `cashConfirmed`, `contactName`, `contactNumber`, address fields,
+  `notes`, `serviceDetails`
+- `frontend/src/app/servicer/pages/calendar.component.ts` — new detail card layout:
+  status + time + payment/paid + price row, category, contact with copy button,
+  address with copy button, expandable job description (collapsed by default),
+  View Job button (new tab on desktop, direct navigate on mobile)
+- Both `tsc --noEmit` pass (zero errors)
+
+---
+
+## ✅ RESOLVED — AI-chat quote flow hardening (2026-06-08)
+
+The chat quote flow is now deterministically backstopped so a one-line dump
+(e.g. `"wedding last sunday of dec 2026 night No.18, Jalan Tempua 5, 47100, Brian,
+0111123456 RM1500"`) captures **every** field, regardless of which LLM answered or
+whether it skipped a word.
+
+- **Deterministic field capture — all six fields scan the WHOLE conversation
+  (history), not just the current turn** (`chat.service.ts`): date + time (chrono,
+  intent gated on the user's own messages), address (`extractAddress`, street
+  keyword → 5-digit postcode), budget (`extractBudget`), name (`extractName`,
+  connector-required + stopwords + capitalised echo), phone (`extractPhone`, → +60).
+- **One-shot fill / no stalling:** all fields are captured + pushed as pre-filled
+  cards BEFORE the next step is computed, so a full dump advances straight to the
+  questions/review instead of one field per turn (fixed the "stops after budget").
+- **Budget = the user's ceiling:** the slider picks the lowest bracket whose top
+  covers the stated amount (RM999 → 500-1000, never 1000-3000).
+- **No repeated cards:** confirmed field/question cards show once, then are
+  suppressed (unless the user asks to change/edit). Phone normalised to +60.
+- **Service-question text answers captured:** a number/option typed in chat (e.g.
+  "50" for attendees) is recorded so the question isn't re-asked.
+- **Name false-positives killed:** dropped the "you are / it's / this is" lead-ins
+  that matched the assistant's prose ("you are comfortable spending" → junk name
+  "Comfortable"); only unambiguous lead-ins + a capitalised echo remain.
+- **Prefill → quote handoff (no redundant re-entry):** "Review & submit" carries
+  ALL collected data to the quote form, and the guest quote form ALSO reads the
+  chat's `sessionStorage` prefill as a fallback, so the data prefills even if the
+  user reached the form another way (e.g. tapped a service link mid-chat). Guest
+  ingestion now maps budget + service-question answers too (budget applied after
+  the category resolves so it isn't reset), and chat prefill wins over older saved
+  guest data.
+- **questionSchema-in-chat** (5 card types, serviceDetails, "I'm not sure").
+- **Session isolation + guest persistence:** guest chat + prefill in sessionStorage
+  (survives refresh, clears on tab close); returning guest greeted by name with a
+  Yes/No identity confirm; Clear wipes everything.
+- **Greeting tiers (admin-managed):** anonymous / returning / customer / servicer /
+  admin, with a `{name}` placeholder. Edited in Admin → AI Chat Settings.
+- **Event Planner budget ranges:** 500-1000, 1000-2000, 1500-2500, 2500-5000, 5000+.
+- **Services browse cards** (`/services/:parentSlug`) scan-load thumbnails one by
+  one; photo reveals only when its image is decoded; scan line sweeps from outside
+  the left edge.
+
+> **Settings drift fix:** budget ranges + chat settings (incl. greeting tiers) are
+> upserted by `npm run seed:settings` — **non-destructive** (no data wipe). Run it
+> after a settings default changes instead of a full `db:reset`, then restart the
+> backend.
+
+---
+
+## ✅ AI-chat quote flow — SESSION 2026-06-08 (category_lock + address split + Service Catalog UUIDs)
+
+- [x] **Bug A — category_lock hallucinates wrong UUID.** Validation now drops `category_lock` blocks whose UUID's category name doesn't appear in the assistant's reply text. Also strips any `quote_question` blocks emitted for the wrong category in the same reply.
+- [x] **Bug B — preferredDate grabs anchor "today" instead of resolved date.** `parseDateTimeFromText` now prefers the last fully-specified (`day`+`month`+`year` certain) non-past chrono result, not blindly `results[0]`.
+- [x] **Root cause: children UUIDs missing from Service Catalog.** The children Prisma query didn't select `id`, so the model had to guess UUIDs and hallucinated wrong ones (Interior Design's for Event Planner). Now prints `(id: \`uuid\`, slug: \`slug\`)` in the catalog.
+- [x] **Address split into sub-fields.** `extractAddressNo` + `extractPostcode` extract unit number and postcode separately from raw text. `fillField` now fills `addressNo`, `streetDetails`, `postcode` alongside `address`. `nextStepBlocks` emits `propertyType` selector card. Prompt updated with new valid keys.
+- [x] **Building type picker in chat.** Front-end `addrPropertyType` signal + dropdown (Landed/Condo/Commercial) in address card, plus standalone `propertyType` card support. `confirmAddress` stores sub-fields separately; `confirmPropertyType` handler.
+- [x] **Echo regex `/i` flag** — `extractName` wasn't matching capitalised echoes like "Perfect, Bryan!".
+- [x] **Redis pub/sub `error` listeners** — `redis.duplicate()` returns clients with no listeners; error handlers now attached.
+- [x] **Red warning note in review card** — prefill-warning banner: "Your contact details and address cannot be changed after submitting."
+- [x] **Chat bubble stays open after navigating to quote** — removed `widget.close()` from `submitPrefill`.
+- [x] **Dedupe review card** — `prefillSeen` flag filters duplicate `quote_prefill` blocks; reset on `resetQuoteFlowState`.
+- [x] **Cards stream one at a time** — `revealCards()` drips each action block as its own message bubble with 400-1000ms gap instead of all-at-once.
+- [x] **Logo click full reload with role redirect** — `window.location.href` for full re-init; admin→/admin, servicer→/servicer, customer→/customer, guest→/.
+- [x] **Admin PIN: prompt on every guarded navigation** — `pin.clear()` in guard before each `requirePin()`. No storage persistence. Logout clears cache.
 
 ## 🚧 AI-chat quote flow — OUTSTANDING (backlog + decisions, 2026-06-07)
 
 Found via live QA. Order = priority. Decisions from the user are marked **[decided]**.
 
 ### 🔴 Data integrity / correctness
-- [ ] **Wrong address can submit.** Model re-emits fields from whole-conversation history each turn; `applyQuoteFieldValues` blindly overwrites newer `prefillData` values with stale ones (saw confirmed "18 Jln Pudu" but summary/submit held old "42 Jalan SS2/72"). Fix: do NOT overwrite a field already present in `prefillData` with a re-extracted value — keep the user's latest.
-- [ ] **Review & Submit → quote form opens WRONG service.** Need to trace `submitPrefill` `categoryId` vs the quote form's prefill parsing/category select. Investigate then fix.
-- [ ] **Guest history bleeds into account view + persistence.** Backend is NOT vulnerable (every `/chat/session*` route scopes by `userId: req.user.id`, ownership-checked; guest endpoints stateless — verified). Frontend: `guestMsgs` (in-memory) cleared only on logout, not login → can show under a logged-in user if the account session load falls back to guest. Fix: (a) clear `guestMsgs` on login; (b) **[decided]** move guest history to `sessionStorage` — survives refresh, clears when the website/tab closes; (c) account always uses its own backend session, never the guest's.
+- [x] **Wrong address can submit.** Model re-emits fields from whole-conversation history each turn; `applyQuoteFieldValues` blindly overwrites newer `prefillData` values with stale ones (saw confirmed "18 Jln Pudu" but summary/submit held old "42 Jalan SS2/72"). Fix: do NOT overwrite a field already present in `prefillData` with a re-extracted value — keep the user's latest. (Already fixed: `fieldAlreadySet` guard at line 1119.)
+- [x] **Chat prefill not flowing to quote form for new address sub-fields.** Both guest and customer `applyChatPrefill` now map `addressNo`, `streetDetails`, `postcode`, `propertyType`. localStorage fallback (`msvc_latest_chat_prefill`) for service hyperlinks opened in new tab.
+- [x] **Guest history bleeds into account view + persistence.** (a) Already handled: identity-change effect at line 828 clears `guestMsgs` on login. (b) Guest chat persisted in `sessionStorage` already. (c) Account uses backend session, guest uses sessionStorage — no cross-contamination.
 
 ### 🟠 Flow / UX
 - [x] **Mobile: chat takes over the whole screen + blocks the background** — at ≤640px the panel goes full-screen (`inset:0`, no radius/border) and the backdrop dims (`--color-backdrop`) so nothing behind it can be tapped while open (tap backdrop or close to return). Was 420px / 85vh, which left the page visible + tappable.
 - [x] **Remove postcode from the chat address card** (unnecessary) — done; postcode still auto-captured from Places/GPS into the composed address, just no manual field.
-- [ ] **Red note under the address in the review summary** — tell people to double-check their contact + address, since it **cannot be changed or updated after the request is sent**.
-- [ ] **Budget card never collapses** + **collapse-on-manual-answer.** Budget branch always renders slider+Confirm (`@if(budgetChosen())` only adds ✅). Collapse to ✅ once chosen, like date/time. **General rule:** any field card collapses when its value is in `prefillData`, regardless of whether answered via the card or by typing in chat (user typed "500" before pressing Confirm).
-- [ ] **[decided] Budget = brackets.** A typed number maps to its bracket (e.g. 500 → RM 300–1000) for the AI. **Show the chosen bracket in the review.**
-- [ ] **Hide internal keys from the review summary.** `prefillSummary` blocklist misses `lat`/`lng`/`budgetIndex` → they render raw ("no one can read that"). Switch to a **whitelist** (Date/Time/Address/Name/Phone/Notes/Budget + question answers only).
-- [ ] **Chat vanishes for guest after navigating to the quote.** `submitPrefill` calls `widget.close()`; guest loses the floating launcher. Keep the floating bubble so it can be reopened.
-- [ ] **Dedupe the "Review & submit" (`quote_prefill`) card** — re-renders every turn. Show once.
+- [x] **Red note under the address in the review summary** — added `prefill-warning` banner in `quote_prefill` card: "Your contact details and address cannot be changed after submitting."
+- [x] **Budget card never collapses** — already handled: `budgetAnswered()` checks both `budgetChosen()` AND `prefillData()['budgetMax']`, so collapses whether answered via slider or text.
+- [x] **[decided] Budget = brackets.** `prefillSummary` already maps `budgetMax` to a readable bracket via `rangeLabel()`.
+- [x] **Hide internal keys from the review summary.** Already uses a whitelist (preferredDate/timeSlot/address/contactName/contactNumber/notes/Budget + question answers). `lat`/`lng`/`budgetIndex`/`categoryId` never leak.
+- [x] **Chat vanishes for guest after navigating to the quote.** Removed `widget.close()` from `submitPrefill`.
+- [x] **Dedupe the "Review & submit" (`quote_prefill`) card** — `prefillSeen` flag filters duplicates in `applyFormFills`; reset on `resetQuoteFlowState`.
 - [ ] **No markdown / raw `*` already fixed (B12); verify after these changes.**
 
 ### ⭐ Governing principle — FLEXIBLE, NATURAL COLLECTION ORDER **[decided]**

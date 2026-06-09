@@ -63,7 +63,8 @@ pgdata/
 redis-data/
 
 # ── Logs ──────────────────────────────────────────────────
-logs/
+logs/*
+!logs/.gitkeep
 *.log
 *.err
 *.out

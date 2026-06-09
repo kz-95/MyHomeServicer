@@ -409,6 +409,7 @@ interface EstimateResult {
             <div class="addr-line2">{{ [f.newAddressDistrict, f.newAddressPostcode].filter(v => v).join(', ') || '' }}</div>
           </dd>
         </dl>
+        <p class="prefill-warning">⚠️ Please double-check your contact and address above. They cannot be changed or updated once the request is sent.</p>
         <p class="looks-good muted">Looks good? Choose how you'd like to pay on the next step.</p>
 
         <div class="actions">
@@ -822,6 +823,12 @@ interface EstimateResult {
       }
       .review dt { font-weight: 600; color: var(--color-muted); min-width: 0; }
       .review dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+      .prefill-warning {
+        margin: 0.75rem 0 0.2rem; font-size: 0.82rem; font-weight: 600;
+        color: var(--color-danger); background: var(--color-danger-bg);
+        border: 1px solid var(--color-danger); border-radius: var(--radius);
+        padding: 0.5rem 0.65rem; line-height: 1.35;
+      }
       .service-details { display: inline; }
       .service-summary { cursor: pointer; list-style: none; font-weight: 600; color: var(--color-muted); user-select: none; }
       .service-summary::-webkit-details-marker { display: none; }
@@ -1312,8 +1319,19 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
     let chatPrefill: Record<string, unknown> | null = null;
     if (prefillParam) {
       try {
-        chatPrefill = JSON.parse(atob(prefillParam));
-      } catch { /* ignore invalid prefill */ }
+        // Unicode-safe base64: new format first, fall back to old.
+        chatPrefill = JSON.parse(decodeURIComponent(escape(atob(prefillParam))));
+      } catch {
+        try { chatPrefill = JSON.parse(atob(prefillParam)); }
+        catch { /* ignore invalid prefill */ }
+      }
+    }
+    // Fallback for service hyperlinks opened in new tab (sessionStorage per-tab).
+    if (!chatPrefill) {
+      try {
+        const raw = localStorage.getItem('msvc_latest_chat_prefill');
+        if (raw) chatPrefill = JSON.parse(raw) as Record<string, unknown>;
+      } catch { /* ignore */ }
     }
 
     this.api.get<{ data: Category[] }>('/categories', { scope: 'all' }).subscribe({
@@ -1379,8 +1397,13 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
   private applyChatPrefill(p: Record<string, unknown>): void {
     if (typeof p['contactName'] === 'string') this.f.contactName = p['contactName'];
     if (typeof p['contactNumber'] === 'string') this.f.contactNumber = p['contactNumber'];
+    if (typeof p['addressNo'] === 'string') this.f.addressNo = p['addressNo'];
+    if (typeof p['streetDetails'] === 'string') this.f.streetDetails = p['streetDetails'];
+    if (typeof p['postcode'] === 'string') this.f.newAddressPostcode = p['postcode'];
+    if (typeof p['district'] === 'string') this.f.newAddressDistrict = p['district'];
+    if (typeof p['state'] === 'string') this.f.newAddressState = p['state'];
+    if (typeof p['propertyType'] === 'string') this.f.newAddressPropertyType = p['propertyType'];
     if (typeof p['address'] === 'string') {
-      // Address from chat is a free-text string; store in notes for manual selection
       this.f.notes = (this.f.notes ? this.f.notes + '\n' : '') + `Address: ${p['address']}`;
     }
     if (typeof p['timeSlot'] === 'string') this.f.timeSlot = p['timeSlot'];
@@ -1393,8 +1416,6 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
       else if (mode === 'pay_later') { this.f.paymentTiming = 'pay_later'; this.f.settlementMethod = 'credit'; }
     }
     if (p['budgetMin'] != null || p['budgetMax'] != null) {
-      // Budget matching happens in matchPrefillBudget if reorderPrefill is present,
-      // but chatPrefill is separate - store for matchPrefillBudget to pick up
       if (!this.reorderPrefill) {
         this.reorderPrefill = { budgetMin: p['budgetMin'], budgetMax: p['budgetMax'] };
       }

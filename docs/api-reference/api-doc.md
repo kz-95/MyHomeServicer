@@ -1401,9 +1401,16 @@ Start a chat session.
 Send a message. Goes through AI provider chain (Gemini → DeepSeek → DB keys).
 **Rate limited:** 20/10min per user, 100/day
 ```json
-{ "message": "How do I cancel my booking?" }
+{
+  "message": "How do I cancel my booking?",
+  "lang": "en | ms | zh | ta | rojak",          // optional: client-detected conversation language; pins reply language
+  "collected": ["preferredDate", "budgetMax"],   // optional: keys already collected (suppresses re-asking)
+  "collectedData": { "preferredDate": "2026-06-14", "budgetMax": "500" }, // optional: exact confirmed values so recaps use real data, never invented
+  "categoryLocked": true, "categoryId": "uuid", "answeredQuestions": ["roofType"]
+}
 ```
-**Response:** `{ "reply": "...", "messageId": "uuid" }`
+The in-chat quote flow also accepts the same `lang`/`collected`/`collectedData`/`categoryId`/`answeredQuestions` fields on **`POST /chat/guest`**. `lang` pins the reply language (overrides per-turn guessing); `collectedData` lets the assistant recap exact values and stops already-filled fields being re-shown as cards.
+**Response:** `{ "reply": "...", "messageId": "uuid", "actionBlocks": [...] }`
 
 ### `GET /chat/session/:id/messages`
 Get conversation history.
@@ -1585,6 +1592,18 @@ the stored value: an existing question `key` or option `value` may not be rename
 or removed — set `active: false` to deactivate instead (returns 400 on
 violation). Audited. The `imageUrl` field is also returned on all category
 sub-objects in listing responses (servicer services, quotes, servicer profile).
+On save, question/option labels are **auto-translated**: missing/stale `labelI18n`
+`{ en?, ms?, zh?, ta? }` (and `descriptionI18n`) are filled via the LLM so the in-chat
+quote flow renders each question card in the customer's language. Admin-supplied
+translations are preserved (manual override); only missing/stale languages regenerate.
+If no LLM is reachable the schema saves untranslated (no failure).
+
+### `POST /admin/categories/backfill-translations`
+**PIN required.** One-pass migration that fills `labelI18n`/`descriptionI18n` across
+EVERY category's `questionSchema` (for categories saved before auto-translate-on-save
+landed). Idempotent — only missing/stale languages regenerate, safe to re-run. Makes LLM
+calls per category (a one-off admin op, not a hot path).
+**Response:** `{ "ok": true, "scanned": <n>, "updated": <n> }`
 
 ### `POST /admin/categories`
 **PIN required.** Creates a category.

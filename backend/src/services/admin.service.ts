@@ -158,6 +158,7 @@ export async function runClearContent(pin: string): Promise<{ ok: boolean; durat
   await prisma.chatSession.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.auditLog.deleteMany();
+  await prisma.llmApiKey.deleteMany({ where: { label: { startsWith: 'Demo ' } } });
   await prisma.transaction.deleteMany();
   await prisma.promotionRedemption.deleteMany();
   await prisma.merchantCreditLog.deleteMany();

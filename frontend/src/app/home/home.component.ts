@@ -210,7 +210,7 @@ interface Category {
                       placeholderUrl(cat.slug)) +
                     ')'
                   "
-                  [style.background-size]="(cat.bgZoom ?? 100) + '%'"
+                  [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'"
                   [style.background-position]="
                     (cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'
                   "
@@ -1418,7 +1418,7 @@ interface Category {
         transform: translateY(-2px);
         border-color: var(--color-primary-light);
       }
-      /* 1 - photo fills the card; zoom + anchor top so the AI watermark at the bottom is cropped */
+      /* 1 - photo fills the card */
       .svc-photo {
         position: absolute;
         inset: 0;
@@ -1427,8 +1427,6 @@ interface Category {
         background-size: cover;
         background-position: center top;
         background-repeat: no-repeat;
-        transform: scale(1.12);
-        transform-origin: top center;
       }
       /* 2 - colour wash: solid category colour left → transparent right (the dissolve) */
       .svc-wash {
