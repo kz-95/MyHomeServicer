@@ -59,10 +59,10 @@ chatRouter.get(
   }),
 );
 
-/** 10 / min / IP — guest chat rate limit. */
+/** 10 / min / IP (prod) — guest chat rate limit. Dev/tests use 100/min. */
 const guestChatLimiter = rateLimit({
   windowMs: 60_000,
-  limit: 10,
+  limit: (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'prod') ? 10 : 100,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.ip ?? 'unknown',
