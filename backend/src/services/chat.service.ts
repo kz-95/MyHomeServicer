@@ -2103,9 +2103,10 @@ export async function sendToAi(
           (b) => b.type === "quote_field" && b.data.key === key,
         );
         if (existing) {
-          if (existing.data.value == null || existing.data.value === "") {
-            existing.data.value = val;
-          }
+          // Always trust the deterministically-extracted value over the model's.
+          // The model may parse a phone like "01124751853" as a number, producing
+          // "+601124751853" which loses formatting. The extracted string is canonical.
+          existing.data.value = val;
         } else {
           outBlocks.push({ type: "quote_field", data: { key, value: val } });
         }
