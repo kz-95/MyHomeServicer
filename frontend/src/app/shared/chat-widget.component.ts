@@ -3376,12 +3376,7 @@ export class ChatWidgetComponent
             if (r.lat != null && r.lng != null) {
               this.widget.accumulatePrefill({ lat: r.lat, lng: r.lng });
             }
-            this.widget.accumulatePrefill({
-              addressNo: this.addrNo().trim(),
-              streetDetails: this.addrStreet().trim(),
-              postcode: this.addrPostcode().trim(),
-              propertyType: this.addrPropertyType(),
-            });
+            this.storeStructuredAddress();
             // District + State from the geocode → carried to the /quote/new form so the
             // full address is pre-filled (the chat card doesn't show these fields).
             if (r.city) this.widget.accumulatePrefill({ district: r.city });
@@ -3391,11 +3386,13 @@ export class ChatWidgetComponent
             this.send();
           } else {
             // Geocode returned invalid — fall back to the raw composed address so the
-            // flow can continue (the backend's extractAddress will find it in text).
+            // flow can continue. Store both the raw string AND the structured fields
+            // the user already filled in the form (No, Type, Street, Postcode).
             this.addrError.set(
               "We couldn't verify this address. Check the street and postcode, or pick a suggestion from the dropdown.",
             );
             this.widget.accumulatePrefill({ address: composed });
+            this.storeStructuredAddress();
             this.addressConfirmed.set(true);
             this.draft = `${this.t("address")}: ${composed}`;
             this.send();
@@ -3403,13 +3400,27 @@ export class ChatWidgetComponent
         },
         error: () => {
           this.addrValidating.set(false);
-          // Geocode API unavailable — fall back to raw address so the flow continues.
+          // Geocode API unavailable — fall back to raw address + structured fields.
           this.widget.accumulatePrefill({ address: composed });
+          this.storeStructuredAddress();
           this.addressConfirmed.set(true);
           this.draft = `${this.t("address")}: ${composed}`;
           this.send();
         },
       });
+  }
+
+  /** Store the currently filled structured address fields into prefill.
+   *  Called from all three confirmAddress paths (valid geocode, invalid geocode,
+   *  API error) so the quote form always receives addressNo / propertyType /
+   *  streetDetails / postcode regardless of whether geocoding succeeded. */
+  private storeStructuredAddress(): void {
+    this.widget.accumulatePrefill({
+      addressNo: this.addrNo().trim(),
+      streetDetails: this.addrStreet().trim(),
+      postcode: this.addrPostcode().trim(),
+      propertyType: this.addrPropertyType(),
+    });
   }
 
   confirmPropertyType(): void {
