@@ -566,6 +566,81 @@ function blockTag(b: QaBlock): string {
   return id ? `${b.type}:${id}` : b.type;
 }
 
+/** Human-readable reasoning for every parameter a scenario chose — so the log tells
+ *  you WHAT is being tested and WHY, not just raw JSON. */
+function intentLabel(scn: QaScenario): string {
+  const p = scn.persona;
+  const parts: string[] = [];
+
+  // ── Language intent ──
+  const langWhy: Record<string, string> = {
+    en: "English — baseline",
+    ms: "Malay — tests SMS shortcuts (saya→i, tak→x) and local phrasing",
+    zh: "Chinese — tests CJK character handling, i18n labels",
+    ta: "Tamil — tests non-Latin script, i18n labels, btoa edge case",
+    rojak: "Manglish/rojak — tests mixed Malay+English (lah, lor, mah)",
+  };
+  parts.push(langWhy[p.language] ?? p.language);
+
+  // ── Typing intent ──
+  const typingWhy: Record<string, string> = {
+    proper: "proper caps+punct",
+    lowercase: "all lowercase",
+    typos: "random typos (dropped chars)",
+    abbrev: "SMS abbreviations (u, ur, pls, tmrw)",
+    verbose: "verbose+waffle ('so basically …, if that makes sense')",
+    terse: "stripped filler words",
+    slang: "slang/shortcuts (Malay: i, x, blh, dh, je)",
+  };
+  parts.push(typingWhy[p.typing] ?? p.typing);
+
+  // ── Tone intent ──
+  const toneWhy: Record<string, string> = {
+    polite: "polite framing",
+    blunt: "bare statements, no niceties",
+    impatient: "pressing for speed",
+    friendly: "casual+smiley",
+    anxious: "worried/apologetic",
+    chatty: "wordy+conversational",
+  };
+  parts.push(toneWhy[p.tone] ?? p.tone);
+
+  // ── Behavior intent ──
+  const behaveWhy: Record<string, string> = {
+    cooperative: "follows prompts, picks first option → baseline",
+    reject_first: "rejects first suggestion → tests recovery",
+    oversharer: "adds extra/irrelevant info → tests filtering",
+    self_correct: "sends then corrects → tests edit path",
+    rambler: "drifts between options → tests contradiction handling",
+    minimal: "short/minimal answers → tests prompting",
+  };
+  parts.push(behaveWhy[p.behavior] ?? p.behavior);
+
+  // ── Sorting intent ──
+  const sortWhy: Record<string, string> = {
+    service_first: "service first — normal flow",
+    dump_all: "dumps all info in opener → tests multi-field extraction",
+    address_first: "address before service → tests out-of-order",
+    budget_first: "budget leads → tests budget-first parsing",
+    contact_first: "contact info first → tests PII handling",
+    vague_first: "vague greeting → tests bot clarifying flow",
+  };
+  parts.push(sortWhy[p.sorting] ?? p.sorting);
+
+  // ── Info count ──
+  parts.push(`infos:${scn.infoCount} (${scn.infoCount === 0 ? "vague greeting only" : `${scn.infoCount} fields front-loaded`})`);
+
+  // ── Service ──
+  parts.push(`need: "${scn.service.needs.en.slice(0, 60)}"`);
+
+  // ── Data ──
+  parts.push(`addr: ${scn.addr.propertyType} | ${scn.addr.no}, ${scn.addr.street.slice(0, 30)}`);
+  parts.push(`budget: ${scn.budget} | date: "${scn.dateWords}" → ${scn.date} | time: ${scn.timeSlot}`);
+  if (scn.repeats) parts.push("🔄 repeats info mid-flow (idempotency test)");
+
+  return parts.join(" | ");
+}
+
 export interface QaRunResult {
   label: string;
   ok: boolean;
@@ -1117,6 +1192,8 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     push("");
     push(`## ${i + 1}. ${scn.label}`);
     push(`persona: ${JSON.stringify(scn.persona)}`);
+    push(`service: "${scn.service.needs.en}"`);
+    push(`intent | ${intentLabel(scn)}`);
     const startLen = log.length;
     // ~30% of guest runs (after the first, which seeds saved state) REFRESH instead of
     // clearing — reloading from storage to exercise the returning-guest "is this {name}?"
