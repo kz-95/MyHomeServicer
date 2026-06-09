@@ -1,14 +1,13 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-09 (chat prompt hardening + QA harness fixes)
+> **State: 🟢 ACTIVE** — 2026-06-09 (QA harness fixes: NO CARD batch check, Unicode btoa, geocode fallback, address input lock)
 
 ---
 
 ## 🔨 Chat QA harness + booking-flow hardening (2026-06-09)
 
 Driven by automated chat-QA runs (`chat-qa-harness.ts`, logs in `logs/ChatQA_*.log`).
-All items below: `tsc` + `ng build` pass. **Not yet runtime-verified / not committed** —
-test before commit.
+All items below: `tsc` + `ng build` pass, committed to `feat/ux-polish`, pushed.
 
 ### Done — LLM / DeepSeek
 - [x] DeepSeek `first-token timeout` root cause: `deepseek-v4-*` are **reasoning models**
@@ -19,6 +18,18 @@ test before commit.
       + valid-models list updated.
 - [x] QA judge pinned to `deepseek-v4-flash`; judge never substitutes the customer-facing
       `localFallback` (was polluting QA logs as fake verdicts) — `noFallback` flag threaded.
+
+### Done — QA harness hardening (2026-06-09 batch)
+- [x] ZERO-TOLERANCE: shrunk from ~20-line bullet-point bloat to 6-line compact version.
+      Bloat pushed critical flow rules out of the model's attention window → "ghost wall" looping.
+- [x] `⚠ NO CARD` false positive: now checks trailing assistant message BATCH (not per-message),
+      so blocks arriving in a separate message no longer trigger false warnings.
+- [x] `btoa` → Unicode-safe (encodeURIComponent+unescape) for Tamil/Chinese prefill data.
+      Updated all encode/decode sites with backward-compat fallback.
+- [x] `confirmAddress` geocode fallback: when API fails or returns invalid, falls back to
+      sending raw composed address text → flow never dead-ends on missing geocode API.
+- [x] `forceCardInput` signal: disables chat input/send when address card is showing,
+      preventing users from typing instead of filling the address form.
 
 ### Done — prompt hardening (ZERO-TOLERANCE)
 - [x] ZERO-TOLERANCE rule: "The tag IS the card" — covers ALL action types (quote_options,
