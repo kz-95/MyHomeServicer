@@ -10,7 +10,14 @@ room", address front-loaded, budget low, this Sunday evening.
 
 ---
 
-## A. Needs a PRODUCT decision (not a code bug)
+## A. RESOLVED — chose A-full + C (2026-06-09)
+
+Added **Painting, Moving, Gardening** as real categories, each with its own question schema
+(non-essential questions `required: false` = C, deterministic skippable). repaint→Painting,
+movers→Moving, lawn→Gardening now map by name and ask relevant questions. Apply with
+`npm run db:reset`. Original analysis kept below for reference.
+
+## A (original). Needs a PRODUCT decision (not a code bug)
 
 ### A1 — Repaint maps to Renovation, then asks demolition questions (judge HIGH + MED)
 The prompt's disambiguation rule maps "repaint" → **Renovation**. But Renovation's

@@ -60,22 +60,29 @@ These replace the original 4-chip row on the login page.
 
 ---
 
-## Categories (31 child categories under 7 parent groups)
+## Categories (34 child categories under 7 parent groups)
 
 | Parent | Slugs (child) |
 |--------|--------------|
 | Cleaning Service | home-cleaning, sofa-mattress-cleaning, carpet-cleaning, curtain-cleaning |
 | Events & Weddings | event-planner, catering |
-| Home Improvement | professional-organizer, aircond-installer, carpenter, renovation, interior-design, door-gate, roof |
-| Home Maintenance | aircond-servicer, plumber, electrical-wiring |
+| Home Improvement | professional-organizer, aircond-installer, carpenter, renovation, interior-design, door-gate, roof, **painting** |
+| Home Maintenance | aircond-servicer, plumber, electrical-wiring, **moving**, **gardening** |
 | Appliance Repair | washing-machine-repair, refrigerator-repair, tv-repair, oven-repair, water-heater-repair, ceiling-fan-repair, aircond-repair |
 | Training & Classes | art-class, language-class, music-class, home-tutoring, cooking-class, gym-trainer, 3d-modeling-class |
 | Tech & IT | alarm-cctv |
 
+> **2026-06-09 — Painting, Moving, Gardening added** (own question schemas + budget ranges
+> + card images at `assets/Images/HomeImprovement_Painting01.png`,
+> `HomeMaintenance_Moving01.png`, `HomeMaintenance_Gardening01.png`). They fix the chat
+> mis-match where repaint→Renovation / movers→Carpenter / lawn→Renovation forced irrelevant
+> questions. **No servicers seeded under them yet** — browse shows the category but with 0
+> providers until merchants are added. Non-essential questions are `required: false` (skippable).
+
 ### Additional seeded data
 
 - **Category question schema** — every child category seeds its own `question_schema`; priced questions (plumber, home-cleaning, sofa-mattress, carpet, curtain, aircond-installer, aircond-servicer) have modifier pricing on servicer services
-- **`budget_ranges` platform setting** — all 31 categories have 4 bracket budget ranges
+- **`budget_ranges` platform setting** — all 34 categories have 4 bracket budget ranges
 - **`platform_fee_rate`** — seeded at 20% current, with 8% advertised discount
 - **Quote presets** — demo customers get saved `QuotePreset` rows
 - **`servicer_deposit`** — each servicer seeded with RM 500 deposited + RM 100 welcome bonus credit

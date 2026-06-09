@@ -9,6 +9,30 @@
 Driven by automated chat-QA runs (`chat-qa-harness.ts`, logs in `logs/ChatQA_*.log`).
 All items below: `tsc` + `ng build` pass, committed to `feat/ux-polish`, pushed.
 
+### Done — 2026-06-09 chat reliability + new services
+- [x] **Deterministic card-confirm turns** — when the user taps a card (date/time/budget/
+      address/contact/question/service), the backend skips the LLM and returns the next card
+      from `computeNextCards()`. Zero tokens / 429 / hallucination on those turns. Client flags
+      `cardConfirm`; LLM still drives free-form turns. (`chat.service.ts`, `chat.routes.ts`,
+      `chat-widget.component.ts`)
+- [x] **Soft input hint replaces the input LOCK** — input always usable; a non-blocking hint
+      (`cardInputHint`) shows above it while a required card is pending. Filled cards stay collapsed.
+- [x] **Unit regression net** — `backend/tests/unit/chat-flow.test.ts` pins `nextStepBlocks` +
+      `computeNextCards` (17 cases). Run `npx jest chat-flow`.
+- [x] **QA harness: types custom answers** — ~40% of service questions answered as free text
+      (through the LLM) instead of tapping the option.
+- [x] **QA harness: richer log** — per turn shows `[time] role: content`, `SENT` (frontend
+      request body), `RECV` (backend reply), `DATA` (actual prefill incl. budgetMax vs budgetIndex).
+- [x] **3 new services: Painting, Moving, Gardening** — own question schemas (non-essential
+      questions skippable), budget ranges, card images. Fixes repaint→Renovation /
+      movers→Carpenter / lawn→Renovation mis-match. **Run `npm run db:reset` to apply.**
+      Docs: `docs/ai-context/seed-plan.md`, `docs/ai-context/chat-qa-findings.md`, `aichat.md`.
+- [ ] **Follow-ups (need a harness run / live repro):** budget shows index not amount on the
+      quote form (B1); free-text address up front leaves no/postcode/type empty → form blocks (B2);
+      language leaks between QA scenarios (run-3 EN persona answered in Chinese). See
+      `docs/ai-context/chat-qa-findings.md`.
+- [ ] **No servicers seeded** under painting/moving/gardening yet (browse shows 0 providers).
+
 ### Done — LLM / DeepSeek
 - [x] DeepSeek `first-token timeout` root cause: `deepseek-v4-*` are **reasoning models**
       (stream `reasoning_content` before `content`); `streamLlm` now clears the first-token

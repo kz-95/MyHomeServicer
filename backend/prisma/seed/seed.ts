@@ -85,6 +85,8 @@ async function main(): Promise<void> {
         published: true,
         photosEnabled: c.photosEnabled ?? false,
         requiresInspection: c.requiresInspection ?? false,
+        ...(c.description ? { description: c.description } : {}),
+        ...(c.imageUrl ? { imageUrl: c.imageUrl } : {}),
         ...(c.questions
           ? { questionSchema: c.questions as unknown as Prisma.InputJsonValue }
           : {}),

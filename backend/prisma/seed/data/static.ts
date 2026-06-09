@@ -55,6 +55,12 @@ interface SeedChildCategory {
    * inspection booking; the servicer submits a final work proposal afterward.
    */
   requiresInspection?: boolean;
+  /** Short description shown in the browse card + injected into the chat catalog so the
+   *  assistant can match a customer's wording (e.g. "repaint" -> Painting). */
+  description?: string;
+  /** Card/banner image served from frontend assets (e.g. assets/Images/Foo01.png). When
+   *  absent the browse page falls back to a slug-keyed placeholder. */
+  imageUrl?: string;
   /** Custom Details-step questions for this child (aircond-servicer is the sample). */
   questions?: QuoteQuestion[];
 }
@@ -2136,6 +2142,236 @@ export const children: SeedChildCategory[] = [
             value: "no_i_have_equipment",
             label: "No, I have equipment (install only)",
           },
+        ],
+      },
+    ],
+  },
+
+  // ── Home Improvement ── Painting (covers repaint / repainting walls; its own simple
+  // questions so a plain repaint is never asked Renovation's hacking/demolition questions).
+  {
+    parentSlug: "home-improvement",
+    slug: "painting",
+    name: "Painting",
+    icon: "paintbrush",
+    price: 150,
+    duration: 180,
+    photosEnabled: true,
+    description:
+      "Interior and exterior painting — repaint a wall, a room, or the whole place. Covers walls, ceilings, doors and grilles.",
+    imageUrl: "assets/Images/HomeImprovement_Painting01.png",
+    questions: [
+      {
+        key: "paint_scope",
+        label: "What needs painting?",
+        type: "radio",
+        required: true,
+        priced: true,
+        options: [
+          { value: "one_room", label: "One room" },
+          { value: "multiple_rooms", label: "Multiple rooms" },
+          { value: "whole_house", label: "Whole house" },
+          { value: "exterior", label: "Exterior / facade" },
+          { value: "feature_wall", label: "Just a feature wall" },
+        ],
+      },
+      {
+        key: "paint_surfaces",
+        label: "Which surfaces?",
+        type: "checkbox",
+        required: true,
+        priced: false,
+        minSelect: 1,
+        options: [
+          { value: "walls", label: "Walls" },
+          { value: "ceiling", label: "Ceiling" },
+          { value: "doors_frames", label: "Doors & frames" },
+          { value: "grilles_railings", label: "Grilles & railings" },
+        ],
+      },
+      {
+        key: "paint_supply",
+        label: "Who supplies the paint?",
+        type: "radio",
+        required: true,
+        priced: false,
+        options: [
+          { value: "painter_supplies", label: "Painter supplies the paint" },
+          { value: "i_provide", label: "I provide the paint" },
+          { value: "not_sure", label: "Not sure, please advise" },
+        ],
+      },
+      {
+        key: "wall_condition",
+        label: "Wall condition (optional)",
+        type: "radio",
+        required: false,
+        priced: false,
+        options: [
+          { value: "good", label: "Good, just recolour" },
+          { value: "patching", label: "Some cracks, needs patching" },
+          { value: "peeling_damp", label: "Peeling or damp" },
+          { value: "not_sure", label: "Not sure" },
+        ],
+      },
+      {
+        key: "room_count",
+        label: "How many rooms or areas? (optional)",
+        type: "number",
+        required: false,
+        priced: false,
+      },
+    ],
+  },
+
+  // ── Home Maintenance ── Moving (movers; covers "movers", "shifting house", "transport
+  // furniture"). Its own questions so it never borrows another service's form.
+  {
+    parentSlug: "home-maintenance",
+    slug: "moving",
+    name: "Moving",
+    icon: "truck",
+    price: 200,
+    duration: 180,
+    photosEnabled: true,
+    description:
+      "Movers to shift your home or office — carrying, loading and transporting furniture and boxes. Also single bulky items.",
+    imageUrl: "assets/Images/HomeMaintenance_Moving01.png",
+    questions: [
+      {
+        key: "move_type",
+        label: "What are you moving?",
+        type: "radio",
+        required: true,
+        priced: true,
+        options: [
+          { value: "whole_home", label: "Whole home" },
+          { value: "few_big_items", label: "A few big items" },
+          { value: "single_item", label: "A single item" },
+          { value: "office", label: "Office" },
+        ],
+      },
+      {
+        key: "home_size",
+        label: "How big is the move?",
+        type: "radio",
+        required: true,
+        priced: true,
+        options: [
+          { value: "studio", label: "Studio / 1 room" },
+          { value: "2_3_rooms", label: "2–3 rooms" },
+          { value: "4_plus", label: "4+ rooms or landed" },
+          { value: "items_only", label: "Just a few items" },
+        ],
+      },
+      {
+        key: "lift_access",
+        label: "Lift access at pickup? (optional)",
+        type: "radio",
+        required: false,
+        priced: false,
+        options: [
+          { value: "ground_floor", label: "Ground floor" },
+          { value: "lift", label: "Lift available" },
+          { value: "stairs_only", label: "Stairs only" },
+          { value: "not_sure", label: "Not sure" },
+        ],
+      },
+      {
+        key: "heavy_items",
+        label: "Any bulky items? (optional)",
+        type: "checkbox",
+        required: false,
+        priced: false,
+        options: [
+          { value: "fridge", label: "Fridge" },
+          { value: "washing_machine", label: "Washing machine" },
+          { value: "piano", label: "Piano" },
+          { value: "wardrobe", label: "Wardrobe / cabinet" },
+          { value: "sofa", label: "Sofa" },
+          { value: "none", label: "None" },
+        ],
+      },
+      {
+        key: "packing_help",
+        label: "Need packing help? (optional)",
+        type: "radio",
+        required: false,
+        priced: false,
+        options: [
+          { value: "pack_for_me", label: "Yes, pack for me" },
+          { value: "i_pack", label: "No, I'll pack" },
+          { value: "partial", label: "Partial" },
+        ],
+      },
+    ],
+  },
+
+  // ── Home Maintenance ── Gardening (covers "lawn", "grass cutting", "trimming",
+  // "landscaping"). Its own questions so a lawn job is never asked Renovation questions.
+  {
+    parentSlug: "home-maintenance",
+    slug: "gardening",
+    name: "Gardening",
+    icon: "sprout",
+    price: 120,
+    duration: 120,
+    photosEnabled: true,
+    description:
+      "Garden and lawn care — mowing, trimming, hedge and bush work, weeding, tree pruning and landscaping.",
+    imageUrl: "assets/Images/HomeMaintenance_Gardening01.png",
+    questions: [
+      {
+        key: "garden_work",
+        label: "What do you need?",
+        type: "checkbox",
+        required: true,
+        priced: true,
+        minSelect: 1,
+        options: [
+          { value: "lawn_mowing", label: "Lawn mowing & trimming" },
+          { value: "hedge", label: "Hedge & bush trimming" },
+          { value: "weeding", label: "Weeding & clearing" },
+          { value: "tree_pruning", label: "Tree pruning" },
+          { value: "landscaping", label: "Landscaping & planting" },
+        ],
+      },
+      {
+        key: "garden_size",
+        label: "How big is the area?",
+        type: "radio",
+        required: true,
+        priced: true,
+        options: [
+          { value: "small", label: "Small (under 500 sqft)" },
+          { value: "medium", label: "Medium (500–2000 sqft)" },
+          { value: "large", label: "Large (over 2000 sqft)" },
+          { value: "not_sure", label: "Not sure" },
+        ],
+      },
+      {
+        key: "green_waste",
+        label: "Green-waste removal? (optional)",
+        type: "radio",
+        required: false,
+        priced: false,
+        options: [
+          { value: "haul_away", label: "Yes, haul it away" },
+          { value: "leave_it", label: "No, leave it" },
+          { value: "not_sure", label: "Not sure" },
+        ],
+      },
+      {
+        key: "frequency",
+        label: "How often? (optional)",
+        type: "radio",
+        required: false,
+        priced: false,
+        options: [
+          { value: "one_time", label: "One-time" },
+          { value: "weekly", label: "Weekly" },
+          { value: "fortnightly", label: "Fortnightly" },
+          { value: "monthly", label: "Monthly" },
         ],
       },
     ],
