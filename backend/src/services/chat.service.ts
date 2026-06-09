@@ -327,11 +327,33 @@ export async function buildAssistantPrompt(
       weekday: "long",
     });
 
-    extra += "\n\n!!!!! YOU MUST EMIT ACTION BLOCKS !!!!!";
+    extra += "\n\n!!!!! YOU MUST EMIT ACTION BLOCKS — THIS IS THE #1 RULE !!!!!";
     extra +=
-      "\nWithout [action:...] blocks the user sees ONLY TEXT and CANNOT pick dates, times, or fill forms.";
+      "\nWithout [action:...] blocks the user sees ONLY TEXT and CANNOT pick dates, times, or fill forms. The tag IS the card.";
     extra +=
-      "\nEvery response that collects information MUST include the corresponding [action:...] block.";
+      "\nThis applies to EVERY card type, not just service selection:";
+    extra +=
+      '\n  • You name a service → MUST emit [action:quote_options] with real category+id IN THAT SAME MESSAGE.';
+    extra +=
+      '\n  • You ask for date/time → MUST emit [action:quote_field]key: preferredDate[/action] (or timeSlot) IN THAT SAME MESSAGE.';
+    extra +=
+      '\n  • You ask the service questions → MUST emit [action:quote_question]key: ...[/action] IN THAT SAME MESSAGE.';
+    extra +=
+      '\n  • You confirm the booking → MUST emit [action:quote_prefill] IN THAT SAME MESSAGE.';
+    extra +=
+      '\nExamples:';
+    extra +=
+      '\n  CORRECT: "Roof covers that. [action:quote_options]\ncategory: Roof\ncategoryId: <uuid>[/action]"';
+    extra +=
+      '\n  CORRECT: "When do you need it? [action:quote_field]key: preferredDate[/action] [action:quote_field]key: timeSlot[/action]"';
+    extra +=
+      '\n  WRONG: "Tap the card below to confirm." (no block → nothing clickable)';
+    extra +=
+      '\n  WRONG: "What date works for you?" in text only — no [action:quote_field] block → no date picker appears.';
+    extra +=
+      '\n  WRONG: "Here is the card, press Yes" without [action:...] — the user sees ONLY text.';
+    extra +=
+      "\nNever describe a card you didn't emit. If you can name the field, emit its block.";
 
     extra += `\n\nToday is ${weekdayKL}, ${todayKL} (Asia/Kuala_Lumpur). Resolve relative dates ("tonight", "tomorrow", "next Sunday") to a concrete FUTURE date in YYYY-MM-DD.`;
     extra += "\n\n### EXTRACT FIRST — pre-fill what the user already said.";
@@ -424,9 +446,7 @@ export async function buildAssistantPrompt(
     extra +=
       '\n- SERVICE DISAMBIGUATION: a plain painting / repainting job (repaint a wall, a room, or the whole place) maps to RENOVATION — that covers the physical paint work. INTERIOR DESIGN is for design, layout, styling, and concept work, NOT a simple repaint. Do NOT offer Interior Design for a "repaint" request unless the user clearly wants design help. More generally: do not ASSUME one service when two could genuinely fit — emit a [action:quote_options] card for EACH candidate and let the user pick, rather than silently choosing one.';
     extra +=
-      '\n- NEVER PROMISE A CARD WITHOUT EMITTING IT. If your text says or implies a card is coming ("Let me check", "here is the service that fits", "pick the one you want"), you MUST include the actual [action:quote_options] (or the relevant action block) in that SAME reply. Ending a turn having promised a card but emitting none strands the user with nothing to tap. If you can name the service, emit its card now.';
-    extra +=
-      '\n- SELF-RECOVERY: if you look back and your previous turn slipped (you said you would show a service or card but emitted none, or repeated yourself without progressing), do NOT just repeat the same line. Briefly own it and apologise in a warm human way ("Sorry, that did not come through properly"), clarify what you meant, and THEN emit the correct card or next step. Always move the user forward with a real update, never leave them stuck on the same spot.';
+      '\n- SELF-RECOVERY: if you look back and your previous turn slipped (you said you would show a service or card but emitted none, or repeated yourself without progressing), do NOT just repeat the same line. Briefly own it and apologise in a warm human way ("Sorry, that did not come through properly"), clarify what you meant, and THEN emit the correct card or next step. Always move the user forward with a real update, never leave them stuck on the same spot.\n\n- BUTTON CONFUSION: when a user REPEATS their query instead of tapping the card you just sent, they likely do NOT know to press the button. RE-EMIT the card and kindly ask them to tap it. Example: "I just sent you a card for [service name] below — tap the Yes button on that card and we can move forward!" or "Here is the card again, just press that green button to confirm." Never say "I already sent the card" without re-emitting it — that leaves them stuck with no clickable card in their view. If they still repeat after a re-emit, try a DIFFERENT approach: ask ONE warm clarifying question about their exact need, then re-emit the best-fitting card with a new short explanation. Never loop more than twice — after two re-emits without progress, apologise, say you will pass this to a human, and offer to escalate.';
     extra +=
       "\n- When you mention a service in your text, write its EXACT catalog name in plain words with NO bold, NO asterisks, NO markdown. The app automatically turns service names into clickable links, so never format them yourself.";
     extra +=

@@ -1,6 +1,6 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-08 (route redesign Phase 1 done — servicer jobs sub-routes; Phase 2 next)
+> **State: 🟢 ACTIVE** — 2026-06-09 (chat prompt hardening + QA harness fixes)
 
 ---
 
@@ -19,6 +19,17 @@ test before commit.
       + valid-models list updated.
 - [x] QA judge pinned to `deepseek-v4-flash`; judge never substitutes the customer-facing
       `localFallback` (was polluting QA logs as fake verdicts) — `noFallback` flag threaded.
+
+### Done — prompt hardening (ZERO-TOLERANCE)
+- [x] ZERO-TOLERANCE rule: "The tag IS the card" — covers ALL action types (quote_options,
+      quote_field, quote_question, quote_prefill) with CORRECT/WRONG examples per type.
+- [x] BUTTON CONFUSION rule: when user repeats instead of tapping, re-emit the card + ask
+      kindly; after 2 re-emits, try different approach → escalate.
+- [x] SELF-RECOVERY rule: if previous turn slipped, own it, apologise, emit the correct card.
+- [x] QA harness: `⚠ NO CARD` warns when bot mentions card/button but emits zero actionable
+      blocks (also warns when only link/retry blocks exist, not real cards).
+- [x] QA harness: escalating nudge system (need → reworded → "I don't see a card, re-send?").
+- [x] QA harness: `[⚙ ...]` annotation ghosts sanitized from content before LLM sees them.
 
 ### Done — bot booking flow
 - [x] Phone-loop: `extractPhone` matched the booking date (`2026-06-19`) → false `contactNumber`;

@@ -627,14 +627,22 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
   // (even an empty bot reply) so the judge always reviews the REAL conversation and
   // can't hallucinate from a blank transcript.
   let logged = host.messages().length;
+  const NO_CARD_RE = /\b(card|button|tap|press|click|kad|butang|tekan|klik)\b/i;
   const flush = () => {
     const msgs = host.messages();
     for (let i = logged; i < msgs.length; i++) {
       const m = msgs[i];
       const tag = m.role === "user" ? "USER" : "BOT ";
-      const txt = (m.content || "").replace(/\n+/g, " ").trim();
+      // Strip stale [⚙ ...] annotations from logged content so the log is clean.
+      const txt = (m.content || "").replace(/\[⚙[^\]]*\]\s*/g, "").replace(/\n+/g, " ").trim();
       const blocks = m.blocks?.length ? ` [${m.blocks.map(blockTag).join(", ")}]` : "";
-      h.log(`${tag}: ${txt || (blocks ? "" : "(empty reply)")}${blocks}`.trimEnd());
+      // QA-only: flag when bot describes a card/button but emitted no actionable action block.
+      // Warns both when there are zero blocks AND when only non-actionable blocks (link, retry)
+      // are present — a "link" block is not a pickable card the user interacts with.
+      const hasActionableBlock = m.blocks?.some((bk) => ACTIONABLE.has(bk.type));
+      const noCardWarn = (m.role === "assistant" && NO_CARD_RE.test(m.content ?? "") && !hasActionableBlock)
+        ? " ⚠ NO CARD" : "";
+      h.log(`${tag}: ${txt || (blocks ? "" : "(empty reply)")}${blocks}${noCardWarn}`.trimEnd());
     }
     logged = msgs.length;
   };
@@ -693,9 +701,11 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     }
 
     // Duplicate-card check: the SAME field/question shown more than once in one reply.
+    // For quote_options, include the categoryId so offering two DIFFERENT services in
+    // one reply is NOT flagged as duplicate (the prompt explicitly allows this).
     const seenSig = new Set<string>();
     for (const bk of blocks) {
-      const s = `${bk.type}:${(bk.data["key"] as string) ?? (bk.data["qtype"] as string) ?? ""}`;
+      const s = `${bk.type}:${(bk.data["key"] as string) ?? (bk.data["qtype"] as string) ?? (bk.data["categoryId"] as string) ?? ""}`;
       if (seenSig.has(s) && !dupFlagged.has(s)) {
         dupFlagged.add(s);
         issues.push(`duplicate: card "${s}" shown more than once in one reply`);
@@ -749,10 +759,17 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
         terminal = !sawAnyCard;
         break;
       }
-      // Answer the bot's text question the way a real customer would — re-state what
-      // they actually want (not a bare "yes"). This is what nudges the bot back to the
-      // next card after a rejection or a clarifying question.
-      host.sendText(scn.needPhrase);
+      // Vary the nudge so the conversation does NOT look like a stuck user copy-pasting
+      // the same line — a real person re-words after being ignored. Each nudge escalates:
+      // first repeats the need, then asks what service fits, then directly asks for a card.
+      const needCore = scn.service.needs[scn.persona.language] ?? scn.service.needs.en;
+      const nudges = [
+        scn.needPhrase,
+        styleLine(scn.persona, pick([`i need ${needCore}, what can you do?`, `can you help with ${needCore}?`, `so about ${needCore}... anyone?`])),
+        styleLine(scn.persona, pick([`i dont see a card or button, can you send it again?`, `where do i click? i only see text`, `there's nothing to tap, can you re-send?`])),
+      ];
+      const nudgeIdx = Math.min(emptyTurns - 1, nudges.length - 1);
+      host.sendText(nudges[nudgeIdx]);
       await waitIdle();
       flush();
       continue;
@@ -932,25 +949,39 @@ function humanAnswerText(scn: QaScenario): string {
   return styleLine(p, base);
 }
 
-/** Pick a human-like answer for a service-question card from its qtype + options. */
+/**
+ * Pick a human-like answer for a service-question card from its qtype + options.
+ * Non-rambler behaviors pick the FIRST plausible option (most common/default).
+ * Ramblers pick RANDOMLY among plausible options — they drift and contradict.
+ */
 function answerForQuestion(b: QaBlock, scn: QaScenario): QaAnswer {
   const qtype = ((b.data["qtype"] as string) || (b.data["type"] as string) || "text");
   const options = (b.data["options"] as Array<{ value: string; label: string }>) || [];
   const real = plausibleOptions(options);
+  const ramble = scn.persona.behavior === "rambler";
   switch (qtype) {
     case "radio":
-      // A person scans the choices and picks one that fits — not always the first.
-      return real.length ? { qtype: "radio", radio: pick(real).value } : { qtype: "text", text: humanAnswerText(scn) };
+      if (real.length) {
+        const choice = ramble ? pick(real) : real[0];
+        return { qtype: "radio", radio: choice.value };
+      }
+      return { qtype: "text", text: humanAnswerText(scn) };
     case "checkbox": {
       if (!real.length) return { qtype: "text", text: humanAnswerText(scn) };
+      if (!ramble) return { qtype: "checkbox", checkbox: [real[0].value] };
       const n = Math.min(real.length, randInt(1, 2));
       const chosen = [...real].sort(() => Math.random() - 0.5).slice(0, n);
       return { qtype: "checkbox", checkbox: chosen.map((o) => o.value) };
     }
     case "number":
-      return { qtype: "number", number: randInt(1, 4) };
+      return { qtype: "number", number: ramble ? randInt(1, 4) : 1 };
     case "quantity": {
-      if (!real.length) return { qtype: "number", number: randInt(1, 3) };
+      if (!real.length) return { qtype: "number", number: 1 };
+      if (!ramble) {
+        const q: Record<string, number> = {};
+        q[real[0].value] = 1;
+        return { qtype: "quantity", quantity: q };
+      }
       const n = Math.min(real.length, randInt(1, 2));
       const chosen = [...real].sort(() => Math.random() - 0.5).slice(0, n);
       const q: Record<string, number> = {};

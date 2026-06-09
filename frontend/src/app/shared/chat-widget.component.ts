@@ -2596,7 +2596,9 @@ export class ChatWidgetComponent
       messages: () =>
         this.messages().map((m) => ({
           role: m.role,
-          content: m.content,
+          // Strip any stale [⚙ ...] annotation that was injected by a prior buggy
+          // version — the LLM echoes them back as if they were real conversation.
+          content: m.content.replace(/\[⚙[^\]]*\]\s*/g, ""),
           // Enrich each block with what the UI actually RENDERS — the localized label
           // and the card language — so the harness can check correct-language + dupes,
           // not just the raw block type.
