@@ -76,8 +76,11 @@ All items below: `tsc` + `ng build` pass, committed to `feat/ux-polish`, pushed.
       conclude (no more "excellent" when the judge was down).
 
 ### Pending — operational (not code)
+- [x] **contactNumber dedup fix**: `confirmedFields` filter was removing pre-filled contactNumber
+      blocks (line 2279-2286). Blocks with non-empty values now pass through so the frontend
+      receives extracted phone data. Was root cause of 7/8 QA failures. (2026-06-09 ChatQA)
 - [ ] Restart BE + reload FE; re-seed demo keys (chain order); run `backfill-translations` once.
-- [ ] Runtime-verify via a QA run, then commit the 8 touched files + docs.
+- [ ] Re-run QA (10 runs) to verify contactNumber fix; expect 7-8/10 passes min.
 
 ---
 

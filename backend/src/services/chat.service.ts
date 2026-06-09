@@ -2279,7 +2279,14 @@ export async function sendToAi(
     if (!wantsEdit && (confirmedFields.size || answeredQs.size)) {
       outBlocks = outBlocks.filter((b) => {
         const k = typeof b.data.key === "string" ? b.data.key : "";
-        if (b.type === "quote_field" && confirmedFields.has(k)) return false;
+        if (b.type === "quote_field" && confirmedFields.has(k)) {
+          const v = b.data.value;
+          // Keep blocks that carry a freshly-extracted value — the frontend needs to
+          // receive them at least once to store the data in prefillData. Only drop
+          // empty cards the model re-emitted after the field was already collected.
+          if (v != null && v !== "") return true;
+          return false;
+        }
         if (b.type === "quote_question" && answeredQs.has(k)) return false;
         return true;
       });
