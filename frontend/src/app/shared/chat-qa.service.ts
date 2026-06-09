@@ -35,80 +35,53 @@ export class ChatQaService {
     this.running.set(true);
     const requested = this.makeLogName();
     let resolvedName = requested;
-    let created = false;
 
-    // Chunks that failed to write (e.g. file locked on disk while being read).
-    // Retried on every subsequent write; flushed on run completion.
-    let pendingChunk = "";
+    // Collect every log line in memory during the run — the most reliable record.
+    // Console-mirrored in real time; written to disk once at the end.
+    const lines: string[] = [];
 
-    const flushPending = async (): Promise<void> => {
-      if (!pendingChunk || !created) return;
-      try {
-        await firstValueFrom(
-          this.api.post("/chat/qa-log", { name: resolvedName, content: pendingChunk, append: true }),
-        );
-        pendingChunk = "";
-      } catch {
-        /* keep buffered, try next time */
-      }
+    const writeLine = (line: string): void => {
+      if (line.trim()) console.log(line.trimEnd());
+      lines.push(line);
     };
-
-    // Incremental writer: the first chunk CREATES the file (and resolves the final
-    // name on collision); every later chunk APPENDS. So the log is on disk as the run
-    // progresses — a Stop or crash still leaves everything written so far recorded.
-    const writeChunk = async (text: string): Promise<void> => {
-      if (text.trim()) console.log(text.trimEnd());
-      try {
-        if (!created) {
-          const r = await firstValueFrom(
-            this.api.post<{ ok: boolean; name: string; file: string }>("/chat/qa-log", {
-              name: requested,
-              content: text,
-              append: false,
-            }),
-          );
-          resolvedName = r?.name || requested;
-          created = true;
-          this.status.set(`Writing ${r?.file ?? `logs/${resolvedName}.log`}`);
-        } else {
-          // Flush any previously failed chunk first, then write the new one.
-          await flushPending();
-          await firstValueFrom(
-            this.api.post("/chat/qa-log", { name: resolvedName, content: text, append: true }),
-          );
-        }
-      } catch {
-        // Windows file-lock: accumulate the chunk and retry on the next write.
-        pendingChunk += text;
-        this.status.set("Log write paused (file locked) — buffering until free");
-      }
-    };
-
-    let logLines: string[] = [];
 
     try {
-      logLines = await runQaHarness(host, {
+      await runQaHarness(host, {
         count,
         logName: requested,
         customerMode,
         onProgress: (done, total) => this.status.set(`QA ${done}/${total}`),
         cancelled: () => !this.running(),
-        onChunk: writeChunk,
+        onChunk: async (text) => {
+          // Console-mirror each non-empty line in real time.
+          for (const line of text.split("\n")) {
+            const t = line.trimEnd();
+            if (t) console.log(t);
+          }
+          // Accumulate the raw chunk text for the final disk write.
+          lines.push(text);
+        },
       });
-      // Flush any buffered chunks still pending from file-lock retries.
-      await flushPending();
-      this.status.set(
-        (this.running() ? "Saved " : "Stopped — saved ") + `logs/${resolvedName}.log` + (pendingChunk ? " (some chunks not written)" : ""),
-      );
     } catch (e) {
-      // Always finish the log on an unexpected error, so a run that hit an issue still
-      // leaves a readable file instead of a half-written one (the per-scenario chunks
-      // are already on disk; append the error + close it out).
       const msg = (e as Error)?.message ?? String(e);
-      await writeChunk(`\n\n---\n## RUN ERROR\nThe run stopped unexpectedly: ${msg}\n`);
-      await flushPending();
+      writeLine(`\n---\n## RUN ERROR\nThe run stopped unexpectedly: ${msg}\n`);
       this.status.set("Run errored — partial log saved");
     } finally {
+      // Write the entire log to the server in ONE call. No incremental chunks,
+      // no file-lock retries mid-run. If this fails, the console still has it.
+      try {
+        const r = await firstValueFrom(
+          this.api.post<{ ok: boolean; name: string; file: string }>("/chat/qa-log", {
+            name: requested,
+            content: lines.join("\n"),
+            append: false,
+          }),
+        );
+        resolvedName = r?.name || requested;
+        this.status.set(`Saved logs/${resolvedName}.log (${lines.length} lines)`);
+      } catch {
+        this.status.set(`Write failed — log is in browser console (${lines.length} lines)`);
+      }
       this.running.set(false);
     }
   }
