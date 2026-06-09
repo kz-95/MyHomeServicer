@@ -37,6 +37,22 @@ export class ChatQaService {
     let resolvedName = requested;
     let created = false;
 
+    // Chunks that failed to write (e.g. file locked on disk while being read).
+    // Retried on every subsequent write; flushed on run completion.
+    let pendingChunk = "";
+
+    const flushPending = async (): Promise<void> => {
+      if (!pendingChunk || !created) return;
+      try {
+        await firstValueFrom(
+          this.api.post("/chat/qa-log", { name: resolvedName, content: pendingChunk, append: true }),
+        );
+        pendingChunk = "";
+      } catch {
+        /* keep buffered, try next time */
+      }
+    };
+
     // Incremental writer: the first chunk CREATES the file (and resolves the final
     // name on collision); every later chunk APPENDS. So the log is on disk as the run
     // progresses — a Stop or crash still leaves everything written so far recorded.
@@ -55,12 +71,16 @@ export class ChatQaService {
           created = true;
           this.status.set(`Writing ${r?.file ?? `logs/${resolvedName}.log`}`);
         } else {
+          // Flush any previously failed chunk first, then write the new one.
+          await flushPending();
           await firstValueFrom(
             this.api.post("/chat/qa-log", { name: resolvedName, content: text, append: true }),
           );
         }
       } catch {
-        this.status.set("Log write failed — see console for transcript");
+        // Windows file-lock: accumulate the chunk and retry on the next write.
+        pendingChunk += text;
+        this.status.set("Log write paused (file locked) — buffering until free");
       }
     };
 
@@ -73,8 +93,10 @@ export class ChatQaService {
         cancelled: () => !this.running(),
         onChunk: writeChunk,
       });
+      // Flush any buffered chunks still pending from file-lock retries.
+      await flushPending();
       this.status.set(
-        (this.running() ? "Saved " : "Stopped — saved ") + `logs/${resolvedName}.log`,
+        (this.running() ? "Saved " : "Stopped — saved ") + `logs/${resolvedName}.log` + (pendingChunk ? " (some chunks not written)" : ""),
       );
     } catch (e) {
       // Always finish the log on an unexpected error, so a run that hit an issue still
@@ -82,6 +104,7 @@ export class ChatQaService {
       // are already on disk; append the error + close it out).
       const msg = (e as Error)?.message ?? String(e);
       await writeChunk(`\n\n---\n## RUN ERROR\nThe run stopped unexpectedly: ${msg}\n`);
+      await flushPending();
       this.status.set("Run errored — partial log saved");
     } finally {
       this.running.set(false);

@@ -159,10 +159,25 @@ if (process.env.NODE_ENV !== 'production') {
       const rel = (f: string) => path.relative(repoRoot, f).split(path.sep).join('/');
 
       // Append mode: write incrementally to the already-created file, so a run that is
-      // stopped or crashes mid-way is still recorded on disk.
+      // stopped or crashes mid-way is still recorded on disk. Retry on EBUSY (Windows
+      // file lock — user has the log open in an editor) with backoff.
       if (append) {
         const file = path.join(logsDir, `${reqName}.log`);
-        await writeFile(file, content, { encoding: 'utf8', flag: 'a' });
+        let delay = 200;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            await writeFile(file, content, { encoding: 'utf8', flag: 'a' });
+            break;
+          } catch (e) {
+            const code = (e as NodeJS.ErrnoException).code;
+            if ((code === 'EBUSY' || code === 'EPERM' || code === 'EACCES') && attempt < 4) {
+              await new Promise((r) => setTimeout(r, delay));
+              delay *= 2;
+              continue;
+            }
+            throw e;
+          }
+        }
         res.json({ ok: true, name: reqName, file: rel(file) });
         return;
       }
