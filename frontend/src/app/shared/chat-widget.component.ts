@@ -2534,6 +2534,7 @@ export class ChatWidgetComponent
 
   clear(): void {
     this.clearing.set(true);
+    this.qaRestLog = []; // fresh REST trace per QA scenario (clear() runs between scenarios)
     // Wipe EVERYTHING: in-progress quote data (name/phone/date/category), the
     // persisted guest prefill, and the archived prior thread — a cleared chat must
     // not keep remembering "Brian" or offer to continue an old session.
@@ -2564,6 +2565,38 @@ export class ChatWidgetComponent
   // This component only adapts the harness's QaHost onto the real card handlers +
   // signals. PIN-gated (QA_PIN); the button is rendered only in dev builds.
   readonly qa = inject(ChatQaService);
+  /** Recorded /chat REST exchanges during a QA run — what the frontend SENT and what the
+   *  backend RETURNED — so the QA log can show frontend-vs-backend data per turn. Only
+   *  populated while a QA run is active; capped to avoid unbounded growth. */
+  private qaRestLog: Array<{
+    ts: string;
+    sent: Record<string, unknown>;
+    recv: { reply: string; cards: string[] };
+  }> = [];
+  private recordQaExchange(sent: Record<string, unknown>, recv: unknown): void {
+    if (!this.qa.running()) return;
+    const r = (recv ?? {}) as {
+      reply?: string;
+      actionBlocks?: Array<{ type: string; data?: Record<string, unknown> }>;
+    };
+    this.qaRestLog.push({
+      ts: new Date().toISOString(),
+      sent: {
+        collected: sent["collected"],
+        collectedData: sent["collectedData"],
+        cardConfirm: sent["cardConfirm"],
+        categoryId: sent["categoryId"],
+        lang: sent["lang"],
+      },
+      recv: {
+        reply: (r.reply ?? "").replace(/\s+/g, " ").trim().slice(0, 80),
+        cards: (r.actionBlocks ?? []).map(
+          (b) => `${b.type}${b.data?.["key"] ? ":" + String(b.data["key"]) : ""}`,
+        ),
+      },
+    });
+    if (this.qaRestLog.length > 300) this.qaRestLog.shift();
+  }
   /** The QA button only renders in dev builds (demo/dev deploy), never in production. */
   protected readonly qaVisible = !environment.production;
   /** How many runs the next QA press fires (manual int input, default 1, max 500). */
@@ -2713,6 +2746,7 @@ export class ChatWidgetComponent
         )
           .then((r) => r?.result ?? "")
           .catch(() => "JUDGE_UNAVAILABLE: request failed"),
+      restLog: () => this.qaRestLog,
     };
   }
 
@@ -3866,14 +3900,16 @@ export class ChatWidgetComponent
       .map((m) => ({ role: m.role, content: m.content }));
     const role = this.auth.principal()?.role ?? "guest";
 
+    const guestBody = { message: text, history, role, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() };
     this.api
       .post<{
         reply: string;
         createdAt?: string;
         actionBlocks?: { type: string; data: Record<string, unknown> }[];
-      }>("/chat/guest", { message: text, history, role, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() })
+      }>("/chat/guest", guestBody)
       .subscribe({
         next: (r) => {
+          this.recordQaExchange(guestBody, r);
           const mapped = r.actionBlocks?.map((b) => ({
             type: b.type as string,
             data: b.data as Record<string, unknown>,
@@ -3909,15 +3945,17 @@ export class ChatWidgetComponent
     this.sending.set(true);
     this.widget.actionBlocks.set([]);
 
+    const authBody = { message: text, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() };
     this.api
       .post<{
         reply: string;
         createdAt?: string;
         actions?: ChatMessage["actions"];
         actionBlocks?: { type: string; data: Record<string, unknown> }[];
-      }>(`/chat/session/${sessionAtSend}/message`, { message: text, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() })
+      }>(`/chat/session/${sessionAtSend}/message`, authBody)
       .subscribe({
         next: (r) => {
+          this.recordQaExchange(authBody, r);
           const mapped = r.actionBlocks?.map((b) => ({
             type: b.type as string,
             data: b.data as Record<string, unknown>,

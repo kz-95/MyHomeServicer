@@ -73,6 +73,44 @@ Low priority.
 
 ---
 
+---
+
+## Update — second run (ChatQA_Log_210509062601, 3 scenarios, all FAIL)
+
+Stronger evidence. The richer log (timestamp + SENT/RECV + DATA per turn) is now shipped
+(see C2) so the NEXT run will show these at the data level.
+
+### B1 confirmed — the form reads the budget INDEX, not the amount
+Run 1 picked "RM 100–200" and the form showed **`budget=1`** — that's the slider **index
+(1)**, not the ringgit value. Runs 2 & 3 showed `budget=0` (index 0 / unset). So the budget
+amount is being represented by its bracket index and the value is lost. Strongly supports
+the **carry `budgetIndex` straight through** fix — and confirms it's a real, consistent bug
+(every run), not a one-off.
+
+### NEW — language leaks between scenarios (HIGH)
+Run 3's persona is **English**, but the bot replied entirely in **Chinese** (好的…, full
+Chinese prose) — Run 2 (zh) ran just before it. The conversation language (`convoLang` /
+the pinned `lang`) is not reset between QA scenarios, so Chinese bled into the English run.
+- Likely: `convoLang` is computed from message history and state isn't fully cleared, or the
+  pinned `lang` persists. Reproduce, then ensure language resets on `clear()` / new scenario.
+- Real-user impact: if a session's language can stick wrongly, a real customer could get
+  answered in the wrong language. Worth fixing beyond the harness.
+
+### `unconfirmed: timeSlot` is mostly a HARNESS false-positive
+Runs 1 & 3 failed on "timeSlot in review but never collected via a card." But the user gave
+the time as free text ("tonight" → night) and the form shows `time=night` correctly. The
+value is legit; the harness only credits card confirms + the 35% free-text-field path, so a
+time captured via the opening/date free-text isn't credited. Fix the CHECK: credit a field
+that matches the scenario's intended value even if it arrived by free text.
+
+### Service mismatch is broader than painting (the A1 family)
+movers → **Carpenter**, lawn trimming → **Renovation**, repaint → **Renovation** — each then
+asks that category's irrelevant questions. This is the same A1 decision: either add real
+categories (Moving, Gardening, Painting) or stop force-matching tenuous services / make
+questions skippable. Product call.
+
+---
+
 ## C. Done this session (safe, verified)
 
 ### C1 — Harness: sometimes TYPE a custom answer to service questions
@@ -80,6 +118,20 @@ Low priority.
 the time (routed through the LLM) instead of always tapping the option — exercises the bot's
 free-text→question mapping and better mimics real customers ("nothing fancy"). Ramblers keep
 the random-option behaviour. Compile-verified; behaviour needs a harness run to confirm.
+
+### C2 — Richer QA log: timestamp + frontend↔backend REST + actual data per turn
+The log now shows, per turn:
+```
+[HH:MM:SS] USER: ... [cards]
+[HH:MM:SS] BOT : ... [cards]
+  > SENT collected=[...] data={...} cardConfirm=… cat=… lang=…   (what the FRONTEND sent)
+  < RECV reply="…" cards=[…]                                       (what the BACKEND returned)
+  = DATA cat= date= time= addr= no= postcode= type= budgetMax= budgetIndex= name= phone=  (actual prefill)
+```
+The widget records each `/chat` request body + response into `qaRestLog` (QA-runs only,
+capped, cleared per scenario); `QaHost.restLog()` exposes it; the harness `flush()` emits the
+trace. This makes B1 (budgetMax vs budgetIndex), the language leak, and the timeSlot
+false-positive visible at the data level on the next run — no more guessing. Compile-verified.
 
 ---
 

@@ -83,6 +83,23 @@ export interface QaHost {
   confirmIdentity(yes: boolean): void;
   /** LLM review of a transcript ('run') or batch of findings ('conclude'). Optional. */
   judge?(text: string, mode: "run" | "conclude"): Promise<string>;
+  /** Recorded REST exchanges (request body the FRONTEND sent + the BACKEND response),
+   *  oldest first. Lets the log show frontend-vs-backend data per turn. Optional (QA-only). */
+  restLog?(): QaRestEntry[];
+}
+
+/** One /chat REST exchange as the harness logs it — what the frontend SENT and what the
+ *  backend RETURNED, for diagnosing where data (budget, lang, fields) diverges. */
+export interface QaRestEntry {
+  ts: string;
+  sent: {
+    collected?: string[];
+    collectedData?: Record<string, unknown>;
+    cardConfirm?: boolean;
+    categoryId?: unknown;
+    lang?: unknown;
+  };
+  recv: { reply: string; cards: string[] };
 }
 
 // ─── Persona axes ────────────────────────────────────────────────────────────────
@@ -702,16 +719,20 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
   // (even an empty bot reply) so the judge always reviews the REAL conversation and
   // can't hallucinate from a blank transcript.
   let logged = host.messages().length;
+  let restLogged = 0;
   const NO_CARD_RE = /\b(card|button|tap|press|click|kad|butang|tekan|klik)\b/i;
+  // HH:MM:SS wall-clock for each logged line (diagnostic only — not determinism-critical).
+  const ts = () => new Date().toISOString().slice(11, 19);
   const flush = () => {
     const msgs = host.messages();
+    const startLogged = logged;
     for (let i = logged; i < msgs.length; i++) {
       const m = msgs[i];
       const tag = m.role === "user" ? "USER" : "BOT ";
       // Strip stale [⚙ ...] annotations from logged content so the log is clean.
       const txt = (m.content || "").replace(/\[⚙[^\]]*\]\s*/g, "").replace(/\n+/g, " ").trim();
       const blocks = m.blocks?.length ? ` [${m.blocks.map(blockTag).join(", ")}]` : "";
-      h.log(`${tag}: ${txt || (blocks ? "" : "(empty reply)")}${blocks}`.trimEnd());
+      h.log(`[${ts()}] ${tag}: ${txt || (blocks ? "" : "(empty reply)")}${blocks}`.trimEnd());
     }
     // Batch-level ⚠ NO CARD check: scan trailing assistant messages since last user turn.
     // If COMBINED text mentions card/button but combined blocks have no actionable ones,
@@ -727,6 +748,34 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
       }
     }
     logged = msgs.length;
+
+    // Frontend <-> backend trace + actual collected data. Shows WHERE a value diverges:
+    // what the frontend SENT, what the backend RETURNED, and the resulting prefill (the
+    // data the quote form receives). Only emitted when there's new activity this flush.
+    const rest = host.restLog?.() ?? [];
+    const hadNew = msgs.length > startLogged || rest.length > restLogged;
+    for (let i = restLogged; i < rest.length; i++) {
+      const e = rest[i];
+      const data =
+        e.sent.collectedData && Object.keys(e.sent.collectedData).length
+          ? JSON.stringify(e.sent.collectedData)
+          : "{}";
+      h.log(
+        `  > SENT collected=[${(e.sent.collected ?? []).join(",")}] data=${data} cardConfirm=${e.sent.cardConfirm} cat=${e.sent.categoryId ? "set" : "-"} lang=${e.sent.lang ?? "-"}`,
+      );
+      h.log(`  < RECV reply="${e.recv.reply}" cards=[${e.recv.cards.join(",")}]`);
+    }
+    restLogged = rest.length;
+    if (hadNew) {
+      const pf = host.prefill();
+      const g = (k: string) => {
+        const v = pf[k];
+        return v == null || v === "" ? "-" : String(v);
+      };
+      h.log(
+        `  = DATA cat=${pf["categoryId"] ? "set" : "-"} date=${g("preferredDate")} time=${g("timeSlot")} addr=${pf["address"] ? "set" : "-"} no=${g("addressNo")} postcode=${g("postcode")} type=${g("propertyType")} budgetMax=${g("budgetMax")} budgetIndex=${g("budgetIndex")} name=${g("contactName")} phone=${g("contactNumber")}`,
+      );
+    }
   };
 
   // Refresh restore check: a reload (instead of clear) should bring a returning guest
