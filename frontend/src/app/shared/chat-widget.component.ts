@@ -1010,17 +1010,19 @@ interface PublicConfig {
             placeholder="{{
               connecting()
                 ? 'Connecting…'
-                : auth.principal()
-                  ? 'Type a message…'
-                  : 'Write a note…'
+                : forceCardInput()
+                  ? 'Fill the address form above…'
+                  : auth.principal()
+                    ? 'Type a message…'
+                    : 'Write a note…'
             }}"
-            [disabled]="connecting()"
+            [disabled]="connecting() || forceCardInput()"
             aria-label="Message input"
           />
           <button
             class="btn-primary send-btn"
             type="submit"
-            [disabled]="sending() || connecting() || !draft.trim()"
+            [disabled]="sending() || connecting() || forceCardInput() || !draft.trim()"
           >
             <svg
               width="14"
@@ -2452,7 +2454,7 @@ export class ChatWidgetComponent
     // Busy: don't DROP this message (that's how rapid card-confirms got lost) — queue the
     // latest and the flush effect fires it when the reply lands. collectedData on that send
     // carries the whole accumulated prefill, so no field is lost even if a turn is coalesced.
-    if (this.connecting() || this.sending()) {
+    if (this.connecting() || this.sending() || this.forceCardInput()) {
       this.pendingDraft = text;
       this.draft = "";
       return;
@@ -2846,6 +2848,19 @@ export class ChatWidgetComponent
   private addrLng: number | null = null;
   addressConfirmed = signal(false);
   addressFormatted = signal("");
+
+  /** True when the address card is showing and not yet confirmed — forces the user to
+   *  fill the form instead of typing in chat. */
+  readonly forceCardInput = computed(() => {
+    if (this.addressConfirmed()) return false;
+    const msgs = this.messages();
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.role !== "assistant") continue;
+      if (m.actionBlocks?.some((b) => b.type === "quote_field" && b.data["key"] === "address")) return true;
+    }
+    return false;
+  });
   locatingGps = signal(false);
   addrValidating = signal(false);
   addrError = signal("");
