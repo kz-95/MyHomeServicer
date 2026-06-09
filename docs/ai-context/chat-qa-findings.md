@@ -1,0 +1,90 @@
+# Chat QA — findings from ChatQA_Log_192409062601 (2026-06-09)
+
+Run was **with** the new deterministic card-confirm change (the "Ok, got it." acks are the
+new fixed ack). The booking still reached the review card (PASS, 14 steps), so card-confirm
+did not regress the flow. But the run surfaced real issues. Ranked by what's safe to fix vs
+what needs your decision / live reproduction.
+
+Scenario: `slang/impatient/reject_first/address_first/rojak` — "I want to repaint my living
+room", address front-loaded, budget low, this Sunday evening.
+
+---
+
+## A. Needs a PRODUCT decision (not a code bug)
+
+### A1 — Repaint maps to Renovation, then asks demolition questions (judge HIGH + MED)
+The prompt's disambiguation rule maps "repaint" → **Renovation**. But Renovation's
+`questionSchema` asks `project_type (Full home)`, `scope (Hacking/Demolition)`,
+`property_status`, `size` — all wrong for a simple wall repaint. The customer ("nothing
+fancy, just the standard job") is funnelled through demolition questions.
+
+**Options (your call):**
+1. Add a **Painting / Repaint** child category with its own short questionSchema (repaint
+   color, room count, wall condition). Cleanest; repaint stops borrowing Renovation's form.
+2. Make Renovation questions **conditional** on `project_type` (repaint path skips
+   hacking/demolition). More schema work.
+3. Re-map repaint to a better-fitting existing service.
+
+Recommend **option 1** (new Repaint category) — matches how customers think and removes the
+mismatch at the source.
+
+---
+
+## B. Real flow bugs — need LIVE reproduction before a safe fix
+
+These touch the fragile quote flow; per "reproduce, don't theorize" I did NOT blind-patch
+while away. Reproduce with one run, then fix.
+
+### B1 — Budget shows 0 on the /quote/new form (judge HIGH)
+User picked "RM 300–1000" on the budget card (`confirmBudget` should set
+`budgetMin:300, budgetMax:1000`), but the FORM CHECK shows `budget=0`. The value is lost
+between the chat prefill and the /quote/new form.
+- **Traced (code read, needs runtime confirm):** chat `confirmBudget` accumulates
+  `budgetMin/budgetMax/budgetIndex`; `submitPrefill` encodes them into the `?prefill=`
+  query param. The form (`quote-form.component.ts`) decodes it, copies `budgetMin/budgetMax`
+  into `reorderPrefill` ([:1424](../../frontend/src/app/customer/pages/quote-form.component.ts#L1424)),
+  then `matchPrefillBudget()` ([:1447](../../frontend/src/app/customer/pages/quote-form.component.ts#L1447))
+  re-derives the slider index by `ranges.findIndex(r => r.min===budgetMin && r.max===budgetMax)`.
+  budget=0 ⇒ one of: (a) prefill lacked budgetMin/Max, (b) the exact range no longer exists
+  in the form's `budgetRanges` (so findIndex = -1, index stays default/empty), or (c)
+  `budgetRanges` hadn't loaded at the form (the budget group then doesn't render at all).
+  Note: `quote-form.component.ts` was modified by the code-simplifier in the working tree —
+  check whether that pass altered `matchPrefillBudget`/`loadBudgetRanges`.
+- **Fastest fix candidate:** carry the chosen `budgetIndex` straight through instead of
+  re-matching by min/max (the index is already in the prefill from `confirmBudget`). Confirm
+  with a live run first.
+- Repro: book any service, pick a budget, submit review, inspect the `?prefill=` param +
+  the form's budget slider.
+
+### B2 — Free-text address up front leaves structured fields empty → form blocked
+`address_first` persona gave "6 jalan ss15/4, subang jaya, 47500" in the first message. It
+was captured as `street` only; `addressNo`, `postcode`, `propertyType` stayed empty, so
+/quote/new is **blocked at page 2** ("Please fill in all required fields").
+- The chat address CARD requires all four sub-fields, but a free-text address never fills
+  them. Either parse the free-text address into no/postcode/type (hard, geocode), or always
+  show the address card so the structured fields are collected even if a raw string exists.
+- Repro: start with the full address in the opening message, drive to review, open the form.
+
+### B3 — contactNumber card re-shown after a free-text number (judge MED, COSMETIC)
+User typed the phone in free text mid-card; the number **was** captured (form shows
+`phone=+601809635364`), but the card re-appeared because the free-text value isn't marked
+collected client-side until the backend echoes a valued card. Value is correct → cosmetic.
+Low priority.
+
+---
+
+## C. Done this session (safe, verified)
+
+### C1 — Harness: sometimes TYPE a custom answer to service questions
+`chat-qa-harness.ts` now answers service questions by **typing a natural sentence** ~40% of
+the time (routed through the LLM) instead of always tapping the option — exercises the bot's
+free-text→question mapping and better mimics real customers ("nothing fancy"). Ramblers keep
+the random-option behaviour. Compile-verified; behaviour needs a harness run to confirm.
+
+---
+
+## Suggested order when you're back
+1. Decide **A1** (new Repaint category vs conditional questions).
+2. Run the harness once (now with C1) to reproduce **B1** + **B2** deterministically.
+3. Fix B1 (budget) and B2 (structured address) with the live evidence.
+4. B3 only if it still annoys after B1/B2.

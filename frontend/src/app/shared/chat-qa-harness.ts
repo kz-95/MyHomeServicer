@@ -1087,6 +1087,44 @@ function answerForQuestion(b: QaBlock, scn: QaScenario): QaAnswer {
   }
 }
 
+/** How often a service question is answered by TYPING a natural sentence (routed through
+ *  the LLM) instead of tapping the card option. Real customers often reply in their own
+ *  words, so this exercises the bot's free-text -> question mapping, not just option taps. */
+const QUESTION_FREETEXT_RATE = 0.4;
+
+/**
+ * Turn the option the harness would have picked into a believable free-text sentence in
+ * the customer's language/style — so the bot has to map natural words back to the right
+ * option. Falls back to a generic human phrase when there are no options.
+ */
+function naturalQuestionReply(b: QaBlock, scn: QaScenario): string {
+  const ans = answerForQuestion(b, scn);
+  const options = (b.data["options"] as Array<{ value: string; label: string }>) || [];
+  const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? v;
+  let core = "";
+  switch (ans.qtype) {
+    case "radio":
+      core = ans.radio ? labelOf(ans.radio) : "";
+      break;
+    case "checkbox":
+      core = (ans.checkbox ?? []).map(labelOf).join(" and ");
+      break;
+    case "number":
+      core = ans.number != null ? `about ${ans.number}` : "";
+      break;
+    case "quantity":
+      core = Object.entries(ans.quantity ?? {})
+        .map(([v, n]) => `${n} ${labelOf(v)}`)
+        .join(", ");
+      break;
+    default:
+      // Free-text question — already a styled human sentence.
+      return humanAnswerText(scn);
+  }
+  if (!core) return humanAnswerText(scn);
+  return styleLine(scn.persona, core);
+}
+
 /** Map a card to the right host action, filling it with the scenario's data. */
 async function actOnCard(host: QaHost, b: QaBlock, scn: QaScenario, st: { rejectedOnce: boolean }): Promise<void> {
   if (b.type === "identity_confirm") {
@@ -1099,6 +1137,12 @@ async function actOnCard(host: QaHost, b: QaBlock, scn: QaScenario, st: { reject
     return;
   }
   if (b.type === "quote_question") {
+    // Sometimes TYPE a natural answer (LLM must map it) instead of tapping the option.
+    // Skip the typed path for ramblers (they already drift via random option picks).
+    if (scn.persona.behavior !== "rambler" && Math.random() < QUESTION_FREETEXT_RATE) {
+      host.sendText(naturalQuestionReply(b, scn));
+      return;
+    }
     host.answerQuestion(b, answerForQuestion(b, scn));
     return;
   }
