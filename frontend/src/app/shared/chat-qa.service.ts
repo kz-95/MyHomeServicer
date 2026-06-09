@@ -85,7 +85,17 @@ export class ChatQaService {
       await writeChunk(`\n---\n## RUN ERROR\n${(e as Error)?.message ?? String(e)}\n`);
     } finally {
       // Flush buffer with retries, then report.
-      for (let i = 0; i < 3 && buffered; i++) {
+      // If the file was never created (first write failed due to lock/network),
+      // try creating it now with all buffered content so Stop QA always saves.
+      if (!created && buffered) {
+        const r = await firstValueFrom(
+          this.api.post<{ ok: boolean; name: string; file: string }>("/chat/qa-log", {
+            name: requested, content: buffered, append: false,
+          }),
+        ).catch(() => null);
+        if (r?.ok) { resolvedName = r.name; created = true; buffered = ""; this.status.set(`Writing logs/${r.file}`); }
+      }
+      for (let i = 0; i < 3 && buffered && created; i++) {
         await new Promise((r) => setTimeout(r, 600));
         if (await tryWrite(resolvedName, buffered, true)) buffered = "";
       }

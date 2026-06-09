@@ -2093,9 +2093,12 @@ export async function sendToAi(
         /\b(today|tomorrow|tonight|tmr|tmrw|mon|tues?|wed|thu(rs)?|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?|weekend|next (week|month|year)|[0-3]?\d[-/][01]?\d)\b/i.test(
           userText,
         );
+      // Time words in history are often descriptive ("broken since noon"), NOT
+      // scheduling intent. Only a time word in the CURRENT message signals the
+      // user actually means to set a time slot.
       const hasTimeIntent =
         /\b(morning|noon|midday|afternoon|evening|night|tonight)\b/i.test(
-          userText,
+          message,
         );
       const fillField = (key: string, val?: string) => {
         if (!val) return;
@@ -2252,20 +2255,21 @@ export async function sendToAi(
   // still appear once; from the next turn on they're suppressed. Exception: if the
   // user asks to change something, keep the cards so they can edit.
   {
-    const confirmedFields = new Set(opts?.collected ?? []);
-    // A field that already holds a VALUE on the client (collectedData) is collected too,
-    // even if the user never tapped its card — this stops front-loaded / text-extracted
-    // details from being re-shown as cards every turn (the "repeat cards" bug).
-    for (const k of Object.keys(opts?.collectedData ?? {}))
-      confirmedFields.add(k);
-    // Fields pre-filled by deterministic extraction THIS turn (added to outBlocks with a
-    // value) are also collected — without this, the model re-emitting the same fields
-    // alongside the deterministically-injected ones creates duplicate cards.
+    // Fields already confirmed by the client (card taps / prefillData values
+    // sent in previous turns). Drop ALL cards for these — valued or not.
+    const clientConfirmed = new Set<string>([
+      ...(opts?.collected ?? []),
+      ...Object.keys(opts?.collectedData ?? {}),
+    ]);
+    // Fields deterministically pre-filled THIS turn only — show them ONCE with
+    // their value (so the client can store them), then suppress next turn when
+    // they appear in clientConfirmed.
+    const justExtracted = new Set<string>();
     for (const b of outBlocks) {
       if (b.type === "quote_field") {
         const v = b.data.value;
         const k = b.data.key;
-        if (typeof k === "string" && v != null && v !== "") confirmedFields.add(k);
+        if (typeof k === "string" && v != null && v !== "") justExtracted.add(k);
       }
     }
     const answeredQs = new Set(opts?.answeredQuestions ?? []);
@@ -2277,16 +2281,17 @@ export async function sendToAi(
       /\b(bad|incorrect)\s+(address|date|time|budget|name|number|phone)\b/i.test(
         message,
       );
-    if (!wantsEdit && (confirmedFields.size || answeredQs.size)) {
+    if (!wantsEdit && (clientConfirmed.size || justExtracted.size || answeredQs.size)) {
       outBlocks = outBlocks.filter((b) => {
         const k = typeof b.data.key === "string" ? b.data.key : "";
-        if (b.type === "quote_field" && confirmedFields.has(k)) {
-          const v = b.data.value;
-          // Keep blocks that carry a freshly-extracted value — the frontend needs to
-          // receive them at least once to store the data in prefillData. Only drop
-          // empty cards the model re-emitted after the field was already collected.
-          if (v != null && v !== "") return true;
-          return false;
+        if (b.type === "quote_field") {
+          // Drop ALL cards for fields the CLIENT already confirmed — no re-show.
+          if (clientConfirmed.has(k)) return false;
+          // First-time pre-fill: keep the valued card once; drop empty duplicates.
+          if (justExtracted.has(k)) {
+            const v = b.data.value;
+            return v != null && v !== "";
+          }
         }
         if (b.type === "quote_question" && answeredQs.has(k)) return false;
         return true;
