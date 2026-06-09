@@ -37,9 +37,22 @@ All items below: `tsc` + `ng build` pass, committed to `feat/ux-polish`, pushed.
 - [x] **Docs + diagrams** — `ai-chat.md` (mermaid flow + quote-flow), `chat-qa-harness.md`
       (full rules + possibility calc + drive-loop diagram), `chat-flow-diagrams.md` (card-confirm
       + inject diagrams). `aichat.md` renamed → `ai-chat.md`.
-- [ ] **Follow-ups (lower priority):** language leak between QA scenarios (convo-lang not reset)
-      — user deprioritized (rojak/mixed normal in MY); seeded question labels lack `labelI18n`
-      (English in non-English chats); pre-existing `tsconfig` deprecation warnings (node10/baseUrl).
+- [x] **Follow-ups DONE (2026-06-10, branch `fix/chat-lang-and-text-confirm`):**
+      - convoLang reset on `clear()` (+ re-derive on "it's me"/continue) — language no longer
+        bleeds between customers/scenarios.
+      - Multilingual typed service-confirm (`maybeTextConfirmCategory`): zh/ms/ta affirmatives +
+        de-anchored + negation/short-message guards (typing-only personas can confirm by text).
+      - Free-text address registers (`extractAddress`) — address card no longer loops forever.
+      - Deterministic card collapse during field collection — no more stacked/out-of-order cards.
+      - Budget free-text → correct bracket (`matchChatBudgetBracket`) — fixed `budget=0`.
+      - Question/option labels localized (ms/zh/ta) via `QUESTION_I18N` + `localizeQuestions`
+        (561 labels, applied via db:reset).
+      - Harness: `not-registered` detector + transcript-regex fix (judge no longer "no-transcript").
+      - `tsconfig` deprecation warnings silenced (`ignoreDeprecations` 5.0 → 6.0); backend tsc 0.
+- [ ] **Deferred (need a log to reproduce, or a product call):** prose hallucination (model NAMES
+      wrong services in text though the cards are correct); free-text answer to a radio question
+      ("bathtub" → "area") not matched by `matchQuestionAnswer`; B2 structured address sub-fields
+      (No./postcode/type) empty for a credited free-text address (needs frontend geocode-on-prefill).
 - [ ] **No servicers seeded** under painting/moving/gardening yet (browse shows 0 providers).
 
 ### Done — LLM / DeepSeek
@@ -1472,6 +1485,24 @@ Design doc: `~/.gstack/projects/AllergicToAnything-MyServicerDemo/Zen-master-des
 
 ### ⬜ Has Open Items (3)
 `bill-step-redesign` (not built) · `quote-question-pricing-model` (partial) · `category-settings-question-schema` (minor — only retire legacy page left)
+
+---
+
+## 🔄 CI Pipeline (2026-06-10 design)
+
+> Spec: `docs/superpowers/specs/2026-06-10-ci-pipeline-design.md`
+
+- [x] **Implemented `push-checks.yml`** — lint + build + unit tests on every push (~3 min) + WhatsApp notify
+- [x] **Implemented `pr-gate.yml`** — lint + build + unit + API E2E + browser E2E + secret scan + npm audit on PR to master (~10 min) + WhatsApp notify
+- [x] **Implemented `nightly.yml`** — API E2E + secret scan + npm audit at 2am MYT (~6 min) + WhatsApp notify
+- [x] **Scaffold Playwright** — `frontend/e2e/` with config, fixtures, 5 initial browser E2E scenarios + `npm run test:e2e` script
+- [ ] **Set `NOTIFY_HOOK` secret** in GitHub repo → Settings → Secrets for CI notification webhook (Telegram/Discord/Slack — optional)
+- [ ] **Delete `security.yml` and `ci.yml`** after new workflows confirmed working
+- [x] **WhatsApp notify step** added to `ci.yml` (CallMeBot, curl-based)
+- [x] **`e2e-test-local.bat`** created — runs full E2E suite locally (Docker + db:reset + test:e2e)
+- [x] **Branch consolidation** — feat/ux-polish → master (PR #1), amethyst-tin deleted
+- [x] **Spec written** — `docs/superpowers/specs/2026-06-10-ci-pipeline-design.md`
+- [x] **Docs updated** — README, CLAUDE.md, security-notes.md, tech-stack.md, devops-log.md, SESSION-HANDOFF.md
 
 ---
 
