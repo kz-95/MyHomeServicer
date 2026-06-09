@@ -231,6 +231,22 @@ user PROVIDED (tapped or typed, so it's in `confirmedKeys`) that never landed in
 This is the precise signal for the address-loop class and now FAILs the run + tallies in the
 SUMMARY breakdown (which auto-counts any `kind:` prefix).
 
+## Update — run ChatQA_Log_031110062601 (1 scenario, zh) + i18n fix (2026-06-10)
+
+Booking COMPLETED end-to-end (reached review + FORM page 3). All prior fixes verified live:
+address registered after ONE typed line (`addr=set`, loop gone), budget mapped correctly
+("RM 350+" → `budgetIndex=3`, form `budget=3`, no more `budget=0`), no card stacking,
+JUDGE produced real verdicts. The ONLY structural FAIL was untranslated zh question labels.
+
+### FIXED — quote_question card labels now localized (ms/zh/ta)
+Root: category `questionSchema` had no `labelI18n`, so `pickI18n` fell back to English and
+the harness flagged `language: card label not in zh`. Added `labelI18n` to the seed
+question/option types, a central `QUESTION_I18N` dictionary (`prisma/seed/data/question-i18n.ts`,
+561 distinct labels × ms/zh/ta), and `localizeQuestions()` wired into `seed.ts` so every
+question + option carries translations. Missing entry → graceful English fallback. Applied
+via `npm run db:reset`. NOTE: db:reset also wipes the LLM keys (no .env fallback) — re-add
+via the admin demo.
+
 ### Still open after this run
 - **Prose hallucination** — the model still NAMES wrong services in text ("Moving"/
   "Renovation" for a plumbing job) even though the CARDS are now correct/deterministic.

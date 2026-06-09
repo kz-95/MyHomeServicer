@@ -16,6 +16,7 @@ import { createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { PrismaClient, Prisma, Weekday, TimeSlot } from '@prisma/client';
 import { categories, children, platformSettings, penaltyRules, featureFlags, chatKnowledge } from './data/static';
+import { localizeQuestions } from './data/question-i18n';
 import { merchants, customers, DEMO_PASSWORD, ADMIN_PIN } from './data/accounts';
 import { BUDGET_RANGE_PRESETS } from './data/budget-ranges';
 
@@ -88,7 +89,13 @@ async function main(): Promise<void> {
         ...(c.description ? { description: c.description } : {}),
         ...(c.imageUrl ? { imageUrl: c.imageUrl } : {}),
         ...(c.questions
-          ? { questionSchema: c.questions as unknown as Prisma.InputJsonValue }
+          ? {
+              // Attach ms/zh/ta label translations so quote-flow cards render in the
+              // customer's language instead of falling back to English.
+              questionSchema: localizeQuestions(
+                c.questions,
+              ) as unknown as Prisma.InputJsonValue,
+            }
           : {}),
       },
     });

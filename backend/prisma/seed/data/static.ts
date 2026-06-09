@@ -3,10 +3,15 @@
  * feature flags. Mirrors seed-plan.md.
  */
 
+/** Per-language label overrides (en is the canonical `label`). Matches the
+ *  `Localized` shape in json-schemas.ts; attached at seed time from QUESTION_I18N. */
+export type SeedI18n = { en?: string; ms?: string; zh?: string; ta?: string };
+
 /** One custom question shown in the quote form's Details step. */
 export interface QuoteQuestion {
   key: string;
   label: string;
+  labelI18n?: SeedI18n;
   /**
    * Input types:
    *  - checkbox  — multi-select from a fixed option list (answer: string[])
@@ -29,7 +34,7 @@ export interface QuoteQuestion {
   minSelect?: number;
   maxSelect?: number;
   showIf?: { questionKey: string; includesAny: string[] };
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: string; labelI18n?: SeedI18n }[];
 }
 
 /** Top-level grouping category (no price / questions — browse only). */
