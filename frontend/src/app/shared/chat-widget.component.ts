@@ -143,6 +143,97 @@ const REQUIRED_FIELDS = new Set<string>([
   "contactNumber",
 ]);
 
+/** Levenshtein edit distance — small, for typo-tolerant option matching ("bathtb" → "bathtub"). */
+function editDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+/** Strip rojak / greeting filler so the core answer can match an option label. */
+function stripAnswerFiller(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/^\s*(eh\s+)?(boss|bro|hi|hello|hey)[,!\s]+/i, "")
+    .replace(/[,!.?]+/g, " ")
+    .replace(
+      /\b(lah|lor|sia|leh|liao|mah|ya|please|thanks?|thank you|can help anot|can help|anot|boss|bro)\b/gi,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+interface FuzzyOption {
+  value: string;
+  label: string;
+  labelI18n?: { en?: string; ms?: string; zh?: string; ta?: string };
+}
+
+/**
+ * The option a typed answer is NEAREST to, lexically — exact, substring (either way),
+ * a 1-2 char typo, or token overlap — scored across the option's value AND every
+ * localized label (en/ms/zh/ta). Returns the value + a 0-1 score ONLY when the best is
+ * confident (>= 0.8) and clearly beats the runner-up; null otherwise (leave it to the
+ * model). Deterministic, no LLM. This is the "identifier checker" — understand what the
+ * user typed, click the option if it's near a definition.
+ */
+function nearestOption(
+  text: string,
+  options: FuzzyOption[],
+): { value: string; score: number } | null {
+  const t = stripAnswerFiller(text);
+  if (!t || t.length > 60) return null;
+  const tTokens = new Set(t.split(" ").filter((w) => w.length > 1));
+  const scoreForm = (formRaw: string): number => {
+    const f = formRaw.toLowerCase().trim();
+    if (!f) return 0;
+    if (t === f) return 1;
+    if (f.length >= 3 && t.includes(f)) return 0.9;
+    if (t.length >= 3 && f.includes(t)) return 0.82;
+    if (editDistance(t, f) <= (f.length <= 5 ? 1 : 2)) return 0.8;
+    const fTokens = new Set(f.split(" ").filter((w) => w.length > 1));
+    if (fTokens.size && tTokens.size) {
+      let inter = 0;
+      for (const w of tTokens) if (fTokens.has(w)) inter++;
+      const union = new Set([...tTokens, ...fTokens]).size;
+      if (union) return (inter / union) * 0.7; // caps at 0.7 — never auto-clicks alone
+    }
+    return 0;
+  };
+  let best = { value: "", score: 0 };
+  let second = 0;
+  for (const o of options) {
+    const forms = [
+      o.value,
+      o.label,
+      o.labelI18n?.en,
+      o.labelI18n?.ms,
+      o.labelI18n?.zh,
+      o.labelI18n?.ta,
+    ].filter((s): s is string => !!s);
+    const s = Math.max(0, ...forms.map(scoreForm));
+    if (s > best.score) {
+      second = best.score;
+      best = { value: o.value, score: s };
+    } else if (s > second) {
+      second = s;
+    }
+  }
+  return best.score >= 0.8 && best.score - second >= 0.08 ? best : null;
+}
+
 interface ChatMessage {
   id?: string;
   role: "user" | "assistant";
@@ -2550,6 +2641,13 @@ export class ChatWidgetComponent
     // before sending, so categoryLocked/categoryId go out with this request.
     this.maybeTextConfirmCategory(text);
 
+    // Identifier checker: if a service question is pending and the typed text is NEAR one
+    // of its options (lexically — exact / substring / typo / localized label), CLICK that
+    // option (structured confirm) instead of sending raw text to the LLM. Deterministic,
+    // so a typed answer registers and the question never re-asks / the model can't drift.
+    // answerRadio() re-enters send() with the canonical "Label: Option." draft.
+    if (this.maybeAutoAnswerQuestion(text)) return;
+
     // Mode is decided solely by whether a JWT session is live, so the buffer we
     // write to always matches the buffer the computed renders.
     if (this.sessionId()) {
@@ -3781,6 +3879,34 @@ export class ChatWidgetComponent
     this.resetQDrafts();
     this.draft = `${this.qLabel(data)}: ${this.optLabel(data, value)}.`;
     this.sendConfirm();
+  }
+
+  /** A pending, still-unanswered single-select (radio) question card in the current
+   *  batch — the only card the identifier checker auto-clicks (single-select is safe;
+   *  checkbox/number/text stay manual). */
+  private pendingRadioQuestion(): Record<string, unknown> | null {
+    for (const b of this.currentBatchCards()) {
+      if (b.type !== "quote_question") continue;
+      const qtype = b.data["qtype"];
+      if (qtype != null && qtype !== "radio") continue;
+      const key = String(b.data["key"] ?? "");
+      if (key && !this.questionAnswered(key) && this.getOptions(b.data).length) {
+        return b.data;
+      }
+    }
+    return null;
+  }
+
+  /** Identifier checker: when a radio question is pending and the typed text is NEAR one
+   *  of its options, click it (structured confirm) so the answer registers deterministically
+   *  — no re-ask loop, no LLM drift. Returns true if it clicked. */
+  private maybeAutoAnswerQuestion(text: string): boolean {
+    const data = this.pendingRadioQuestion();
+    if (!data) return false;
+    const hit = nearestOption(text, this.getOptions(data) as FuzzyOption[]);
+    if (!hit) return false;
+    this.answerRadio(data, hit.value); // sets answer + canonical draft + sendConfirm()
+    return true;
   }
   toggleQCheckbox(value: string): void {
     this.qCheckbox.update((a) =>

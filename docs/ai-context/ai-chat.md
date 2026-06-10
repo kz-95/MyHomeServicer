@@ -213,6 +213,14 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
     short-circuit — it does NOT wait for the model to emit `category_lock` (which it often
     forgets). Negations and long messages are excluded. This is what stops typing-only
     customers (who never tap) from looping forever on "please tap the card".
+  - **Identifier checker (`maybeAutoAnswerQuestion` + `nearestOption`):** when a single
+    radio service-question card is pending and the user TYPES an answer, the frontend
+    matches it lexically — exact / substring (either way) / a 1-2 char typo / token overlap
+    — against each option's value AND every localized label (en/ms/zh/ta). If it's
+    confidently NEAR one option (score ≥ 0.8 and clearly ahead of the runner-up), it CLICKS
+    that option (`answerRadio` → structured confirm), so the turn skips the LLM entirely: no
+    re-ask loop, no model drift. A loose/ambiguous answer (token overlap caps at 0.7) falls
+    through to the model. Deterministic; mirrors the server `matchQuestionAnswer` backstop.
 - After a rejection, ask ONE clarifying question max, then act (re-offer the best fit).
 - Never re-list collected values in prose (the review card is the single source of truth).
 
