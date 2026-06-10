@@ -48,7 +48,10 @@ All items below: `tsc` + `ng build` pass, committed to `feat/ux-polish`, pushed.
       - Question/option labels localized (ms/zh/ta) via `QUESTION_I18N` + `localizeQuestions`
         (561 labels, applied via db:reset).
       - Harness: `not-registered` detector + transcript-regex fix (judge no longer "no-transcript").
-      - `tsconfig` deprecation warnings silenced (`ignoreDeprecations` 5.0 → 6.0); backend tsc 0.
+      - `tsconfig` deprecation warnings (TS5101/TS5107) left at `ignoreDeprecations: "5.0"` —
+        bumping to "6.0" silences them under standalone tsc but breaks the ts-node seed (project's
+        bundled TS only accepts 5.0 → TS5103). Cosmetic noise; not worth breaking the seed. To
+        truly remove, migrate `moduleResolution: node` → `node16`/`bundler` + drop `baseUrl` (risky).
 - [ ] **Deferred (need a log to reproduce, or a product call):** prose hallucination (model NAMES
       wrong services in text though the cards are correct); free-text answer to a radio question
       ("bathtub" → "area") not matched by `matchQuestionAnswer`; B2 structured address sub-fields
