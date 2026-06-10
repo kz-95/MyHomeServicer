@@ -247,8 +247,39 @@ question + option carries translations. Missing entry → graceful English fallb
 via `npm run db:reset`. NOTE: db:reset also wipes the LLM keys (no .env fallback) — re-add
 via the admin demo.
 
+## Update — run ChatQA_Log_103510062601 (10 scenarios) + fixes (2026-06-10)
+
+The new `not-registered` detector earned its keep — it pinpointed the dominant failure.
+
+### FIXED — typed contact name never registered → contactName card looped
+Same class as the address loop: name was DISABLED in free-text extraction (old false
+positives like "From" from "I'm from KL"), so "name's Lina" / "I'm Hafiz" / a bare "Hafiz"
+never entered `collected`. The bot said "Got it, Lina!" but `name=-` and re-emitted the
+name card every turn (scenarios 1 & 4 — scenario 4 FAILed `not-registered: contactName`).
+- **Fix:** new `extractName` — an explicit lead-in ("my name is / name's / I'm / call me /
+  saya X") always, plus a bare token ONLY once every other base field is in (the bot has
+  asked for the name). First token can't be a stopword; a trailing filler ("lah") is
+  dropped. Unit-tested incl. the "I'm from KL" → reject case.
+
+### FIXED — free-text address stored with the rojak wrapper → form blocked
+My earlier `extractAddress` returned the whole line, so the value became
+`"eh boss, 18 jalan tempua 5 … 47100 lor, can help anot?"` and the quote form couldn't
+parse a street → blocked at page 2 (scenarios 1, 2). Now it trims leading filler (up to the
+first house-number/street-marker) and trailing filler (rojak particles / "can help anot"
+after the postcode). Unit-tested. NOTE: structured sub-fields (No./postcode/type) still need
+the **B2 frontend geocode-on-prefill** to populate from a free-text address.
+
 ### Still open after this run
-- **Prose hallucination** — the model still NAMES wrong services in text ("Moving"/
+- **Unsupported-service first reply not localized** — "I need a car wash" in ms/zh got the
+  hardcoded English/rojak "we don't offer that" reply (scenarios 2, 4 first turn). The
+  no-match fallback text needs the conversation language.
+- **Category drift / prose hallucination** — bot invented "party / Event Planner" for an
+  electrical job (sc.1) and drifted kitchen-sink → bathtub → Renovation (sc.3). Cards are
+  deterministic now, but the prose still wanders. Prompt-level.
+- **B2 structured address** — credited free-text address still needs frontend geocode to
+  fill No./postcode/type for the form.
+
+### Prose hallucination — the model still NAMES wrong services in text ("Moving"/
   "Renovation" for a plumbing job) even though the CARDS are now correct/deterministic.
   Prompt-level, not card-level. Deferred.
 - **Free-text answer to a radio question** — "bathtub" typed for an "area" radio question

@@ -1465,7 +1465,66 @@ export function extractAddress(text: string): string | undefined {
         best = line;
     }
   }
-  return best;
+  if (!best) return undefined;
+  // Strip conversational filler around the address so a rojak-wrapped line like
+  // "eh boss, 18 jalan tempua 5, bandar puchong jaya 47100 lor, can help anot?"
+  // stores as just "18 jalan tempua 5, bandar puchong jaya 47100" — otherwise the
+  // wrapper pollutes the street and the quote form can't parse it.
+  let s = best;
+  const startAnchor = s.search(
+    /(?:\bno\.?\s*)?\d+[a-z]?(?:[-/]\d+[a-z]?)?[,\s]+(?:jalan|jln|lorong|lrg|persiaran|lebuh|lengkok|medan|taman)\b|\b(?:jalan|jln|lorong|lrg|persiaran|lebuh|lengkok|medan|taman)\b/i,
+  );
+  if (startAnchor > 0) s = s.slice(startAnchor);
+  const pc = s.match(POSTCODE);
+  if (pc && pc.index != null) {
+    const end = pc.index + 5;
+    const after = s.slice(end).replace(/^[,\s]+/, "");
+    // Keep a short locality after the postcode, but stop at the first filler word.
+    const loc = after.match(
+      /^((?:(?!(?:lor|lah|sia|leh|liao|mah|ya|please|thanks?|thank|boss|bro|can|anot)\b)[a-z][a-z.]*\s*){0,4})/i,
+    );
+    s = s.slice(0, end) + (loc && loc[1].trim() ? ", " + loc[1].trim() : "");
+  } else {
+    s = s.replace(
+      /[,\s]+(?:lor|lah|sia|leh|liao|mah|ya|please|thanks?|thank|boss|bro|can\s+help.*|anot.*)\s*$/i,
+      "",
+    );
+  }
+  s = s.replace(/^[\s,]+|[\s,]+$/g, "").trim();
+  return s.length >= 6 ? s : best;
+}
+
+/**
+ * Extract a contact name from the user's OWN message. Conservative by design — runs only
+ * while the name is still being collected (caller step-gates it), because a loose scan
+ * historically produced junk names ("From" from "I'm from KL"). Two paths:
+ *   1. an explicit lead-in: "my name is X" / "name's X" / "I'm X" / "call me X" / "saya X";
+ *   2. (allowBare) a single short alpha token typed in answer to the name card ("Hafiz").
+ * The first token must not be a stopword; a trailing filler word ("lah") is dropped.
+ */
+const NAME_STOPWORDS =
+  /^(from|at|in|on|here|there|not|sure|just|really|so|the|a|an|looking|trying|need|want|good|fine|ok|okay|yes|no|nope|boss|bro|sir|madam|free|busy|done|interested|leh|lah|lor|sia|liao|mah|ya|please|thanks|thank|hi|hello|hey|me|my|your|his|her|name|today|tomorrow)$/i;
+
+export function extractName(
+  message: string,
+  opts?: { allowBare?: boolean },
+): string | undefined {
+  const lead = message.match(
+    /\b(?:my\s+name(?:'s|\s+is)?|name(?:'s|\s+is)|i\s*am|i'?m|call\s+me|this\s+is|saya|nama\s+saya)\s+([a-z][a-z'-]{1,19}(?:\s+[a-z][a-z'-]{1,19})?)/i,
+  );
+  let cand = lead ? lead[1] : undefined;
+  if (!cand && opts?.allowBare) {
+    const bare = message.trim();
+    if (/^[a-z][a-z'-]{1,19}(?:\s+[a-z][a-z'-]{1,19})?$/i.test(bare)) cand = bare;
+  }
+  if (!cand) return undefined;
+  const tokens = cand.trim().split(/\s+/);
+  if (NAME_STOPWORDS.test(tokens[0])) return undefined; // "i'm from kl" → reject
+  const nameTokens = [tokens[0]];
+  if (tokens[1] && !NAME_STOPWORDS.test(tokens[1])) nameTokens.push(tokens[1]);
+  return nameTokens
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 }
 
 /**
@@ -2280,10 +2339,21 @@ export async function sendToAi(
       // the user never stated — same false-positive class as the old name extraction.
       const budgetN = extractBudget(userConvo);
       if (budgetN) fillField("budgetMax", String(budgetN));
-      // Name is NOT extracted from free-text — it only comes from the explicit
-      // contact-name form card where the user types and confirms. Free-text name
-      // extraction was too aggressive and captured false positives like "From" from
-      // "I'm from KL", producing greetings like "Hello there, is this From?".
+      // Name: capture from the user's own message while it's still being collected, so a
+      // typed name ("name's Lina", "I'm Hafiz", or a bare "Hafiz" at the name step)
+      // registers instead of looping the contactName card forever. Strictly gated — an
+      // explicit lead-in always, a bare token ONLY once every other base field is in (the
+      // bot has asked for the name) — so a stray word can't become a junk name.
+      if (!new Set(opts?.collected ?? []).has("contactName")) {
+        const coll = new Set(opts?.collected ?? []);
+        const atNameStep =
+          coll.has("preferredDate") &&
+          coll.has("timeSlot") &&
+          coll.has("address") &&
+          coll.has("budgetMax");
+        const nm = extractName(message, { allowBare: atNameStep });
+        if (nm) fillField("contactName", nm);
+      }
       fillField("contactNumber", extractPhone(userConvo));
 
       // Fields are "done" if the client already collected them OR the model just

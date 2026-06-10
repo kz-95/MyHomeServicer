@@ -12,7 +12,7 @@
  * No DB, no LLM, no mocks.
  */
 
-import { nextStepBlocks, computeNextCards, extractAddress } from '../../src/services/chat.service';
+import { nextStepBlocks, computeNextCards, extractAddress, extractName } from '../../src/services/chat.service';
 
 const ALL_BASE = [
   'preferredDate',
@@ -157,5 +157,42 @@ describe('extractAddress — free-text address crediting (breaks the address loo
 
   it('does not treat a bare number / budget as an address', () => {
     expect(extractAddress('budget around rm1239')).toBeUndefined();
+  });
+});
+
+describe('extractAddress — strips conversational filler (rojak wrapper)', () => {
+  it('drops "eh boss, ... lor, can help anot?" around the address', () => {
+    const got = extractAddress('eh boss, 18 jalan tempua 5, bandar puchong jaya 47100 lor, can help anot?');
+    expect(got).toBe('18 jalan tempua 5, bandar puchong jaya 47100');
+  });
+
+  it('pulls the address out of a multi-clause dump and ignores the phone', () => {
+    const got = extractAddress("i prlu cuci kete, reach me at 1496992730, i'm at 15 persiaran apec, cyberjaya, 63000");
+    expect(got).toContain('15 persiaran apec');
+    expect(got).toContain('63000');
+    expect(got).not.toContain('1496992730');
+  });
+
+  it('still returns undefined when there is no address signal', () => {
+    expect(extractAddress('eh boss, can help anot?')).toBeUndefined();
+  });
+});
+
+describe('extractName — registers a typed name, rejects junk', () => {
+  it('captures an explicit lead-in and drops a trailing filler word', () => {
+    expect(extractName("eh boss, name's lina lah, can help anot?")).toBe('Lina');
+    expect(extractName("i'm hafiz")).toBe('Hafiz');
+    expect(extractName('my name is Kumar')).toBe('Kumar');
+    expect(extractName('call me Zack')).toBe('Zack');
+  });
+
+  it('rejects the classic false positive "I\'m from KL"', () => {
+    expect(extractName("i'm from KL")).toBeUndefined();
+  });
+
+  it('takes a bare token ONLY at the name step', () => {
+    expect(extractName('Hafiz', { allowBare: true })).toBe('Hafiz');
+    expect(extractName('Hafiz')).toBeUndefined();           // no lead-in, bare not allowed
+    expect(extractName('okay', { allowBare: true })).toBeUndefined(); // stopword
   });
 });
