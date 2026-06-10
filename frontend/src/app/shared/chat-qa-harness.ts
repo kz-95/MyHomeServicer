@@ -509,6 +509,66 @@ export function generateScenarios(count: number, customerMode = false): QaScenar
   return out;
 }
 
+/** A fixed future date (today + `days`), YYYY-MM-DD. Deterministic — for the demo. */
+function fixedFutureDate(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/**
+ * Four hand-picked, guaranteed-pass demo bookings — one per supported language (NO rojak),
+ * each a different customer name. Cooperative + service_first + clean ("proper") typing is
+ * the happy path: state the need, tap every card, reach the review. Fixed (not random), so
+ * the Demo button shows the same clean 0 → review booking each time, in each language.
+ */
+export function makeDemoScenarios(): QaScenario[] {
+  const langs: Array<{ language: QaLang; name: string; phone: string }> = [
+    { language: "en", name: "Aaron", phone: "122003001" },
+    { language: "ms", name: "Nadia", phone: "133004002" },
+    { language: "zh", name: "Wei Jie", phone: "144005003" },
+    { language: "ta", name: "Kumar", phone: "155006004" },
+  ];
+  const service = QA_SERVICES[0]; // kitchen sink leak → Plumber (reliable, phrased in every language)
+  const addr: QaAddress = {
+    no: "33",
+    street: "Jalan Ampang, Kuala Lumpur",
+    postcode: "50450",
+    propertyType: "condo",
+  };
+  return langs.map((l, i) => {
+    const persona: QaPersona = {
+      typing: "proper",
+      tone: "polite",
+      behavior: "cooperative",
+      sorting: "service_first",
+      language: l.language,
+    };
+    const opening = composeOpening(
+      persona, service, l.name, l.phone, addr, "300", "this friday", "afternoon", 1,
+    );
+    return {
+      persona,
+      service,
+      date: fixedFutureDate(5 + i),
+      dateWords: "this friday",
+      timeSlot: "afternoon",
+      addr,
+      budget: "mid" as const,
+      name: l.name,
+      phoneLocal: l.phone,
+      notes: "",
+      openingTurns: opening.turns,
+      infoCount: 1,
+      needIncluded: opening.needIncluded,
+      needPhrase: styleLine(persona, service.needs[l.language] ?? service.needs.en),
+      repeats: false,
+      label: `DEMO/${l.language}/${l.name} — ${service.needs.en}`,
+    };
+  });
+}
+
 // ─── Engine ──────────────────────────────────────────────────────────────────────
 const ACTIONABLE = new Set(["quote_options", "quote_field", "quote_question", "quote_prefill", "identity_confirm"]);
 /** Budget index by band — picked from the loaded bracket count at runtime. */
@@ -1381,6 +1441,9 @@ export interface QaHarnessOptions {
   logName: string;
   /** Customer mode draws identities from the preset list (the 6th axis). */
   customerMode?: boolean;
+  /** Demo mode: run the 4 fixed guaranteed-pass scenarios (en/ms/zh/ta) instead of random
+   *  ones, never refresh between them. One clean booking per language, 0 → review. */
+  demo?: boolean;
   onProgress?: (done: number, total: number, label: string) => void;
   cancelled?: () => boolean;
   /** Incremental writer — called with each new chunk (header, per scenario, summary)
@@ -1405,12 +1468,18 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     pending = [];
   };
   const cancelled = opts.cancelled ?? (() => false);
-  const scenarios = generateScenarios(opts.count, opts.customerMode === true);
+  const scenarios = opts.demo
+    ? makeDemoScenarios()
+    : generateScenarios(opts.count, opts.customerMode === true);
   const results: QaRunResult[] = [];
 
   push(`# ${opts.logName}`);
-  push(`Automated chat QA — ${opts.count} simulated customers, each booking a full quote`);
-  push(`Mode: ${opts.customerMode ? "customer (with presets)" : "guest"}`);
+  push(
+    opts.demo
+      ? `Demo flow — ${scenarios.length} guaranteed-pass bookings, one per language (en/ms/zh/ta), 0 → review`
+      : `Automated chat QA — ${scenarios.length} simulated customers, each booking a full quote`,
+  );
+  push(`Mode: ${opts.demo ? "demo" : opts.customerMode ? "customer (with presets)" : "guest"}`);
   push(`Generated: ${new Date().toISOString()}`);
   push("");
   await flushChunk(); // create the file with the header immediately
@@ -1433,7 +1502,8 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     // ~30% of guest runs (after the first, which seeds saved state) REFRESH instead of
     // clearing — reloading from storage to exercise the returning-guest "is this {name}?"
     // restore flow and confirm the booking continues after a reload.
-    const doRefresh = i > 0 && opts.customerMode !== true && Math.random() < 0.3;
+    const doRefresh =
+      !opts.demo && i > 0 && opts.customerMode !== true && Math.random() < 0.3;
     if (doRefresh) {
       host.refresh();
       push("(refresh: reloaded from storage instead of clearing — testing returning-guest restore)");

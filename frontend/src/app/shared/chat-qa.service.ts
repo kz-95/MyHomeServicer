@@ -23,7 +23,14 @@ export class ChatQaService {
   /** Begin a QA run. No-op if one is already running. */
   start(host: QaHost, opts: { count?: number; customerMode?: boolean } = {}): void {
     if (this.running()) return;
-    void this.run(host, opts.count ?? 100, opts.customerMode === true);
+    void this.run(host, opts.count ?? 100, opts.customerMode === true, false);
+  }
+
+  /** Begin the DEMO flow: 4 fixed guaranteed-pass bookings (en/ms/zh/ta), 0 → review.
+   *  No-op if a run is already going. */
+  startDemo(host: QaHost): void {
+    if (this.running()) return;
+    void this.run(host, 4, false, true);
   }
 
   /** Cancel the in-flight run; the harness checks this between scenarios. */
@@ -31,7 +38,7 @@ export class ChatQaService {
     this.running.set(false);
   }
 
-  private async run(host: QaHost, count: number, customerMode: boolean): Promise<void> {
+  private async run(host: QaHost, count: number, customerMode: boolean, demo: boolean): Promise<void> {
     this.running.set(true);
     const requested = this.makeLogName();
     let resolvedName = requested;
@@ -76,8 +83,8 @@ export class ChatQaService {
 
     try {
       await runQaHarness(host, {
-        count, logName: requested, customerMode,
-        onProgress: (done, total) => this.status.set(`QA ${done}/${total}`),
+        count, logName: requested, customerMode, demo,
+        onProgress: (done, total) => this.status.set(`${demo ? "Demo" : "QA"} ${done}/${total}`),
         cancelled: () => !this.running(),
         onChunk: writeChunk,
       });

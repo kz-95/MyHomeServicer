@@ -338,6 +338,15 @@ interface PublicConfig {
               >
                 {{ qa.running() ? "Stop QA" : "QA" }}
               </button>
+              @if (!qa.running()) {
+                <button
+                  class="clear-btn qa-btn"
+                  (click)="onDemoPress()"
+                  title="Demo flow — 4 guaranteed-pass bookings, one per language (dev only)"
+                >
+                  Demo
+                </button>
+              }
             }
             <button
               class="clear-btn"
@@ -356,11 +365,23 @@ interface PublicConfig {
           </div>
         </div>
 
-        @if (qaVisible && (qaPanelOpen() || qa.running())) {
+        @if (qaVisible && (qaPanelOpen() || demoPanelOpen() || qa.running())) {
           <div class="qa-panel">
             @if (qa.running()) {
-              <span class="qa-status">{{ qa.status() || "Running QA…" }}</span>
+              <span class="qa-status">{{ qa.status() || "Running…" }}</span>
               <button class="qa-go" (click)="qa.cancel()">Stop</button>
+            } @else if (demoPanelOpen()) {
+              <span class="qa-status">Demo: 4 bookings (en/ms/zh/ta), 0 → review</span>
+              <input
+                type="password"
+                class="qa-pin"
+                placeholder="PIN"
+                [ngModel]="qaPin()"
+                (ngModelChange)="qaPin.set($event)"
+                (keydown.enter)="startDemo()"
+                aria-label="Demo PIN"
+              />
+              <button class="qa-go" (click)="startDemo()">Run demo</button>
             } @else {
               <input
                 type="number"
@@ -2743,6 +2764,8 @@ export class ChatWidgetComponent
   protected readonly qaRuns = signal(1);
   /** Inline QA panel open state + PIN draft (no window.prompt — renders in-DOM). */
   protected readonly qaPanelOpen = signal(false);
+  /** Demo-flow panel open state (separate from QA; shares the PIN input). */
+  protected readonly demoPanelOpen = signal(false);
   protected readonly qaPin = signal("");
   /** Clamp + store the run-count input. */
   protected setQaRuns(v: unknown): void {
@@ -2756,8 +2779,16 @@ export class ChatWidgetComponent
       this.qa.cancel();
       return;
     }
+    this.demoPanelOpen.set(false);
     this.qaPanelOpen.update((o) => !o);
     if (this.qaPanelOpen()) this.qa.status.set("");
+  }
+
+  /** Demo button: toggle the inline demo PIN/run panel. */
+  onDemoPress(): void {
+    this.qaPanelOpen.set(false);
+    this.demoPanelOpen.update((o) => !o);
+    if (this.demoPanelOpen()) this.qa.status.set("");
   }
 
   /** Run button inside the panel: check the PIN, then start the suite. */
@@ -2771,6 +2802,17 @@ export class ChatWidgetComponent
     const count = Math.min(500, Math.max(1, this.qaRuns()));
     const customerMode = this.auth.principal()?.role === "customer";
     this.qa.start(this.buildQaHost(), { count, customerMode });
+  }
+
+  /** Run the demo flow (PIN-gated): 4 fixed guaranteed-pass bookings, one per language. */
+  startDemo(): void {
+    if (this.qaPin().trim() !== QA_PIN) {
+      this.qa.status.set("Wrong PIN");
+      return;
+    }
+    this.qaPin.set("");
+    this.demoPanelOpen.set(false);
+    this.qa.startDemo(this.buildQaHost());
   }
 
   /** The label text the UI actually renders for a card (localized), for QA checks. */
