@@ -72,6 +72,13 @@ interface EstimateResult {
   estimatedReturn?: number;
 }
 
+/** Payment mode → [paymentTiming, settlementMethod] mapping used by chat/reorder prefill. */
+const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
+  pay_now: ['pay_now', 'credit'] as const,
+  cash: ['pay_later', 'cash'] as const,
+  pay_later: ['pay_later', 'credit'] as const,
+};
+
 @Component({
     selector: 'app-quote-form',
     host: { class: 'page-enter' },
@@ -1381,16 +1388,20 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
     if (typeof p['notes'] === 'string') this.f.notes = p['notes'];
     if (typeof p['contactName'] === 'string') this.f.contactName = p['contactName'];
     if (typeof p['contactNumber'] === 'string') this.f.contactNumber = p['contactNumber'];
-    if (typeof p['paymentMode'] === 'string') {
-      const mode = p['paymentMode'] as string;
-      if (mode === 'pay_now') { this.f.paymentTiming = 'pay_now'; this.f.settlementMethod = 'credit'; }
-      else if (mode === 'cash') { this.f.paymentTiming = 'pay_later'; this.f.settlementMethod = 'cash'; }
-      else if (mode === 'pay_later') { this.f.paymentTiming = 'pay_later'; this.f.settlementMethod = 'credit'; }
-    }
+    this.applyPaymentMode(p['paymentMode']);
     if (p['serviceDetails'] && typeof p['serviceDetails'] === 'object') {
       const sd: Record<string, unknown> = { ...(p['serviceDetails'] as Record<string, unknown>) };
       if (typeof sd['_extraNotes'] === 'string') { this.f.extraNotes = sd['_extraNotes']; delete sd['_extraNotes']; }
       this.answers.set(sd as unknown as Record<string, string | string[]>);
+    }
+  }
+
+  private applyPaymentMode(mode: unknown): void {
+    if (typeof mode !== 'string') return;
+    const entry = PAYMENT_MODE_MAP[mode];
+    if (entry) {
+      this.f.paymentTiming = entry[0] as 'pay_now' | 'pay_later';
+      this.f.settlementMethod = entry[1] as 'credit' | 'gateway' | 'cash';
     }
   }
 
@@ -1409,12 +1420,7 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
     if (typeof p['timeSlot'] === 'string') this.f.timeSlot = p['timeSlot'];
     if (typeof p['preferredDate'] === 'string') this.f.preferredDate = p['preferredDate'];
     if (typeof p['notes'] === 'string') this.f.notes = this.f.notes ? this.f.notes + '\n' + p['notes'] : p['notes'];
-    if (typeof p['paymentMode'] === 'string') {
-      const mode = p['paymentMode'] as string;
-      if (mode === 'pay_now') { this.f.paymentTiming = 'pay_now'; this.f.settlementMethod = 'credit'; }
-      else if (mode === 'cash') { this.f.paymentTiming = 'pay_later'; this.f.settlementMethod = 'cash'; }
-      else if (mode === 'pay_later') { this.f.paymentTiming = 'pay_later'; this.f.settlementMethod = 'credit'; }
-    }
+    this.applyPaymentMode(p['paymentMode']);
     if (p['budgetMin'] != null || p['budgetMax'] != null) {
       if (!this.reorderPrefill) {
         this.reorderPrefill = { budgetMin: p['budgetMin'], budgetMax: p['budgetMax'] };

@@ -63,3 +63,8 @@ export const notFound = (msg = 'Resource not found') => new ApiError('NOT_FOUND'
 export const conflict = (msg: string) => new ApiError('CONFLICT', msg);
 export const businessRule = (msg: string) => new ApiError('BUSINESS_RULE_VIOLATION', msg);
 export const paymentRequired = (msg: string) => new ApiError('PAYMENT_REQUIRED', msg);
+
+/** Extract a human-readable message from any caught error value. */
+export function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}

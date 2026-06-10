@@ -155,30 +155,31 @@ function parseComponents(
   components?: Array<{ long_name: string; short_name: string; types: string[] }>,
 ): { street?: string; postcode?: string; city?: string; state?: string } {
   if (!components) return {};
-  let streetNumber = '';
-  let route = '';
-  let postcode = '';
-  let locality = '';
-  let sublocality = '';
-  let adminLvl2 = '';
-  let state = '';
+  const fields: Record<string, string> = { streetNumber: '', route: '', postcode: '', locality: '', sublocality: '', adminLvl2: '', state: '' };
+  const TYPE_FIELD: Record<string, string> = {
+    street_number: "streetNumber",
+    route: "route",
+    postal_code: "postcode",
+    locality: "locality",
+    sublocality: "sublocality",
+    sublocality_level_1: "sublocality",
+    administrative_area_level_2: "adminLvl2",
+    administrative_area_level_1: "state",
+  };
   for (const c of components) {
-    if (c.types.includes('street_number')) streetNumber = c.long_name;
-    else if (c.types.includes('route')) route = c.long_name;
-    else if (c.types.includes('postal_code')) postcode = c.long_name;
-    else if (c.types.includes('locality')) locality = c.long_name;
-    else if (c.types.includes('sublocality') || c.types.includes('sublocality_level_1')) sublocality = c.long_name;
-    else if (c.types.includes('administrative_area_level_2')) adminLvl2 = c.long_name;
-    else if (c.types.includes('administrative_area_level_1')) state = c.long_name;
+    for (const t of c.types) {
+      const key = TYPE_FIELD[t];
+      if (key && !fields[key]) fields[key] = c.long_name;
+    }
   }
-  const street = [streetNumber, route].filter(Boolean).join(' ').trim();
+  const street = [fields.streetNumber, fields.route].filter(Boolean).join(' ').trim();
   // Malaysian "district" ≈ city/locality; fall back to sublocality or admin level 2.
-  const city = locality || sublocality || adminLvl2;
+  const city = fields.locality || fields.sublocality || fields.adminLvl2;
   return {
     street: street || undefined,
-    postcode: postcode || undefined,
+    postcode: fields.postcode || undefined,
     city: city || undefined,
-    state: state || undefined,
+    state: fields.state || undefined,
   };
 }
 

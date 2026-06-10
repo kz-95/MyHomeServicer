@@ -117,41 +117,6 @@ data first, so it is safe to re-run.
 
 ## Running the project
 
-### Windows shortcut — bat launchers
-
-Three launchers live at the repo root. Double-click or run from a terminal.
-**This is all you need on Windows.** Each one handles everything:
-
-1. Checks Docker is running and starts Postgres + Redis containers if needed
-2. Creates `backend/.env` with generated JWT secrets if missing
-3. Installs dependencies in both packages if `package-lock.json` is newer than the installed state — catches missing folders, partial installs, and new packages added after a `git pull`
-4. Applies the database schema + seed (varies by launcher — see table below)
-5. Opens **two separate terminal windows** — one for the frontend, one for the backend
-
-| Launcher | Seed | Use when |
-|---|---|---|
-| `Run.bat` | Full demo — 19 servicers, all demo accounts | Demoing or normal dev |
-| `Run-Test.bat` | Lean — 4 servicers, 32 bookings | Fast iteration, no demo data needed |
-| `Run-Clean.bat` | Wipes DB, seeds only `admin@demo.local` | Testing registration from a blank slate |
-
-```
-Run.bat                 # start both (default)
-Run.bat backend_only    # backend window only
-Run.bat frontend_only   # frontend window only
-```
-
-> Same `backend_only` / `frontend_only` arguments work on all three launchers.
-
-**If a launcher reports missing .env variables on startup:**
-All three launchers check for the 6 required vars (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `REFRESH_SECRET`, `NODE_ENV`, `PORT`) before doing anything. If any are missing it lists them and prompts **R to retry / Q to quit**. Run `set-local-env.bat` to restore non-secret values, then add secrets (`JWT_SECRET`, `REFRESH_SECRET`) to `backend\.env` manually, then press R.
-
-**If `npm install` seems incomplete** (missing packages after a `git pull`):
-touch `package-lock.json` in `backend/` or `frontend/` (or just delete `node_modules\.package-lock.json`) and re-run the launcher — it will reinstall automatically. Run `backend\set-local-env.bat` first if the DB URLs were also reset.
-
-After the script runs:
-- Backend → `http://localhost:3000`
-- Frontend → `http://localhost:4200`
-
 ---
 
 ### Manual (any OS)
@@ -362,7 +327,7 @@ Also verify:
 ## Common issues
 
 **`npx prisma db push` fails — "URL must start with postgresql://"**
-`backend/.env` contains an unfilled placeholder. Run `backend\set-local-env.bat` to restore the correct local values, then retry.
+`backend/.env` contains an unfilled placeholder. Copy `backend\.env.example` and fill in the required values, then retry.
 
 **`npm run db:sync` fails — "database does not exist"**
 Make sure Docker is running: `docker compose up -d`. Wait a few seconds for Postgres to be ready, then retry.

@@ -93,20 +93,11 @@ export async function notify(input: NotificationInput): Promise<void> {
         linkReorder: input.linkReorder ?? null,
       },
     });
+    const payload = { id: row.id, type: row.type, message: row.message, createdAt: row.createdAt };
     if (input.userId) {
-      emitToUser(input.userId, 'notification.new', {
-        id: row.id,
-        type: row.type,
-        message: row.message,
-        createdAt: row.createdAt,
-      });
+      emitToUser(input.userId, 'notification.new', payload);
     } else if (input.merchantId) {
-      emitToMerchant(input.merchantId, 'notification.new', {
-        id: row.id,
-        type: row.type,
-        message: row.message,
-        createdAt: row.createdAt,
-      });
+      emitToMerchant(input.merchantId, 'notification.new', payload);
     }
   } catch (err) {
     logger.error('Failed to create notification', { error: (err as Error).message });

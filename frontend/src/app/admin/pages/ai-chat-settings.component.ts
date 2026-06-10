@@ -146,7 +146,7 @@ function emptyForm(tier: string): FaqForm {
             <h2>{{ tier.label }} greetings</h2>
             <p class="muted small">{{ tier.hint }} Use <code>&#123;name&#125;</code> for the person's name. Min 1, max 50. Falls back to the anonymous pool if empty.</p>
             <div class="greeting-list">
-              @for (g of (tierGreetings()[tier.key] ?? []); track i; let i = $index) {
+              @for (g of tierGreetings()[tier.key]; track i; let i = $index) {
                 <div class="greeting-row">
                   <span class="greeting-idx">{{ i + 1 }}</span>
                   <input type="text" [ngModel]="g" (ngModelChange)="updateTierGreeting(tier.key, i, $event)" name="{{tier.key}}_{{i}}" placeholder="Enter greeting (use &#123;name&#125;)" maxlength="500" />
@@ -154,7 +154,7 @@ function emptyForm(tier: string): FaqForm {
                 </div>
               }
             </div>
-            @if ((tierGreetings()[tier.key] ?? []).length < 50) {
+            @if (tierGreetings()[tier.key].length < 50) {
               <button class="btn-outline" (click)="addTierGreeting(tier.key)">+ Add greeting</button>
             }
             <div class="actions">
