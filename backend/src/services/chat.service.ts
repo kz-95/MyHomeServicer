@@ -2363,6 +2363,11 @@ export async function sendToAi(
         if (b.type === "quote_field") {
           const v = b.data.value;
           const k = b.data.key;
+          // Address is the exception: a free-text/pre-filled address VALUE never counts as
+          // collected — only the client's structured confirm does (it sends `address` in
+          // `collected`). So the address card keeps showing (and the composer stays locked)
+          // until the user fills No./Postcode/Type via the card. See the address-lock rule.
+          if (k === "address") continue;
           if (typeof k === "string" && v != null && v !== "") done.add(k);
         }
       }

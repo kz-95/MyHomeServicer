@@ -1031,26 +1031,30 @@ interface PublicConfig {
         </div>
 
         <form class="composer" (ngSubmit)="sendTyped()">
-          @if (cardInputHint()) {
+          @if (addressLockActive()) {
+            <div class="card-hint card-hint--lock">{{ t("ph_address") }}</div>
+          } @else if (cardInputHint()) {
             <div class="card-hint">{{ cardInputHint() }}</div>
           }
           <input
             [(ngModel)]="draft"
             name="draft"
             placeholder="{{
-              connecting()
-                ? 'Connecting…'
-                : auth.principal()
-                  ? 'Type a message…'
-                  : 'Write a note…'
+              addressLockActive()
+                ? t('ph_address')
+                : connecting()
+                  ? 'Connecting…'
+                  : auth.principal()
+                    ? 'Type a message…'
+                    : 'Write a note…'
             }}"
-            [disabled]="connecting()"
+            [disabled]="connecting() || addressLockActive()"
             aria-label="Message input"
           />
           <button
             class="btn-primary send-btn"
             type="submit"
-            [disabled]="sending() || connecting() || !draft.trim()"
+            [disabled]="sending() || connecting() || addressLockActive() || !draft.trim()"
           >
             <svg
               width="14"
@@ -1470,6 +1474,10 @@ interface PublicConfig {
         font-size: 0.78rem;
         padding: 0 0.2rem;
         color: var(--color-muted, #888);
+      }
+      .composer .card-hint--lock {
+        color: var(--color-primary, #2563eb);
+        font-weight: 600;
       }
       .send-btn {
         display: flex;
@@ -2479,7 +2487,13 @@ export class ChatWidgetComponent
   /** Field keys already captured - lets the backend pick the next quote step. */
   private collectedKeys(): string[] {
     const d = this.widget.prefillData();
+    const addrConfirmed = this.addressConfirmed();
     return Object.keys(d).filter((k) => {
+      // Address counts as collected ONLY once the structured card is confirmed — a raw
+      // free-text address string (e.g. pre-filled from the bot) must NOT satisfy it, so
+      // the address card keeps showing and the composer stays locked until the user fills
+      // No./Postcode/Type. This is what makes the address-lock rule hold server-side.
+      if (k === "address" && !addrConfirmed) return false;
       const v = d[k];
       return v !== undefined && v !== null && v !== "";
     });
@@ -3029,6 +3043,22 @@ export class ChatWidgetComponent
     }
     return hints.join(" ");
   });
+
+  /**
+   * RULE — address is HARD-LOCKED. While an unconfirmed address card is on screen the
+   * composer is disabled and the user is directed to the card. The address needs its
+   * structured controls (No./Street/Postcode/Type + geocode); a free-text address leaves
+   * those empty and blocks the quote form, so it must be filled via the card, not typed.
+   * (Documented in docs/ai-context/ai-chat.md. Unlike the old general card lock, ONLY the
+   * address locks — every other field stays a soft hint so the user can still ask things.)
+   */
+  readonly addressLockActive = computed(
+    () =>
+      !this.addressConfirmed() &&
+      this.currentBatchCards().some(
+        (b) => b.type === "quote_field" && b.data["key"] === "address",
+      ),
+  );
   locatingGps = signal(false);
   addrValidating = signal(false);
   addrError = signal("");

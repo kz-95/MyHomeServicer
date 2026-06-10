@@ -216,6 +216,20 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
 - After a rejection, ask ONE clarifying question max, then act (re-offer the best fit).
 - Never re-list collected values in prose (the review card is the single source of truth).
 
+**RULE — address is hard-locked (structured-only).** Unlike every other field (soft hint,
+input stays usable), the **address card LOCKS the composer**: while an unconfirmed
+`quote_field:address` card is on screen the chat input + send are disabled and the user is
+directed to fill the card. Reason: the address needs its structured controls (No. / Street /
+Postcode / Property Type + geocode); a free-text address leaves those empty and **blocks the
+quote form at page 2**. Enforced end-to-end:
+- **Frontend** (`chat-widget`): `addressLockActive` disables the composer; `address` counts
+  as collected ONLY when `addressConfirmed()` (structured confirm), never from a raw string.
+- **Backend** (`chat.service`): a free-text/pre-filled address VALUE never marks `address`
+  done — only the client's structured `collected` does — so the card keeps showing until
+  filled. `extractAddress` may still pre-fill the street for convenience.
+- **QA harness**: even type-only personas fill the address via the structured card.
+This is the ONE intentional exception to "no blocking locks" — every other field stays soft.
+
 **Behavior with messy input**
 - Customers ramble, joke, overshare, or say absurd things. Stay unflappable: pull the one
   real serviceable need and pursue it; quietly ignore the rest. A party/event almost

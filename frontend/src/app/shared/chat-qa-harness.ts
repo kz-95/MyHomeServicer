@@ -1277,6 +1277,13 @@ async function actOnCard(
       host.sendText(kidChatter());
       return;
     }
+    // Address is structured-only now — the composer is LOCKED until the address card is
+    // filled, so even a type-only persona must use the card (No./Street/Postcode/Type +
+    // geocode). Typing a free-text address can no longer satisfy it.
+    if (b.type === "quote_field" && (b.data["key"] as string) === "address") {
+      host.confirmAddress(scn.addr);
+      return;
+    }
     let text: string;
     if (b.type === "quote_options") {
       // Confirm (or reject) the service by typing, not tapping.
