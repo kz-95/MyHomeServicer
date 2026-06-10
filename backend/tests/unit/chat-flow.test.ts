@@ -12,7 +12,7 @@
  * No DB, no LLM, no mocks.
  */
 
-import { nextStepBlocks, computeNextCards, extractAddress, extractName } from '../../src/services/chat.service';
+import { nextStepBlocks, computeNextCards, extractAddress, extractName, matchQuestionAnswer } from '../../src/services/chat.service';
 
 const ALL_BASE = [
   'preferredDate',
@@ -194,5 +194,40 @@ describe('extractName — registers a typed name, rejects junk', () => {
     expect(extractName('Hafiz', { allowBare: true })).toBe('Hafiz');
     expect(extractName('Hafiz')).toBeUndefined();           // no lead-in, bare not allowed
     expect(extractName('okay', { allowBare: true })).toBeUndefined(); // stopword
+  });
+});
+
+describe('matchQuestionAnswer — confirms a typed radio answer in any language', () => {
+  const areaQ = {
+    type: 'radio',
+    options: [
+      { value: 'bathtub', label: 'Bathtub', labelI18n: { en: 'Bathtub', ms: 'Tab mandi', zh: '浴缸', ta: 'குளியல் தொட்டி' } },
+      { value: 'toilet_wc', label: 'Toilet / WC', labelI18n: { en: 'Toilet / WC', ms: 'Tandas', zh: '马桶', ta: 'கழிப்பறை' } },
+    ],
+  };
+
+  it('matches the English option label', () => {
+    expect(matchQuestionAnswer(areaQ, 'Bathtub')).toBe('bathtub');
+  });
+
+  it('matches the option value', () => {
+    expect(matchQuestionAnswer(areaQ, 'toilet_wc')).toBe('toilet_wc');
+  });
+
+  it('matches a localized (zh / ms) label — the i18n loop fix', () => {
+    expect(matchQuestionAnswer(areaQ, '浴缸')).toBe('bathtub');
+    expect(matchQuestionAnswer(areaQ, 'Tandas')).toBe('toilet_wc');
+  });
+
+  it('matches an option wrapped in rojak filler', () => {
+    expect(matchQuestionAnswer(areaQ, 'eh boss, bathtub sia, can help anot?')).toBe('bathtub');
+  });
+
+  it('returns undefined when nothing matches', () => {
+    expect(matchQuestionAnswer(areaQ, 'something unrelated entirely')).toBeUndefined();
+  });
+
+  it('captures a bare number for a number/quantity question', () => {
+    expect(matchQuestionAnswer({ type: 'number' }, 'about 50')).toBe('50');
   });
 });

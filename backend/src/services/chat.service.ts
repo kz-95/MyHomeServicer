@@ -1529,30 +1529,51 @@ export function extractName(
 
 /**
  * Match a bare answer the user typed against a pending service question, so an
- * answer given in text (e.g. "50" for an attendees question) is captured and the
- * question is never re-asked. Only the unambiguous types: number/quantity (a
- * bare-ish number) and radio (a matched option). Free text + checkbox are left to
- * the model so we never capture an unrelated message as the answer.
+ * answer given in text (e.g. "50" for an attendees question, "bathtub", "一间房") is
+ * captured and the question is never re-asked. Only the unambiguous types:
+ * number/quantity (a bare-ish number) and radio (a matched option). Free text +
+ * checkbox are left to the model so we never capture an unrelated message.
+ *
+ * Matches against the option's value AND every localized label (en/ms/zh/ta), so an
+ * answer given in the customer's language confirms — without this the question card
+ * looped forever in zh/ta chats (the option labels are translated but the answer was
+ * only compared to the English label). Tolerates a rojak wrapper around the answer.
  */
-function matchQuestionAnswer(
-  q: { type: string; options?: Array<{ value: string; label: string }> },
+export function matchQuestionAnswer(
+  q: {
+    type: string;
+    options?: Array<{
+      value: string;
+      label: string;
+      labelI18n?: { en?: string; ms?: string; zh?: string; ta?: string };
+    }>;
+  },
   message: string,
 ): string | undefined {
   const text = message.trim();
-  if (!text || text.length > 40) return undefined;
+  if (!text || text.length > 60) return undefined;
   if (q.type === "number" || q.type === "quantity") {
     const m = text.match(/^\D{0,8}(\d{1,7})\D{0,8}$/);
     return m ? m[1] : undefined;
   }
   if (q.type === "radio" && q.options?.length) {
     const lower = text.toLowerCase();
-    const hit = q.options.find(
-      (o) =>
-        lower === o.value.toLowerCase() ||
-        lower === o.label.toLowerCase() ||
-        lower.includes(o.label.toLowerCase()),
-    );
-    return hit ? hit.value : undefined;
+    for (const o of q.options) {
+      const forms = [
+        o.value,
+        o.label,
+        o.labelI18n?.en,
+        o.labelI18n?.ms,
+        o.labelI18n?.zh,
+        o.labelI18n?.ta,
+      ]
+        .filter((s): s is string => !!s && s.trim().length > 0)
+        .map((s) => s.toLowerCase().trim());
+      // Exact match, or an option label (>= 3 chars, to avoid 1-2 char noise) appearing
+      // inside a wrapped answer ("eh boss, bathtub sia" contains "bathtub").
+      if (forms.some((f) => lower === f || (f.length >= 3 && lower.includes(f))))
+        return o.value;
+    }
   }
   return undefined;
 }

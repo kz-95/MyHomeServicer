@@ -279,6 +279,18 @@ the **B2 frontend geocode-on-prefill** to populate from a free-text address.
 - **B2 structured address** — credited free-text address still needs frontend geocode to
   fill No./postcode/type for the form.
 
+## Update — run ChatQA_Log_112410062601 + fix (2026-06-10)
+
+### FIXED — typed service-question answer couldn't confirm → question card looped
+`matchQuestionAnswer` compared a typed radio answer only to the option's English `value` /
+`label`. After the i18n seed the cards (and customers) answer in-language ("浴缸", "Tandas",
+"一间房"), which matched nothing → the `quote_question` card re-asked forever (sc.2
+`area`, sc.5 `paint_scope`). Now it matches the option `value` AND every localized label
+(en/ms/zh/ta), and tolerates a rojak wrapper ("eh boss, bathtub sia"). Length cap 40 → 60.
+Unit-tested (zh/ms/wrapped/number). NOTE: sc.2 & sc.5 also suffered category drift (bot
+re-confirming / guessing the wrong service) — that's the separate prose-hallucination issue
+below; this fix only addresses the answer-can't-confirm half.
+
 ### Prose hallucination — the model still NAMES wrong services in text ("Moving"/
   "Renovation" for a plumbing job) even though the CARDS are now correct/deterministic.
   Prompt-level, not card-level. Deferred.
