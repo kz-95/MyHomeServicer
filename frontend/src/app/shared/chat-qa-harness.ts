@@ -529,13 +529,14 @@ function fixedFutureDate(days: number): string {
  * the happy path: state the need, tap every card, reach the review. Fixed (not random), so
  * the Demo button shows the same clean 0 → review booking each time, in each language.
  */
-export function makeDemoScenarios(): QaScenario[] {
-  const langs: Array<{ language: QaLang; name: string; phone: string }> = [
+export function makeDemoScenarios(only?: QaLang): QaScenario[] {
+  const all: Array<{ language: QaLang; name: string; phone: string }> = [
     { language: "en", name: "Aaron", phone: "122003001" },
     { language: "ms", name: "Nadia", phone: "133004002" },
     { language: "zh", name: "Wei Jie", phone: "144005003" },
     { language: "ta", name: "Kumar", phone: "155006004" },
   ];
+  const langs = only ? all.filter((l) => l.language === only) : all;
   const service = QA_SERVICES[0]; // kitchen sink leak → Plumber (reliable, phrased in every language)
   const addr: QaAddress = {
     no: "33",
@@ -545,8 +546,10 @@ export function makeDemoScenarios(): QaScenario[] {
   };
   return langs.map((l, i) => {
     const persona: QaPersona = {
-      typing: "proper",
-      tone: "polite",
+      // Malaysian slang/casual register (Manglish shortcuts on the customer's input); the
+      // bot still REPLIES in the single pinned language, so no rojak mixing in the answers.
+      typing: "slang",
+      tone: "friendly",
       behavior: "cooperative",
       sorting: "service_first",
       language: l.language,
@@ -1478,9 +1481,11 @@ export interface QaHarnessOptions {
   logName: string;
   /** Customer mode draws identities from the preset list (the 6th axis). */
   customerMode?: boolean;
-  /** Demo mode: run the 4 fixed guaranteed-pass scenarios (en/ms/zh/ta) instead of random
-   *  ones, never refresh between them. One clean booking per language, 0 → review. */
+  /** Demo mode: run the fixed guaranteed-pass scenario(s) instead of random ones, never
+   *  refresh between them. One clean booking per language, 0 → review. */
   demo?: boolean;
+  /** Restrict the demo to ONE language (en/ms/zh/ta) — the per-language Demo buttons. */
+  demoLang?: QaLang;
   onProgress?: (done: number, total: number, label: string) => void;
   cancelled?: () => boolean;
   /** Incremental writer — called with each new chunk (header, per scenario, summary)
@@ -1506,14 +1511,14 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
   };
   const cancelled = opts.cancelled ?? (() => false);
   const scenarios = opts.demo
-    ? makeDemoScenarios()
+    ? makeDemoScenarios(opts.demoLang)
     : generateScenarios(opts.count, opts.customerMode === true);
   const results: QaRunResult[] = [];
 
   push(`# ${opts.logName}`);
   push(
     opts.demo
-      ? `Demo flow — ${scenarios.length} guaranteed-pass bookings, one per language (en/ms/zh/ta), 0 → review`
+      ? `Demo flow — guaranteed-pass booking${scenarios.length > 1 ? "s" : ""} (${scenarios.map((s) => s.persona.language).join("/")}), Malaysian slang, 0 → review → slow form walk`
       : `Automated chat QA — ${scenarios.length} simulated customers, each booking a full quote`,
   );
   push(`Mode: ${opts.demo ? "demo" : opts.customerMode ? "customer (with presets)" : "guest"}`);

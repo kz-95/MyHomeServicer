@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { ApiService } from "../core/services/api.service";
-import { QaHost, runQaHarness } from "./chat-qa-harness";
+import { QaHost, QaLang, runQaHarness } from "./chat-qa-harness";
 
 /**
  * Shared automated chat-QA runner. Holds the run state (so any component's button can
@@ -26,11 +26,11 @@ export class ChatQaService {
     void this.run(host, opts.count ?? 100, opts.customerMode === true, false);
   }
 
-  /** Begin the DEMO flow: 4 fixed guaranteed-pass bookings (en/ms/zh/ta), 0 → review.
-   *  No-op if a run is already going. */
-  startDemo(host: QaHost): void {
+  /** Begin a DEMO flow: ONE fixed guaranteed-pass booking in the given language
+   *  (en/ms/zh/ta), 0 → review → slow form walk to the summary. No-op if already running. */
+  startDemo(host: QaHost, lang: QaLang): void {
     if (this.running()) return;
-    void this.run(host, 4, false, true);
+    void this.run(host, 1, false, true, lang);
   }
 
   /** Cancel the in-flight run; the harness checks this between scenarios. */
@@ -38,7 +38,7 @@ export class ChatQaService {
     this.running.set(false);
   }
 
-  private async run(host: QaHost, count: number, customerMode: boolean, demo: boolean): Promise<void> {
+  private async run(host: QaHost, count: number, customerMode: boolean, demo: boolean, demoLang?: QaLang): Promise<void> {
     this.running.set(true);
     const requested = this.makeLogName();
     let resolvedName = requested;
@@ -83,8 +83,8 @@ export class ChatQaService {
 
     try {
       await runQaHarness(host, {
-        count, logName: requested, customerMode, demo,
-        onProgress: (done, total) => this.status.set(`${demo ? "Demo" : "QA"} ${done}/${total}`),
+        count, logName: requested, customerMode, demo, demoLang,
+        onProgress: (done, total) => this.status.set(`${demo ? `Demo ${demoLang ?? ""}`.trim() : "QA"} ${done}/${total}`),
         cancelled: () => !this.running(),
         onChunk: writeChunk,
       });

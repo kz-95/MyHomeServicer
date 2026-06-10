@@ -29,7 +29,7 @@ import {
   PlaceResult,
 } from "./places-autocomplete.component";
 import { ChatQaService } from "./chat-qa.service";
-import { QaHost, QaBlock, QaAnswer } from "./chat-qa-harness";
+import { QaHost, QaBlock, QaAnswer, QaLang } from "./chat-qa-harness";
 import { QaFormBridge } from "./qa-form-bridge.service";
 import { environment } from "../../environments/environment";
 
@@ -371,17 +371,20 @@ interface PublicConfig {
               <span class="qa-status">{{ qa.status() || "Running…" }}</span>
               <button class="qa-go" (click)="qa.cancel()">Stop</button>
             } @else if (demoPanelOpen()) {
-              <span class="qa-status">Demo: 4 bookings (en/ms/zh/ta), 0 → review</span>
+              <span class="qa-status">Demo (PIN, then a language):</span>
               <input
                 type="password"
                 class="qa-pin"
                 placeholder="PIN"
                 [ngModel]="qaPin()"
                 (ngModelChange)="qaPin.set($event)"
-                (keydown.enter)="startDemo()"
                 aria-label="Demo PIN"
               />
-              <button class="qa-go" (click)="startDemo()">Run demo</button>
+              <button class="qa-go" (click)="startDemo('en')">en</button>
+              <button class="qa-go" (click)="startDemo('ms')">ms</button>
+              <button class="qa-go" (click)="startDemo('zh')">zh</button>
+              <button class="qa-go" (click)="startDemo('ta')">ta</button>
+              @if (qa.status()) { <span class="qa-status">{{ qa.status() }}</span> }
             } @else {
               <input
                 type="number"
@@ -2804,15 +2807,15 @@ export class ChatWidgetComponent
     this.qa.start(this.buildQaHost(), { count, customerMode });
   }
 
-  /** Run the demo flow (PIN-gated): 4 fixed guaranteed-pass bookings, one per language. */
-  startDemo(): void {
+  /** Run a single-language demo flow (PIN-gated): one fixed guaranteed-pass booking. */
+  startDemo(lang: QaLang): void {
     if (this.qaPin().trim() !== QA_PIN) {
       this.qa.status.set("Wrong PIN");
       return;
     }
     this.qaPin.set("");
     this.demoPanelOpen.set(false);
-    this.qa.startDemo(this.buildQaHost());
+    this.qa.startDemo(this.buildQaHost(), lang);
   }
 
   /** The label text the UI actually renders for a card (localized), for QA checks. */
