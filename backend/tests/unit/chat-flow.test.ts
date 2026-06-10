@@ -231,3 +231,41 @@ describe('matchQuestionAnswer — confirms a typed radio answer in any language'
     expect(matchQuestionAnswer({ type: 'number' }, 'about 50')).toBe('50');
   });
 });
+
+describe('matchQuestionAnswer — checkbox free-text credits the answer (loop fix)', () => {
+  const heavyQ = {
+    type: 'checkbox',
+    options: [
+      { value: 'fridge', label: 'Fridge', labelI18n: { en: 'Fridge', zh: '冰箱' } },
+      { value: 'sofa', label: 'Sofa', labelI18n: { en: 'Sofa', zh: '沙发' } },
+      { value: 'piano', label: 'Piano', labelI18n: { en: 'Piano', zh: '钢琴' } },
+    ],
+  };
+  const airconQ = {
+    type: 'checkbox',
+    options: [
+      { value: 'wall_chemical', label: 'Wall Unit — Chemical Cleaning (Recommended)', labelI18n: { ms: 'Unit Dinding — Pencucian Kimia (Disyorkan)' } },
+      { value: 'wall_general', label: 'Wall Unit — General Cleaning' },
+    ],
+  };
+
+  it('credits a localized checkbox label (冰箱 → fridge) as an array — the run-1 heavy_items loop', () => {
+    expect(matchQuestionAnswer(heavyQ, '冰箱')).toEqual(['fridge']);
+  });
+
+  it('credits the exact English option label (case-insensitive)', () => {
+    expect(matchQuestionAnswer(airconQ, 'wall unit — chemical cleaning (recommended)')).toEqual(['wall_chemical']);
+  });
+
+  it('credits the ms option label — the run-3/5 aircon_service loop', () => {
+    expect(matchQuestionAnswer(airconQ, 'Unit Dinding — Pencucian Kimia (Disyorkan)')).toEqual(['wall_chemical']);
+  });
+
+  it('credits multiple options mentioned in one free-text answer', () => {
+    expect(matchQuestionAnswer(heavyQ, 'fridge and sofa')).toEqual(['fridge', 'sofa']);
+  });
+
+  it('returns undefined when no option matches', () => {
+    expect(matchQuestionAnswer(heavyQ, 'something unrelated')).toBeUndefined();
+  });
+});

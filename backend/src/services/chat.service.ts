@@ -1549,16 +1549,19 @@ export function matchQuestionAnswer(
     }>;
   },
   message: string,
-): string | undefined {
+): string | string[] | undefined {
   const text = message.trim();
   if (!text || text.length > 60) return undefined;
   if (q.type === "number" || q.type === "quantity") {
     const m = text.match(/^\D{0,8}(\d{1,7})\D{0,8}$/);
     return m ? m[1] : undefined;
   }
-  if (q.type === "radio" && q.options?.length) {
+  if ((q.type === "radio" || q.type === "checkbox") && q.options?.length) {
     const lower = text.toLowerCase();
-    for (const o of q.options) {
+    // An option matches when its value/label (any language) equals the answer, or
+    // appears (>= 3 chars, to avoid 1-2 char noise) inside a wrapped answer
+    // ("eh boss, bathtub sia" contains "bathtub").
+    const hits = (o: NonNullable<typeof q.options>[number]): boolean => {
       const forms = [
         o.value,
         o.label,
@@ -1569,11 +1572,17 @@ export function matchQuestionAnswer(
       ]
         .filter((s): s is string => !!s && s.trim().length > 0)
         .map((s) => s.toLowerCase().trim());
-      // Exact match, or an option label (>= 3 chars, to avoid 1-2 char noise) appearing
-      // inside a wrapped answer ("eh boss, bathtub sia" contains "bathtub").
-      if (forms.some((f) => lower === f || (f.length >= 3 && lower.includes(f))))
-        return o.value;
+      return forms.some((f) => lower === f || (f.length >= 3 && lower.includes(f)));
+    };
+    // Radio = single value; checkbox = every option the answer mentions (array), so a
+    // free-text "fridge and sofa" credits both and the card stops re-asking. Returning
+    // an array matches the checkbox serviceDetails shape (e.g. ['wall_chemical']).
+    if (q.type === "checkbox") {
+      const matched = q.options.filter(hits).map((o) => o.value);
+      return matched.length ? matched : undefined;
     }
+    const one = q.options.find(hits);
+    return one ? one.value : undefined;
   }
   return undefined;
 }

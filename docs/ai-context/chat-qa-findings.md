@@ -279,6 +279,28 @@ the **B2 frontend geocode-on-prefill** to populate from a free-text address.
 - **B2 structured address** — credited free-text address still needs frontend geocode to
   fill No./postcode/type for the form.
 
+## Update — run ChatQA_Log_124410062601 + fix (2026-06-10)
+
+### FIXED — checkbox service-question free-text never credited → card looped
+`matchQuestionAnswer` only handled `number`/`quantity`/`radio`; it returned `undefined` for
+`type: "checkbox"`. So a typed answer to a checkbox question (`heavy_items` for Moving,
+`aircon_service` for Aircond Servicer) was never credited → `unansweredQ[0]` stayed on that
+card → the bot re-emitted the SAME `quote_question` card 4+ turns → `looping` FAIL. Hit run 1
+(`heavy_items`, "冰箱") and run 3 (`aircon_service`, "Unit Dinding — Pencucian Kimia"), both
+FRESH runs — independent of the harness state-bleed below. Now checkbox matches like radio
+across `value` + every `labelI18n` lang and returns the matched values as an **array**
+(checkbox `serviceDetails` shape, e.g. `['wall_chemical']`; multi-mention "fridge and sofa"
+credits both). Client already array-ready (`answerDisplay`, `isAnswered`) — backend-only.
+Unit-tested (zh label, exact en label, ms label, multi-select, no-match).
+
+### KNOWN — harness state-bleed (NOT a bot bug; runs 2/4/5)
+The QA loop's ~30% "returning-guest refresh" path (`runQaHarness` `doRefresh`) reloads the
+PREVIOUS scenario's COMPLETED booking from storage — a *different* persona. The new persona
+types into a session already locked on the prior category with all fields filled → bot stuck
+on the last service card → loop. Invalid test, not a bot defect (a real returning guest is
+the same person). Fix later: on refresh, decline identity when persona changes, or replay the
+same scenario's own partial state. Separate pass.
+
 ## Update — run ChatQA_Log_112410062601 + fix (2026-06-10)
 
 ### FIXED — typed service-question answer couldn't confirm → question card looped
