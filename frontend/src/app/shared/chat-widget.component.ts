@@ -3020,18 +3020,15 @@ export class ChatWidgetComponent
           : "Welcome back! How can I help you today?",
       );
     } else {
-      // A different person on this device — start the language fresh.
+      // A different person on this device — start the language fresh AND wipe the
+      // ENTIRE quote flow, not just name/phone/address. The previous guest's locked
+      // category, date, time, budget and service answers live in memory (resolvedCards
+      // + prefillData); clearing only the contact fields left all of that behind, so the
+      // next person inherited a stale locked service and the flow looped on its card.
+      // resetQuoteFlowState wipes every signal + the shared prefill; clearGuestPrefill
+      // also drops the persisted copy.
       this.convoLang.set("en");
-      // Drop the remembered identity + address; keep nothing personal.
-      this.widget.accumulatePrefill({
-        contactName: "",
-        contactNumber: "",
-        address: "",
-      });
-      this.contactNameDraft.set("");
-      this.contactPhoneLocal.set("");
-      this.addrStreet.set("");
-      this.addressConfirmed.set(false);
+      this.resetQuoteFlowState();
       this.clearGuestPrefill();
       this.appendAssistantBubble(
         "No problem, let's start fresh. How can I help you today?",

@@ -293,13 +293,20 @@ across `value` + every `labelI18n` lang and returns the matched values as an **a
 credits both). Client already array-ready (`answerDisplay`, `isAnswered`) — backend-only.
 Unit-tested (zh label, exact en label, ms label, multi-select, no-match).
 
-### KNOWN — harness state-bleed (NOT a bot bug; runs 2/4/5)
-The QA loop's ~30% "returning-guest refresh" path (`runQaHarness` `doRefresh`) reloads the
-PREVIOUS scenario's COMPLETED booking from storage — a *different* persona. The new persona
-types into a session already locked on the prior category with all fields filled → bot stuck
-on the last service card → loop. Invalid test, not a bot defect (a real returning guest is
-the same person). Fix later: on refresh, decline identity when persona changes, or replay the
-same scenario's own partial state. Separate pass.
+### FIXED — cross-guest state leak on "not me" + harness refresh confirmed a different person
+Two halves, runs 2/4/5:
+- **App leak (real bug):** `confirmIdentity(false)` ("no, different person on this device")
+  only cleared name/phone/address + the persisted prefill copy. The previous guest's LOCKED
+  category, date, time, budget and service answers live in memory (`resolvedCards` +
+  `prefillData`) and were left behind → the new person inherited a stale locked service and
+  the flow looped on its card. Now it calls `resetQuoteFlowState()` for a full in-memory wipe
+  (every signal + shared prefill) before `clearGuestPrefill()`. The chat thread is kept.
+- **Harness (invalid test):** the ~30% "returning-guest refresh" path always tapped
+  `confirmIdentity(true)`, adopting the PREVIOUS scenario's completed booking as the new
+  persona. Now it compares the restored name to `scn.name`: same name → confirm + continue
+  (valid same-guest restore); different → DECLINE ("not me") so the new persona starts fresh,
+  and asserts the prior category did NOT leak (`categoryId` cleared). Realistic, since each
+  scenario is a different customer. AOT build clean.
 
 ## Update — run ChatQA_Log_112410062601 + fix (2026-06-10)
 

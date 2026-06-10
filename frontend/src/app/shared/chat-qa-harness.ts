@@ -864,11 +864,21 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
       issues.push(`refresh: returning guest "${priorName}" not asked "is this ${priorName}?" after reload`);
     }
     if (hasIdentity) {
-      host.confirmIdentity(true);
+      // The restored guest is the PREVIOUS scenario's customer, not this one. Only
+      // CONTINUE their booking when it's genuinely the same name; otherwise DECLINE
+      // ("no, not me") so the new persona starts fresh. Confirming a different person's
+      // session carried the prior locked category + filled fields into this customer,
+      // which made every post-refresh run loop on a stale service card.
+      const sameGuest =
+        !!priorName && priorName.trim().toLowerCase() === scn.name.trim().toLowerCase();
+      host.confirmIdentity(sameGuest);
       await waitIdle();
       flush();
-      if (!host.prefill()["contactName"]) {
+      if (sameGuest && !host.prefill()["contactName"]) {
         issues.push("refresh: saved contact not restored after identity confirm");
+      }
+      if (!sameGuest && host.prefill()["categoryId"]) {
+        issues.push("refresh: declined identity but prior category still locked — state leaked across guests");
       }
     }
   }
