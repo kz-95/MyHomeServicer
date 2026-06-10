@@ -2862,6 +2862,22 @@ export class ChatWidgetComponent
         await wait(500);
         return lines;
       },
+      demoWalkForm: async () => {
+        const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+        this.submitPrefill(); // navigate to the quote form with the booking pre-filled
+        const t0 = Date.now();
+        while (!this.qaFormBridge.active() && Date.now() - t0 < 8000) await wait(200);
+        await wait(1600); // let the prefill + budget ranges apply
+        if (!this.qaFormBridge.active())
+          return ["DEMO: quote form did not load within 8s"];
+        try {
+          // demo = true: paces page-by-page (~3s each) and STOPS on the summary —
+          // deliberately no navigate-home, so the finished quote stays on screen.
+          return await this.qaFormBridge.walk(true);
+        } catch (e) {
+          return [`DEMO FORM ERROR: ${(e as Error)?.message ?? String(e)}`];
+        }
+      },
       messages: () =>
         this.messages().map((m) => ({
           role: m.role,

@@ -2335,14 +2335,30 @@ export async function sendToAi(
       // the questions/review, instead of stalling one field per turn. Each extractor
       // returns undefined when its field isn't present, so partial input still flows
       // normally (only the fields actually given get pre-filled).
-      if (hasDateIntent || hasTimeIntent) {
+      // A field the CLIENT already confirmed must NOT be re-extracted/re-emitted just
+      // because the user re-mentions it ("this friday" again) — that re-shows a card the
+      // user already filled (the "confirmed card comes out again" bug). Re-extract only if
+      // not yet collected, OR the user is explicitly asking to change it.
+      const clientHas = new Set<string>([
+        ...(opts?.collected ?? []),
+        ...Object.keys(opts?.collectedData ?? {}),
+      ]);
+      const wantsEditNow =
+        /\b(change|edit|update|correct|fix|wrong|different|instead|actually|amend|re-?do|re-?enter|modify|mistake|typo)\b/i.test(
+          message,
+        ) ||
+        /\b(not|isn'?t|ain'?t)\s+(right|correct|good|ok|okay)\b/i.test(message);
+      const wantField = (k: string) => !clientHas.has(k) || wantsEditNow;
+      const wantDate = hasDateIntent && wantField("preferredDate");
+      const wantTime = hasTimeIntent && wantField("timeSlot");
+      if (wantDate || wantTime) {
         // Parse the assistant's RESOLVED wording first ("Sunday, 27 December 2026"),
         // then the user's raw phrasing. A vague "last sunday of dec 2026" makes chrono
         // grab the next bare "sunday" (wrong year/month); the assistant's explicit
         // date is unambiguous, so it wins.
         const parsed = parseDateTimeFromText(`${processed.text}\n${userConvo}`);
-        if (hasDateIntent) fillField("preferredDate", parsed.date);
-        if (hasTimeIntent) fillField("timeSlot", parsed.slot);
+        if (wantDate) fillField("preferredDate", parsed.date);
+        if (wantTime) fillField("timeSlot", parsed.slot);
       }
       // Address: credit a free-text address the user typed so it registers and the
       // card stops re-appearing every turn (the "address loops forever" bug). We emit
@@ -2359,7 +2375,7 @@ export async function sendToAi(
       // from the assistant narrating a bracket ("RM500–1000") and pre-filled budgetMax
       // the user never stated — same false-positive class as the old name extraction.
       const budgetN = extractBudget(userConvo);
-      if (budgetN) fillField("budgetMax", String(budgetN));
+      if (budgetN && wantField("budgetMax")) fillField("budgetMax", String(budgetN));
       // Name: capture from the user's own message while it's still being collected, so a
       // typed name ("name's Lina", "I'm Hafiz", or a bare "Hafiz" at the name step)
       // registers instead of looping the contactName card forever. Strictly gated — an
@@ -2375,7 +2391,9 @@ export async function sendToAi(
         const nm = extractName(message, { allowBare: atNameStep });
         if (nm) fillField("contactName", nm);
       }
-      fillField("contactNumber", extractPhone(userConvo));
+      if (wantField("contactNumber")) {
+        fillField("contactNumber", extractPhone(userConvo));
+      }
 
       // Fields are "done" if the client already collected them OR the model just
       // pre-filled them with a value in this reply.

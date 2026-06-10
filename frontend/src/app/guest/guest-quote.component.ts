@@ -650,7 +650,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   protected stripePayment = inject(StripePaymentService);
   private qaForm = inject(QaFormBridge);
   /** Stable ref so unregister matches the exact callback registered in ngOnInit. */
-  private qaWalker = (): Promise<string[]> => this.qaWalkAndVerify();
+  private qaWalker = (demo: boolean): Promise<string[]> => this.qaWalkAndVerify(demo);
 
   guestCountdown = signal(3);
   private guestCountdownTimer: ReturnType<typeof setInterval> | null = null;
@@ -1126,8 +1126,10 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
    * values + any validation block, then STOP at the Summary (no submit, no DB write).
    * Returns one log line per page for the QA report.
    */
-  private async qaWalkAndVerify(): Promise<string[]> {
+  private async qaWalkAndVerify(demo = false): Promise<string[]> {
     const out: string[] = [];
+    // Demo: linger ~3s on each page so a viewer can read it; QA: walk fast.
+    const dwell = () => (demo ? new Promise<void>((r) => setTimeout(r, 3000)) : Promise.resolve());
     const v = (s: string | undefined | null) => (s && String(s).trim() ? String(s).trim() : "-");
     const snap = () =>
       `cat=${this.f.categoryId ? "set" : "-"} date=${v(this.f.preferredDate)} time=${v(this.f.timeSlot)} ` +
@@ -1135,7 +1137,9 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
       `district=${v(this.f.newAddressDistrict)} state=${v(this.f.newAddressState)} type=${v(this.f.newAddressPropertyType)} ` +
       `budget=${this.f.budgetIndex === "" ? "-" : this.f.budgetIndex} name=${v(this.f.contactName)} phone=${v(this.f.contactNumber)}`;
 
+    this.step.set(1);
     out.push(`FORM page 1 (Service & Details): ${snap()}`);
+    await dwell();
     this.goToContact();
     if (this.step() === 1) {
       out.push(`  FORM ISSUE: blocked at page 1 — "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
@@ -1143,6 +1147,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     }
 
     out.push(`FORM page 2 (Contact): ${snap()}`);
+    await dwell();
     this.goToSummary();
     if (this.step() === 2) {
       out.push(`  FORM ISSUE: blocked at page 2 — "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
@@ -1150,6 +1155,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     }
 
     out.push(`FORM page 3 (Summary) reached OK — verified, stopping (no submit): ${snap()}`);
+    await dwell(); // hold on the summary so it's visible at the end of the demo
     return out;
   }
 

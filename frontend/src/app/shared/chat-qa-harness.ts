@@ -49,6 +49,9 @@ export interface QaHost {
   /** Press "Review & submit", walk the live quote form to the Summary (no submit), and
    *  return a per-page report; then navigate back home. Optional (QA-only). */
   submitAndVerifyForm?(): Promise<string[]>;
+  /** Demo variant: same review→form walk, but paced page-by-page (~3s each) and STOPS on
+   *  the summary (does not navigate away) so the full quote can be shown. Optional. */
+  demoWalkForm?(): Promise<string[]>;
   /** Full transcript snapshot (oldest first). */
   messages(): QaMsg[];
   /** True while a reply is in flight. */
@@ -239,6 +242,9 @@ export interface QaScenario {
   needPhrase: string;
   /** When true, this customer re-states info already given mid-flow (idempotency test). */
   repeats: boolean;
+  /** Demo flow: answer service questions with the most SENSIBLE option (matched to the
+   *  service need), and walk the quote form slowly (page-by-page) ending at the summary. */
+  demo?: boolean;
   label: string;
 }
 
@@ -564,6 +570,7 @@ export function makeDemoScenarios(): QaScenario[] {
       needIncluded: opening.needIncluded,
       needPhrase: styleLine(persona, service.needs[l.language] ?? service.needs.en),
       repeats: false,
+      demo: true,
       label: `DEMO/${l.language}/${l.name} — ${service.needs.en}`,
     };
   });
@@ -1178,6 +1185,35 @@ function humanAnswerText(scn: QaScenario): string {
  * Non-rambler behaviors pick the FIRST plausible option (most common/default).
  * Ramblers pick RANDOMLY among plausible options — they drift and contradict.
  */
+/** For the DEMO: the most SENSIBLE option for a question, matched to the service-need
+ *  keywords (so "kitchen sink leaking" → a "sink/tap" area + a "leak/repair" problem),
+ *  else the first plausible option. Deterministic — gives the demo coherent answers. */
+function demoBestOption(
+  real: Array<{ value: string; label: string }>,
+  scn: QaScenario,
+): { value: string; label: string } {
+  const need = `${scn.service.needs.en} ${scn.service.vague}`.toLowerCase();
+  const SYN: string[][] = [
+    ["leak", "leaking", "drip", "repair", "fix", "water"],
+    ["sink", "tap", "faucet", "basin", "kitchen"],
+    ["aircon", "air", "cooling", "cold", "service", "clean"],
+    ["move", "moving", "relocate", "whole", "home", "pack"],
+    ["paint", "wall", "repaint", "room", "ceiling"],
+    ["wash", "car", "detail", "interior"],
+  ];
+  const words = new Set(need.split(/\W+/).filter((w) => w.length > 2));
+  for (const list of SYN) if (list.some((w) => need.includes(w))) for (const w of list) words.add(w);
+  let best = real[0];
+  let bestScore = -1;
+  for (const o of real) {
+    const label = `${o.value} ${o.label}`.toLowerCase();
+    let score = 0;
+    for (const w of words) if (label.includes(w)) score++;
+    if (score > bestScore) { bestScore = score; best = o; }
+  }
+  return best;
+}
+
 function answerForQuestion(b: QaBlock, scn: QaScenario): QaAnswer {
   const qtype = ((b.data["qtype"] as string) || (b.data["type"] as string) || "text");
   const options = (b.data["options"] as Array<{ value: string; label: string }>) || [];
@@ -1186,12 +1222,13 @@ function answerForQuestion(b: QaBlock, scn: QaScenario): QaAnswer {
   switch (qtype) {
     case "radio":
       if (real.length) {
-        const choice = ramble ? pick(real) : real[0];
+        const choice = scn.demo ? demoBestOption(real, scn) : ramble ? pick(real) : real[0];
         return { qtype: "radio", radio: choice.value };
       }
       return { qtype: "text", text: humanAnswerText(scn) };
     case "checkbox": {
       if (!real.length) return { qtype: "text", text: humanAnswerText(scn) };
+      if (scn.demo) return { qtype: "checkbox", checkbox: [demoBestOption(real, scn).value] };
       if (!ramble) return { qtype: "checkbox", checkbox: [real[0].value] };
       const n = Math.min(real.length, randInt(1, 2));
       const chosen = [...real].sort(() => Math.random() - 0.5).slice(0, n);
@@ -1526,10 +1563,13 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
 
     // Reached the review → press "Review & submit" and walk the real quote form to the
     // Summary (no submit), logging each page, then the host returns home for the next run.
-    if (res.reachedReview && host.submitAndVerifyForm && !cancelled()) {
-      push("--- FORM CHECK (Review & submit → quote page) ---");
+    // Demo: walk the quote form slowly and STOP on the summary (show off the full quote).
+    // QA: the fast walk + report, then back home.
+    const formWalk = scn.demo ? host.demoWalkForm : host.submitAndVerifyForm;
+    if (res.reachedReview && formWalk && !cancelled()) {
+      push(`--- ${scn.demo ? "DEMO: walking the quote form to the summary" : "FORM CHECK (Review & submit → quote page)"} ---`);
       try {
-        for (const line of await host.submitAndVerifyForm()) push(line);
+        for (const line of await formWalk.call(host)) push(line);
       } catch (e) {
         push(`FORM CHECK ERROR: ${(e as Error)?.message ?? String(e)}`);
       }
