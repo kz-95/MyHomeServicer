@@ -110,7 +110,7 @@ flowchart TD
 
     L --> M["❓ Service questions
     • mark answeredQ (client + model)
-    • matchQuestionAnswer (bare number/radio)
+    • matchQuestionAnswer (number/radio/checkbox→array)
     • inject next unanswered question
     (one at a time, with translated labels)"]
 
@@ -252,12 +252,16 @@ flowchart TD
     30% of guest runs (after first)"]
 
     CLEAR --> REFRESH{"🔄 Refresh mode?"}
-    REFRESH -->|Yes, identity_confirm found| ID["✅ confirmIdentity(true)
-    → restore saved contact"]
+    REFRESH -->|Yes, restored name == scn.name| ID["✅ confirmIdentity(true)
+    → restore saved contact + continue"]
+    REFRESH -->|Yes, restored name != scn.name| IDNO["🚫 confirmIdentity(false)
+    → full resetQuoteFlowState, fresh start
+    (assert prior category did NOT leak)"]
     REFRESH -->|Yes, but no confirm| ID_ERR["⚠️ issue:
     returning guest not asked identity"]
     REFRESH -->|No (clean start)| OPEN
     ID --> OPEN
+    IDNO --> OPEN
     ID_ERR --> OPEN
 
     OPEN["💬 Send opening turns
@@ -559,8 +563,9 @@ flowchart TD
       emitted this turn (model)"]
 
     CF_QUESTIONS --> CF_MATCH["🔍 matchQuestionAnswer:
-    if user msg is a bare number
-    or matches a radio option label
+    if user msg is a bare number,
+    matches a radio option label (→ value),
+    or matches checkbox option label(s) (→ value array)
     → capture as answer
     → mark question answered"]
 

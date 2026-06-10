@@ -279,6 +279,22 @@ the **B2 frontend geocode-on-prefill** to populate from a free-text address.
 - **B2 structured address** — credited free-text address still needs frontend geocode to
   fill No./postcode/type for the form.
 
+## Update — run ChatQA_Log_142210062601 + fix (2026-06-10)
+
+### FIXED — a confirmation re-opened already-filled cards (redundant-card loop)
+Run 1: the user typed "yes that is all correct, please continue". The post-reply guard that
+DROPS cards for fields already in `collected` is gated on "is the user asking to edit?" — and
+that regex matched the word **"correct"** as an edit verb. So the guard was skipped and the
+already-filled `preferredDate` / `timeSlot` / `address` cards were re-emitted every turn
+(`redundant` FAIL). Root cause: bare "correct" in the edit-intent regex (3 copies). Fixed by
+extracting one exported `wantsFieldEdit(message)` used by all three gates (re-extract,
+confirmed-card dedup, single-field edit): "correct" now only triggers as a VERB acting on a
+field ("correct the address"); "yes that's correct" / "looks correct" / "ok continue" are
+confirmations, NOT edits. "incorrect" / "not correct" / "bad <field>" still trigger.
+Unit-tested (confirmation-not-edit, plain affirmation, explicit change, verb-correct,
+negation). 44/44 chat-flow tests. NOTE: this run also had a wrong date parse ("next monday" →
+2026-06-10 instead of 06-15) — separate date-extraction issue, not the redundant-card bug.
+
 ## Update — run ChatQA_Log_124410062601 + fix (2026-06-10)
 
 ### FIXED — checkbox service-question free-text never credited → card looped

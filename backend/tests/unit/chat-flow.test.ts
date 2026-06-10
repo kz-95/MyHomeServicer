@@ -12,7 +12,7 @@
  * No DB, no LLM, no mocks.
  */
 
-import { nextStepBlocks, computeNextCards, extractAddress, extractName, matchQuestionAnswer } from '../../src/services/chat.service';
+import { nextStepBlocks, computeNextCards, extractAddress, extractName, matchQuestionAnswer, wantsFieldEdit } from '../../src/services/chat.service';
 
 const ALL_BASE = [
   'preferredDate',
@@ -267,5 +267,38 @@ describe('matchQuestionAnswer — checkbox free-text credits the answer (loop fi
 
   it('returns undefined when no option matches', () => {
     expect(matchQuestionAnswer(heavyQ, 'something unrelated')).toBeUndefined();
+  });
+});
+
+describe('wantsFieldEdit — confirmation must not count as an edit (redundant-card fix)', () => {
+  it('a confirmation containing "correct" is NOT an edit', () => {
+    expect(wantsFieldEdit('yes that is all correct, please continue')).toBe(false);
+    expect(wantsFieldEdit('looks correct')).toBe(false);
+    expect(wantsFieldEdit("that's correct")).toBe(false);
+    expect(wantsFieldEdit('all correct, proceed')).toBe(false);
+  });
+
+  it('plain affirmations are not edits', () => {
+    expect(wantsFieldEdit('ya betul')).toBe(false);
+    expect(wantsFieldEdit('ok please continue')).toBe(false);
+    expect(wantsFieldEdit('yes that is all')).toBe(false);
+  });
+
+  it('explicit change requests ARE edits', () => {
+    expect(wantsFieldEdit('change my date')).toBe(true);
+    expect(wantsFieldEdit('can I refill my address')).toBe(true);
+    expect(wantsFieldEdit('wrong budget')).toBe(true);
+    expect(wantsFieldEdit('the time is incorrect')).toBe(true);
+  });
+
+  it('"correct" as a verb acting on a field IS an edit', () => {
+    expect(wantsFieldEdit('correct the address')).toBe(true);
+    expect(wantsFieldEdit('please correct my phone')).toBe(true);
+  });
+
+  it('soft negations and "bad <field>" ARE edits', () => {
+    expect(wantsFieldEdit("the address isn't right")).toBe(true);
+    expect(wantsFieldEdit("that's not correct")).toBe(true);
+    expect(wantsFieldEdit('bad address')).toBe(true);
   });
 });

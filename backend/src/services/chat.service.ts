@@ -1588,6 +1588,42 @@ export function matchQuestionAnswer(
 }
 
 /**
+ * True when the user is asking to CHANGE an already-collected field, so its card must be
+ * re-opened. A CONFIRMATION must NOT count as an edit: phrases like "yes that's all
+ * correct", "looks correct", "ok please continue" contain the word "correct" but mean
+ * "keep it". Treating those as edits skips the "don't repeat a confirmed card" dedup, so
+ * the flow re-emits already-filled date/time/address cards (the redundant-card loop seen
+ * in ChatQA_Log_142210062601). Hence "correct" only triggers as a VERB acting on a field
+ * ("correct the address"), never as the confirmation adjective; "incorrect" / "not
+ * correct" / "bad <field>" still trigger. This is the single source of edit-intent — the
+ * collecting re-extract gate, the confirmed-card dedup, and the single-field edit path
+ * all call it, so they can never disagree.
+ */
+export function wantsFieldEdit(message: string): boolean {
+  const FIELD = "address|date|day|time|slot|budget|price|cost|name|number|phone";
+  // Unambiguous edit verbs. Bare "correct" is deliberately excluded (it is far more often
+  // a confirmation) — its verb sense is caught by the field-directed pattern below.
+  if (
+    /\b(change|edit|update|fix|wrong|incorrect|different|instead|amend|re-?do|re-?enter|re-?fill|refill|modify|mistake|typo)\b/i.test(
+      message,
+    )
+  )
+    return true;
+  // "correct / redo / re-enter the address", "change my date" — a verb acting on a field.
+  if (
+    new RegExp(
+      `\\b(correct|redo|re-?enter|re-?fill|refill|change|fix|edit)\\s+(the|my|this|that|it|${FIELD})\\b`,
+      "i",
+    ).test(message)
+  )
+    return true;
+  // Soft negations: "the address isn't right", "that's not correct", "bad address".
+  if (/\b(not|isn'?t|ain'?t)\s+(right|correct|good|ok|okay)\b/i.test(message)) return true;
+  if (new RegExp(`\\b(bad|incorrect)\\s+(${FIELD})\\b`, "i").test(message)) return true;
+  return false;
+}
+
+/**
  * Once a category is confirmed, the quote flow must keep advancing. The model
  * frequently stalls — it re-emits a quote_options card (which we strip) or just
  * says "let me check..." with no action block, leaving the user stuck with no
@@ -2352,11 +2388,7 @@ export async function sendToAi(
         ...(opts?.collected ?? []),
         ...Object.keys(opts?.collectedData ?? {}),
       ]);
-      const wantsEditNow =
-        /\b(change|edit|update|correct|fix|wrong|different|instead|actually|amend|re-?do|re-?enter|modify|mistake|typo)\b/i.test(
-          message,
-        ) ||
-        /\b(not|isn'?t|ain'?t)\s+(right|correct|good|ok|okay)\b/i.test(message);
+      const wantsEditNow = wantsFieldEdit(message);
       const wantField = (k: string) => !clientHas.has(k) || wantsEditNow;
       const wantDate = hasDateIntent && wantField("preferredDate");
       const wantTime = hasTimeIntent && wantField("timeSlot");
@@ -2566,14 +2598,7 @@ export async function sendToAi(
       }
     }
     const answeredQs = new Set(opts?.answeredQuestions ?? []);
-    const wantsEdit =
-      /\b(change|edit|update|correct|fix|wrong|different|instead|actually|amend|re-?do|re-?enter|modify|mistake|typo)\b/i.test(
-        message,
-      ) ||
-      /\b(not|isn'?t|ain'?t)\s+(right|correct|good|ok|okay)\b/i.test(message) ||
-      /\b(bad|incorrect)\s+(address|date|time|budget|name|number|phone)\b/i.test(
-        message,
-      );
+    const wantsEdit = wantsFieldEdit(message);
     if (!wantsEdit && (clientConfirmed.size || justExtracted.size || answeredQs.size)) {
       outBlocks = outBlocks.filter((b) => {
         const k = typeof b.data.key === "string" ? b.data.key : "";
@@ -2638,11 +2663,7 @@ export async function sendToAi(
   // (a resumed/locked category was otherwise force-injecting its question over the edit).
   // After they re-enter it, the normal next-step logic resumes the unsettled detail.
   if (!opts?.formAssist) {
-    const wantsChange =
-      /\b(change|edit|update|correct|fix|wrong|different|amend|re-?do|re-?enter|re-?fill|refill|modify|mistake|typo)\b/i.test(
-        message,
-      ) ||
-      /\b(not|isn'?t|ain'?t)\s+(right|correct|good|ok|okay)\b/i.test(message);
+    const wantsChange = wantsFieldEdit(message);
     const editField = !wantsChange
       ? null
       : /\baddress\b/i.test(message)

@@ -109,6 +109,19 @@ The ack is a **fixed string**, never LLM-generated, so it cannot hallucinate or
 mistranslate. To make the ack-only turn render cleanly the ack is non-empty (an empty
 `answer` would hit the client's `|| fallbackReply` and show boilerplate).
 
+**RULE — a confirmation is NOT an edit (`wantsFieldEdit`).** After an LLM reply, a guard
+drops any `quote_field` / `quote_question` card for a field the client already `collected`
+(show each card once) — UNLESS the user is asking to change something, in which case the
+card is kept so they can re-enter it. That edit-intent test is the single exported
+`wantsFieldEdit(message)`, used by all three edit gates (re-extract, confirmed-card dedup,
+single-field edit). It must treat **"correct" as a confirmation, not an edit**: "yes that's
+all correct, please continue" means keep the values, so it does NOT re-open cards. Only the
+verb sense ("correct the address"), explicit verbs (change/fix/wrong/incorrect/redo…), soft
+negations ("the date isn't right"), and "bad <field>" count as edits. Bug it fixes
+(`ChatQA_Log_142210062601` run 1): a confirmation containing "correct" tripped the old regex
+→ dedup skipped → already-filled date/time/address cards re-emitted every turn (redundant
+loop). Unit-tested in `chat-flow.test.ts`.
+
 ---
 
 ## 5. The quote flow (field order)
@@ -197,6 +210,13 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
   identity answer; it is **re-derived from the restored thread** on "yes, it's me" and
   "continue last session" (`deriveConvoLang`). Without the reset, a new customer inherited
   the previous thread's language (e.g. English user answered entirely in Chinese).
+- **RULE — "no, not me" wipes the WHOLE quote flow, not just the language.** A returning-guest
+  decline (`confirmIdentity(false)`) means a different person on this device, so it calls
+  `resetQuoteFlowState()` — clearing the locked category, date, time, budget, address, contact
+  AND service answers (every card signal + the shared `prefillData`), plus the persisted copy
+  (`clearGuestPrefill`). Clearing only name/phone/address left the prior guest's **locked
+  service in memory**, so the next person inherited it and the flow looped on its card. The
+  chat thread itself is kept (only the quote data is wiped).
 
 **Action-block discipline (guest/customer)**
 - Naming a service, asking a date, asking a question, or confirming → MUST emit the
@@ -221,6 +241,10 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
     that option (`answerRadio` → structured confirm), so the turn skips the LLM entirely: no
     re-ask loop, no model drift. A loose/ambiguous answer (token overlap caps at 0.7) falls
     through to the model. Deterministic; mirrors the server `matchQuestionAnswer` backstop.
+  - **Server `matchQuestionAnswer` backstop** credits a typed answer for `number`/`quantity`,
+    `radio` (single value), AND `checkbox` (every option the text mentions → a value **array**,
+    e.g. `['wall_chemical']`, matching the checkbox `serviceDetails` shape). Without the checkbox
+    branch a typed answer to a checkbox question was never recorded → the card looped.
 - After a rejection, ask ONE clarifying question max, then act (re-offer the best fit).
 - Never re-list collected values in prose (the review card is the single source of truth).
 
