@@ -111,7 +111,7 @@ means:
 - `.env.example` committed with placeholder values only
 - If a real key was ever committed — even years ago, even in a deleted file, even in a force-pushed commit — it's leaked permanently. Rotate immediately. Git history is forever.
 - Install `gitleaks` as a pre-commit hook to scan every commit for secret patterns before allowing the push
-- Run `trufflehog` in CI on every push to scan git history for leaked secrets and alert the team
+- Run `trufflehog` in CI on PR to master + nightly schedule to scan git history for leaked secrets and alert the team
 
 **Layer 3 — Production secrets in a secrets manager**
 - Development: `.env` file locally is fine
@@ -429,7 +429,7 @@ Define retention per data type. AUDIT_LOG and TRANSACTION permanent. Chat messag
 - [ ] `.env.example` created with placeholder values
 - [ ] `prisma/seed/seeded-ids.json` added to `.gitignore`
 - [ ] `gitleaks` pre-commit hook installed
-- [ ] `trufflehog` added to CI pipeline to scan git history on every push
+- [ ] `trufflehog` added to CI pipeline (PR gate + nightly)
 - [ ] `helmet()` applied globally
 - [ ] `cors()` configured with explicit origin list
 - [ ] `express-rate-limit` on auth routes
@@ -474,7 +474,7 @@ Define retention per data type. AUDIT_LOG and TRANSACTION permanent. Chat messag
 - [x] `npm audit` — no critical or high vulnerabilities (fixed 2026-05-31: backend dep upgrade)
 - [ ] `trufflehog` scan of git history clean
 - [ ] Rate limits tuned for production traffic
-- [x] `trufflehog` scan of git history — configured in CI (`ci.yml` + `security.yml`)
+- [x] `trufflehog` scan of git history — configured in CI (`pr-gate.yml` + `nightly.yml`)
 - [x] Semgrep OSS scan — 134 backend+frontend files scanned (2026-05-28); 0 high/critical findings; 2 low path traversal warnings fixed
 - [ ] PDPA compliance reviewed
 - [ ] Data retention policy defined

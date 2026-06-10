@@ -1,0 +1,99 @@
+name: Push Checks
+
+# Lightweight: runs on every push to any branch. Lint + build + unit tests
+# only. No E2E (expensive), no secret scan (gitleaks pre-commit handles it).
+# WhatsApp notification on completion (pass or fail).
+
+on:
+  push:
+
+jobs:
+  # ── Backend: lint, build, unit tests ───────────────────────────────────────
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Kuala_Lumpur
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm install --no-audit --no-fund
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
+
+      - name: Lint
+        working-directory: backend
+        run: npm run lint
+
+      - name: TypeScript check
+        working-directory: backend
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        working-directory: backend
+        run: npm test
+
+  # ── Frontend: build ────────────────────────────────────────────────────────
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  # ── WhatsApp notification via Meta Cloud API ──────────────────────────────
+  notify:
+    needs: [backend, frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      META_TOKEN: ${{ secrets.META_TOKEN || '' }}
+      META_PHONE_ID: ${{ secrets.META_PHONE_ID || '' }}
+      META_WHATSAPP_TO: ${{ secrets.META_WHATSAPP_TO || '' }}
+    steps:
+      - name: Send WhatsApp notification
+        if: env.META_TOKEN != '' && env.META_PHONE_ID != '' && env.META_WHATSAPP_TO != ''
+        run: |
+          STATUS_BACKEND="${{ needs.backend.result }}"
+          STATUS_FRONTEND="${{ needs.frontend.result }}"
+          REF="${{ github.ref_name }}"
+          URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          COMMIT="${{ github.sha }}"
+
+          if [ "$STATUS_BACKEND" = "success" ] && [ "$STATUS_FRONTEND" = "success" ]; then
+            TEXT="*PASS* push-checks — ${REF}%0ACommit: ${COMMIT:0:7}%0ABackend: ok  Frontend: ok%0A${URL}"
+          else
+            TEXT="*FAIL* push-checks — ${REF}%0ACommit: ${COMMIT:0:7}%0ABackend: ${STATUS_BACKEND}  Frontend: ${STATUS_FRONTEND}%0A${URL}"
+          fi
+
+          TO="$META_WHATSAPP_TO"
+          RTYPE="individual"
+          if echo "$TO" | grep -q "@g.us"; then RTYPE="group"; fi
+
+          curl -s -X POST "https://graph.facebook.com/v25.0/${META_PHONE_ID}/messages" \
+            -H "Authorization: Bearer ${META_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"messaging_product\":\"whatsapp\",\"recipient_type\":\"${RTYPE}\",\"to\":\"${TO}\",\"type\":\"text\",\"text\":{\"preview_url\":true,\"body\":\"${TEXT}\"}}" || true

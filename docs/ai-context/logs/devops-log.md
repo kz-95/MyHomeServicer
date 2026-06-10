@@ -94,6 +94,7 @@
 |------|------|--------|--------|
 | 2026-05-25 | `backend/Dockerfile` | Created — multi-stage prod image | ✅ |
 | 2026-05-25 | `.dockerignore` | Created — repo-root ignore for Docker builds | ✅ |
+| 2026-06-10 | `docs/superpowers/specs/2026-06-10-ci-pipeline-design.md` | CI pipeline redesign — push-checks + PR gate + nightly, WhatsApp notifications, delete security.yml | 📋 Designed |
 
 ---
 
@@ -580,3 +581,36 @@ This step rewrites the emitted `index.html` asset refs to root-absolute so Cloud
 | `npx tsc --noEmit` (backend) | ✅ Zero errors |
 
 **Summary:** New schema fully compatible with existing seed. No seed adjustments required. All gates pass.
+
+---
+
+### Session 2026-06-10 — CI pipeline redesign (design phase)
+
+**Scope:** Full CI pipeline redesign with WhatsApp notifications, E2E strategy, and branch merging.
+
+**Work completed:**
+
+1. **Branch consolidation** — Merged `feat/ux-polish` (109 commits) into `master`. Deleted stale `amethyst-tin` worktree + branch. Pushed via GitHub PR #1.
+
+2. **CI pipeline design** — `docs/superpowers/specs/2026-06-10-ci-pipeline-design.md`:
+   - `push-checks.yml` — lint, build, unit tests on every push (~3 min)
+   - `pr-gate.yml` — full suite (lint, build, unit, API E2E, browser E2E, secret scan, npm audit) on PR to master (~10 min)
+   - `nightly.yml` — maintenance sweep (E2E, secret scan, npm audit) at 2am MYT (~6 min)
+   - WhatsApp notifications via CallMeBot on all 3 workflows (pass + fail)
+   - `security.yml` to be deleted — folded into `pr-gate.yml` + `nightly.yml`
+
+3. **Browser E2E strategy** — 5 initial Playwright scenarios (guest quote, customer login+browse+quote, admin PIN gate, servicer jobs board). Phased rollout.
+
+4. **WhatsApp setup** — CallMeBot (free, no credit card). Secrets: `CALLMEBOT_APIKEY`, `CALLMEBOT_PHONE`.
+
+5. **README tech stack** — Updated: exact versions, missing tools (Stripe, Google Maps, Passport, Zod, Lucide, CDK, QR code, Playwright).
+
+6. **CLAUDE.md** — CI section updated from manual-only to event-driven pipeline rules.
+
+**Pending:**
+- [ ] Implement `push-checks.yml`
+- [ ] Implement `pr-gate.yml`
+- [ ] Implement `nightly.yml`
+- [ ] Scaffold Playwright + write 5 browser E2E scenarios
+- [ ] Delete `security.yml` and `ci.yml` after confirming new workflows
+- [ ] Set `CALLMEBOT_APIKEY` + `CALLMEBOT_PHONE` GitHub secrets

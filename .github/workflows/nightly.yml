@@ -1,0 +1,213 @@
+name: Nightly
+
+# Maintenance sweep. Runs every night at 2am MYT (6pm UTC).
+# Catches dependency rot, E2E drift, and secret leaks that the
+# pre-commit hook might have missed.
+#
+# Cost: ~6 min. 30 nights × 6 min = 180 min/month.
+#
+# Notification: set NOTIFY_HOOK secret. Skipped silently if not set.
+
+on:
+  schedule:
+    - cron: '0 18 * * *'   # 2am MYT (UTC+8 = 18:00 UTC)
+
+jobs:
+  # ── Backend: API-level E2E against real Postgres + Redis ───────────────────
+  backend-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: homeservices
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-test-jwt-secret-value-0123456789abcdef
+      REFRESH_SECRET: ci-test-refresh-secret-value-0123456789abcdef
+      NODE_ENV: development
+      TZ: Asia/Kuala_Lumpur
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm install --no-audit --no-fund
+
+      - name: Sync schema + generate
+        working-directory: backend
+        run: |
+          npx prisma db push --skip-generate
+          npx prisma generate
+
+      - name: Seed demo data
+        working-directory: backend
+        run: npm run seed
+
+      - name: Run API E2E tests
+        working-directory: backend
+        run: npm run test:e2e
+
+  # ── Secret scanning ────────────────────────────────────────────────────────
+  secret-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+      - name: trufflehog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --results=verified,unknown
+
+  # ── Dependency vulnerability audit ────────────────────────────────────────
+  npm-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Audit backend
+        working-directory: backend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Audit frontend
+        working-directory: frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # ── Semgrep SAST (free OSS — no account needed) ─────────────────────────────
+  semgrep-sast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Semgrep scan
+        run: |
+          pip install semgrep
+          semgrep --config=auto --error backend/src/ frontend/src/
+
+  # ── Prompt injection test ──────────────────────────────────────────────────
+  prompt-injection:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: homeservices
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
+      JWT_SECRET: ci-test-jwt-secret-value-0123456789abcdef
+      NODE_ENV: development
+      TZ: Asia/Kuala_Lumpur
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm install --no-audit --no-fund
+
+      - name: Sync schema + seed
+        working-directory: backend
+        run: |
+          npx prisma db push --skip-generate
+          npx prisma generate
+          npm run seed
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          npx ts-node src/index.ts &
+          sleep 5
+          curl -s http://localhost:3000/health || true
+
+      - name: Run prompt injection tests
+        working-directory: backend
+        run: node tests/security/prompt-injection.mjs
+
+  # ── WhatsApp notification via Meta Cloud API ──────────────────────────────
+  notify:
+    needs: [backend-e2e, secret-scan, semgrep-sast, prompt-injection, npm-audit]
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      META_TOKEN: ${{ secrets.META_TOKEN || '' }}
+      META_PHONE_ID: ${{ secrets.META_PHONE_ID || '' }}
+      META_WHATSAPP_TO: ${{ secrets.META_WHATSAPP_TO || '' }}
+    steps:
+      - name: Send WhatsApp notification
+        if: env.META_TOKEN != '' && env.META_PHONE_ID != '' && env.META_WHATSAPP_TO != ''
+        run: |
+          URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          DATE=$(date -u +%Y-%m-%d)
+          E="${{ needs.backend-e2e.result }}"; G="${{ needs.secret-scan.result }}"
+          S="${{ needs.semgrep-sast.result }}"; P="${{ needs.prompt-injection.result }}"
+          A="${{ needs.npm-audit.result }}"
+
+          FAILS=0
+          [ "$E" != "success" ] && FAILS=$((FAILS+1))
+          [ "$G" != "success" ] && FAILS=$((FAILS+1))
+          [ "$S" != "success" ] && FAILS=$((FAILS+1))
+          [ "$P" != "success" ] && FAILS=$((FAILS+1))
+          [ "$A" != "success" ] && FAILS=$((FAILS+1))
+
+          if [ "$FAILS" -eq 0 ]; then
+            TEXT="*PASS* nightly ${DATE}%0AAll 5 jobs ok%0A${URL}"
+          else
+            TEXT="*FAIL* nightly ${DATE}%0AE2E=${E} Truffle=${G} Semgrep=${S} Inj=${P} Aud=${A}%0A${URL}"
+          fi
+
+          TO="$META_WHATSAPP_TO"
+          RTYPE="individual"
+          if echo "$TO" | grep -q "@g.us"; then RTYPE="group"; fi
+
+          curl -s -X POST "https://graph.facebook.com/v25.0/${META_PHONE_ID}/messages" \
+            -H "Authorization: Bearer ${META_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"messaging_product\":\"whatsapp\",\"recipient_type\":\"${RTYPE}\",\"to\":\"${TO}\",\"type\":\"text\",\"text\":{\"preview_url\":true,\"body\":\"${TEXT}\"}}" || true

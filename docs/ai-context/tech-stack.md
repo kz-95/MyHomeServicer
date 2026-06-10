@@ -228,7 +228,7 @@ Transactional emails (invoices, password reset, account notifications) are sent 
 | qrcode | QR code generation on invoices/receipts |
 | playwright | E2E testing (alongside Jasmine/Karma unit tests) |
 | gitleaks | Pre-commit hook to scan for accidentally committed secrets |
-| trufflehog | CI tool to scan full git history for leaked secrets on every push |
+| trufflehog | CI tool to scan full git history for leaked secrets (PR gate + nightly schedule) |
 
 ---
 

@@ -7,7 +7,9 @@
     "start": "ng serve",
     "build": "ng build && node scripts/postbuild-absolutize.mjs",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --ui --config=e2e/playwright.config.ts"
   },
   "dependencies": {
     "@angular/animations": "^21.2.15",

@@ -1,8 +1,8 @@
 name: CI
 
-# Manual-only: CI does not auto-run on push/PR (avoids burning Action minutes
-# on every background auto-commit to master). Trigger by hand when needed:
-# GitHub repo → Actions tab → CI → "Run workflow", or `gh workflow run CI`.
+# Legacy — replaced by push-checks.yml + pr-gate.yml + nightly.yml.
+# Kept for backward compat until new pipelines confirmed working.
+# Will be deleted after verification.
 on:
   workflow_dispatch:
 
@@ -108,3 +108,31 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  # ── WhatsApp notification on completion ─────────────────────────────────────
+  notify:
+    needs: [backend, backend-e2e, frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send WhatsApp notification
+        if: env.CALLMEBOT_APIKEY != ''
+        env:
+          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY || '' }}
+          CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE || '' }}
+        run: |
+          STATUS_BACKEND="${{ needs.backend.result }}"
+          STATUS_E2E="${{ needs.backend-e2e.result }}"
+          STATUS_FRONTEND="${{ needs.frontend.result }}"
+
+          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          REF="${{ github.ref_name }}"
+          ACTOR="${{ github.triggering_actor }}"
+
+          if [ "$STATUS_BACKEND" = "success" ] && [ "$STATUS_E2E" = "success" ] && [ "$STATUS_FRONTEND" = "success" ]; then
+            TEXT="Pass CI $(echo "${REF}" | sed 's/ /%20/g') Backend=${STATUS_BACKEND} E2E=${STATUS_E2E} Frontend=${STATUS_FRONTEND} ${WORKFLOW_URL}"
+          else
+            TEXT="FAIL CI $(echo "${REF}" | sed 's/ /%20/g') Backend=${STATUS_BACKEND} E2E=${STATUS_E2E} Frontend=${STATUS_FRONTEND} ${WORKFLOW_URL}"
+          fi
+
+          curl -s "https://api.callmebot.com/whatsapp.php?phone=${CALLMEBOT_PHONE}&text=${TEXT}&apikey=${CALLMEBOT_APIKEY}"

@@ -1499,7 +1499,7 @@ Design doc: `~/.gstack/projects/AllergicToAnything-MyServicerDemo/Zen-master-des
 - [x] **Implemented `pr-gate.yml`** — lint + build + unit + API E2E + browser E2E + secret scan + npm audit on PR to master (~10 min) + WhatsApp notify
 - [x] **Implemented `nightly.yml`** — API E2E + secret scan + npm audit at 2am MYT (~6 min) + WhatsApp notify
 - [x] **Scaffold Playwright** — `frontend/e2e/` with config, fixtures, 5 initial browser E2E scenarios + `npm run test:e2e` script
-- [ ] **Set `NOTIFY_HOOK` secret** in GitHub repo → Settings → Secrets for CI notification webhook (Telegram/Discord/Slack — optional)
+- [ ] **Set Meta WhatsApp secrets** in GitHub → Settings → Secrets → Actions: `META_TOKEN`, `META_PHONE_ID`, `META_WHATSAPP_TO` (free: 1000 msgs/month)
 - [ ] **Delete `security.yml` and `ci.yml`** after new workflows confirmed working
 - [x] **WhatsApp notify step** added to `ci.yml` (CallMeBot, curl-based)
 - [x] **`e2e-test-local.bat`** created — runs full E2E suite locally (Docker + db:reset + test:e2e)

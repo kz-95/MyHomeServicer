@@ -70,7 +70,13 @@ the user says otherwise.
 - Run `npx tsc --noEmit` after every edit to `backend/src/` (zero errors = gate)
 - Run `npx tsc --noEmit` in `frontend/` after completion
 - **After `npm install <package>` in backend or frontend:** always commit the updated `package-lock.json` in the same commit as the code change. The bat launchers (`Run.bat`, `Run-Clean.bat`, `Run-Test.bat`) detect a newer `package-lock.json` and auto-run `npm install` — no manual bat edits needed. Committing `package-lock.json` is what triggers this on other machines.
-- **CI is manual-only** (`.github/workflows/ci.yml` uses `on: workflow_dispatch`). It does NOT auto-run on push/PR — this avoids burning GitHub Action minutes on every background auto-commit to `master`. Run it by hand when needed: GitHub repo → Actions → CI → "Run workflow", or `gh workflow run CI`. Do not re-add `push:`/`pull_request:` triggers without the user's explicit say-so.
+- **CI pipeline** — three event-driven workflows (see `docs/superpowers/specs/2026-06-10-ci-pipeline-design.md`):
+  - `push-checks.yml` — lint + build + unit tests on every push (~3 min)
+  - `pr-gate.yml` — full suite (lint, build, unit, API E2E, browser E2E, secret scan, npm audit) on PR to master (~10 min). This is the main quality gate.
+  - `nightly.yml` — maintenance sweep (E2E, secret scan, npm audit) at 2am MYT (~6 min)
+  - All three include a WhatsApp notification job via Meta Cloud API (free: 1000 msgs/month). Set `META_TOKEN`, `META_PHONE_ID`, `META_WHATSAPP_TO` GitHub secrets to enable. Skipped silently if not set.
+  - `security.yml` is deleted — folded into `pr-gate.yml` + `nightly.yml`. Old `ci.yml` replaced by this design.
+  - Never add `on: push` to the full E2E suite or secret scan — use the PR gate and nightly schedule as designed.
 
 ---
 

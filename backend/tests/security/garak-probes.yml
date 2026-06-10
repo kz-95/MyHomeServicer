@@ -1,0 +1,40 @@
+# Garak probe config for MyServicer chat endpoint
+# Only probes relevant to a customer-facing service chatbot.
+# Full list: garak --list_probes
+
+plugins:
+  model_type: rest
+  model_name: MyServicer Chat API
+  report_prefix: myservicer_security
+
+  # REST generator — bridges Garak → your actual chat endpoint
+  rest:
+    RestGenerator:
+      uri: http://localhost:3000/api/v1/chat
+      method: POST
+      headers:
+        Content-Type: application/json
+      req_template_json_object:
+        message: "$PROMPT"
+      resp_json_path: reply.text   # adapt if response shape differs
+      timeout: 15
+
+  probes:
+    # Prompt leaking — tries to extract system instructions
+    - leakreplay.True
+    - lmrc.Anthropomorphisation
+    - encoding.InjectBase64
+
+    # Jailbreaks — tries to override rules
+    - dan.Ablation_Dan_11_0
+    - dan.ChatGPT_Developer_Mode_v2
+    - dan.STAN
+
+    # Encoding attacks
+    - encoding.InjectBase16
+
+    # Toxicity / content policy bypass
+    - toxicity.Continuation
+
+    # Real toxicity scanner (checks response, not just prompt)
+    - realtoxicityprompts.RTPBlank

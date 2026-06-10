@@ -2,7 +2,7 @@
 
 # My Home Servicer
 
-> **Status: Polish & QA complete — all routes and components audited clean.** (2026-05-24)
+> **Status: Active development — AI chat + UX polish + CI hardening.** (2026-06-10)
 
 A marketplace connecting customers with home service providers — plumbing, cleaning, aircon servicing, and home cooking. Customers submit quote requests, nearby servicers respond with proposals, and the platform manages the full job lifecycle from booking through payment.
 
@@ -46,22 +46,32 @@ A marketplace connecting customers with home service providers — plumbing, cle
 ## Tech stack
 
 | Layer | Technology |
-|---|---|---|
+|---|---|
 | Runtime | Node.js 20 LTS |
-| Language | TypeScript 5.x |
-| Backend framework | Express.js 4.x |
-| ORM | Prisma 5.x |
+| Language | TypeScript 5.4 (backend) / 5.9 (frontend) |
+| Backend framework | Express.js 4.22 |
+| ORM | Prisma 5.12 |
 | Database | PostgreSQL 16 |
-| Cache + queue | Redis 7 + BullMQ 5.x |
-| Redis client | ioredis 5.x |
-| Real-time | Socket.io 4.x |
-| Frontend | Angular 17+ (standalone components, signals) |
+| Cache + queue | Redis 7 + BullMQ 5.77 |
+| Redis client | ioredis 5.3 |
+| Real-time | Socket.io 4.8 |
+| Frontend | Angular 21.2 (standalone components, signals, block control flow) |
 | File storage | Cloudflare R2 (S3-compatible, presigned URLs) |
 | Email | Brevo SMTP |
-| AI chatbot | Gemini 2.0 Flash / DeepSeek V4 Flash (direct API) |
-| Deployment | Railway (backend) + Cloudflare Pages (frontend) |
-| PDF generation | pdf-lib |
-| Photo processing | sharp (EXIF stripping) |
+| AI chatbot | Gemini 2.0 Flash / DeepSeek (deepseek-chat) — direct API with fallback chain |
+| Maps & location | Google Maps Platform (Places Autocomplete, Geocoding API) |
+| Payments | Stripe (PaymentIntents, Checkout Sessions, webhooks) |
+| OAuth | Passport + Google OAuth 2.0 |
+| PDF generation | pdf-lib 1.17 |
+| Photo processing | sharp 0.33 (EXIF stripping) |
+| Validation | Zod 3.22 (runtime) + express-validator (routes) |
+| Auth | JWT (access + refresh) + bcryptjs (cost 12) |
+| Deployment | Railway (backend + Postgres + Redis) + Cloudflare Pages (frontend) |
+| CI / testing | GitHub Actions (push-checks + PR gate + nightly), Jest (backend), Playwright (E2E) |
+| Secrets scanning | gitleaks (pre-commit) + trufflehog (PR gate + nightly CI) |
+| Icons | Lucide (Angular) |
+| Drag & drop | Angular CDK 21.2 |
+| QR codes | qrcode |
 
 ---
 
@@ -165,7 +175,6 @@ These features are in scope for the first release:
 These features are ready in the schema but deferred to post-V1:
 
 - Review system
-- Payment gateway integration (V1 is cash or manual)
 - Real push notifications to device lock screens (FCM)
 - KYC document verification
 - Real bank-integrated withdrawals (V1 is admin manual)
@@ -537,21 +546,19 @@ previous session. Reviewed `chat.component.ts`, `servicer-register.component.ts`
 
 ---
 
-### 2026-05-29 — Promo code validation + top-up bonus credits
+### 2026-06-09 — CI pipeline redesign + branch consolidation
 
-**Changes:**
-- Added `POST /rewards/voucher/validate` endpoint: validates voucher ownership, expiry, usage, min topup; returns discount calculation for frontend rendering
-- Shell top-up modal: user types promo code → debounced backend validation → shows slashed pricing (`~~RM 100~~ → RM 80` or `~~RM 100~~ → RM 100 + RM 20 bonus`)
-- Added `topup_bonus` voucher type: user pays full amount, gets extra credits on top
-- Changed seed reward "RM 25 top-up discount" → "RM 20 bonus credit" (min RM 100 topup)
-- `POST /user/me/topup` handles both `topup_fixed` (reduce Stripe charge) and `topup_bonus` (credit bonus)
-- `POST /stripe/verify-topup` now reads pending transaction for the correct credit amount (handles bonus)
-- Fixed `ShellComponent.stripePayment` from `private` to `protected` (template accessed it — NG1 error)
+**Branches merged:** `feat/ux-polish` (109 commits) → `master`. Stale `amethyst-tin` deleted.
+**CI redesign:** Three event-driven workflows replace manual `ci.yml` and auto `security.yml`:
+- `push-checks.yml` — lint + build + unit on every push (~3 min)
+- `pr-gate.yml` — full suite (unit, E2E, secret scan, npm audit) on PR to master (~10 min)
+- `nightly.yml` — maintenance sweep at 2am MYT (~6 min)
+- WhatsApp notifications via CallMeBot on all 3 workflows (pass + fail)
+- Browser E2E using Playwright (5 initial scenarios: guest, customer, servicer, admin)
+- See `docs/superpowers/specs/2026-06-10-ci-pipeline-design.md` for full design.
+**README:** Tech stack updated with exact versions, missing tools added (Stripe, Google Maps, Passport, Zod, Lucide, CDK, QR code, Playwright). Stripe removed from deferred V1 scope.
 
 **Files modified:**
-- `backend/src/routes/rewards.routes.ts` — validate endpoint
-- `backend/src/routes/user.routes.ts` — topup_bonus handling
-- `backend/src/routes/stripe.routes.ts` — read credit amount from pending txn
-- `backend/prisma/seed/seed.ts` — bonus credit reward
-- `frontend/src/app/shared/shell.component.ts` — promo validation UI + slashed pricing
-- `docs/api-reference/api-doc.md` — validate endpoint + bonus docs
+- `.github/workflows/ci.yml` — WhatsApp notify via CallMeBot
+- `docs/superpowers/specs/2026-06-10-ci-pipeline-design.md` — NEW
+- `README.md` — tech stack, CI, session log
