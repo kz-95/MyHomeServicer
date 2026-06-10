@@ -207,7 +207,10 @@ jobs:
           RTYPE="individual"
           if echo "$TO" | grep -q "@g.us"; then RTYPE="group"; fi
 
-          curl -s -X POST "https://graph.facebook.com/v25.0/${META_PHONE_ID}/messages" \
+          RESP=$(curl -s -w '\n%{http_code}' -X POST "https://graph.facebook.com/v25.0/${META_PHONE_ID}/messages" \
             -H "Authorization: Bearer ${META_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "{\"messaging_product\":\"whatsapp\",\"recipient_type\":\"${RTYPE}\",\"to\":\"${TO}\",\"type\":\"text\",\"text\":{\"preview_url\":true,\"body\":\"${TEXT}\"}}" || true
+            -d "{\"messaging_product\":\"whatsapp\",\"recipient_type\":\"${RTYPE}\",\"to\":\"${TO}\",\"type\":\"text\",\"text\":{\"preview_url\":true,\"body\":\"${TEXT}\"}}")
+          HTTP_CODE=$(echo "$RESP" | tail -1)
+          BODY=$(echo "$RESP" | sed '$d')
+          echo "Meta API HTTP ${HTTP_CODE}: ${BODY}"
