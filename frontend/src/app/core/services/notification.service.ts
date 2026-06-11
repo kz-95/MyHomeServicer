@@ -92,10 +92,10 @@ export class NotificationService {
     document.addEventListener('visibilitychange', this.visibilityHandler);
     // Real-time path: server pushes notification.new → refresh immediately.
     this.socketSub = this.socketSvc
-      .on<void>('notification.new')
-      .subscribe(() => {
+      .on<{ type?: string }>('notification.new')
+      .subscribe((payload) => {
         this.refresh();
-        this.playNotificationSound();
+        this.playNotificationSound(payload?.type);
       });
   }
 
@@ -115,13 +115,9 @@ export class NotificationService {
     this.pollError.set(false);
   }
 
-  private playNotificationSound(): void {
+  private playNotificationSound(notifType?: string): void {
     if (!this.soundEnabled()) return;
-    // Servicer accounts get a distinct chime so they can tell their job
-    // notifications apart from customer ones by sound alone.
-    const file = this.auth.isMerchantAccount()
-      ? 'assets/sounds/NotificationChat.wav'
-      : 'assets/sounds/NotificationCard.wav';
+    const file = this.pickSoundFile(notifType);
     try {
       const audio = new Audio(file);
       audio.volume = 0.5;
@@ -129,6 +125,18 @@ export class NotificationService {
     } catch {
       // Audio not available - silently ignore
     }
+  }
+
+  /** Returns the sound file path for a notification type. Tiered: jobs, orders, payments get distinct sounds. */
+  private pickSoundFile(notifType?: string): string {
+    if (notifType === 'jobs')      return 'assets/sounds/Notification_Job.wav';
+    if (notifType === 'orders')    return 'assets/sounds/Notification_Order.wav';
+    if (notifType === 'payments')  return 'assets/sounds/Notification_Topup.wav';
+    // Servicer accounts get a distinct chime so they can tell their job
+    // notifications apart from customer ones by sound alone.
+    return this.auth.isMerchantAccount()
+      ? 'assets/sounds/Notification_Chat.wav'
+      : 'assets/sounds/NotificationCard.wav';
   }
 
   /** Fetches the latest notifications; toasts anything new since priming. */

@@ -1336,7 +1336,9 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
     // Fallback for service hyperlinks opened in new tab (sessionStorage per-tab).
     if (!chatPrefill) {
       try {
-        const raw = localStorage.getItem('msvc_latest_chat_prefill');
+        const pid = this.auth.principal()?.id;
+        const key = pid ? `msvc_latest_chat_prefill_${pid}` : 'msvc_latest_chat_prefill';
+        const raw = localStorage.getItem(key);
         if (raw) chatPrefill = JSON.parse(raw) as Record<string, unknown>;
       } catch { /* ignore */ }
     }
@@ -1345,8 +1347,8 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
       next: (r) => {
         this.categories.set(r.data);
         const pre = (this.reorderPrefill?.['categoryId'] as string | undefined)
-          ?? (chatPrefill?.['categoryId'] as string | undefined)
-          ?? this.route.snapshot.queryParamMap.get('category');
+          ?? this.route.snapshot.queryParamMap.get('category')
+          ?? (chatPrefill?.['categoryId'] as string | undefined);
         const child = pre ? r.data.find((c) => c.id === pre) : undefined;
         if (child) {
           this.parentId.set(child.parentCategoryId ?? '');

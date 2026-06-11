@@ -148,4 +148,11 @@ export class ChatWidgetService {
   resetPrefill(): void {
     this.prefillData.set({});
   }
+
+  /** Play the chat notification sound. Safe to call from any component. */
+  playNotificationSound(): void {
+    try {
+      new Audio('assets/sounds/Chat_Reply.wav').play().catch(() => {});
+    } catch { /* noop */ }
+  }
 }

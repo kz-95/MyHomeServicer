@@ -12,6 +12,7 @@ import { chatLimiter, chatDailyLimiter } from '../middleware/rate-limit';
 import { notFound, forbidden } from '../lib/errors';
 import { sendToAi, judgeConversation } from '../services/chat.service';
 import { checkInjection } from '../services/chatGuard';
+import { emitToUser, emitToMerchant } from '../socket';
 import { recordAudit } from '../services/ledger.service';
 import { createBugReport } from '../services/booking.service';
 import { validateAddress, reverseGeocode } from '../lib/geocoding';
@@ -567,6 +568,9 @@ chatRouter.post(
       }
     }
 
+    // Emit typing indicator so the frontend plays the typing sound + animation
+    emitToSession(req, 'chat.typing', {});
+
     const reply = await sendToAi(msg, history, req.user!.role, req.user!.id, {
       suppressCategorySuggest: req.body.categoryLocked === true,
       collected: Array.isArray(req.body.collected) ? (req.body.collected as string[]) : [],
@@ -587,6 +591,16 @@ chatRouter.post(
         tokensUsed: reply.tokensUsed,
       },
     });
+
+    // Count unread assistant messages and emit to the frontend for the badge + sound
+    const unreadCount = await prisma.chatMessage.count({
+      where: {
+        sessionId: session.id,
+        role: 'assistant',
+        ...(session.lastReadAt ? { createdAt: { gt: session.lastReadAt } } : {}),
+      },
+    });
+    emitToSession(req, 'chat.unread', Math.min(unreadCount, 99));
 
     await recordAudit({
       actorUserId: req.user!.id,
@@ -727,5 +741,14 @@ async function recordStrike(ip: string, req?: import('express').Request): Promis
     await prisma.user.update({ where: { id: req.user!.id }, data });
   } else {
     await prisma.servicer.update({ where: { id: req.user!.id }, data });
+  }
+}
+
+/** Emit a socket event to the current session's owner (user or merchant). */
+function emitToSession(req: import('express').Request, event: string, payload: unknown): void {
+  if (req.user!.kind === 'user') {
+    emitToUser(req.user!.id, event, payload);
+  } else {
+    emitToMerchant(req.user!.id, event, payload);
   }
 }

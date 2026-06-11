@@ -1,6 +1,6 @@
-/**
- * Non-destructive settings refresh. Upserts platform settings ONLY — budget
- * brackets + chat config (greeting tiers, prompts, etc.) — without touching
+﻿/**
+ * Non-destructive settings refresh. Upserts platform settings ONLY - budget
+ * brackets + chat config (greeting tiers, prompts, etc.) - without touching
  * merchants, users, quotes, or any other data.
  *
  *   npm run seed:settings

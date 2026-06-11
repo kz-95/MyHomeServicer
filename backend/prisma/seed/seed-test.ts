@@ -1,5 +1,5 @@
-/**
- * Test Seed — lean, repeatable test data for dev iteration.
+﻿/**
+ * Test Seed - lean, repeatable test data for dev iteration.
  *
  * 36-merchant structure (1 per child category, 6x 3D Modeling) with 9 lifecycle
  * test scenarios covering all booking statuses and payment modes.
@@ -45,12 +45,12 @@ const airconQuestions: Prisma.InputJsonValue = [
     type: 'checkbox', required: true, priced: true,
     description: 'You can select more than one type of cleaning.',
     options: [
-      { value: 'wall_chemical', label: 'Wall Unit — Chemical Cleaning (Recommended)' },
-      { value: 'wall_general', label: 'Wall Unit — General Cleaning' },
-      { value: 'wall_overhaul', label: 'Wall Unit — Overhaul Cleaning' },
-      { value: 'cassette_general', label: 'Cassette / Ceiling Unit — General Cleaning' },
-      { value: 'cassette_chemical', label: 'Cassette / Ceiling Unit — Chemical Cleaning' },
-      { value: 'cassette_overhaul', label: 'Cassette / Ceiling Unit — Overhaul Cleaning' },
+      { value: 'wall_chemical', label: 'Wall Unit - Chemical Cleaning (Recommended)' },
+      { value: 'wall_general', label: 'Wall Unit - General Cleaning' },
+      { value: 'wall_overhaul', label: 'Wall Unit - Overhaul Cleaning' },
+      { value: 'cassette_general', label: 'Cassette / Ceiling Unit - General Cleaning' },
+      { value: 'cassette_chemical', label: 'Cassette / Ceiling Unit - Chemical Cleaning' },
+      { value: 'cassette_overhaul', label: 'Cassette / Ceiling Unit - Overhaul Cleaning' },
       { value: 'faulty_check', label: 'Check faulty aircon (please give details below)' },
     ],
   },
@@ -157,7 +157,7 @@ const faqs: { category: string; question: string; answer: string; sortOrder: num
   {
     category: 'general', sortOrder: 1,
     question: 'How does My Home Servicer work?',
-    answer: 'My Home Servicer connects you with verified home-service professionals. (1) Browse services — pick a category and service type, describe your job, pick a date/time slot, set a budget, and answer any custom questions. (2) Receive proposals — nearby servicers review your request and send their price and message. (3) Choose a proposal — compare servicers by price, rating, and message, then tap to book. (4) Job done — the servicer arrives, completes the work, and you confirm.',
+    answer: 'My Home Servicer connects you with verified home-service professionals. (1) Browse services - pick a category and service type, describe your job, pick a date/time slot, set a budget, and answer any custom questions. (2) Receive proposals - nearby servicers review your request and send their price and message. (3) Choose a proposal - compare servicers by price, rating, and message, then tap to book. (4) Job done - the servicer arrives, completes the work, and you confirm.',
   },
   {
     category: 'general', sortOrder: 2,
@@ -197,7 +197,7 @@ interface TestMerchantData {
 
 const testMerchants: TestMerchantData[] = [
   {
-    ref: 'M1', email: 'servicer.1@demo.local',
+    ref: 'M1', email: 'ahmad.bin.ismail@demo.local',
     name: 'Ahmad Bin Ismail', businessName: 'Ahmad Plumbing Services',
     phone: '+60 12-300 0001',
     categorySlug: 'plumber',
@@ -209,7 +209,7 @@ const testMerchants: TestMerchantData[] = [
     ],
   },
   {
-    ref: 'M2', email: 'servicer.2@demo.local',
+    ref: 'M2', email: 'kumar.selvam@demo.local',
     name: 'Kumar Selvam', businessName: 'CoolBreeze AC Service',
     phone: '+60 12-300 0002',
     categorySlug: 'aircond-servicer',
@@ -221,7 +221,7 @@ const testMerchants: TestMerchantData[] = [
     ],
   },
   {
-    ref: 'M3', email: 'servicer.3@demo.local',
+    ref: 'M3', email: 'ravi.chandran@demo.local',
     name: 'Ravi Chandran', businessName: 'Volt Masters Electrical',
     phone: '+60 12-300 0003',
     categorySlug: 'electrical-wiring',
@@ -233,7 +233,7 @@ const testMerchants: TestMerchantData[] = [
     ],
   },
   {
-    ref: 'M4', email: 'servicer.4@demo.local',
+    ref: 'M4', email: 'nurul.aini@demo.local',
     name: 'Nurul Aini', businessName: 'Sparkle Home Cleaning',
     phone: '+60 12-300 0004',
     categorySlug: 'home-cleaning',
@@ -245,7 +245,7 @@ const testMerchants: TestMerchantData[] = [
     ],
   },
   {
-    ref: 'M9', email: 'servicer.9@demo.local',
+    ref: 'M9', email: 'mei.ling2@demo.local',
     name: 'Mei Ling', businessName: 'Auntie Mei Catering',
     phone: '+60 12-300 0009',
     categorySlug: 'catering',
@@ -257,7 +257,7 @@ const testMerchants: TestMerchantData[] = [
     ],
   },
   {
-    ref: 'M27', email: 'servicer.27@demo.local',
+    ref: 'M27', email: 'aminah.yusof@demo.local',
     name: 'Aminah Yusof', businessName: 'BrightMinds Tutoring',
     phone: '+60 12-300 0027',
     categorySlug: 'home-tutoring',
@@ -268,7 +268,7 @@ const testMerchants: TestMerchantData[] = [
     ],
   },
   {
-    ref: 'M30', email: 'servicer.30@demo.local',
+    ref: 'M30', email: 'arvind.nair@demo.local',
     name: 'Arvind Nair', businessName: 'FusionCraft Studio (Fusion 360)',
     phone: '+60 12-300 0030',
     categorySlug: '3d-modeling-class',
@@ -280,7 +280,7 @@ const testMerchants: TestMerchantData[] = [
     ],
   },
   {
-    ref: 'M8', email: 'servicer.8@demo.local',
+    ref: 'M8', email: 'grace.wong@demo.local',
     name: 'Grace Wong', businessName: 'Bliss Wedding & Events',
     phone: '+60 12-300 0008',
     categorySlug: 'event-planner',
@@ -296,7 +296,7 @@ const testMerchants: TestMerchantData[] = [
 
 async function main() {
   console.log('\n============================================');
-  console.log('  Test Seed — 9 lifecycle scenarios');
+  console.log('  Test Seed - 9 lifecycle scenarios');
   console.log('============================================\n');
 
   await clearAll(prisma);
@@ -368,21 +368,21 @@ async function main() {
   await prisma.user.create({
     data: {
       id: fixedUuid('admin@demo.local'), role: 'admin',
-      name: 'Demo Admin', email: 'admin@demo.local', phone: '+60 3-0000 0000',
+      name: 'Amirah Syakirah', email: 'admin@demo.local', phone: '+60 3-0000 0000',
       passwordHash, actionPinHash: pinHash, isDemo: true,
     },
   });
 
   // ── Customer ──
-  const customerId = fixedUuid('customer.active@demo.local');
+  const customerId = fixedUuid('david.tan@demo.local');
   await prisma.user.create({
     data: {
       id: customerId, role: 'customer',
-      name: 'David Tan', email: 'customer.active@demo.local', phone: '+60 11-234 5678',
+      name: 'David Tan', email: 'david.tan@demo.local', phone: '+60 11-234 5678',
       passwordHash, actionPinHash: pinHash, contactName: 'David Tan', contactNumber: '+60 11-234 5678', isDemo: true,
     },
   });
-  const addressId = fixedUuid('addr:customer.active@demo.local:0');
+  const addressId = fixedUuid('addr:david.tan@demo.local:0');
   await prisma.userAddress.create({
     data: {
       id: addressId, userId: customerId, label: 'Home',
@@ -392,12 +392,12 @@ async function main() {
   });
   await prisma.quotePreset.create({
     data: {
-      userId: customerId, label: 'Home — myself',
+      userId: customerId, label: 'Home - myself',
       contactName: 'David Tan', contactNumber: '+60 11-234 5678',
       addressId, preferredTimeSlot: 'morning',
     },
   });
-  console.log('  ✓ admin + customer (customer.active@demo.local / Demo@2026)');
+  console.log('  ✓ admin + customer (david.tan@demo.local / Demo@2026)');
 
   // ── Create all 8 merchants ──
   const merchantIds: Record<string, string> = {};
@@ -407,7 +407,7 @@ async function main() {
     await prisma.servicer.create({
       data: {
         id, name: m.name, email: m.email, phone: m.phone, passwordHash, pinHash,
-        businessName: m.businessName, bio: `${m.businessName} — based in ${m.area}.`,
+        businessName: m.businessName, bio: `${m.businessName} - based in ${m.area}.`,
         logoUrl: `https://picsum.photos/seed/merchant${m.ref}/200/200`,
         categoryId: childIdBySlug[m.categorySlug], isCompany: m.isCompany,
         serviceAreas: m.serviceAreas, rating: m.rating, isDemo: true,
@@ -459,7 +459,7 @@ async function main() {
     await prisma.quoteProposal.create({
       data: {
         quoteRequestId: quoteId, merchantId: merchantIds.M1,
-        proposedPrice: 100, message: 'Ahmad Plumbing can handle this — fast response guaranteed.', etaMinutes: 60,
+        proposedPrice: 100, message: 'Ahmad Plumbing can handle this - fast response guaranteed.', etaMinutes: 60,
       },
     });
     console.log('  [1/9] Open plumber quote (pay_later) + proposal');
@@ -482,13 +482,13 @@ async function main() {
     await prisma.quoteProposal.create({
       data: {
         quoteRequestId: quoteId, merchantId: merchantIds.M2,
-        proposedPrice: 150, message: 'CoolBreeze — best AC chemical wash in Cheras.', etaMinutes: 90, isAuto: true,
+        proposedPrice: 150, message: 'CoolBreeze - best AC chemical wash in Cheras.', etaMinutes: 90, isAuto: true,
       },
     });
     console.log('  [2/9] Open aircond quote (pay_now) + auto-proposal');
   }
 
-  // ── Scenario 3: Booking pending_confirm (pay_later) — home-cleaning M4 ──
+  // ── Scenario 3: Booking pending_confirm (pay_later) - home-cleaning M4 ──
   {
     const quoteId = fixedUuid('scenario:3-pending-cleaning-quote');
     await prisma.quoteRequest.create({
@@ -508,7 +508,7 @@ async function main() {
         proposedPrice: 90, message: 'Sparkle Home Cleaning at your service.', etaMinutes: 120, status: 'selected',
       },
     });
-    // pending_confirm booking — no confirmedAt set
+    // pending_confirm booking - no confirmedAt set
     await prisma.booking.create({
       data: {
         id: fixedUuid('scenario:3-pending-cleaning-booking'),
@@ -521,7 +521,7 @@ async function main() {
     console.log('  [3/9] Booking pending_confirm (home-cleaning, pay_later)');
   }
 
-  // ── Scenario 4: Booking confirmed (pay_now) — electrical-wiring M3 ──
+  // ── Scenario 4: Booking confirmed (pay_now) - electrical-wiring M3 ──
   {
     const quoteId = fixedUuid('scenario:4-confirmed-electrical-quote');
     await prisma.quoteRequest.create({
@@ -538,10 +538,10 @@ async function main() {
     await prisma.quoteProposal.create({
       data: {
         id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M3,
-        proposedPrice: 80, message: 'Volt Masters — safe and reliable.', etaMinutes: 60, status: 'selected',
+        proposedPrice: 80, message: 'Volt Masters - safe and reliable.', etaMinutes: 60, status: 'selected',
       },
     });
-    // confirmed booking — merchant confirmed but not yet arrived
+    // confirmed booking - merchant confirmed but not yet arrived
     await prisma.booking.create({
       data: {
         id: fixedUuid('scenario:4-confirmed-electrical-booking'),
@@ -555,7 +555,7 @@ async function main() {
     console.log('  [4/9] Booking confirmed (electrical-wiring, pay_now)');
   }
 
-  // ── Scenario 5: Booking in_progress (cash) — plumber M1 with arrive photo ──
+  // ── Scenario 5: Booking in_progress (cash) - plumber M1 with arrive photo ──
   {
     const quoteId = fixedUuid('scenario:5-inprogress-plumber-quote');
     await prisma.quoteRequest.create({
@@ -574,7 +574,7 @@ async function main() {
     await prisma.quoteProposal.create({
       data: {
         id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M1,
-        proposedPrice: 120, message: 'Ahmad Plumbing — on the way!', etaMinutes: 60, status: 'selected',
+        proposedPrice: 120, message: 'Ahmad Plumbing - on the way!', etaMinutes: 60, status: 'selected',
       },
     });
     await prisma.booking.create({
@@ -591,7 +591,7 @@ async function main() {
     console.log('  [5/9] Booking in_progress (plumber, cash, arrived w/ photo)');
   }
 
-  // ── Scenario 6: Booking completed (pay_later) + invoice + transaction — catering M9 ──
+  // ── Scenario 6: Booking completed (pay_later) + invoice + transaction - catering M9 ──
   {
     const quoteId = fixedUuid('scenario:6-completed-catering-quote');
     await prisma.quoteRequest.create({
@@ -610,7 +610,7 @@ async function main() {
     await prisma.quoteProposal.create({
       data: {
         id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M9,
-        proposedPrice: 200, message: 'Auntie Mei Catering — homestyle goodness.', etaMinutes: 180, status: 'selected',
+        proposedPrice: 200, message: 'Auntie Mei Catering - homestyle goodness.', etaMinutes: 180, status: 'selected',
       },
     });
     const bookingId = fixedUuid('scenario:6-completed-catering-booking');
@@ -640,14 +640,14 @@ async function main() {
       data: {
         type: 'escrow_release', amount: 200,
         merchantId: merchantIds.M9, bookingId,
-        reference: 'Scenario 6 — completed catering (pay_later)',
+        reference: 'Scenario 6 - completed catering (pay_later)',
         createdAt: days(-3),
       },
     });
     console.log('  [6/9] Booking completed (catering, pay_later, invoice + txn)');
   }
 
-  // ── Scenario 7: Booking completed (pay_now) + invoice + escrow — home-tutoring M27 ──
+  // ── Scenario 7: Booking completed (pay_now) + invoice + escrow - home-tutoring M27 ──
   {
     const quoteId = fixedUuid('scenario:7-completed-tutoring-quote');
     await prisma.quoteRequest.create({
@@ -666,7 +666,7 @@ async function main() {
     await prisma.quoteProposal.create({
       data: {
         id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M27,
-        proposedPrice: 80, message: 'BrightMinds — making learning fun!', etaMinutes: 60, status: 'selected',
+        proposedPrice: 80, message: 'BrightMinds - making learning fun!', etaMinutes: 60, status: 'selected',
       },
     });
     const bookingId = fixedUuid('scenario:7-completed-tutoring-booking');
@@ -700,14 +700,14 @@ async function main() {
       data: {
         type: 'escrow_release', amount: 80,
         merchantId: merchantIds.M27, bookingId,
-        reference: 'Scenario 7 — completed tutoring (pay_now, escrow)',
+        reference: 'Scenario 7 - completed tutoring (pay_now, escrow)',
         createdAt: days(-4),
       },
     });
     console.log('  [7/9] Booking completed (home-tutoring, pay_now, escrow release + invoice)');
   }
 
-  // ── Scenario 8: Booking cancelled (pay_later) — 3d-modeling M30 ──
+  // ── Scenario 8: Booking cancelled (pay_later) - 3d-modeling M30 ──
   {
     const quoteId = fixedUuid('scenario:8-cancelled-3d-quote');
     await prisma.quoteRequest.create({
@@ -726,7 +726,7 @@ async function main() {
     await prisma.quoteProposal.create({
       data: {
         id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M30,
-        proposedPrice: 150, message: 'FusionCraft — learn 3D modeling.', etaMinutes: 90, status: 'selected',
+        proposedPrice: 150, message: 'FusionCraft - learn 3D modeling.', etaMinutes: 90, status: 'selected',
       },
     });
     await prisma.booking.create({
@@ -737,13 +737,13 @@ async function main() {
         status: 'cancelled', price: 150, paymentMode: 'pay_later',
         scheduledDate: days(-2), timeSlot: 'morning',
         confirmedAt: days(-3),
-        cancelledBy: 'customer', cancelReason: 'Change of plans — no longer needed.',
+        cancelledBy: 'customer', cancelReason: 'Change of plans - no longer needed.',
       },
     });
     console.log('  [8/9] Booking cancelled (3d-modeling, pay_later, customer cancel)');
   }
 
-  // ── Scenario 9: Booking completed + cash_confirmed + cash payment — home-cleaning M4 ──
+  // ── Scenario 9: Booking completed + cash_confirmed + cash payment - home-cleaning M4 ──
   {
     const quoteId = fixedUuid('scenario:9-cash-completed-cleaning-quote');
     await prisma.quoteRequest.create({
@@ -762,7 +762,7 @@ async function main() {
     await prisma.quoteProposal.create({
       data: {
         id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M4,
-        proposedPrice: 140, message: 'Sparkle — deep cleaning expert.', etaMinutes: 240, status: 'selected',
+        proposedPrice: 140, message: 'Sparkle - deep cleaning expert.', etaMinutes: 240, status: 'selected',
       },
     });
     const bookingId = fixedUuid('scenario:9-cash-completed-cleaning-booking');
@@ -793,7 +793,7 @@ async function main() {
       data: {
         type: 'escrow_release', amount: 140,
         merchantId: merchantIds.M4, bookingId,
-        reference: 'Scenario 9 — completed cash cleaning (cash_confirmed)',
+        reference: 'Scenario 9 - completed cash cleaning (cash_confirmed)',
         createdAt: days(-5),
       },
     });
@@ -805,15 +805,15 @@ async function main() {
   console.log('');
   console.log('  Accounts (password: Demo@2026):');
   console.log('    Admin:           admin@demo.local');
-  console.log('    Customer:        customer.active@demo.local');
-  console.log('    Plumber:         servicer.1@demo.local (M1)');
-  console.log('    Aircond Servicer: servicer.2@demo.local (M2)');
-  console.log('    Electrical Wiring: servicer.3@demo.local (M3)');
-  console.log('    Home Cleaning:    servicer.4@demo.local (M4)');
-  console.log('    Event Planner:    servicer.8@demo.local (M8)');
-  console.log('    Catering:        servicer.9@demo.local (M9)');
-  console.log('    Home Tutoring:   servicer.27@demo.local (M27)');
-  console.log('    3D Modeling:     servicer.30@demo.local (M30)');
+  console.log('    Customer:        david.tan@demo.local');
+  console.log('    Plumber:         ahmad.bin.ismail@demo.local (M1)');
+  console.log('    Aircond Servicer: kumar.selvam@demo.local (M2)');
+  console.log('    Electrical Wiring: ravi.chandran@demo.local (M3)');
+  console.log('    Home Cleaning:    nurul.aini@demo.local (M4)');
+  console.log('    Event Planner:    grace.wong@demo.local (M8)');
+  console.log('    Catering:        mei.ling2@demo.local (M9)');
+  console.log('    Home Tutoring:   aminah.yusof@demo.local (M27)');
+  console.log('    3D Modeling:     arvind.nair@demo.local (M30)');
   console.log('');
   console.log('  Scenarios:');
   console.log('    1. Open plumber quote (pay_later) + proposal');

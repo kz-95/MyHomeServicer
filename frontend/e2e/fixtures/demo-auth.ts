@@ -1,11 +1,11 @@
-import { Page, expect } from '@playwright/test';
+﻿import { Page, expect } from '@playwright/test';
 
 // Demo accounts — all use password Demo@2026
 const DEMO_PASSWORD = 'Demo@2026';
 
 export async function loginAsCustomer(
   page: Page,
-  email = 'customer.active@demo.local',
+  email = 'david.tan@demo.local',
   password = DEMO_PASSWORD,
 ) {
   await page.goto('/login');
@@ -17,7 +17,7 @@ export async function loginAsCustomer(
 
 export async function loginAsServicer(
   page: Page,
-  email = 'servicer.1@demo.local',
+  email = 'ahmad.bin.ismail@demo.local',
   password = DEMO_PASSWORD,
 ) {
   await page.goto('/login');

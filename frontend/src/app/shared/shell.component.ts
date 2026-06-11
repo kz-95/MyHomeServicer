@@ -1742,18 +1742,6 @@ export class ShellComponent implements OnInit, OnDestroy {
     // Auto-send: detect `?q=` in the URL and open the chat with that question.
     // Check on initial load AND on every navigation.
     this.router.events.subscribe(() => {
-      // On the quote form, auto pop-out the help chat once on entry and keep the
-      // FAB bubble floating so it can be reopened. Router events only fire on
-      // navigation (not when the user closes the panel), and the one-shot guard
-      // prevents reopening after a manual close while still on the page.
-      if (this.router.url.includes('/quote/new')) {
-        if (!this.quoteChatAutoOpened) {
-          this.widget.open();
-          this.quoteChatAutoOpened = true;
-        }
-      } else {
-        this.quoteChatAutoOpened = false;
-      }
       const idx = this.router.url.indexOf('?q=');
       if (idx >= 0) {
         const q = decodeURIComponent(this.router.url.slice(idx + 3).split('&')[0]);

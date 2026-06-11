@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Merchant and customer account seed data.
- * 36 servicers — 1 per child category, except 3D Modeling which gets 6 specialists.
+ * 36 servicers - 1 per child category, except 3D Modeling which gets 6 specialists.
  * + 3 customers + 1 admin.
  */
 
@@ -63,7 +63,7 @@ const PAD = 4;
 export const merchants: SeedMerchant[] = [
   // ── M1  Plumber ──
   {
-    ref: 'M1', email: 'servicer.1@demo.local',
+    ref: 'M1', email: 'ahmad.bin.ismail@demo.local',
     name: 'Ahmad Bin Ismail', businessName: 'Ahmad Plumbing Services',
     phone: '+60 12-300 0001',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -102,7 +102,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M2  Aircond Servicer (company) ──
   {
-    ref: 'M2', email: 'servicer.2@demo.local',
+    ref: 'M2', email: 'kumar.selvam@demo.local',
     name: 'Kumar Selvam', businessName: 'CoolBreeze AC Service',
     phone: '+60 12-300 0002',
     isCompany: true, entityType: 'sdn_bhd',
@@ -135,7 +135,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M3  Electrical & Wiring ──
   {
-    ref: 'M3', email: 'servicer.3@demo.local',
+    ref: 'M3', email: 'ravi.chandran@demo.local',
     name: 'Ravi Chandran', businessName: 'Volt Masters Electrical',
     phone: '+60 12-300 0003',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -155,7 +155,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M4  Home Cleaning ──
   {
-    ref: 'M4', email: 'servicer.4@demo.local',
+    ref: 'M4', email: 'nurul.aini@demo.local',
     name: 'Nurul Aini', businessName: 'Sparkle Home Cleaning',
     phone: '+60 12-300 0004',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -186,7 +186,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M5  Sofa / Mattress Cleaning (company) ──
   {
-    ref: 'M5', email: 'servicer.5@demo.local',
+    ref: 'M5', email: 'jason.tan@demo.local',
     name: 'Jason Tan', businessName: 'FreshCare Sofa & Mattress',
     phone: '+60 12-300 0005',
     isCompany: true, entityType: 'enterprise',
@@ -223,7 +223,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M6  Carpet Cleaning ──
   {
-    ref: 'M6', email: 'servicer.6@demo.local',
+    ref: 'M6', email: 'siti.hajar@demo.local',
     name: 'Siti Hajar', businessName: 'PureClean Carpet Care',
     phone: '+60 12-300 0006',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -255,7 +255,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M7  Curtain Cleaning ──
   {
-    ref: 'M7', email: 'servicer.7@demo.local',
+    ref: 'M7', email: 'mei.ling@demo.local',
     name: 'Mei Ling', businessName: 'DrapeFresh Curtain Care',
     phone: '+60 12-300 0007',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -290,7 +290,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M8  Event Planner (company) ──
   {
-    ref: 'M8', email: 'servicer.8@demo.local',
+    ref: 'M8', email: 'grace.wong@demo.local',
     name: 'Grace Wong', businessName: 'Bliss Wedding & Events',
     phone: '+60 12-300 0008',
     isCompany: true, entityType: 'sdn_bhd',
@@ -309,7 +309,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M9  Catering ──
   {
-    ref: 'M9', email: 'servicer.9@demo.local',
+    ref: 'M9', email: 'mei.ling2@demo.local',
     name: 'Mei Ling', businessName: 'Auntie Mei Catering',
     phone: '+60 12-300 0009',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -333,7 +333,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M10  Professional Organizer ──
   {
-    ref: 'M10', email: 'servicer.10@demo.local',
+    ref: 'M10', email: 'priya.devi@demo.local',
     name: 'Priya Devi', businessName: 'Space Harmony Organizer',
     phone: '+60 12-300 0010',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -352,7 +352,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M11  Aircond Installer (company) ──
   {
-    ref: 'M11', email: 'servicer.11@demo.local',
+    ref: 'M11', email: 'kenny.wong@demo.local',
     name: 'Kenny Wong', businessName: 'AC Pro Installers',
     phone: '+60 12-300 0011',
     isCompany: true, entityType: 'enterprise',
@@ -389,7 +389,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M12  Carpenter ──
   {
-    ref: 'M12', email: 'servicer.12@demo.local',
+    ref: 'M12', email: 'lim.kok.wah@demo.local',
     name: 'Lim Kok Wah', businessName: 'Precision Woodworks',
     phone: '+60 12-300 0012',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -408,7 +408,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M13  Renovation (company) ──
   {
-    ref: 'M13', email: 'servicer.13@demo.local',
+    ref: 'M13', email: 'buildright.group@demo.local',
     name: 'BuildRight Group', businessName: 'BuildRight Renovation Sdn Bhd',
     phone: '+60 12-300 0013',
     isCompany: true, entityType: 'sdn_bhd',
@@ -427,7 +427,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M14  Interior Design (company) ──
   {
-    ref: 'M14', email: 'servicer.14@demo.local',
+    ref: 'M14', email: 'studio.aria@demo.local',
     name: 'Studio Aria', businessName: 'Studio Aria Interior Design Sdn Bhd',
     phone: '+60 12-300 0014',
     isCompany: true, entityType: 'sdn_bhd',
@@ -446,7 +446,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M15  Door Gate ──
   {
-    ref: 'M15', email: 'servicer.15@demo.local',
+    ref: 'M15', email: 'ah.chong@demo.local',
     name: 'Ah Chong', businessName: 'AutoGate Solutions',
     phone: '+60 12-300 0015',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -466,7 +466,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M16  Roof ──
   {
-    ref: 'M16', email: 'servicer.16@demo.local',
+    ref: 'M16', email: 'hassan.abdullah@demo.local',
     name: 'Hassan Abdullah', businessName: 'TopGuard Roofing',
     phone: '+60 12-300 0016',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -485,7 +485,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M17  Washing Machine Repair ──
   {
-    ref: 'M17', email: 'servicer.17@demo.local',
+    ref: 'M17', email: 'rajesh.kumar@demo.local',
     name: 'Rajesh Kumar', businessName: 'WasherDoc Repair',
     phone: '+60 12-300 0017',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -504,7 +504,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M18  Refrigerator Repair ──
   {
-    ref: 'M18', email: 'servicer.18@demo.local',
+    ref: 'M18', email: 'chen.wei@demo.local',
     name: 'Chen Wei', businessName: 'ChillFix Refrigeration',
     phone: '+60 12-300 0018',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -523,7 +523,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M19  TV Repair ──
   {
-    ref: 'M19', email: 'servicer.19@demo.local',
+    ref: 'M19', email: 'alex.tan@demo.local',
     name: 'Alex Tan', businessName: 'ScreenFix TV Repair',
     phone: '+60 12-300 0019',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -542,7 +542,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M20  Oven Repair ──
   {
-    ref: 'M20', email: 'servicer.20@demo.local',
+    ref: 'M20', email: 'fatimah.ismail@demo.local',
     name: 'Fatimah Ismail', businessName: 'HeatWave Oven Repair',
     phone: '+60 12-300 0020',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -561,7 +561,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M21  Water Heater Repair ──
   {
-    ref: 'M21', email: 'servicer.21@demo.local',
+    ref: 'M21', email: 'shankar.nathan@demo.local',
     name: 'Shankar Nathan', businessName: 'HydroHeat Services',
     phone: '+60 12-300 0021',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -580,7 +580,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M22  Ceiling Fan Repair ──
   {
-    ref: 'M22', email: 'servicer.22@demo.local',
+    ref: 'M22', email: 'danny.ooi@demo.local',
     name: 'Danny Ooi', businessName: 'FanFix Services',
     phone: '+60 12-300 0022',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -599,7 +599,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M23  Aircond Repair ──
   {
-    ref: 'M23', email: 'servicer.23@demo.local',
+    ref: 'M23', email: 'faizal.rahman@demo.local',
     name: 'Faizal Rahman', businessName: 'AC Medic',
     phone: '+60 12-300 0023',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -618,7 +618,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M24  Art Class ──
   {
-    ref: 'M24', email: 'servicer.24@demo.local',
+    ref: 'M24', email: 'sarah.lim@demo.local',
     name: 'Sarah Lim', businessName: 'Creative Canvas Studio',
     phone: '+60 12-300 0024',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -632,12 +632,12 @@ export const merchants: SeedMerchant[] = [
     area: 'Bukit Bintang, KL', serviceAreas: ['Bukit Bintang', 'KLCC', 'KL'],
     rating: 4.6, categorySlug: 'art-class',
     services: [
-      { sku: 'ART-BEGINNER', title: 'Art class — beginner to advanced', basePrice: 60, priceType: 'hourly', duration: 60 },
+      { sku: 'ART-BEGINNER', title: 'Art class - beginner to advanced', basePrice: 60, priceType: 'hourly', duration: 60 },
     ],
   },
   // ── M25  Language Class ──
   {
-    ref: 'M25', email: 'servicer.25@demo.local',
+    ref: 'M25', email: 'joseph.fernandez@demo.local',
     name: 'Joseph Fernandez', businessName: 'Polyglot Language Academy',
     phone: '+60 12-300 0025',
     isCompany: false, entityType: 'partnership',
@@ -656,7 +656,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M26  Music Class ──
   {
-    ref: 'M26', email: 'servicer.26@demo.local',
+    ref: 'M26', email: 'michelle.tan@demo.local',
     name: 'Michelle Tan', businessName: 'Melody Music Studio',
     phone: '+60 12-300 0026',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -675,7 +675,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M27  Home Tutoring ──
   {
-    ref: 'M27', email: 'servicer.27@demo.local',
+    ref: 'M27', email: 'aminah.yusof@demo.local',
     name: 'Aminah Yusof', businessName: 'BrightMinds Tutoring',
     phone: '+60 12-300 0027',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -694,7 +694,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M28  Cooking Class (partnership) ──
   {
-    ref: 'M28', email: 'servicer.28@demo.local',
+    ref: 'M28', email: 'chef.rahman@demo.local',
     name: 'Chef Rahman', businessName: "Chef's Table Cooking Studio",
     phone: '+60 12-300 0028',
     isCompany: true, entityType: 'partnership',
@@ -708,12 +708,12 @@ export const merchants: SeedMerchant[] = [
     area: 'Damansara Utama, PJ', serviceAreas: ['Damansara', 'PJ', 'KL'],
     rating: 4.6, categorySlug: 'cooking-class',
     services: [
-      { sku: 'CK-BASIC', title: 'Cooking class — all cuisines', basePrice: 80, priceType: 'hourly', duration: 90 },
+      { sku: 'CK-BASIC', title: 'Cooking class - all cuisines', basePrice: 80, priceType: 'hourly', duration: 90 },
     ],
   },
   // ── M29  Gym Trainer ──
   {
-    ref: 'M29', email: 'servicer.29@demo.local',
+    ref: 'M29', email: 'adam.malik@demo.local',
     name: 'Adam Malik', businessName: 'FitForge Personal Training',
     phone: '+60 12-300 0029',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -735,7 +735,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M30–M35  3D Modeling Specialists (6) ──
   {
-    ref: 'M30', email: 'servicer.30@demo.local',
+    ref: 'M30', email: 'arvind.nair@demo.local',
     name: 'Arvind Nair', businessName: 'FusionCraft Studio (Fusion 360)',
     phone: '+60 12-300 0030',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -754,7 +754,7 @@ export const merchants: SeedMerchant[] = [
     ],
   },
   {
-    ref: 'M31', email: 'servicer.31@demo.local',
+    ref: 'M31', email: 'lee.chen@demo.local',
     name: 'Lee Chen', businessName: 'SketchBuild Studio (SketchUp)',
     phone: '+60 12-300 0031',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -772,7 +772,7 @@ export const merchants: SeedMerchant[] = [
     ],
   },
   {
-    ref: 'M32', email: 'servicer.32@demo.local',
+    ref: 'M32', email: 'maya.putri@demo.local',
     name: 'Maya Putri', businessName: 'BlendForge Studio (Blender)',
     phone: '+60 12-300 0032',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -792,7 +792,7 @@ export const merchants: SeedMerchant[] = [
     ],
   },
   {
-    ref: 'M33', email: 'servicer.33@demo.local',
+    ref: 'M33', email: 'kevin.raj@demo.local',
     name: 'Kevin Raj', businessName: 'MayaMotion Studio (Maya)',
     phone: '+60 12-300 0033',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -811,7 +811,7 @@ export const merchants: SeedMerchant[] = [
     ],
   },
   {
-    ref: 'M34', email: 'servicer.34@demo.local',
+    ref: 'M34', email: 'desmond.ng@demo.local',
     name: 'Desmond Ng', businessName: 'MaxDesign Studio (3ds Max)',
     phone: '+60 12-300 0034',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -830,7 +830,7 @@ export const merchants: SeedMerchant[] = [
     ],
   },
   {
-    ref: 'M35', email: 'servicer.35@demo.local',
+    ref: 'M35', email: 'aina.zahra@demo.local',
     name: 'Aina Zahra', businessName: 'ZBrushArt Studio (ZBrush)',
     phone: '+60 12-300 0035',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -851,7 +851,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M36  Alarm & CCTV ──
   {
-    ref: 'M36', email: 'servicer.36@demo.local',
+    ref: 'M36', email: 'ahmed.rahim@demo.local',
     name: 'Ahmed Rahim', businessName: 'SecureView CCTV & Alarm',
     phone: '+60 12-300 0036',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -871,12 +871,12 @@ export const merchants: SeedMerchant[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════
-  // SET B  (M37–M66) — second merchant per category
+  // SET B  (M37–M66) - second merchant per category
   // ══════════════════════════════════════════════════════════════════════
 
   // ── M37  Plumber (B) ──
   {
-    ref: 'M37', email: 'servicer.37@demo.local',
+    ref: 'M37', email: 'hairul.azmi@demo.local',
     name: 'Hairul Azmi', businessName: 'PipePro Plumbing Solutions',
     phone: '+60 12-300 0037',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -897,7 +897,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M38  Aircond Servicer (B) ──
   {
-    ref: 'M38', email: 'servicer.38@demo.local',
+    ref: 'M38', email: 'lim.boon.kiat@demo.local',
     name: 'Lim Boon Kiat', businessName: 'ArcticAir Services Sdn Bhd',
     phone: '+60 12-300 0038',
     isCompany: true, entityType: 'sdn_bhd',
@@ -918,7 +918,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M39  Electrical & Wiring (B) ──
   {
-    ref: 'M39', email: 'servicer.39@demo.local',
+    ref: 'M39', email: 'selvakumar.pillai@demo.local',
     name: 'Selvakumar Pillai', businessName: 'PowerLine Electrical Works',
     phone: '+60 12-300 0039',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -939,7 +939,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M40  Home Cleaning (B) ──
   {
-    ref: 'M40', email: 'servicer.40@demo.local',
+    ref: 'M40', email: 'rozita.hamid@demo.local',
     name: 'Rozita Hamid', businessName: 'GlowClean Home Services',
     phone: '+60 12-300 0040',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -960,7 +960,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M41  Sofa / Mattress Cleaning (B) ──
   {
-    ref: 'M41', email: 'servicer.41@demo.local',
+    ref: 'M41', email: 'teh.wai.choon@demo.local',
     name: 'Teh Wai Choon', businessName: 'DeepSteam Upholstery Care',
     phone: '+60 12-300 0041',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -980,7 +980,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M42  Carpet Cleaning (B) ──
   {
-    ref: 'M42', email: 'servicer.42@demo.local',
+    ref: 'M42', email: 'norzahra.idris@demo.local',
     name: 'Norzahra Idris', businessName: 'FibreFresh Carpet Studio',
     phone: '+60 12-300 0042',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1000,7 +1000,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M43  Curtain Cleaning (B) ──
   {
-    ref: 'M43', email: 'servicer.43@demo.local',
+    ref: 'M43', email: 'harish.menon@demo.local',
     name: 'Harish Menon', businessName: 'CleanDrape Curtain Services',
     phone: '+60 12-300 0043',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1021,7 +1021,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M44  Event Planner (B) ──
   {
-    ref: 'M44', email: 'servicer.44@demo.local',
+    ref: 'M44', email: 'sharifah.nadia@demo.local',
     name: 'Sharifah Nadia', businessName: 'Momentous Events Enterprise',
     phone: '+60 12-300 0044',
     isCompany: true, entityType: 'enterprise',
@@ -1042,7 +1042,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M45  Catering (B) ──
   {
-    ref: 'M45', email: 'servicer.45@demo.local',
+    ref: 'M45', email: 'puan.rohani.bakar@demo.local',
     name: 'Puan Rohani Bakar', businessName: 'Warisan Kitchen Catering',
     phone: '+60 12-300 0045',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1063,7 +1063,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M46  Professional Organizer (B) ──
   {
-    ref: 'M46', email: 'servicer.46@demo.local',
+    ref: 'M46', email: 'cindy.yap@demo.local',
     name: 'Cindy Yap', businessName: 'OrderMind Home Organizing',
     phone: '+60 12-300 0046',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1084,7 +1084,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M47  Aircond Installer (B) ──
   {
-    ref: 'M47', email: 'servicer.47@demo.local',
+    ref: 'M47', email: 'zulkifli.nordin@demo.local',
     name: 'Zulkifli Nordin', businessName: 'CoolTech Installation Services',
     phone: '+60 12-300 0047',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1104,7 +1104,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M48  Carpenter (B) ──
   {
-    ref: 'M48', email: 'servicer.48@demo.local',
+    ref: 'M48', email: 'chong.yen.kee@demo.local',
     name: 'Chong Yen Kee', businessName: 'TimberCraft Furniture Works',
     phone: '+60 12-300 0048',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1125,7 +1125,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M49  Renovation (B) ──
   {
-    ref: 'M49', email: 'servicer.49@demo.local',
+    ref: 'M49', email: 'nizam.azlan@demo.local',
     name: 'Nizam Azlan', businessName: 'HomeCraft Renovation Works',
     phone: '+60 12-300 0049',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1145,7 +1145,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M50  Interior Design (B) ──
   {
-    ref: 'M50', email: 'servicer.50@demo.local',
+    ref: 'M50', email: 'vivian.leong@demo.local',
     name: 'Vivian Leong', businessName: 'Lux Interiors Design Studio',
     phone: '+60 12-300 0050',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1165,7 +1165,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M51  Door Gate (B) ──
   {
-    ref: 'M51', email: 'servicer.51@demo.local',
+    ref: 'M51', email: 'mohd.fauzi.ariffin@demo.local',
     name: 'Mohd Fauzi Ariffin', businessName: 'GateKing Auto & Security',
     phone: '+60 12-300 0051',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1186,7 +1186,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M52  Roof (B) ──
   {
-    ref: 'M52', email: 'servicer.52@demo.local',
+    ref: 'M52', email: 'kasim.wahab@demo.local',
     name: 'Kasim Wahab', businessName: 'RoofShield Waterproofing Works',
     phone: '+60 12-300 0052',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1206,7 +1206,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M53  Washing Machine Repair (B) ──
   {
-    ref: 'M53', email: 'servicer.53@demo.local',
+    ref: 'M53', email: 'kumaresan.velu@demo.local',
     name: 'Kumaresan Velu', businessName: 'SpinFix Appliance Repair',
     phone: '+60 12-300 0053',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1226,7 +1226,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M54  Refrigerator Repair (B) ──
   {
-    ref: 'M54', email: 'servicer.54@demo.local',
+    ref: 'M54', email: 'tan.ah.kow@demo.local',
     name: 'Tan Ah Kow', businessName: 'IceBreak Fridge Services',
     phone: '+60 12-300 0054',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1246,7 +1246,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M55  TV Repair (B) ──
   {
-    ref: 'M55', email: 'servicer.55@demo.local',
+    ref: 'M55', email: 'indra.babu@demo.local',
     name: 'Indra Babu', businessName: 'PixelPerfect TV Workshop',
     phone: '+60 12-300 0055',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1266,7 +1266,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M56  Oven Repair (B) ──
   {
-    ref: 'M56', email: 'servicer.56@demo.local',
+    ref: 'M56', email: 'zakaria.hamdan@demo.local',
     name: 'Zakaria Hamdan', businessName: 'BakeRight Oven & Kitchen Repair',
     phone: '+60 12-300 0056',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1286,7 +1286,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M57  Water Heater Repair (B) ──
   {
-    ref: 'M57', email: 'servicer.57@demo.local',
+    ref: 'M57', email: 'murugaiah.arumugam@demo.local',
     name: 'Murugaiah Arumugam', businessName: 'HotFlow Water Systems',
     phone: '+60 12-300 0057',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1306,7 +1306,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M58  Ceiling Fan Repair (B) ──
   {
-    ref: 'M58', email: 'servicer.58@demo.local',
+    ref: 'M58', email: 'ang.khim.seng@demo.local',
     name: 'Ang Khim Seng', businessName: 'BreezeWorks Fan & Electrical',
     phone: '+60 12-300 0058',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1326,7 +1326,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M59  Aircond Repair (B) ──
   {
-    ref: 'M59', email: 'servicer.59@demo.local',
+    ref: 'M59', email: 'ridzuan.salleh@demo.local',
     name: 'Ridzuan Salleh', businessName: 'FrostFix AC Repair',
     phone: '+60 12-300 0059',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1346,7 +1346,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M60  Art Class (B) ──
   {
-    ref: 'M60', email: 'servicer.60@demo.local',
+    ref: 'M60', email: 'yew.siau.lin@demo.local',
     name: 'Yew Siau Lin', businessName: 'InkWell Art Academy',
     phone: '+60 12-300 0060',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1366,7 +1366,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M61  Language Class (B) ──
   {
-    ref: 'M61', email: 'servicer.61@demo.local',
+    ref: 'M61', email: 'azri.hamidon@demo.local',
     name: 'Azri Hamidon', businessName: 'LinguaEdge Language Centre',
     phone: '+60 12-300 0061',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1387,7 +1387,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M62  Music Class (B) ──
   {
-    ref: 'M62', email: 'servicer.62@demo.local',
+    ref: 'M62', email: 'prabhakaran.suresh@demo.local',
     name: 'Prabhakaran Suresh', businessName: 'RhythmBox Music School',
     phone: '+60 12-300 0062',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1408,7 +1408,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M63  Home Tutoring (B) ──
   {
-    ref: 'M63', email: 'servicer.63@demo.local',
+    ref: 'M63', email: 'chong.mei.fong@demo.local',
     name: 'Chong Mei Fong', businessName: 'ApexTutor Learning Centre',
     phone: '+60 12-300 0063',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1428,7 +1428,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M64  Cooking Class (B) ──
   {
-    ref: 'M64', email: 'servicer.64@demo.local',
+    ref: 'M64', email: 'ganesh.krishnamurthy@demo.local',
     name: 'Ganesh Krishnamurthy', businessName: 'SpiceRoute Cooking Academy',
     phone: '+60 12-300 0064',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1448,7 +1448,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M65  Gym Trainer (B) ──
   {
-    ref: 'M65', email: 'servicer.65@demo.local',
+    ref: 'M65', email: 'farah.diyana@demo.local',
     name: 'Farah Diyana', businessName: 'CoreStrong Personal Fitness',
     phone: '+60 12-300 0065',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1469,7 +1469,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M66  Alarm & CCTV (B) ──
   {
-    ref: 'M66', email: 'servicer.66@demo.local',
+    ref: 'M66', email: 'patrick.chin@demo.local',
     name: 'Patrick Chin', businessName: 'SafeHaven Security Systems',
     phone: '+60 12-300 0066',
     isCompany: true, entityType: 'enterprise',
@@ -1490,12 +1490,12 @@ export const merchants: SeedMerchant[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════
-  // SET C  (M67–M96) — third merchant per category
+  // SET C  (M67–M96) - third merchant per category
   // ══════════════════════════════════════════════════════════════════════
 
   // ── M67  Plumber (C) ──
   {
-    ref: 'M67', email: 'servicer.67@demo.local',
+    ref: 'M67', email: 'suhaimi.ghazali@demo.local',
     name: 'Suhaimi Ghazali', businessName: 'DrainMaster Plumbing & Sewerage',
     phone: '+60 12-300 0067',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1516,7 +1516,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M68  Aircond Servicer (C) ──
   {
-    ref: 'M68', email: 'servicer.68@demo.local',
+    ref: 'M68', email: 'wee.chun.hoong@demo.local',
     name: 'Wee Chun Hoong', businessName: 'PolarCool Aircon Service Centre',
     phone: '+60 12-300 0068',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1536,7 +1536,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M69  Electrical & Wiring (C) ──
   {
-    ref: 'M69', email: 'servicer.69@demo.local',
+    ref: 'M69', email: 'mohan.subramaniam@demo.local',
     name: 'Mohan Subramaniam', businessName: 'Ampere Electrical Contractors',
     phone: '+60 12-300 0069',
     isCompany: true, entityType: 'enterprise',
@@ -1557,7 +1557,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M70  Home Cleaning (C) ──
   {
-    ref: 'M70', email: 'servicer.70@demo.local',
+    ref: 'M70', email: 'salmah.othman@demo.local',
     name: 'Salmah Othman', businessName: 'Bersih Cermat Home Clean',
     phone: '+60 12-300 0070',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1578,7 +1578,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M71  Sofa / Mattress Cleaning (C) ──
   {
-    ref: 'M71', email: 'servicer.71@demo.local',
+    ref: 'M71', email: 'raymond.ong@demo.local',
     name: 'Raymond Ong', businessName: 'SofaRenew Cleaning Specialists',
     phone: '+60 12-300 0071',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1599,7 +1599,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M72  Carpet Cleaning (C) ──
   {
-    ref: 'M72', email: 'servicer.72@demo.local',
+    ref: 'M72', email: 'shanthi.balakrishnan@demo.local',
     name: 'Shanthi Balakrishnan', businessName: 'CarpetPro Steam Clean',
     phone: '+60 12-300 0072',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1619,7 +1619,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M73  Curtain Cleaning (C) ──
   {
-    ref: 'M73', email: 'servicer.73@demo.local',
+    ref: 'M73', email: 'noor.aisyah.ramli@demo.local',
     name: 'Noor Aisyah Ramli', businessName: 'VelvetClean Curtain & Drape',
     phone: '+60 12-300 0073',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1639,7 +1639,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M74  Event Planner (C) ──
   {
-    ref: 'M74', email: 'servicer.74@demo.local',
+    ref: 'M74', email: 'derrick.lau@demo.local',
     name: 'Derrick Lau', businessName: 'Premier Occasions Event Co',
     phone: '+60 12-300 0074',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1659,7 +1659,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M75  Catering (C) ──
   {
-    ref: 'M75', email: 'servicer.75@demo.local',
+    ref: 'M75', email: 'kavitha.suppiah@demo.local',
     name: 'Kavitha Suppiah', businessName: 'Lotus Leaf Catering Services',
     phone: '+60 12-300 0075',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1680,7 +1680,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M76  Professional Organizer (C) ──
   {
-    ref: 'M76', email: 'servicer.76@demo.local',
+    ref: 'M76', email: 'lim.jia.hui@demo.local',
     name: 'Lim Jia Hui', businessName: 'NeatNest Organising Studio',
     phone: '+60 12-300 0076',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1700,7 +1700,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M77  Aircond Installer (C) ──
   {
-    ref: 'M77', email: 'servicer.77@demo.local',
+    ref: 'M77', email: 'roslan.taib@demo.local',
     name: 'Roslan Taib', businessName: 'IceKing AC Installation Works',
     phone: '+60 12-300 0077',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1720,7 +1720,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M78  Carpenter (C) ──
   {
-    ref: 'M78', email: 'servicer.78@demo.local',
+    ref: 'M78', email: 'foo.chee.wah@demo.local',
     name: 'Foo Chee Wah', businessName: 'GrainLine Custom Carpentry',
     phone: '+60 12-300 0078',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1741,7 +1741,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M79  Renovation (C) ──
   {
-    ref: 'M79', email: 'servicer.79@demo.local',
+    ref: 'M79', email: 'adzrul.hafiz@demo.local',
     name: 'Adzrul Hafiz', businessName: 'AceReno Building & Renovation',
     phone: '+60 12-300 0079',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1761,7 +1761,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M80  Interior Design (C) ──
   {
-    ref: 'M80', email: 'servicer.80@demo.local',
+    ref: 'M80', email: 'anastasia.lim@demo.local',
     name: 'Anastasia Lim', businessName: 'Aether Design Atelier',
     phone: '+60 12-300 0080',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1781,7 +1781,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M81  Door Gate (C) ──
   {
-    ref: 'M81', email: 'servicer.81@demo.local',
+    ref: 'M81', email: 'shahril.amin@demo.local',
     name: 'Shahril Amin', businessName: 'IronShield Gate & Grille Works',
     phone: '+60 12-300 0081',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1802,7 +1802,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M82  Roof (C) ──
   {
-    ref: 'M82', email: 'servicer.82@demo.local',
+    ref: 'M82', email: 'balachandran.pillai@demo.local',
     name: 'Balachandran Pillai', businessName: 'ApexRoof Construction Works',
     phone: '+60 12-300 0082',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1822,7 +1822,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M83  Washing Machine Repair (C) ──
   {
-    ref: 'M83', email: 'servicer.83@demo.local',
+    ref: 'M83', email: 'ooi.boon.huat@demo.local',
     name: 'Ooi Boon Huat', businessName: 'WashTech Appliance Care',
     phone: '+60 12-300 0083',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1842,7 +1842,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M84  Refrigerator Repair (C) ──
   {
-    ref: 'M84', email: 'servicer.84@demo.local',
+    ref: 'M84', email: 'nor.azlina.musa@demo.local',
     name: 'Nor Azlina Musa', businessName: 'FridgePro Cooling Services',
     phone: '+60 12-300 0084',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1862,7 +1862,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M85  TV Repair (C) ──
   {
-    ref: 'M85', email: 'servicer.85@demo.local',
+    ref: 'M85', email: 'sivakumar.rajan@demo.local',
     name: 'Sivakumar Rajan', businessName: 'SmartScreen TV & AV Repair',
     phone: '+60 12-300 0085',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1882,7 +1882,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M86  Oven Repair (C) ──
   {
-    ref: 'M86', email: 'servicer.86@demo.local',
+    ref: 'M86', email: 'juliana.mohd.zain@demo.local',
     name: 'Juliana Mohd Zain', businessName: 'KitchenFix Oven & Appliance',
     phone: '+60 12-300 0086',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1902,7 +1902,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M87  Water Heater Repair (C) ──
   {
-    ref: 'M87', email: 'servicer.87@demo.local',
+    ref: 'M87', email: 'remy.haziq@demo.local',
     name: 'Remy Haziq', businessName: 'AquaHeat Plumbing & Heater',
     phone: '+60 12-300 0087',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1922,7 +1922,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M88  Ceiling Fan Repair (C) ──
   {
-    ref: 'M88', email: 'servicer.88@demo.local',
+    ref: 'M88', email: 'krishnan.nair@demo.local',
     name: 'Krishnan Nair', businessName: 'AirSpin Fan & Lighting Works',
     phone: '+60 12-300 0088',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1943,7 +1943,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M89  Aircond Repair (C) ──
   {
-    ref: 'M89', email: 'servicer.89@demo.local',
+    ref: 'M89', email: 'syafiq.azman@demo.local',
     name: 'Syafiq Azman', businessName: 'ChillDoc Aircon Diagnostic',
     phone: '+60 12-300 0089',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1964,7 +1964,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M90  Art Class (C) ──
   {
-    ref: 'M90', email: 'servicer.90@demo.local',
+    ref: 'M90', email: 'amelia.fong@demo.local',
     name: 'Amelia Fong', businessName: 'UrbanBrush Art & Craft Studio',
     phone: '+60 12-300 0090',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -1985,7 +1985,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M91  Language Class (C) ──
   {
-    ref: 'M91', email: 'servicer.91@demo.local',
+    ref: 'M91', email: 'ong.siew.ching@demo.local',
     name: 'Ong Siew Ching', businessName: 'SpeakEasy Language Hub',
     phone: '+60 12-300 0091',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -2005,7 +2005,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M92  Music Class (C) ──
   {
-    ref: 'M92', email: 'servicer.92@demo.local',
+    ref: 'M92', email: 'tengku.amirul@demo.local',
     name: 'Tengku Amirul', businessName: 'Nada Music Academy',
     phone: '+60 12-300 0092',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -2026,7 +2026,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M93  Home Tutoring (C) ──
   {
-    ref: 'M93', email: 'servicer.93@demo.local',
+    ref: 'M93', email: 'nurul.ain.zahari@demo.local',
     name: 'Nurul Ain Zahari', businessName: 'SmartKids Home Tuition',
     phone: '+60 12-300 0093',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -2046,7 +2046,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M94  Cooking Class (C) ──
   {
-    ref: 'M94', email: 'servicer.94@demo.local',
+    ref: 'M94', email: 'ho.lai.yee@demo.local',
     name: 'Ho Lai Yee', businessName: 'Chopstick Kitchen Studio',
     phone: '+60 12-300 0094',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -2067,7 +2067,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M95  Gym Trainer (C) ──
   {
-    ref: 'M95', email: 'servicer.95@demo.local',
+    ref: 'M95', email: 'hardeep.singh@demo.local',
     name: 'Hardeep Singh', businessName: 'IronWill Fitness Coaching',
     phone: '+60 12-300 0095',
     isCompany: false, entityType: 'sole_proprietorship',
@@ -2088,7 +2088,7 @@ export const merchants: SeedMerchant[] = [
   },
   // ── M96  Alarm & CCTV (C) ──
   {
-    ref: 'M96', email: 'servicer.96@demo.local',
+    ref: 'M96', email: 'marcus.yong@demo.local',
     name: 'Marcus Yong', businessName: 'VisionGuard CCTV & Access Control',
     phone: '+60 12-300 0096',
     isCompany: true, entityType: 'sdn_bhd',
@@ -2121,7 +2121,7 @@ export interface SeedCustomer {
 export const customers: SeedCustomer[] = [
   {
     ref: 'C_FRESH',
-    email: 'customer.fresh@demo.local',
+    email: 'sarah.lim2@demo.local',
     name: 'Sarah Lim',
     phone: '+60 12-345 6789',
     addresses: [
@@ -2130,7 +2130,7 @@ export const customers: SeedCustomer[] = [
   },
   {
     ref: 'C_ACTIVE',
-    email: 'customer.active@demo.local',
+    email: 'david.tan@demo.local',
     name: 'David Tan',
     phone: '+60 11-234 5678',
     addresses: [
@@ -2139,7 +2139,7 @@ export const customers: SeedCustomer[] = [
   },
   {
     ref: 'C_LOYAL',
-    email: 'customer.loyal@demo.local',
+    email: 'priya.subramaniam@demo.local',
     name: 'Priya Subramaniam',
     phone: '+60 19-876 5432',
     preferredTimeSlot: 'noon',
@@ -2149,33 +2149,33 @@ export const customers: SeedCustomer[] = [
     ],
   },
   {
-    ref: 'C_FRESH2', email: 'customer.fresh2@demo.local',
+    ref: 'C_FRESH2', email: 'nurul.hafizah@demo.local',
     name: 'Nurul Hafizah', phone: '+60 17-111 2233',
     addresses: [{ label: 'Home', address: '8 Jalan Gombak, Setapak, KL', propertyType: 'landed', isDefault: true, postcode: '53000', district: 'Setapak', state: 'Kuala Lumpur' }],
   },
   {
-    ref: 'C_FRESH3', email: 'customer.fresh3@demo.local',
+    ref: 'C_FRESH3', email: 'michael.lim@demo.local',
     name: 'Michael Lim', phone: '+60 16-222 3344',
     addresses: [{ label: 'Home', address: '3 Jalan Klang Lama, Old Klang Road, KL', propertyType: 'condo', isDefault: true, postcode: '58000', district: 'Old Klang Road', state: 'Kuala Lumpur' }],
   },
   {
-    ref: 'C_ACTIVE2', email: 'customer.active2@demo.local',
+    ref: 'C_ACTIVE2', email: 'rashida.kamila@demo.local',
     name: 'Rashida Kamila', phone: '+60 18-333 4455',
     addresses: [{ label: 'Home', address: '22 Jalan Duta, Mont Kiara, KL', propertyType: 'condo', isDefault: true, postcode: '50480', district: 'Mont Kiara', state: 'Kuala Lumpur' }],
   },
   {
-    ref: 'C_ACTIVE3', email: 'customer.active3@demo.local',
+    ref: 'C_ACTIVE3', email: 'jason.yeoh@demo.local',
     name: 'Jason Yeoh', phone: '+60 14-444 5566',
     addresses: [{ label: 'Home', address: '15 Persiaran Ampang, Ampang, KL', propertyType: 'landed', isDefault: true, postcode: '68000', district: 'Ampang', state: 'Selangor' }],
   },
   {
-    ref: 'C_LOYAL2', email: 'customer.loyal2@demo.local',
+    ref: 'C_LOYAL2', email: 'tan.mei.ling@demo.local',
     name: 'Tan Mei Ling', phone: '+60 13-555 6677',
     preferredTimeSlot: 'morning' as const,
     addresses: [      { label: 'Home', address: '7 Jalan Bangsar, Bangsar, KL', propertyType: 'condo', isDefault: true, postcode: '59000', district: 'Bangsar', state: 'Kuala Lumpur' }],
   },
   {
-    ref: 'C_LOYAL3', email: 'customer.loyal3@demo.local',
+    ref: 'C_LOYAL3', email: 'rajan.krishnan@demo.local',
     name: 'Rajan Krishnan', phone: '+60 11-666 7788',
     preferredTimeSlot: 'afternoon' as const,
     addresses: [{ label: 'Home', address: '33 Jalan Cheras, Cheras, KL', propertyType: 'landed', isDefault: true, postcode: '56000', district: 'Cheras', state: 'Kuala Lumpur' }],

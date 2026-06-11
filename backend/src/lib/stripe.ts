@@ -89,7 +89,7 @@ export async function createTopUpSession(
   const amountSen = Math.round(amountMYR * 100);
 
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card', 'grabpay'],
+    payment_method_types: ['card', 'grabpay', 'link'],
     mode: 'payment',
     line_items: [
       {
@@ -153,7 +153,7 @@ export async function createBookingPaymentSession(
   const amountSen = Math.round(amountMYR * 100);
 
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card', 'grabpay'],
+    payment_method_types: ['card', 'grabpay', 'link'],
     mode: 'payment',
     line_items: [
       {

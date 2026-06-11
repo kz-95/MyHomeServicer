@@ -1715,3 +1715,54 @@ money-equivalent to a `credit` settlement.
 | `npx jest non-refundable\|modifier-pricing` | ✅ 35 pass, 0 fail |
 | `npm run db:reset` | ✅ exit 0 (31 child categories + wallet history) |
 | `npm run seed:test` | ✅ exit 0 (9/9 lifecycle scenarios) |
+
+## Session 2026-06-11 — Sound tiering, email renaming, Stripe Link, demo unlock phrase
+
+### Sound system overhaul
+- **Tiered notification sounds** (`notification.service.ts`): `jobs`→`Notification_Job.wav`, `orders`→`Notification_Order.wav`, `payments`→`Notification_Topup.wav`, fallback to `Notification_Chat.wav`/`NotificationCard.wav`.
+- **Chat sounds** (`chat-widget.component.ts`): Typing → `Chat_Typing.wav` (file-based, was synthetic white noise). Reply → `Chat_Reply.wav`. Both loop while AI thinking, stop on reply.
+- **Guest auto-open** (`chat-widget.component.ts`): Restricted to home page, guests only. Plays `Chat_Reply.wav` on open.
+- **Sound settings fallback**: defaults to `true` before admin API responds.
+- 6 new `.wav` files in `frontend/src/assets/sounds/`.
+
+### Backend socket emissions (`chat.routes.ts`)
+- `emitToSession('chat.typing')` before AI call — powers typing indicator + sound.
+- `emitToSession('chat.unread', count)` after AI reply — powers unread badge + chat sound.
+- `emitToSession()` helper routes by user kind.
+
+### Seed email rename (105 accounts)
+- All `servicer.N@demo.local` / `customer.X@demo.local` → name-based emails.
+- Derived from `name` field: `ahmad.bin.ismail@demo.local`, `kumar.selvam@demo.local`, etc.
+- Duplicates auto-resolved (e.g. `mei.ling@demo.local`, `mei.ling2@demo.local`).
+- Updated in `accounts.ts`, `seed.ts`, `seed-test.ts`, `demo-bar.component.ts`, `demo-auth.ts`.
+- FAQ text in `static.ts` updated to reflect new naming.
+
+### Em dash → dash (all seed files)
+- 198 `—` replaced with `-` across 7 seed files.
+
+### Stripe Link (`stripe.ts`)
+- `payment_method_types` changed from `['card', 'grabpay']` → `['card', 'grabpay', 'link']`.
+- Applies to both top-up and booking payment checkout sessions.
+
+### Demo unlock phrase → backend dynamic
+- `backend/routes/index.ts`: `/config/public` now returns `demoUnlockPhrase` from platform settings.
+- `backend/data/static.ts`: seeded `demo_unlock_phrase` setting.
+- `backend/config/env.ts`: `DEMO_UNLOCK_PHRASE` env var with default.
+- `demo-unlock.service.ts`: Fetches from `/config/public`, falls back to `environment.demoUnlockPhrase`.
+
+### Chat prefill user-scoped (`quote-form.component.ts`, `chat-widget.component.ts`)
+- `msvc_latest_chat_prefill` → `msvc_latest_chat_prefill_{userId}` for authenticated users.
+- Prevents demo/session data bleeding across different customer accounts.
+
+### Bug fixes
+- Category priority: query param now wins over stale localStorage chat prefill (`quote-form.component.ts`).
+- Chat no longer auto-opens for customers on quote form (`shell.component.ts` — removed).
+- Demo bar + QA buttons hidden behind unlock phrase toggle (`demo-unlock.service.ts`).
+- `sessionStorage` persistence for unlock state across refreshes.
+
+### Gate
+| Check | Result |
+|-------|--------|
+| `npx tsc --noEmit` (backend/) | ✅ 0 errors |
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+

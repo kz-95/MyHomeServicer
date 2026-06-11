@@ -53,6 +53,11 @@ const envSchema = z.object({
   GOOGLE_CALLBACK_URL: z.string().default('http://localhost:3000/api/v1/auth/google/callback'),
   ADMIN_EMAILS: z.string().default(''),
 
+  // Secret phrase that toggles all demo/QA UI when typed anywhere on the page.
+  // Seeded into platform_settings.demo_unlock_phrase and served via
+  // /config/public; admins can override live in the DB without a redeploy.
+  DEMO_UNLOCK_PHRASE: z.string().default('unlockdemobar'),
+
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_WEBHOOK_SECRET: z.string().default(''),
   STRIPE_PUBLISHABLE_KEY: z.string().default(''),

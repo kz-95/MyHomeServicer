@@ -1,5 +1,5 @@
 ﻿/**
- * Static seed data — categories, platform settings, penalty rules and
+ * Static seed data - categories, platform settings, penalty rules and
  * feature flags. Mirrors seed-plan.md.
  */
 
@@ -14,16 +14,16 @@ export interface QuoteQuestion {
   labelI18n?: SeedI18n;
   /**
    * Input types:
-   *  - checkbox  — multi-select from a fixed option list (answer: string[])
-   *  - radio     — single-select from a fixed option list (answer: string)
-   *  - text      — free-text field (answer: string)
-   *  - quantity  — per-option count stepper (answer: Record<optionValue, number>)
-   *  - number    — single numeric input, informational (answer: number)
+   *  - checkbox  - multi-select from a fixed option list (answer: string[])
+   *  - radio     - single-select from a fixed option list (answer: string)
+   *  - text      - free-text field (answer: string)
+   *  - quantity  - per-option count stepper (answer: Record<optionValue, number>)
+   *  - number    - single numeric input, informational (answer: number)
    */
   type: "checkbox" | "radio" | "text" | "quantity" | "number";
   required: boolean;
   /**
-   * When true, the options on this question carry merchant-set prices — the
+   * When true, the options on this question carry merchant-set prices - the
    * servicer listing form renders an option-price grid for them and the
    * proposal price box is pre-filled from the customer's selections.
    * When false (or absent), the question is informational only (property type,
@@ -37,7 +37,7 @@ export interface QuoteQuestion {
   options?: { value: string; label: string; labelI18n?: SeedI18n }[];
 }
 
-/** Top-level grouping category (no price / questions — browse only). */
+/** Top-level grouping category (no price / questions - browse only). */
 interface SeedParentCategory {
   slug: string;
   name: string;
@@ -71,8 +71,8 @@ interface SeedChildCategory {
 }
 
 /**
- * Sample question set — aircond-servicer.
- * NOTE: property_type is now a GLOBAL quote field (not per-category) — removed from here.
+ * Sample question set - aircond-servicer.
+ * NOTE: property_type is now a GLOBAL quote field (not per-category) - removed from here.
  */
 const airconQuestions: QuoteQuestion[] = [
   {
@@ -80,28 +80,28 @@ const airconQuestions: QuoteQuestion[] = [
     label: "Select type of aircon and type of cleaning",
     type: "checkbox",
     required: true,
-    // priced: true — servicer sets a price per option in the listing form;
+    // priced: true - servicer sets a price per option in the listing form;
     // customer's selections pre-fill the proposal price box (Phase 6).
     priced: true,
     description: "You can select more than one type of cleaning.",
     options: [
       {
         value: "wall_chemical",
-        label: "Wall Unit — Chemical Cleaning (Recommended)",
+        label: "Wall Unit - Chemical Cleaning (Recommended)",
       },
-      { value: "wall_general", label: "Wall Unit — General Cleaning" },
-      { value: "wall_overhaul", label: "Wall Unit — Overhaul Cleaning" },
+      { value: "wall_general", label: "Wall Unit - General Cleaning" },
+      { value: "wall_overhaul", label: "Wall Unit - Overhaul Cleaning" },
       {
         value: "cassette_general",
-        label: "Cassette / Ceiling Unit — General Cleaning",
+        label: "Cassette / Ceiling Unit - General Cleaning",
       },
       {
         value: "cassette_chemical",
-        label: "Cassette / Ceiling Unit — Chemical Cleaning",
+        label: "Cassette / Ceiling Unit - Chemical Cleaning",
       },
       {
         value: "cassette_overhaul",
-        label: "Cassette / Ceiling Unit — Overhaul Cleaning",
+        label: "Cassette / Ceiling Unit - Overhaul Cleaning",
       },
       {
         value: "faulty_check",
@@ -111,7 +111,7 @@ const airconQuestions: QuoteQuestion[] = [
   },
 ];
 
-/** The 7 top-level parent categories (browse groupings only — no price or questions). */
+/** The 7 top-level parent categories (browse groupings only - no price or questions). */
 export const categories: SeedParentCategory[] = [
   { slug: "cleaning-service", name: "Cleaning Service", icon: "sparkles" },
   { slug: "events-weddings", name: "Events", icon: "party-popper" },
@@ -609,7 +609,7 @@ export const children: SeedChildCategory[] = [
         options: [
           {
             value: "yes_provide",
-            label: "Yes (supplies provided — pass-through fee applies)",
+            label: "Yes (supplies provided - pass-through fee applies)",
           },
           { value: "no_i_provide", label: "No, I'll provide" },
         ],
@@ -2163,7 +2163,7 @@ export const children: SeedChildCategory[] = [
     duration: 180,
     photosEnabled: true,
     description:
-      "Interior and exterior painting — repaint a wall, a room, or the whole place. Covers walls, ceilings, doors and grilles.",
+      "Interior and exterior painting - repaint a wall, a room, or the whole place. Covers walls, ceilings, doors and grilles.",
     imageUrl: "assets/Images/HomeImprovement_Painting01.png",
     questions: [
       {
@@ -2240,7 +2240,7 @@ export const children: SeedChildCategory[] = [
     duration: 180,
     photosEnabled: true,
     description:
-      "Movers to shift your home or office — carrying, loading and transporting furniture and boxes. Also single bulky items.",
+      "Movers to shift your home or office - carrying, loading and transporting furniture and boxes. Also single bulky items.",
     imageUrl: "assets/Images/HomeMaintenance_Moving01.png",
     questions: [
       {
@@ -2323,7 +2323,7 @@ export const children: SeedChildCategory[] = [
     duration: 120,
     photosEnabled: true,
     description:
-      "Garden and lawn care — mowing, trimming, hedge and bush work, weeding, tree pruning and landscaping.",
+      "Garden and lawn care - mowing, trimming, hedge and bush work, weeding, tree pruning and landscaping.",
     imageUrl: "assets/Images/HomeMaintenance_Gardening01.png",
     questions: [
       {
@@ -2448,7 +2448,7 @@ export const platformSettings: { key: string; value: unknown }[] = [
       "Hi! Whether you need a quote or just have a question, I'm here.",
     ],
   },
-  // Returning guest — {name} is filled by the client with the remembered name.
+  // Returning guest - {name} is filled by the client with the remembered name.
   {
     key: "chat_greetings_returning",
     value: [
@@ -2458,7 +2458,7 @@ export const platformSettings: { key: string; value: unknown }[] = [
       "Good to see you back, {name}! Is that you? What do you need today?",
     ],
   },
-  // Logged-in customer — {name} is the account holder.
+  // Logged-in customer - {name} is the account holder.
   {
     key: "chat_greetings_customer",
     value: [
@@ -2487,6 +2487,9 @@ export const platformSettings: { key: string; value: unknown }[] = [
     ],
   },
   { key: "chat_service_keywords", value: {} },
+  // Seeded from DEMO_UNLOCK_PHRASE so the env var is the single source of truth;
+  // admins can still override this row live in the DB without a redeploy.
+  { key: "demo_unlock_phrase", value: process.env.DEMO_UNLOCK_PHRASE || "unlockdemobar" },
 ];
 
 export const penaltyRules: { type: "noshow" | "cancel"; amount: number }[] = [
@@ -2516,10 +2519,10 @@ export const chatKnowledge: {
     question: "How does My Home Servicer work?",
     answer:
       "My Home Servicer connects you with verified home-service professionals. " +
-      "(1) Browse services — pick a category and service type, describe your job, pick a date/time slot, set a budget, and answer any custom questions. " +
-      "(2) Receive proposals — nearby servicers review your request and send their price and message. " +
-      "(3) Choose a proposal — compare servicers by price, rating, and message, then tap to book. " +
-      "(4) Job done — the servicer arrives, completes the work, and you confirm. " +
+      "(1) Browse services - pick a category and service type, describe your job, pick a date/time slot, set a budget, and answer any custom questions. " +
+      "(2) Receive proposals - nearby servicers review your request and send their price and message. " +
+      "(3) Choose a proposal - compare servicers by price, rating, and message, then tap to book. " +
+      "(4) Job done - the servicer arrives, completes the work, and you confirm. " +
       "For pay-now bookings your credit is held in escrow and released only after completion.",
     sortOrder: 1,
   },
@@ -2528,7 +2531,7 @@ export const chatKnowledge: {
     question: "Is My Home Servicer free to use?",
     answer:
       "Creating an account and submitting quote requests is free for customers. " +
-      "A small platform service fee (currently 5%) is deducted from the servicer payout on pay-now bookings — this is not an extra charge to you. " +
+      "A small platform service fee (currently 5%) is deducted from the servicer payout on pay-now bookings - this is not an extra charge to you. " +
       "Pay-later bookings involve direct cash payment and no platform fee is visible to you. " +
       "A processing charge applies when you top up your credit wallet.",
     sortOrder: 2,
@@ -2543,7 +2546,7 @@ export const chatKnowledge: {
     sortOrder: 3,
   },
 
-  // ── Service categories (tier: guest) — consolidated taxonomy ──────────────
+  // ── Service categories (tier: guest) - consolidated taxonomy ──────────────
   {
     category: "categories",
     question: "What services are available on My Home Servicer?",
@@ -2564,7 +2567,7 @@ export const chatKnowledge: {
     question:
       "What's the difference between Aircond Servicer and Aircond Repair?",
     answer:
-      '"Not cold" is usually an Aircond Servicer issue — dirty filter or low gas causes this most of the time. ' +
+      '"Not cold" is usually an Aircond Servicer issue - dirty filter or low gas causes this most of the time. ' +
       "Aircond Servicer is routine maintenance: cleaning the filters, gas top-up and leak check, pipe inspection, " +
       "and a full general check-up. A service visit can resolve 90% of common problems. " +
       "Aircond Servicer cannot replace the motor, PCB, compressor, or do electrical component repair. " +
@@ -2575,11 +2578,11 @@ export const chatKnowledge: {
   },
   {
     category: "categories",
-    question: "My aircond is not cold — which service should I pick?",
+    question: "My aircond is not cold - which service should I pick?",
     answer:
       'Start with Aircond Servicer. Low gas or a dirty filter causes "not cold" 90% of the time. ' +
       "A routine service includes checking gas levels, cleaning filters, inspecting drip tray and drainage, " +
-      "and checking pipes for leaks. Most aircond problems are fixed at the service level — no need to jump to Repair. " +
+      "and checking pipes for leaks. Most aircond problems are fixed at the service level - no need to jump to Repair. " +
       "If the servicer finds a deeper problem (dead motor, burnt PCB, compressor failure), " +
       "they will tell you and recommend Aircond Repair for the specialised fix.",
     sortOrder: 12,
@@ -2591,10 +2594,10 @@ export const chatKnowledge: {
     question: "How do I submit a quote request?",
     answer:
       'From the home page, browse to the service you need. Tap "Request a Quote". The form has steps: ' +
-      "(1) Category & Service — pick the parent category, then the specific service type. " +
-      "(2) Job details — answer any category-specific questions, set your budget range, pick a date and time slot. " +
-      "(3) Contact info — confirm your name, phone number, and service address. " +
-      "(4) Review — choose pay-now or pay-later, add a tip if you wish, then submit. " +
+      "(1) Category & Service - pick the parent category, then the specific service type. " +
+      "(2) Job details - answer any category-specific questions, set your budget range, pick a date and time slot. " +
+      "(3) Contact info - confirm your name, phone number, and service address. " +
+      "(4) Review - choose pay-now or pay-later, add a tip if you wish, then submit. " +
       "You must be logged in; guests can fill the form but need to register or log in before the final submit.",
     tier: "customer",
     sortOrder: 20,
@@ -2605,7 +2608,7 @@ export const chatKnowledge: {
     answer:
       "The budget range tells servicers what you expect to pay for the job. " +
       "Each service has preset ranges (e.g. RM50–150, RM150–300). Pick the range that fits your expectation. " +
-      "Servicers use this to decide whether to respond — if your budget is too low they may skip your request. " +
+      "Servicers use this to decide whether to respond - if your budget is too low they may skip your request. " +
       "For pay-now quotes, the upper end of your budget is held in your credit wallet as a reserve; any unspent amount is refunded automatically when you select a proposal.",
     tier: "customer",
     sortOrder: 21,
@@ -2626,9 +2629,9 @@ export const chatKnowledge: {
     question: "What do the quote statuses mean?",
     answer:
       "Open: your quote is waiting for servicer proposals. " +
-      "Choose proposal: at least one proposal has arrived — you can now select one to book. " +
-      "Booked: you selected a proposal and a booking was created — go to Upcoming Bookings to track it. " +
-      "Expired: the deadline passed with no proposals — check your notifications for a discount code. " +
+      "Choose proposal: at least one proposal has arrived - you can now select one to book. " +
+      "Booked: you selected a proposal and a booking was created - go to Upcoming Bookings to track it. " +
+      "Expired: the deadline passed with no proposals - check your notifications for a discount code. " +
       "Cancelled: you cancelled the request before selecting a proposal.",
     tier: "customer",
     sortOrder: 23,
@@ -2648,7 +2651,7 @@ export const chatKnowledge: {
     category: "quotes",
     question: "Can I cancel a quote request?",
     answer:
-      "Yes — open your quote from My Quotes and tap Cancel Request. You can cancel any time before you select a proposal. " +
+      "Yes - open your quote from My Quotes and tap Cancel Request. You can cancel any time before you select a proposal. " +
       "If you chose pay-now, your full budget reserve is refunded to your credit wallet immediately. " +
       "Once you have selected a proposal and a booking exists, you must cancel from Upcoming Bookings instead.",
     tier: "customer",
@@ -2672,7 +2675,7 @@ export const chatKnowledge: {
     question: "What do the booking statuses mean?",
     answer:
       "pending_confirmation: the booking was created but the servicer has not yet confirmed it. " +
-      "confirmed: the servicer accepted — the job is scheduled. " +
+      "confirmed: the servicer accepted - the job is scheduled. " +
       "in_progress: the servicer has marked their arrival and work has started. " +
       "completed: the servicer marked the job done and issued an invoice. " +
       "cancelled: the booking was cancelled by you, by the servicer, or by the system.",
@@ -2696,7 +2699,7 @@ export const chatKnowledge: {
     answer:
       "Open the booking from Upcoming Bookings and tap Cancel Booking. " +
       "You can cancel for free before the servicer confirms. After confirmation, a cancellation fee may apply. " +
-      "Once the servicer has marked arrival (in_progress) you can no longer cancel — use Report issue instead. " +
+      "Once the servicer has marked arrival (in_progress) you can no longer cancel - use Report issue instead. " +
       "For pay-now bookings, any refund due is returned to your credit wallet automatically.",
     tier: "customer",
     sortOrder: 32,
@@ -2738,7 +2741,7 @@ export const chatKnowledge: {
     answer:
       'Open the booking from Upcoming Bookings or Order History and tap "Report issue". ' +
       "A support chat session opens linked to that specific booking. " +
-      "Describe what went wrong — wrong price, poor workmanship, damage, or any dispute. " +
+      "Describe what went wrong - wrong price, poor workmanship, damage, or any dispute. " +
       "For pay-now bookings, escrow funds are held while a report is open and are not released to the servicer until resolved.",
     tier: "customer",
     sortOrder: 36,
@@ -2763,7 +2766,7 @@ export const chatKnowledge: {
       'When you pick "Pay now" on a quote, your budget maximum is deducted from your credit wallet immediately and held securely in escrow. ' +
       "When you select a servicer proposal, the exact proposal price is reserved and any excess is refunded to your wallet instantly. " +
       "After the job is completed and marked done, the reserved amount is released to the servicer (minus the platform fee). " +
-      "If the servicer cancels, no-shows, or there is an unresolved dispute — your money is refunded automatically.",
+      "If the servicer cancels, no-shows, or there is an unresolved dispute - your money is refunded automatically.",
     tier: "customer",
     sortOrder: 41,
   },
@@ -2774,7 +2777,7 @@ export const chatKnowledge: {
       "Pay Later means you pay the servicer in cash directly after the job is done. " +
       "No credit is deducted from your wallet at any stage. " +
       "After the servicer marks the job done you confirm the payment in the app so the platform can record it and generate the invoice. " +
-      "Pay Later gives you no escrow protection — if there is a dispute the platform can only mediate, not reverse a cash payment.",
+      "Pay Later gives you no escrow protection - if there is a dispute the platform can only mediate, not reverse a cash payment.",
     tier: "customer",
     sortOrder: 42,
   },
@@ -2814,11 +2817,11 @@ export const chatKnowledge: {
     category: "payments",
     question: "When am I charged and refunded?",
     answer:
-      "Pay Now — charged: immediately on quote submit (budget maximum held). " +
-      "Pay Now — partially refunded: when you select a proposal, any amount above the proposal price is returned to your wallet. " +
-      "Pay Now — fully refunded: if you cancel the quote, the servicer no-shows, or the servicer cancels. " +
-      "Pay Now — released to servicer: after job completion with no open dispute. " +
-      "Pay Later — no credit deducted at any point; you pay cash directly.",
+      "Pay Now - charged: immediately on quote submit (budget maximum held). " +
+      "Pay Now - partially refunded: when you select a proposal, any amount above the proposal price is returned to your wallet. " +
+      "Pay Now - fully refunded: if you cancel the quote, the servicer no-shows, or the servicer cancels. " +
+      "Pay Now - released to servicer: after job completion with no open dispute. " +
+      "Pay Later - no credit deducted at any point; you pay cash directly.",
     tier: "customer",
     sortOrder: 46,
   },
@@ -2827,7 +2830,7 @@ export const chatKnowledge: {
     question: "What platform fee is charged?",
     answer:
       "A platform service fee of 5% is deducted from the servicer payout on completed Pay Now bookings. " +
-      "This fee is not an extra charge to you — your payment is the agreed proposal price. " +
+      "This fee is not an extra charge to you - your payment is the agreed proposal price. " +
       "The servicer receives the proposal price minus the 5% fee, plus any tip in full. " +
       "Pay Later bookings have no platform fee deducted.",
     tier: "customer",
@@ -2884,7 +2887,7 @@ export const chatKnowledge: {
     question: "How do I manage my notification preferences?",
     answer:
       "Go to Account > Notification settings. Toggle each notification type on or off. " +
-      "You can also follow specific service categories — when you follow a category you receive alerts when promotions or new servicers are added. " +
+      "You can also follow specific service categories - when you follow a category you receive alerts when promotions or new servicers are added. " +
       "Turning off a notification type stops both in-app and email notifications for that event.",
     tier: "customer",
     sortOrder: 61,
@@ -2907,7 +2910,7 @@ export const chatKnowledge: {
     answer:
       'From the home page tap "Join as Servicer". Fill in your details: full name, email, phone, and the service category you specialise in. ' +
       "You can register as an individual or a company (provide your business registration and tax number if applicable). " +
-      "A security deposit (minimum RM100) is required to activate your account — this deposit is held on the platform and used to cover any penalties. " +
+      "A security deposit (minimum RM100) is required to activate your account - this deposit is held on the platform and used to cover any penalties. " +
       "Your account is created and active immediately after registration.",
     tier: "servicer",
     sortOrder: 70,
@@ -2939,7 +2942,7 @@ export const chatKnowledge: {
     question: "What are proposal presets?",
     answer:
       "Presets are reusable proposal templates. Each preset has a name, a standard message, and an optional price offset (e.g. +RM20 above base price). " +
-      "When responding to a quote, tap a preset to auto-fill the message and price fields — edit as needed before submitting. " +
+      "When responding to a quote, tap a preset to auto-fill the message and price fields - edit as needed before submitting. " +
       "Your default preset is used for auto-accept. You can create up to 3 presets.",
     tier: "servicer",
     sortOrder: 73,
@@ -2959,7 +2962,7 @@ export const chatKnowledge: {
     category: "servicer",
     question: "How do I manage a booking from the servicer side?",
     answer:
-      "Active bookings appear in your Jobs page. Click any job card to open the dispatch overlay — a full-screen view with Customer info, Job Details, Instructions, and a Map. " +
+      "Active bookings appear in your Jobs page. Click any job card to open the dispatch overlay - a full-screen view with Customer info, Job Details, Instructions, and a Map. " +
       "(1) Confirm the booking to accept it. " +
       '(2) On arrival, tap "Mark arrived" and attach a photo. ' +
       '(3) When finished, tap "Mark done" and attach a completion photo. ' +
@@ -2982,7 +2985,7 @@ export const chatKnowledge: {
     category: "servicer",
     question: "What is customer mode for servicers?",
     answer:
-      "Servicer accounts can switch to customer mode to use the platform as a regular customer — browse services, submit quote requests, and make bookings. " +
+      "Servicer accounts can switch to customer mode to use the platform as a regular customer - browse services, submit quote requests, and make bookings. " +
       "Tap the mode toggle in the top bar to switch. While in customer mode, your servicer session is securely paused. " +
       "Switch back at any time. You cannot respond to or bid on quote requests that you submitted as a customer.",
     tier: "servicer",
@@ -3025,7 +3028,7 @@ export const chatKnowledge: {
     category: "servicer",
     question: "How does modifier pricing work?",
     answer:
-      "Some services have priced options — the customer selects from a list during the quote form. " +
+      "Some services have priced options - the customer selects from a list during the quote form. " +
       "As a servicer, you set a price per option in your service listing (e.g. wall unit chemical wash RM150, cassette overhaul RM300). " +
       "When a customer submits a quote with those selections, the proposal form pre-calculates the total from their choices. " +
       "You can still adjust the final price before submitting your proposal.",
@@ -3048,7 +3051,7 @@ export const chatKnowledge: {
     question: "How do I report a problem via the help chat?",
     answer:
       'From the specific booking in Upcoming Bookings or Order History, tap "Report issue". ' +
-      "This opens a chat session linked to that booking — the support team can see all booking details. " +
+      "This opens a chat session linked to that booking - the support team can see all booking details. " +
       "Describe what went wrong, include any evidence (photos, screenshots), and state your preferred resolution. " +
       "For pay-now bookings the escrow funds remain held while a report is open.",
     sortOrder: 91,
@@ -3060,19 +3063,19 @@ export const chatKnowledge: {
     question: "What is the refund policy?",
     answer:
       "Automatic refunds apply in these cases: " +
-      "(1) You cancel a Pay Now quote before a booking is created — full budget reserve refunded. " +
-      "(2) Servicer cancels a confirmed booking — full payment refunded. " +
-      "(3) Servicer no-show — full payment refunded automatically. " +
-      "(4) No proposals received — full budget reserve refunded and a discount code issued. " +
+      "(1) You cancel a Pay Now quote before a booking is created - full budget reserve refunded. " +
+      "(2) Servicer cancels a confirmed booking - full payment refunded. " +
+      "(3) Servicer no-show - full payment refunded automatically. " +
+      "(4) No proposals received - full budget reserve refunded and a discount code issued. " +
       "For disputes (poor workmanship, damage), report via the help chat. The support team reviews each case. " +
-      "Pay Later bookings involve direct cash payment so no automated refund is possible — the platform mediates the dispute.",
+      "Pay Later bookings involve direct cash payment so no automated refund is possible - the platform mediates the dispute.",
     sortOrder: 100,
   },
   {
     category: "legal",
     question: "How is my personal information handled?",
     answer:
-      "Your full name, phone number, and address are shared with a servicer only after a booking is confirmed — not before. " +
+      "Your full name, phone number, and address are shared with a servicer only after a booking is confirmed - not before. " +
       "In all list views your contact details are masked. " +
       "We do not sell your data to third parties. Your payment data is processed securely. " +
       "For the full privacy policy, visit the Privacy Policy page from the footer of the home page.",
@@ -3093,7 +3096,7 @@ export const chatKnowledge: {
     category: "admin",
     question: "What does the admin dashboard show?",
     answer:
-      "The dashboard (/admin) shows headline stat cards — Servicers, Bookings, Completed, Revenue — then pending-queue counters (Withdrawals, Appeals, Category requests, Open reports) and a 30-day revenue chart. " +
+      "The dashboard (/admin) shows headline stat cards - Servicers, Bookings, Completed, Revenue - then pending-queue counters (Withdrawals, Appeals, Category requests, Open reports) and a 30-day revenue chart. " +
       "Every stat and queue card is clickable and jumps to the relevant page or queue tab.",
     sortOrder: 110,
     tier: "admin",
@@ -3121,7 +3124,7 @@ export const chatKnowledge: {
     category: "admin",
     question: "Where can I see an account's full history?",
     answer:
-      "On any row in Accounts, open the activity log to see the info-update history (who edited what, when, and the reason) plus that account's bookings, quotes, reports, and — for servicers — withdrawals. This is the per-account audit trail.",
+      "On any row in Accounts, open the activity log to see the info-update history (who edited what, when, and the reason) plus that account's bookings, quotes, reports, and - for servicers - withdrawals. This is the per-account audit trail.",
     sortOrder: 113,
     tier: "admin",
   },
@@ -3214,7 +3217,7 @@ export const chatKnowledge: {
     question: "How do I edit the question schema for a category?",
     answer:
       "In Category Settings, edit a category and open the Question Schema tab. Add new questions (checkbox, radio, text, quantity, or number type), edit labels and options, mark as required or priced, soft-deactivate old questions, and drag to reorder. " +
-      "Question keys and option values are immutable once created — they keep existing quote data intact. Priced questions drive the servicer per-option pricing grid.",
+      "Question keys and option values are immutable once created - they keep existing quote data intact. Priced questions drive the servicer per-option pricing grid.",
     sortOrder: 124,
     tier: "admin",
   },
@@ -3222,7 +3225,7 @@ export const chatKnowledge: {
     category: "admin",
     question: "What is the admin action PIN?",
     answer:
-      "The action PIN is a second factor for sensitive admin actions — editing accounts, approving withdrawals and appeals, approving categories, changing settings, editing FAQ entries, and unbanning users. It is verified per action. The demo admin PIN is 1234.",
+      "The action PIN is a second factor for sensitive admin actions - editing accounts, approving withdrawals and appeals, approving categories, changing settings, editing FAQ entries, and unbanning users. It is verified per action. The demo admin PIN is 1234.",
     sortOrder: 125,
     tier: "admin",
   },
@@ -3230,7 +3233,7 @@ export const chatKnowledge: {
     category: "admin",
     question: "What is the platform service fee (commission)?",
     answer:
-      "The platform takes a service fee (currently 5%) from the servicer payout on completed pay-now bookings — it is not an extra charge to the customer. Edit the rate in Financial Settings → Pricing tab; scheduled future changes are preserved on save.",
+      "The platform takes a service fee (currently 5%) from the servicer payout on completed pay-now bookings - it is not an extra charge to the customer. Edit the rate in Financial Settings → Pricing tab; scheduled future changes are preserved on save.",
     sortOrder: 126,
     tier: "admin",
   },
@@ -3238,7 +3241,7 @@ export const chatKnowledge: {
     category: "admin",
     question: "What are the demo login accounts?",
     answer:
-      "All demo accounts share the password Demo@2026. Customers: customer.fresh, customer.active, customer.loyal (@demo.local). Servicers: servicer.1 through servicer.12 (@demo.local). Admin: admin@demo.local with action PIN 1234. Demo logins are blocked when NODE_ENV=production.",
+      "All demo accounts share the password Demo@2026. Customers and servicers use their name-based emails (@demo.local). Admin: admin@demo.local (Amirah Syakirah) with action PIN 1234. Demo logins are blocked when NODE_ENV=production.",
     sortOrder: 127,
     tier: "admin",
   },
@@ -3246,7 +3249,7 @@ export const chatKnowledge: {
     category: "admin",
     question: "What is the Financial Settings page?",
     answer:
-      "Financial Settings (/admin/money-settings) has three tabs: Pricing (platform fee rate, fee mode), Rewards (loyalty tiers CRUD — Bronze/Silver/Gold/Platinum with point thresholds and bonus rates, reward catalog CRUD, redemption log), and Servicer (deposit minimum, withdrawal threshold, penalty amounts, fee baselines for travel and supplies). All changes require action PIN.",
+      "Financial Settings (/admin/money-settings) has three tabs: Pricing (platform fee rate, fee mode), Rewards (loyalty tiers CRUD - Bronze/Silver/Gold/Platinum with point thresholds and bonus rates, reward catalog CRUD, redemption log), and Servicer (deposit minimum, withdrawal threshold, penalty amounts, fee baselines for travel and supplies). All changes require action PIN.",
     sortOrder: 128,
     tier: "admin",
   },
@@ -3272,7 +3275,7 @@ export const chatKnowledge: {
     category: "account",
     question: "How do I change my action PIN?",
     answer:
-      'Go to Account → Action PIN and click "Change PIN". Enter your current PIN, then enter and confirm a new 6-digit PIN. The PIN is hashed and stored securely — it cannot be recovered if lost. If you forget your PIN, contact support.',
+      'Go to Account → Action PIN and click "Change PIN". Enter your current PIN, then enter and confirm a new 6-digit PIN. The PIN is hashed and stored securely - it cannot be recovered if lost. If you forget your PIN, contact support.',
     sortOrder: 131,
     tier: "servicer",
   },
@@ -3316,7 +3319,7 @@ export const chatKnowledge: {
     category: "jobs",
     question: "How do I view and manage an active job?",
     answer:
-      "Click any job card in your Active jobs tab to open the dispatch overlay — a full-screen view with Customer info, Job Details, Instructions, and a Map. From there you can Mark Arrived (with photo), Mark Done (with completion photo), or Cancel (requires your PIN and a reason). Press Esc, click ×, or tap the backdrop to return.",
+      "Click any job card in your Active jobs tab to open the dispatch overlay - a full-screen view with Customer info, Job Details, Instructions, and a Map. From there you can Mark Arrived (with photo), Mark Done (with completion photo), or Cancel (requires your PIN and a reason). Press Esc, click ×, or tap the backdrop to return.",
     sortOrder: 140,
     tier: "servicer",
   },

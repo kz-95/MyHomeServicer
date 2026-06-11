@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Demo seed script. Populates a development database with 36 merchants (1 per
  * service category, 6 for 3D Modeling), 3 customers, 1 admin, in-flight
  * quotes/bookings, penalty scenarios, promotions and AI chat history.
@@ -25,7 +25,7 @@ const MANIFEST = join(__dirname, 'seeded-ids.json');
 
 /**
  * Deterministic UUID derived from a seed string. Demo accounts use these so
- * `reseed` recreates them with identical IDs — an in-flight admin/customer
+ * `reseed` recreates them with identical IDs - an in-flight admin/customer
  * session (whose JWT carries the account ID) keeps working after a reseed.
  */
 function fixedUuid(seed: string): string {
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     throw new Error('Seed refuses to run with NODE_ENV=production');
   }
 
-  // Always start from a clean slate — this makes the seed fully idempotent,
+  // Always start from a clean slate - this makes the seed fully idempotent,
   // so a reseed works even if a previous run failed part-way through.
   console.log('Clearing existing data…');
   await clearAll(prisma);
@@ -57,10 +57,10 @@ async function main(): Promise<void> {
   const pinHash = await bcrypt.hash(ADMIN_PIN, 12);
 
   // ── Categories ──
-  // categoryBySlug covers both parents and children — merchants/quotes key off child slugs.
+  // categoryBySlug covers both parents and children - merchants/quotes key off child slugs.
   const categoryBySlug: Record<string, string> = {};
 
-  // Step 1: create the 7 parent categories (grouping only — no price/questions).
+  // Step 1: create the 7 parent categories (grouping only - no price/questions).
   for (const p of categories) {
     const cat = await prisma.category.create({
       data: {
@@ -73,7 +73,7 @@ async function main(): Promise<void> {
     categoryBySlug[p.slug] = cat.id;
   }
 
-  // Step 2: create the 28 child categories (actual services — carry price/questions).
+  // Step 2: create the 28 child categories (actual services - carry price/questions).
   for (const c of children) {
     const cat = await prisma.category.create({
       data: {
@@ -197,7 +197,7 @@ async function main(): Promise<void> {
     data: {
       id: fixedUuid('admin@demo.local'),
       role: 'admin',
-      name: 'Demo Admin',
+      name: 'Amirah Syakirah',
       email: 'admin@demo.local',
       phone: '+60 3-0000 0000',
       passwordHash,
@@ -244,12 +244,12 @@ async function main(): Promise<void> {
     }
   }
   // Quote presets for the demo customers (the quote form picks from these).
-  // isDefault is NOT set — the form starts empty and the user picks a preset manually.
+  // isDefault is NOT set - the form starts empty and the user picks a preset manually.
   await prisma.quotePreset.createMany({
     data: [
       {
         userId: customerByRef['C_LOYAL'],
-        label: 'Home — myself',
+        label: 'Home - myself',
         contactName: 'Priya Subramaniam',
         contactNumber: '+60 19-876 5432',
         addressId: addressByRef['C_LOYAL:0'],
@@ -266,7 +266,7 @@ async function main(): Promise<void> {
       },
       {
         userId: customerByRef['C_ACTIVE'],
-        label: 'Home — myself',
+        label: 'Home - myself',
         contactName: 'David Tan',
         contactNumber: '+60 11-234 5678',
         addressId: addressByRef['C_ACTIVE:0'],
@@ -274,7 +274,7 @@ async function main(): Promise<void> {
       },
       {
         userId: customerByRef['C_FRESH'],
-        label: 'Home — myself',
+        label: 'Home - myself',
         contactName: 'Sarah Lim',
         contactNumber: '+60 12-345 6789',
         addressId: addressByRef['C_FRESH:0'],
@@ -282,7 +282,7 @@ async function main(): Promise<void> {
       },
       {
         userId: customerByRef['C_FRESH2'],
-        label: 'Home — myself',
+        label: 'Home - myself',
         contactName: 'Nurul Hafizah',
         contactNumber: '+60 17-111 2233',
         addressId: addressByRef['C_FRESH2:0'],
@@ -290,7 +290,7 @@ async function main(): Promise<void> {
       },
       {
         userId: customerByRef['C_FRESH3'],
-        label: 'Home — myself',
+        label: 'Home - myself',
         contactName: 'Michael Lim',
         contactNumber: '+60 16-222 3344',
         addressId: addressByRef['C_FRESH3:0'],
@@ -298,7 +298,7 @@ async function main(): Promise<void> {
       },
       {
         userId: customerByRef['C_ACTIVE2'],
-        label: 'Home — myself',
+        label: 'Home - myself',
         contactName: 'Rashida Kamila',
         contactNumber: '+60 18-333 4455',
         addressId: addressByRef['C_ACTIVE2:0'],
@@ -306,7 +306,7 @@ async function main(): Promise<void> {
       },
       {
         userId: customerByRef['C_ACTIVE3'],
-        label: 'Home — myself',
+        label: 'Home - myself',
         contactName: 'Jason Yeoh',
         contactNumber: '+60 14-444 5566',
         addressId: addressByRef['C_ACTIVE3:0'],
@@ -314,7 +314,7 @@ async function main(): Promise<void> {
       },
       {
         userId: customerByRef['C_LOYAL2'],
-        label: 'Home — myself',
+        label: 'Home - myself',
         contactName: 'Tan Mei Ling',
         contactNumber: '+60 13-555 6677',
         addressId: addressByRef['C_LOYAL2:0'],
@@ -322,7 +322,7 @@ async function main(): Promise<void> {
       },
       {
         userId: customerByRef['C_LOYAL3'],
-        label: 'Home — myself',
+        label: 'Home - myself',
         contactName: 'Rajan Krishnan',
         contactNumber: '+60 11-666 7788',
         addressId: addressByRef['C_LOYAL3:0'],
@@ -360,7 +360,7 @@ async function main(): Promise<void> {
   console.log(`  ✓ customer wallet history (RM 200 top-up + ${customerBookingDeductions.length} payments each)`);
 
   // ── Customer Points & Rewards Profiles ──
-  // Customer.fresh (new) — 500 balance, 500 lifetime (Bronze)
+  // Customer.fresh (new) - 500 balance, 500 lifetime (Bronze)
   await prisma.customerPoints.create({
     data: { userId: customerByRef['C_FRESH'], balance: 500, lifetimeEarned: 500 },
   });
@@ -368,7 +368,7 @@ async function main(): Promise<void> {
     data: { userId: customerByRef['C_FRESH'], type: 'earn_welcome', amount: 500, balance: 500, note: '🎉 Welcome! Here are 500 free points to get started.' },
   });
 
-  // Customer.active (returning) — 950 balance, 950 lifetime (Silver)
+  // Customer.active (returning) - 950 balance, 950 lifetime (Silver)
   await prisma.customerPoints.create({
     data: { userId: customerByRef['C_ACTIVE'], balance: 950, lifetimeEarned: 950 },
   });
@@ -381,32 +381,32 @@ async function main(): Promise<void> {
     });
   }
 
-  // Customer.loyal (regular) — 2100 balance, 2600 lifetime (Gold)
+  // Customer.loyal (regular) - 2100 balance, 2600 lifetime (Gold)
   await prisma.customerPoints.create({
     data: { userId: customerByRef['C_LOYAL'], balance: 2100, lifetimeEarned: 2600, lifetimeSpent: 500 },
   });
   const loyalTx = [
     { type: 'earn_welcome', amount: 500, note: '🎉 Welcome! Here are 500 free points to get started.' },
-    { type: 'earn_booking', amount: 150, note: 'Earned from booking #BATH001 — Bathroom cleaning' },
+    { type: 'earn_booking', amount: 150, note: 'Earned from booking #BATH001 - Bathroom cleaning' },
     { type: 'earn_review', amount: 50, note: 'Review for bathroom cleaning' },
-    { type: 'earn_booking', amount: 200, note: 'Earned from booking #AC001 — Aircon servicing' },
+    { type: 'earn_booking', amount: 200, note: 'Earned from booking #AC001 - Aircon servicing' },
     { type: 'earn_review', amount: 50, note: 'Review for aircon servicing' },
-    { type: 'earn_booking', amount: 180, note: 'Earned from booking #KPLUMB — Kitchen plumbing' },
+    { type: 'earn_booking', amount: 180, note: 'Earned from booking #KPLUMB - Kitchen plumbing' },
     { type: 'earn_review', amount: 50, note: 'Review for kitchen plumbing' },
-    { type: 'earn_booking', amount: 300, note: 'Earned from booking #FULLCLN — Full house cleaning' },
+    { type: 'earn_booking', amount: 300, note: 'Earned from booking #FULLCLN - Full house cleaning' },
     { type: 'earn_review', amount: 50, note: 'Review for full house cleaning' },
-    { type: 'earn_booking', amount: 120, note: 'Earned from booking #ELEC1 — Electrical repair' },
+    { type: 'earn_booking', amount: 120, note: 'Earned from booking #ELEC1 - Electrical repair' },
     { type: 'earn_review', amount: 50, note: 'Review for electrical repair' },
     { type: 'earn_referral', amount: 200, note: 'Referred a friend who booked' },
-    { type: 'earn_booking', amount: 250, note: 'Earned from booking #DOOR01 — Door gate installation' },
+    { type: 'earn_booking', amount: 250, note: 'Earned from booking #DOOR01 - Door gate installation' },
     { type: 'earn_review', amount: 50, note: 'Review for door gate installation' },
-    { type: 'earn_booking', amount: 220, note: 'Earned from booking #ROOF01 — Roof repair' },
+    { type: 'earn_booking', amount: 220, note: 'Earned from booking #ROOF01 - Roof repair' },
     { type: 'earn_review', amount: 50, note: 'Review for roof repair' },
-    { type: 'earn_booking', amount: 180, note: 'Earned from booking #RENO01 — Renovation consultation' },
+    { type: 'earn_booking', amount: 180, note: 'Earned from booking #RENO01 - Renovation consultation' },
     { type: 'earn_review', amount: 50, note: 'Review for renovation consultation' },
-    { type: 'earn_booking', amount: 160, note: 'Earned from booking #INTER01 — Interior design consult' },
+    { type: 'earn_booking', amount: 160, note: 'Earned from booking #INTER01 - Interior design consult' },
     { type: 'earn_review', amount: 50, note: 'Review for interior design consult' },
-    { type: 'earn_booking', amount: 140, note: 'Earned from booking #WEDD01 — Wedding planning session' },
+    { type: 'earn_booking', amount: 140, note: 'Earned from booking #WEDD01 - Wedding planning session' },
     { type: 'earn_review', amount: 50, note: 'Review for wedding planning session' },
   ];
   let runningBalance = 0;
@@ -451,7 +451,7 @@ async function main(): Promise<void> {
   }
   console.log('  ✓ customer points profiles (Fresh: 500, Active: 950, Loyal: 2100)');
 
-  // New customers — minimal welcome points (500 each)
+  // New customers - minimal welcome points (500 each)
   for (const ref of ['C_FRESH2', 'C_FRESH3', 'C_ACTIVE2', 'C_ACTIVE3', 'C_LOYAL2', 'C_LOYAL3']) {
     const uid = customerByRef[ref];
     if (!uid) continue;
@@ -474,7 +474,7 @@ async function main(): Promise<void> {
         passwordHash,
         pinHash,
         businessName: m.businessName,
-        bio: `${m.businessName} — based in ${m.area}.`,
+        bio: `${m.businessName} - based in ${m.area}.`,
         logoUrl: `https://picsum.photos/seed/merchant${m.ref}/200/200`,
         categoryId: categoryBySlug[m.categorySlug],
         isCompany: m.isCompany,
@@ -596,7 +596,7 @@ async function main(): Promise<void> {
 
   // ── Open quotes (give M1, M2, M9 each a live quote + proposal) ──
 
-  // Customer.active — open aircond servicing quote → M2 broadcasts + auto proposal.
+  // Customer.active - open aircond servicing quote → M2 broadcasts + auto proposal.
   const activeQuote = await prisma.quoteRequest.create({
     data: {
       userId: customerByRef['C_ACTIVE'],
@@ -638,7 +638,7 @@ async function main(): Promise<void> {
   });
   await prisma.quoteBroadcast.create({ data: { quoteRequestId: plumbingOpenQuote.id, merchantId: merchantByRef['M1'] } });
   await prisma.quoteProposal.create({
-    data: { quoteRequestId: plumbingOpenQuote.id, merchantId: merchantByRef['M1'], proposedPrice: 100, message: 'Ahmad Plumbing can fix this — fast and reliable.', etaMinutes: 60 },
+    data: { quoteRequestId: plumbingOpenQuote.id, merchantId: merchantByRef['M1'], proposedPrice: 100, message: 'Ahmad Plumbing can fix this - fast and reliable.', etaMinutes: 60 },
   });
 
   // Open catering quote (C_LOYAL) → M9 broadcast + proposal.
@@ -657,10 +657,10 @@ async function main(): Promise<void> {
   });
   await prisma.quoteBroadcast.create({ data: { quoteRequestId: cateringOpenQuote.id, merchantId: merchantByRef['M9'] } });
   await prisma.quoteProposal.create({
-    data: { quoteRequestId: cateringOpenQuote.id, merchantId: merchantByRef['M9'], proposedPrice: 200, message: 'Auntie Mei Catering — homestyle Malaysian menu.', etaMinutes: 180, isAuto: true },
+    data: { quoteRequestId: cateringOpenQuote.id, merchantId: merchantByRef['M9'], proposedPrice: 200, message: 'Auntie Mei Catering - homestyle Malaysian menu.', etaMinutes: 180, isAuto: true },
   });
 
-  // Extra broadcasts (no proposal yet) — merchants see pending incoming quotes.
+  // Extra broadcasts (no proposal yet) - merchants see pending incoming quotes.
   const extraBroadcasts: { customerRef: string; addressKey: string; categorySlug: string; merchantRef: string }[] = [
     { customerRef: 'C_FRESH', addressKey: 'C_FRESH:0', categorySlug: 'tv-repair',          merchantRef: 'M19' },
     { customerRef: 'C_FRESH', addressKey: 'C_FRESH:0', categorySlug: 'ceiling-fan-repair',  merchantRef: 'M22' },
@@ -723,19 +723,19 @@ async function main(): Promise<void> {
           : null,
         cashConfirmed: false,
         cancelledBy: status === 'cancelled' ? 'merchant' : null,
-        cancelReason: status === 'cancelled' ? 'No-show — merchant did not arrive' : null,
+        cancelReason: status === 'cancelled' ? 'No-show - merchant did not arrive' : null,
       },
     });
     return booking;
   }
 
-  // M4 — pending_confirm home-cleaning booking.
+  // M4 - pending_confirm home-cleaning booking.
   await makeBooking('C_LOYAL', 'C_LOYAL:0', 'M4', 'home-cleaning', 'pending_confirm', 'pay_later', 90);
-  // M2 — in_progress aircond servicing booking.
+  // M2 - in_progress aircond servicing booking.
   await makeBooking('C_LOYAL', 'C_LOYAL:0', 'M2', 'aircond-servicer', 'in_progress', 'pay_now', 130);
-  // M4 — completed cash booking awaiting cash-confirm.
+  // M4 - completed cash booking awaiting cash-confirm.
   await makeBooking('C_LOYAL', 'C_LOYAL:1', 'M4', 'home-cleaning', 'completed', 'cash', 110);
-  // Customer.loyal — 3 completed bookings for history + reorder.
+  // Customer.loyal - 3 completed bookings for history + reorder.
   const compM1 = await makeBooking('C_LOYAL', 'C_LOYAL:0', 'M1', 'plumber', 'completed', 'pay_later', 80);
   await makeBooking('C_LOYAL', 'C_LOYAL:0', 'M4', 'home-cleaning', 'completed', 'pay_later', 140);
   await makeBooking('C_LOYAL', 'C_LOYAL:1', 'M9', 'catering', 'completed', 'pay_later', 120);
@@ -925,7 +925,7 @@ async function main(): Promise<void> {
         amount: total,
         merchantId,
         bookingId: cb.booking.id,
-        reference: `Seed — completed booking`,
+        reference: `Seed - completed booking`,
         createdAt: doneAt,
       },
     });
@@ -933,7 +933,7 @@ async function main(): Promise<void> {
   console.log('  ✓ invoices + escrow_release for completed bookings');
 
   // ── Penalty scenarios ──
-  // M3 (electrical-wiring) — active noshow penalty, deposit deducted.
+  // M3 (electrical-wiring) - active noshow penalty, deposit deducted.
   const m3Cancelled = await makeBooking('C_FRESH', 'C_FRESH:0', 'M3', 'electrical-wiring', 'cancelled', 'pay_later', 100);
   await prisma.penaltyLog.create({
     data: {
@@ -959,7 +959,7 @@ async function main(): Promise<void> {
     },
   });
 
-  // M23 (aircond-repair) — pending penalty appeal.
+  // M23 (aircond-repair) - pending penalty appeal.
   const m23Cancelled = await makeBooking('C_FRESH', 'C_FRESH:0', 'M23', 'aircond-repair', 'cancelled', 'pay_later', 80);
   const m23Penalty = await prisma.penaltyLog.create({
     data: {
@@ -979,7 +979,7 @@ async function main(): Promise<void> {
     },
   });
 
-  // M9 (catering) — approved appeal, penalty reversed.
+  // M9 (catering) - approved appeal, penalty reversed.
   const m9Cancelled = await makeBooking('C_FRESH', 'C_FRESH:0', 'M9', 'catering', 'cancelled', 'pay_later', 90);
   const m9Penalty = await prisma.penaltyLog.create({
     data: {
@@ -995,7 +995,7 @@ async function main(): Promise<void> {
     data: {
       penaltyLogId: m9Penalty.id,
       merchantId: merchantByRef['M9'],
-      reason: 'Family emergency — provided hospital documentation.',
+      reason: 'Family emergency - provided hospital documentation.',
       status: 'approved',
       adminNote: 'Appeal approved, RM30 reversed to deposit.',
       reviewedAt: days(-1),
@@ -1029,7 +1029,7 @@ async function main(): Promise<void> {
       },
       {
         label: 'Welcome RM20 Off',
-        description: 'Welcome offer — RM20 off your first booking.',
+        description: 'Welcome offer - RM20 off your first booking.',
         triggerType: 'welcome',
         valueType: 'fixed',
         value: 20,
@@ -1072,8 +1072,8 @@ async function main(): Promise<void> {
   // Several pending category requests so the review queue is realistic.
   const categoryRequestSeed = [
     { ref: 'M1', name: 'gardening & landscaping', desc: 'Lawn mowing, hedge trimming and garden upkeep.' },
-    { ref: 'M4', name: 'pet grooming', desc: 'Mobile pet grooming — washing, trimming, nail clipping.' },
-    { ref: 'M24', name: 'photography class', desc: 'Photography lessons — beginner to advanced.' },
+    { ref: 'M4', name: 'pet grooming', desc: 'Mobile pet grooming - washing, trimming, nail clipping.' },
+    { ref: 'M24', name: 'photography class', desc: 'Photography lessons - beginner to advanced.' },
     { ref: 'M32', name: 'game development', desc: 'Unity, Unreal Engine, and game design tutoring.' },
     { ref: 'M28', name: 'bartending class', desc: 'Mixology and bartending skills workshop.' },
     { ref: 'M29', name: 'yoga instruction', desc: 'Yoga and pilates private sessions.' },
@@ -1182,7 +1182,7 @@ async function main(): Promise<void> {
         sessionId: chat.id,
         role: 'assistant',
         content:
-          'Yes — the form is pre-filled but fully editable. You can change the date, time slot, or any other detail before submitting.',
+          'Yes - the form is pre-filled but fully editable. You can change the date, time slot, or any other detail before submitting.',
         createdAt: at(3),
       },
     ],

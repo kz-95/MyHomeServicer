@@ -2252,10 +2252,9 @@ export class ChatWidgetComponent
           /* quota/private mode */
         }
         try {
-          localStorage.setItem(
-            "msvc_latest_chat_prefill",
-            JSON.stringify(data),
-          );
+          const pid = this.auth.principal()?.id;
+          const key = pid ? `msvc_latest_chat_prefill_${pid}` : "msvc_latest_chat_prefill";
+          localStorage.setItem(key, JSON.stringify(data));
         } catch {
           /* quota/private mode */
         }
@@ -2283,8 +2282,8 @@ export class ChatWidgetComponent
   }
 
   private chatSoundEnabled = signal(true);
-  private typingAudioCtx: AudioContext | null = null;
   private typingSoundEnabled = signal(true);
+  private typingLoop: ReturnType<typeof setInterval> | null = null;
   private guestAutoOpenTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
@@ -2320,6 +2319,7 @@ export class ChatWidgetComponent
   ngOnDestroy(): void {
     this.cancelPendingReply();
     this.cancelGuestAutoOpen();
+    this.stopTypingLoop();
     for (const s of this.socketSubs) s.unsubscribe();
   }
 
@@ -2351,16 +2351,15 @@ export class ChatWidgetComponent
           admin: r.chatGreetingsAdmin ?? [],
         });
 
-        // Guest auto-open (only for unauthenticated users)
+        // Guest auto-open on the home page (only for unauthenticated users)
         if (this.auth.principal()) return;
         if (r.chatGuestAutoOpen === false) return;
         const delay = r.chatGuestAutoOpenDelay || 3000;
         this.guestAutoOpenTimer = setTimeout(() => {
-          // Don't auto-open on the quote form - the floating button stays, but the
-          // panel must not steal focus while the user is filling out a quote.
-          if (this.router.url.includes("/quote/new")) return;
+          if (this.router.url !== '/' && !this.router.url.startsWith('/?')) return;
           if (!this.auth.principal() && !this.widget.isOpen()) {
             this.widget.open();
+            this.playChatSound();
           }
         }, delay);
       },
@@ -2696,6 +2695,12 @@ export class ChatWidgetComponent
   clear(): void {
     this.clearing.set(true);
     this.qaRestLog = []; // fresh REST trace per QA scenario (clear() runs between scenarios)
+    // Reset the typing state immediately — a cleared chat must not keep playing
+    // the typing sound or showing "Typing…" from a previous reply or QA run.
+    this.widget.chatStatus.set("active");
+    this.stopTypingLoop();
+    this.sending.set(false);
+    this.cancelPendingReply();
     // Reset the pinned conversation language — a cleared chat is a brand-new
     // customer, so it must not keep answering in the previous thread's language.
     // (A returning "it's me" restore re-derives the language instead; see
@@ -2797,14 +2802,14 @@ export class ChatWidgetComponent
     }
     this.demoPanelOpen.set(false);
     this.qaPanelOpen.update((o) => !o);
-    if (this.qaPanelOpen()) this.qa.status.set("");
+    if (this.qaPanelOpen()) { this.qa.status.set(""); this.primeAudio(); }
   }
 
   /** Demo button: toggle the inline demo PIN/run panel. */
   onDemoPress(): void {
     this.qaPanelOpen.set(false);
     this.demoPanelOpen.update((o) => !o);
-    if (this.demoPanelOpen()) this.qa.status.set("");
+    if (this.demoPanelOpen()) { this.qa.status.set(""); this.primeAudio(); }
   }
 
   /** Run button inside the panel: check the PIN, then start the suite. */
@@ -4178,6 +4183,9 @@ export class ChatWidgetComponent
     this.draft = "";
     this.scrollBottom = true;
     this.sending.set(true);
+    this.widget.chatStatus.set("typing");
+    this.playTypingSound();
+    this.startTypingLoop();
 
     const history = this.guestMsgs()
       .slice(0, -1)
@@ -4197,6 +4205,9 @@ export class ChatWidgetComponent
         }>("/chat/guest", guestBody)
         .subscribe({
           next: (r) => {
+            this.widget.chatStatus.set("active");
+            if (!this.widget.isOpen()) { this.widget.chatUnread.update((n) => n + 1); }
+            this.playChatSound();
             this.recordQaExchange(guestBody, r);
             const mapped = r.actionBlocks?.map((b) => ({
               type: b.type as string,
@@ -4237,6 +4248,9 @@ export class ChatWidgetComponent
     this.scrollBottom = true;
     this.draft = "";
     this.sending.set(true);
+    this.widget.chatStatus.set("typing");
+    this.playTypingSound();
+    this.startTypingLoop();
     this.widget.actionBlocks.set([]);
 
     const authBody = { message: text, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() };
@@ -4251,6 +4265,9 @@ export class ChatWidgetComponent
         }>(`/chat/session/${sessionAtSend}/message`, authBody)
         .subscribe({
           next: (r) => {
+            this.widget.chatStatus.set("active");
+            if (!this.widget.isOpen()) { this.widget.chatUnread.update((n) => n + 1); }
+            this.playChatSound();
             this.recordQaExchange(authBody, r);
             const mapped = r.actionBlocks?.map((b) => ({
               type: b.type as string,
@@ -4379,7 +4396,9 @@ export class ChatWidgetComponent
     const moreText = idx < parts.length - 1;
     if (moreText) {
       // Keep the typing indicator up, then drip the next text part.
-      this.sending.set(true);
+    this.sending.set(true);
+    this.widget.chatStatus.set("typing");
+    this.playTypingSound();
       const gap = 300 + Math.random() * 500;
       this.replyTimeoutId = setTimeout(() => {
         this.replyTimeoutId = null;
@@ -4404,6 +4423,7 @@ export class ChatWidgetComponent
     }
 
     this.sending.set(false);
+    this.widget.chatStatus.set("active");
     // No card in this reply — if it promised one and stranded the user, self-heal.
     this.armStuckWatchdog(parts.join(" "), isGuest, forSessionId);
   }
@@ -4419,6 +4439,7 @@ export class ChatWidgetComponent
   ): void {
     if (idx >= blocks.length) {
       this.sending.set(false);
+      this.widget.chatStatus.set("active");
       this.stuckRecoveryDone = false;
       this.clearStuckTimer();
       return;
@@ -4529,7 +4550,9 @@ export class ChatWidgetComponent
       /* private mode */
     }
     try {
-      localStorage.removeItem("msvc_latest_chat_prefill");
+      const pid = this.auth.principal()?.id;
+      const key = pid ? `msvc_latest_chat_prefill_${pid}` : "msvc_latest_chat_prefill";
+      localStorage.removeItem(key);
     } catch {
       /* private mode */
     }
@@ -4720,8 +4743,7 @@ export class ChatWidgetComponent
   private playChatSound(): void {
     if (!this.chatSoundEnabled()) return;
     try {
-      const audio = new Audio("assets/sounds/NotificationChat.wav");
-      audio.volume = 0.5;
+      const audio = new Audio("assets/sounds/Chat_Reply.wav");
       audio.play().catch(() => {});
     } catch {
       // Audio not available
@@ -4755,25 +4777,38 @@ export class ChatWidgetComponent
   private playTypingSound(): void {
     if (!this.typingSoundEnabled()) return;
     try {
-      if (!this.typingAudioCtx) {
-        this.typingAudioCtx = new AudioContext();
-      }
-      const ctx = this.typingAudioCtx;
-      const bufSize = ctx.sampleRate * 0.05;
-      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < bufSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.max(0, 1 - i / bufSize);
-      }
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      src.connect(gain);
-      gain.connect(ctx.destination);
-      src.start();
+      const audio = new Audio("assets/sounds/Chat_Typing.wav");
+      audio.play().catch(() => {});
     } catch {
       // Audio not available
     }
+  }
+
+  /** Start looping the typing sound while `chatStatus` is "typing". */
+  private startTypingLoop(): void {
+    this.stopTypingLoop();
+    this.typingLoop = setInterval(() => {
+      if (this.widget.chatStatus() !== "typing") {
+        this.stopTypingLoop();
+        return;
+      }
+      this.playTypingSound();
+    }, 550); // slightly faster than sound duration (~0.3s) so there's a subtle gap
+  }
+
+  private stopTypingLoop(): void {
+    if (this.typingLoop) { clearInterval(this.typingLoop); this.typingLoop = null; }
+  }
+
+  /** Play silent sounds during a user click to unlock browser autoplay for later async plays. */
+  private primeAudio(): void {
+    try {
+      const files = ["assets/sounds/NotificationCard.wav"];
+      for (const f of files) {
+        const a = new Audio(f);
+        a.volume = 0;
+        a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+      }
+    } catch { /* noop */ }
   }
 }

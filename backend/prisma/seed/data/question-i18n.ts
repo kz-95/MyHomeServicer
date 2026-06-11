@@ -1,16 +1,16 @@
-/**
+﻿/**
  * Question-schema label translations (ms / zh / ta), keyed by the canonical English
  * label string. Attached to every category's questionSchema at seed time by
  * `localizeQuestions`, so quote-flow cards render in the customer's language instead
  * of falling back to English (the "card label not in zh/ta" QA failure).
  *
  * Keyed by the exact English `label:` value used in static.ts. A label with no entry
- * here degrades gracefully — pickI18n falls back to the English `label`. Keep numbers,
+ * here degrades gracefully - pickI18n falls back to the English `label`. Keep numbers,
  * units, and brand/technical terms (RM, ×, BTU, CCTV, 3D) intact across languages.
  */
 export type QuestionI18nEntry = { ms: string; zh: string; ta: string };
 
-// Populated below — one entry per distinct question/option label in static.ts.
+// Populated below - one entry per distinct question/option label in static.ts.
 export const QUESTION_I18N: Record<string, QuestionI18nEntry> = {
   "1 hour × 2 cleaners (recommended for studio)": { ms: "1 jam × 2 pembersih (disyorkan untuk studio)", zh: "1小时 × 2名清洁员（推荐用于单间公寓）", ta: "1 மணி × 2 சுத்தம் செய்பவர்கள் (ஸ்டூடியோவிற்கு பரிந்துரைக்கப்படுகிறது)" },
   "1-seater": { ms: "1-tempat duduk", zh: "1座位", ta: "1-இருக்கை" },
@@ -83,9 +83,9 @@ export const QUESTION_I18N: Record<string, QuestionI18nEntry> = {
   "Carpet Cleaning – Large room (~30×30 ft)": { ms: "Pencucian karpet – Bilik besar (~30×30 ft)", zh: "地毯清洁 – 大房间（约30×30英尺）", ta: "கார்பெட் சுத்தம் – பெரிய அறை (~30×30 ft)" },
   "Carpet Cleaning – Medium room (~20×20 ft)": { ms: "Pencucian karpet – Bilik sederhana (~20×20 ft)", zh: "地毯清洁 – 中等房间（约20×20英尺）", ta: "கார்பெட் சுத்தம் – நடுத்தர அறை (~20×20 ft)" },
   "Carpet Cleaning – Small room (~10×10 ft)": { ms: "Pencucian karpet – Bilik kecil (~10×10 ft)", zh: "地毯清洁 – 小房间（约10×10英尺）", ta: "கார்பெட் சுத்தம் – சிறிய அறை (~10×10 ft)" },
-  "Cassette / Ceiling Unit — Chemical Cleaning": { ms: "Unit Cassette / Siling — Pencucian Kimia", zh: "卡式/天花板空调 — 化学清洗", ta: "Cassette / சீலிங் யூனிட் — கெமிக்கல் சுத்தம்" },
-  "Cassette / Ceiling Unit — General Cleaning": { ms: "Unit Cassette / Siling — Pencucian Umum", zh: "卡式/天花板空调 — 一般清洗", ta: "Cassette / சீலிங் யூனிட் — பொது சுத்தம்" },
-  "Cassette / Ceiling Unit — Overhaul Cleaning": { ms: "Unit Cassette / Siling — Pencucian Overhaul", zh: "卡式/天花板空调 — 大修清洗", ta: "Cassette / சீலிங் யூனிட் — ஓவர்ஹால் சுத்தம்" },
+  "Cassette / Ceiling Unit - Chemical Cleaning": { ms: "Unit Cassette / Siling - Pencucian Kimia", zh: "卡式/天花板空调 - 化学清洗", ta: "Cassette / சீலிங் யூனிட் - கெமிக்கல் சுத்தம்" },
+  "Cassette / Ceiling Unit - General Cleaning": { ms: "Unit Cassette / Siling - Pencucian Umum", zh: "卡式/天花板空调 - 一般清洗", ta: "Cassette / சீலிங் யூனிட் - பொது சுத்தம்" },
+  "Cassette / Ceiling Unit - Overhaul Cleaning": { ms: "Unit Cassette / Siling - Pencucian Overhaul", zh: "卡式/天花板空调 - 大修清洗", ta: "Cassette / சீலிங் யூனிட் - ஓவர்ஹால் சுத்தம்" },
   "Cassette Unit – 1.5HP": { ms: "Unit Cassette – 1.5HP", zh: "卡式机组 – 1.5HP", ta: "Cassette யூனிட் – 1.5HP" },
   "Cassette Unit – 1HP": { ms: "Unit Cassette – 1HP", zh: "卡式机组 – 1HP", ta: "Cassette யூனிட் – 1HP" },
   "Cassette Unit – 2.5HP": { ms: "Unit Cassette – 2.5HP", zh: "卡式机组 – 2.5HP", ta: "Cassette யூனிட் – 2.5HP" },
@@ -510,9 +510,9 @@ export const QUESTION_I18N: Record<string, QuestionI18nEntry> = {
   "Wall Unit – 2.5HP": { ms: "Unit Dinding – 2.5HP", zh: "壁挂式机组 – 2.5HP", ta: "சுவர் யூனிட் – 2.5HP" },
   "Wall Unit – 2HP": { ms: "Unit Dinding – 2HP", zh: "壁挂式机组 – 2HP", ta: "சுவர் யூனிட் – 2HP" },
   "Wall Unit – 3HP": { ms: "Unit Dinding – 3HP", zh: "壁挂式机组 – 3HP", ta: "சுவர் யூனிட் – 3HP" },
-  "Wall Unit — Chemical Cleaning (Recommended)": { ms: "Unit Dinding — Pencucian Kimia (Disyorkan)", zh: "壁挂式空调 — 化学清洗（推荐）", ta: "சுவர் யூனிட் — கெமிக்கல் சுத்தம் (பரிந்துரைக்கப்படுகிறது)" },
-  "Wall Unit — General Cleaning": { ms: "Unit Dinding — Pencucian Umum", zh: "壁挂式空调 — 一般清洗", ta: "சுவர் யூனிட் — பொது சுத்தம்" },
-  "Wall Unit — Overhaul Cleaning": { ms: "Unit Dinding — Pencucian Overhaul", zh: "壁挂式空调 — 大修清洗", ta: "சுவர் யூனிட் — ஓவர்ஹால் சுத்தம்" },
+  "Wall Unit - Chemical Cleaning (Recommended)": { ms: "Unit Dinding - Pencucian Kimia (Disyorkan)", zh: "壁挂式空调 - 化学清洗（推荐）", ta: "சுவர் யூனிட் - கெமிக்கல் சுத்தம் (பரிந்துரைக்கப்படுகிறது)" },
+  "Wall Unit - General Cleaning": { ms: "Unit Dinding - Pencucian Umum", zh: "壁挂式空调 - 一般清洗", ta: "சுவர் யூனிட் - பொது சுத்தம்" },
+  "Wall Unit - Overhaul Cleaning": { ms: "Unit Dinding - Pencucian Overhaul", zh: "壁挂式空调 - 大修清洗", ta: "சுவர் யூனிட் - ஓவர்ஹால் சுத்தம்" },
   "Wall condition (optional)": { ms: "Keadaan dinding (pilihan)", zh: "墙面状况（可选）", ta: "சுவர் நிலை (விருப்பமான)" },
   "Wall seepage": { ms: "Rembesan dinding", zh: "墙壁渗水", ta: "சுவர் கசிவு" },
   "Wall-mounted (split)": { ms: "Dilekatkan di dinding (split)", zh: "壁挂式（分体）", ta: "சுவரில் பொருத்தப்பட்டது (ஸ்பிலிட்)" },
@@ -567,7 +567,7 @@ export const QUESTION_I18N: Record<string, QuestionI18nEntry> = {
   "Wobbling": { ms: "Bergoyangan", zh: "摇晃", ta: "அசைகிறது" },
   "Workshop/Event": { ms: "Bengkel/Acara", zh: "工作坊/活动", ta: "பட்டறை/நிகழ்வு" },
   "Yes (pass-through fee applies)": { ms: "Ya (yuran pass-through dikenakan)", zh: "是（需收取转手费）", ta: "ஆம் (பாஸ்-த்ரூ கட்டணம் பொருந்தும்)" },
-  "Yes (supplies provided — pass-through fee applies)": { ms: "Ya (bekalan disediakan — yuran pass-through dikenakan)", zh: "是（提供材料 — 需收取转手费）", ta: "ஆம் (பொருட்கள் வழங்கப்படும் — பாஸ்-த்ரூ கட்டணம் பொருந்தும்)" },
+  "Yes (supplies provided - pass-through fee applies)": { ms: "Ya (bekalan disediakan - yuran pass-through dikenakan)", zh: "是（提供材料 - 需收取转手费）", ta: "ஆம் (பொருட்கள் வழங்கப்படும் - பாஸ்-த்ரூ கட்டணம் பொருந்தும்)" },
   "Yes, haul it away": { ms: "Ya, buangkan", zh: "是，请搬走处理", ta: "ஆம், அகற்றிவிடுங்கள்" },
   "Yes, pack for me": { ms: "Ya, kemaskini untuk saya", zh: "是，帮我打包", ta: "ஆம், என்னுக்காக பேக் செய்யுங்கள்" },
   "Yes, supply + build (normal priced)": { ms: "Ya, bekalkan + bina (harga biasa)", zh: "是，供料+施工（正常价格）", ta: "ஆம், வழங்கு + கட்டு (சாதாரண விலை)" },
@@ -588,7 +588,7 @@ interface LocalizableQuestion {
 }
 
 /** Attach labelI18n (from QUESTION_I18N) to each question and option that has a
- *  translation entry, leaving everything else untouched. Pure — returns new objects. */
+ *  translation entry, leaving everything else untouched. Pure - returns new objects. */
 export function localizeQuestions<T extends LocalizableQuestion>(questions: T[]): T[] {
   const lookup = (label: string) => {
     const t = QUESTION_I18N[label];
