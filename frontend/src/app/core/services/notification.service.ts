@@ -55,6 +55,29 @@ export class NotificationService {
   private polling = false;
   /** Whether the notification chime should be played (loaded from admin settings). */
   soundEnabled = signal(true);
+  /** Audio context unlocked flag — browsers block autoplay before first user gesture. */
+  private audioUnlocked = false;
+
+  /** Unlock the Audio API on the first user gesture (browser autoplay policy). */
+  private unlockAudio(): void {
+    const handler = () => {
+      if (this.audioUnlocked) return;
+      try {
+        const ctx = new AudioContext();
+        const buf = ctx.createBuffer(1, 1, 22050);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start(0);
+        ctx.resume();
+      } catch { /* AudioContext not available */ }
+      this.audioUnlocked = true;
+      document.removeEventListener('click', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+    document.addEventListener('click', handler, { once: false });
+    document.addEventListener('touchstart', handler, { once: false });
+  }
 
   /** Suspends/resumes the poll interval as the tab is hidden/shown. */
   private readonly visibilityHandler = (): void => {
@@ -84,6 +107,7 @@ export class NotificationService {
     if (this.polling) return;
     this.polling = true;
     this.checkSoundSetting();
+    this.unlockAudio();
     // Only start the timer if the tab is currently visible.
     if (document.visibilityState !== 'hidden') {
       this.refresh();
@@ -156,10 +180,15 @@ export class NotificationService {
         const fresh = r.data.filter((n) => !this.seen.has(n.id));
         fresh.forEach((n) => this.seen.add(n.id));
         // Show unread arrivals oldest-first so the newest sits on top.
-        for (const n of fresh.filter((x) => !x.isRead).reverse()) {
+        const unreadFresh = fresh.filter((x) => !x.isRead);
+        for (const n of unreadFresh.reverse()) {
           // Drop new toasts silently when the cap is reached; they stay in the panel.
           this.toasts.update((t) => t.length >= MAX_TOASTS ? t : [...t, n]);
           setTimeout(() => this.dismiss(n.id), TOAST_MS);
+        }
+        // Play a sound for the first new unread notification (avoid spamming).
+        if (unreadFresh.length > 0) {
+          this.playNotificationSound(unreadFresh[0].type);
         }
       },
       error: () => {

@@ -3525,3 +3525,43 @@ Each phase should be a separate commit. Push to `master`.
 
 - `npx tsc --noEmit` — backend: 0 errors, frontend: 0 errors
 - Status: ✅ Complete, not yet committed
+
+---
+
+## Session 2026-06-12 — Toast notification sound + bigger snackbar toasts
+
+**CEO directly implemented** (single-domain frontend change, no multi-agent coordination needed).
+
+### Task: Toast notification sound + bigger size
+
+| Field | Value |
+|-------|-------|
+| Target | Frontend (CEO direct) |
+| Priority | Medium |
+| Input | `toast.service.ts`, `notification.service.ts`, `snackbar.component.ts` |
+| Output | Sound on action toasts + backend poll toasts; larger snackbar rendering |
+| Status | ✅ Done |
+
+### Changes made
+
+1. **`toast.service.ts`** — Added audio playback on success/error action toasts:
+   - Injects `ApiService` to load `notification_sound_enabled` admin setting
+   - `AudioContext` unlock on first user click/touch (browser autoplay policy)
+   - `playSound()`: success → `NotificationCard.wav`, error → `Notification_Job.wav`, volume 0.4
+   - Info toasts remain silent
+
+2. **`notification.service.ts`** — Added sound to poll-based toast creation:
+   - `refresh()` now calls `playNotificationSound()` for the first new unread notification
+   - Added `unlockAudio()` matching the ToastService pattern
+   - Called from `start()` alongside existing `checkSoundSetting()`
+
+3. **`snackbar.component.ts`** — Full visual size increase:
+   - Width 330→420px, padding 0.7→1rem, border-radius 10→12px
+   - Message font 0.88→0.95rem, type font 0.7→0.75rem, icon 1→1.15rem
+   - Shadow heavier, gap 0.6→0.75rem, dismiss button 0.8→0.9rem
+   - Animation translateY scaled proportionally
+
+### Gates
+- Frontend `tsc --noEmit`: 0 errors
+- Frontend `ng build`: green, 14.4s
+- Backend `tsc --noEmit`: 0 errors (unchanged)
