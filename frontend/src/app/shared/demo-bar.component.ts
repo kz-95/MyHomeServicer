@@ -537,6 +537,10 @@ export class DemoBarComponent {
     this.auth.demoLogin(role).subscribe({
       next: () => {
         this.demoLoggingIn.set(false);
+        // Re-subscribe notifications now so the socket re-handshakes into the new
+        // account's room immediately (covers same-role switches where the shell
+        // is reused and its ngOnInit start() never re-runs).
+        this.notifications.start();
         // SPA navigation (NOT window.location.href): the route guard fires the
         // demo PIN gate BEFORE the URL changes, so we never redirect into the
         // portal until the PIN is confirmed.
@@ -556,6 +560,9 @@ export class DemoBarComponent {
       next: () => {
         this.demoLoggingIn.set(false);
         const role = this.auth.principal()?.role;
+        // Re-subscribe notifications so the socket re-handshakes into the new
+        // account's room immediately (same-role switch reuses the shell).
+        this.notifications.start();
         // SPA navigation so the route guard's demo PIN gate runs BEFORE the URL
         // changes - no redirect into the portal until the PIN is confirmed.
         this.router.navigate(['/' + (role ?? '')]);

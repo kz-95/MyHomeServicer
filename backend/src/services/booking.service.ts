@@ -2,7 +2,7 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { badRequest, businessRule, conflict, forbidden, notFound, paymentRequired } from '../lib/errors';
-import { emitToUser, emitToMerchant } from '../socket';
+import { emitToUser, emitToMerchant, emitToMerchants } from '../socket';
 import { requireOnboarded } from './servicer-quote.service';
 import { enqueue, JOB_NAMES } from '../lib/queue';
 import { recordTransaction } from './ledger.service';
@@ -271,6 +271,20 @@ export async function selectProposal(
     linkUrl: '/servicer/jobs',
     category: quote.categoryId,
   });
+
+  // Tell every other merchant who got this quote that it's now matched, so their
+  // pending list drops it live instead of showing a quote they can no longer win.
+  const broadcasts = await prisma.quoteBroadcast.findMany({
+    where: { quoteRequestId: quoteId, merchantId: { not: proposal.merchantId } },
+    select: { merchantId: true },
+  });
+  if (broadcasts.length > 0) {
+    emitToMerchants(
+      broadcasts.map((b) => b.merchantId),
+      'quote.matched',
+      { quoteId },
+    );
+  }
   logger.info('Booking created from proposal', {
     bookingId: booking.id,
     quoteId,

@@ -34,12 +34,21 @@ interface IncomingQuote {
   propertyType?: string;
   budgetMin?: number;
   budgetMax?: number;
+  paymentMode?: string;
   derivedStatus: string;
   merchantDeadline: string;
   myProposalId?: string | null;
   myProposalIsAuto?: boolean;
   customerAvatarUrl?: string | null;
   customerName?: string;
+  address?: string | null;
+  postcode?: string | null;
+  district?: string | null;
+  state?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  notes?: string | null;
+  descriptions?: string[];
 }
 interface Job {
   id: string;
@@ -161,40 +170,64 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
           <div class="grid">
             @for (q of filteredQuotes(); track q.quoteId) {
               <div class="card item">
-                <!-- Customer identity (Phase 6 §16.2 - backend filters self-quotes) -->
-                @if (q.customerName) {
-                  <div class="customer-row">
-                    @if (q.customerAvatarUrl) {
-                      <img [src]="q.customerAvatarUrl" alt="" class="avatar-circle" />
-                    } @else {
-                      <div class="avatar-fallback">{{ initials(q.customerName) }}</div>
-                    }
-                    <span class="customer-name">{{ q.customerName }}</span>
-                  </div>
-                }
+                <!-- Row 1: name · session date · budget · building type · payment | status -->
                 <div
-                  class="head"
+                  class="pq-head"
                   role="button"
                   tabindex="0"
                   (click)="expand(q)"
                   (keydown.enter)="expand(q)"
                 >
-                  <strong>{{ q.category }}</strong>
-                  <div class="muted small">
-                    {{ q.timeSlot }} · {{ q.preferredDate | date: 'mediumDate' }}
-                    @if (q.propertyType) { · {{ q.propertyType }} }
+                  <div class="pq-id">
+                    @if (q.customerAvatarUrl) {
+                      <img [src]="q.customerAvatarUrl" alt="" class="avatar-circle sm" />
+                    } @else {
+                      <div class="avatar-fallback sm">{{ initials(q.customerName) }}</div>
+                    }
+                    <div class="pq-id-text">
+                      <strong class="pq-name">{{ q.customerName || q.category }}</strong>
+                      <div class="pq-tags">
+                        <span class="pq-tag">{{ q.preferredDate | date: 'mediumDate' }} · {{ q.timeSlot }}</span>
+                        <span class="pq-tag budget">RM {{ q.budgetMin ?? '—' }}–{{ q.budgetMax ?? '—' }}</span>
+                        @if (q.propertyType) { <span class="pq-tag">{{ q.propertyType }}</span> }
+                        @if (q.paymentMode) { <span class="pq-tag pay">{{ payLabel(q.paymentMode) }}</span> }
+                      </div>
+                    </div>
                   </div>
-                  <div class="muted small">
-                    Budget: RM {{ q.budgetMin ?? ' - ' }} – {{ q.budgetMax ?? ' - ' }}
+                  <span class="badge" [class.badge-responded]="q.myProposalId">
+                    {{ q.myProposalId ? (q.myProposalIsAuto ? 'Auto-proposed' : 'Proposal sent') : 'New' }}
+                  </span>
+                </div>
+
+                <!-- Row 2: address + map button -->
+                @if (q.address) {
+                  <div class="pq-addr-row">
+                    <span class="pq-addr">{{ composedAddress(q) }}</span>
+                    @if (q.lat != null && q.lng != null) {
+                      <button class="btn-ghost pq-map-btn" (click)="toggleMap(q.quoteId, $event)">
+                        {{ mapQuoteId() === q.quoteId ? 'Hide map' : 'Map' }}
+                      </button>
+                    }
+                  </div>
+                  @if (mapQuoteId() === q.quoteId && q.lat != null && q.lng != null) {
+                    <div class="map-section">
+                      <app-map-view [lat]="q.lat" [lng]="q.lng" [zoom]="15" />
+                    </div>
+                  }
+                }
+
+                <!-- Row 3: descriptions (question-schema answers + notes) + timer -->
+                <div class="pq-foot">
+                  <div class="pq-desc">
+                    @for (d of (q.descriptions ?? []); track d) {
+                      <span class="pq-chip">{{ d }}</span>
+                    }
+                    @if (q.notes) { <span class="pq-chip note">{{ q.notes }}</span> }
+                    @if (!(q.descriptions?.length) && !q.notes) {
+                      <span class="muted small">No extra details</span>
+                    }
                   </div>
                   <app-countdown [deadline]="q.merchantDeadline" />
-                  @if (q.myProposalId) {
-                    @if (q.myProposalIsAuto) {
-                      <span class="done">Auto-proposed - you can adjust below</span>
-                    } @else {
-                      <span class="done">Proposal sent</span>
-                    }
-                  }
                 </div>
                 @if (expanded() === q.quoteId && (!q.myProposalId || q.myProposalIsAuto)) {
                   <!-- Customer identity in accept view (Phase 6 §16.2) -->
@@ -699,6 +732,65 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
       .head:hover {
         background: rgba(0, 0, 0, 0.03);
       }
+      /* ── Pending quote card (3-row layout) ─────────────────────────────── */
+      .pq-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.6rem;
+        cursor: pointer;
+        border-radius: calc(var(--radius) - 2px);
+        padding: 0.25rem;
+        margin: -0.25rem;
+        transition: background 0.12s ease;
+      }
+      .pq-head:hover { background: rgba(0, 0, 0, 0.03); }
+      .pq-id { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+      .pq-id-text { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+      .pq-name { font-size: 0.95rem; line-height: 1.1; }
+      .pq-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+      .pq-tag {
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: var(--color-muted);
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        padding: 0.1rem 0.5rem;
+        white-space: nowrap;
+      }
+      .pq-tag.budget { color: var(--color-text); font-weight: 600; }
+      .pq-tag.pay { color: var(--color-primary); border-color: var(--color-primary); }
+      .avatar-circle.sm, .avatar-fallback.sm { width: 32px; height: 32px; font-size: 0.85rem; }
+      .badge-responded { background: var(--color-success); color: #fff; }
+      .pq-addr-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        font-size: 0.82rem;
+        color: var(--color-text);
+      }
+      .pq-addr { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+      .pq-map-btn { font-size: 0.75rem; padding: 0.25rem 0.7rem; flex-shrink: 0; }
+      .pq-foot {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.6rem;
+        margin-top: 0.5rem;
+      }
+      .pq-desc { display: flex; flex-wrap: wrap; gap: 0.3rem; min-width: 0; }
+      .pq-chip {
+        font-size: 0.74rem;
+        color: var(--color-text);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        padding: 0.12rem 0.5rem;
+      }
+      .pq-chip.note { font-style: italic; color: var(--color-muted); }
       .small {
         font-size: 0.8rem;
       }
@@ -1200,6 +1292,7 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   }
 
   private sub?: Subscription;
+  private subs: Subscription[] = [];
 
   /** True until the route's query params have hydrated the local signals, so the
    *  sync effect does not write back a half-built URL during init. */
@@ -1288,6 +1381,15 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     this.loadEarnings();
     this.loadPricingModules();
     this.sub = this.socket.on<{ quoteId: string }>('quote.new').subscribe(() => this.loadQuotes());
+    // A customer accepted a proposal: the winning merchant gets a new active job;
+    // every merchant's pending list must drop the now-matched quote. Refresh both.
+    this.subs.push(
+      this.socket.on<{ bookingId: string }>('job.new').subscribe(() => {
+        this.loadJobs();
+        this.loadQuotes();
+      }),
+      this.socket.on<{ quoteId: string }>('quote.matched').subscribe(() => this.loadQuotes()),
+    );
   }
 
   private loadPricingModules(): void {
@@ -1298,6 +1400,7 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.subs.forEach((s) => s.unsubscribe());
   }
 
   private loadQuotes(): void {
@@ -1367,6 +1470,33 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   /** Extract first-letter initials from a name for avatar fallback. */
   initials(name?: string | null): string {
     return (name ?? '?').charAt(0).toUpperCase();
+  }
+
+  // ── Pending card helpers ───────────────────────────────────────────────────
+  /** Which pending card's inline map is currently expanded (by quoteId). */
+  mapQuoteId = signal<string | null>(null);
+
+  private readonly PAY_LABELS: Record<string, string> = {
+    pay_now: 'Pay now',
+    pay_later: 'Pay later',
+    cash: 'Cash',
+    credit: 'Credit',
+  };
+
+  payLabel(mode?: string | null): string {
+    if (!mode) return '';
+    return this.PAY_LABELS[mode] ?? mode.replace(/_/g, ' ');
+  }
+
+  /** "No./Street, Postcode District" from the quote's address parts. */
+  composedAddress(q: IncomingQuote): string {
+    const tail = [q.postcode, q.district].filter(Boolean).join(' ');
+    return [q.address, tail].filter(Boolean).join(', ');
+  }
+
+  toggleMap(quoteId: string, event: Event): void {
+    event.stopPropagation();
+    this.mapQuoteId.set(this.mapQuoteId() === quoteId ? null : quoteId);
   }
 
   // ── Pending column - propose on a quote ────────────────────────────────────

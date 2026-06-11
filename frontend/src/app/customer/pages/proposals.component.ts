@@ -331,6 +331,15 @@ export class ProposalsComponent implements OnInit, OnDestroy {
       this.socket.on<{ quoteId: string }>('quote.proposals_ready').subscribe((e) => {
         if (e.quoteId === this.id) this.load();
       }),
+      // Live refresh as each individual proposal arrives (manual or auto).
+      this.socket.on<{ quoteId: string }>('proposal.submitted').subscribe((e) => {
+        if (e.quoteId === this.id) this.load();
+      }),
+      // Fallback: any new notification while viewing this quote reloads the
+      // list, in case the proposal event was missed during a socket reconnect.
+      this.socket.on<{ type?: string }>('notification.new').subscribe((e) => {
+        if (e?.type === 'orders') this.load();
+      }),
     );
   }
 

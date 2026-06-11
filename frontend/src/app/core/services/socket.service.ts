@@ -18,19 +18,43 @@ import { AuthService } from './auth.service';
 export class SocketService {
   private auth = inject(AuthService);
   private socket: Socket | null = null;
+  /** The token the live socket handshook with — used to detect account switches. */
+  private connectedToken: string | null = null;
 
   connect(): void {
-    if (this.socket?.connected) return;
-    this.socket = io(environment.socketUrl || '/', {
-      path: '/socket.io',
-      auth: { token: this.auth.accessToken ?? '' },
-      transports: ['websocket'],
-    });
+    const token = this.auth.accessToken ?? '';
+
+    // First connection — build the socket with the current credential.
+    if (!this.socket) {
+      this.connectedToken = token;
+      this.socket = io(environment.socketUrl || '/', {
+        path: '/socket.io',
+        auth: { token },
+        transports: ['websocket'],
+      });
+      return;
+    }
+
+    // Account switched (token changed) — re-handshake on the SAME socket so
+    // existing on() listeners stay registered, but the server drops us from the
+    // previous user's room and joins the new one. Without this the singleton
+    // socket keeps delivering the previous account's notifications (leak).
+    if (this.connectedToken !== token) {
+      this.connectedToken = token;
+      (this.socket as Socket & { auth: Record<string, unknown> }).auth = { token };
+      this.socket.disconnect();
+      this.socket.connect();
+      return;
+    }
+
+    // Same account, socket idle (e.g. dropped) — just reconnect.
+    if (!this.socket.connected) this.socket.connect();
   }
 
   disconnect(): void {
     this.socket?.disconnect();
     this.socket = null;
+    this.connectedToken = null;
   }
 
   /**
@@ -47,6 +71,7 @@ export class SocketService {
     if (!this.socket) return; // socket never connected - nothing to update
 
     // Update the auth object Socket.io uses on the next connect handshake.
+    this.connectedToken = newToken;
     (this.socket as Socket & { auth: Record<string, unknown> }).auth = { token: newToken };
 
     // Cycle the connection so the server receives the updated token.
@@ -57,7 +82,9 @@ export class SocketService {
   /** Listen for a server event as an Observable stream. */
   on<T>(event: string): Observable<T> {
     return new Observable<T>((subscriber) => {
-      if (!this.socket) this.connect();
+      // Reconcile every subscribe: builds the socket on first use and
+      // re-handshakes if the account changed since the last connect.
+      this.connect();
       if (event === 'connect' && this.socket?.connected) {
         subscriber.next(undefined as unknown as T);
       }

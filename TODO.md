@@ -1,6 +1,97 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-12 (loading-skeleton reveal fix on 3 browse pages + demo unlock phrase made env-driven)
+> **State: 🟢 ACTIVE** — 2026-06-12 (quote/proposal realtime + servicer pending card redesign)
+
+---
+
+## ✅ Quote/proposal realtime + pending-card redesign — SESSION 2026-06-12
+
+Bugs in the quote→proposal→accept flow. All `tsc` (BE+FE) + `ng build` pass.
+
+### Bug 1 — Customer proposals page never updated live
+- [x] `proposals.component.ts` only listened to `quote.proposals_ready` (deadline
+      batch). Now also subscribes `proposal.submitted` (per-proposal) and
+      `notification.new` (type `orders`, reconnect fallback) → reloads on the
+      matching `quoteId`.
+- [x] **Backend** `servicer-quote.service.ts submitProposal` now
+      `emitToUser(quote.userId, 'proposal.submitted', {quoteId, proposalId})`
+      after the notify().
+
+### Bug 2 — No notification on customer for a new proposal
+- [x] Root cause: **auto-proposals** (`quote.service.ts` saved-rule auto-accept)
+      created `quoteProposal` rows but **never called `notify()`**. Added a single
+      customer notify (type `orders`) + `proposal.submitted` emit after the
+      auto-accept loop when `autoCount > 0`.
+
+### Bug 3 — Servicer pending card: missing fields + wrong layout
+- [x] **Backend** `listIncomingQuotes` now returns `paymentMode`, address parts
+      (`address`/`postcode`/`district`/`state`), `lat`/`lng`, `notes`, and
+      `descriptions` (new `formatServiceDetails()` resolves `serviceDetails` →
+      readable lines via the category `questionSchema`).
+- [x] **Frontend** pending card redesigned to 3 rows:
+      Row 1 `[avatar][name][date·slot][budget][building][payment] … [status]`,
+      Row 2 `[composed address] [Map button]` (toggles inline `app-map-view`),
+      Row 3 `[descriptions chips + notes] … [countdown timer]`.
+
+### Bug 5 — Notifications leaked between accounts
+- [x] Root cause: the singleton `SocketService` connected **once** with whatever
+      token was current and was never re-handshaked on an account switch. Demo-bar
+      switches are SPA nav (no hard reload), so the stale socket stayed joined to
+      the **previous** user's room (`user:{oldId}`/`servicer:{oldId}`) and kept
+      delivering their `notification.new` events to the new account.
+- [x] `socket.service.ts` — `connect()` now tracks `connectedToken`; when the
+      token changes it re-handshakes on the **same** socket (preserves existing
+      `on()` listeners but re-joins the new room). `on()` calls `connect()` on
+      every subscribe so a switch is always reconciled; `disconnect()` resets the
+      tracked token; `updateToken()` updates it too.
+- [x] `demo-bar.component.ts` — `demoLogin`/`demoLoginEmail` call
+      `notifications.start()` after the new session so the socket reconciles
+      immediately even on a same-role switch (shell reused, ngOnInit not re-run).
+- [x] Backend already derives the room from the token on every connection and
+      auto-leaves rooms on disconnect, so the re-handshake moves rooms correctly.
+
+### Bug 4 — Servicer pending didn't update when customer accepted
+- [x] `jobs.component.ts` only subscribed `quote.new`. Now also subscribes
+      `job.new` (→ `loadJobs()` + `loadQuotes()`) and `quote.matched` (→
+      `loadQuotes()`); added a `subs[]` array + cleanup.
+- [x] **Backend** `booking.service.ts selectProposal` now emits `quote.matched`
+      to every **other** broadcast merchant so losing bidders drop the quote live.
+- [x] **Backend** `listIncomingQuotes` filters to `status === 'open'` so a matched/
+      expired/cancelled quote leaves the pending feed.
+
+---
+
+## ✅ Toast notification sound + bigger toasts — SESSION 2026-06-12
+
+### Sound for action toasts
+- [x] **`toast.service.ts`** — `ToastService` now plays a short chime on `success`/`error`
+      toasts (info stays silent). Loads the `notification_sound_enabled` admin setting
+      and respects it. Audio context unlocked on first user gesture to satisfy browser
+      autoplay policies. Success → `NotificationCard.wav`, error → `Notification_Job.wav`,
+      volume 0.4.
+- [x] **`notification.service.ts`** — poll-based toast creation in `refresh()` now also
+      plays a sound (previously only the real-time socket path did). Added `unlockAudio()`
+      for AudioContext priming on first user gesture, matching the ToastService approach.
+      Plays sound for the first unread notification to avoid spamming on batch arrivals.
+
+### Bigger snackbar toasts
+- [x] **`snackbar.component.ts`** — full visual upgrade:
+  - Width: 330px → 420px
+  - Padding: 0.7rem 0.8rem → 1rem 1.1rem
+  - Border-radius: 10px → 12px
+  - Shadow: heavier (0 10px 36px rgba(0,0,0,0.24))
+  - Gap: 0.6rem → 0.75rem (both container and item)
+  - Message font: 0.88rem → 0.95rem (+ `line-height: 1.35`)
+  - Type label font: 0.7rem → 0.75rem
+  - Icon font: 1rem → 1.15rem
+  - Dismiss (✕) font: 0.8rem → 0.9rem, padding 0.25rem
+  - Dot: 0.6rem → 0.7rem
+  - Animation translateY increased proportionally (10→14px in, 6→10px out)
+
+### Verification
+- [x] Frontend `tsc --noEmit`: 0 errors
+- [x] Frontend `ng build`: green, 14.4s
+- [x] Backend `tsc --noEmit`: 0 errors (unchanged)
 
 ---
 

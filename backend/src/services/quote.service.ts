@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { badRequest, conflict, notFound } from '../lib/errors';
 import { pairedMerchantIdFromEmail } from '../lib/paired-account';
-import { emitToMerchants } from '../socket';
+import { emitToMerchants, emitToUser } from '../socket';
 import { enqueue, JOB_NAMES } from '../lib/queue';
 import { quoteMatchesAutoAccept, computeAutoPrice } from './auto-accept.service';
 import { getSetting, resolveBudgetRanges } from './settings.service';
@@ -382,6 +382,23 @@ export async function createQuote(
         error: (err as Error).message,
       });
     }
+  }
+
+  // Auto-proposals never told the customer — notify once so a proposal that
+  // arrives instantly (saved-rule auto-accept) still surfaces a notification +
+  // refreshes the open proposals list, same as a manual proposal.
+  if (autoCount > 0) {
+    await notify({
+      userId,
+      type: 'orders',
+      message:
+        autoCount === 1
+          ? `A merchant has submitted a proposal for your quote.`
+          : `${autoCount} merchants have submitted proposals for your quote.`,
+      linkUrl: `/customer/quotes/${quote.id}/proposals`,
+      category: quote.categoryId,
+    });
+    emitToUser(userId, 'proposal.submitted', { quoteId: quote.id });
   }
 
   // SP4 Dispatch rotation: for eligible non-auto-accept merchants, start the

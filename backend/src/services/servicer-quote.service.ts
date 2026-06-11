@@ -4,6 +4,7 @@ import { ApiError, badRequest, conflict, forbidden, notFound } from '../lib/erro
 import { logger } from '../lib/logger';
 import { pairedCustomerEmail } from '../lib/paired-account';
 import { notify } from './notification.service';
+import { emitToUser } from '../socket';
 import { optionPriceMapSchema, OptionPriceMap, lineItemsSchema, moduleRefsSchema } from '../lib/json-schemas';
 
 /**
@@ -213,6 +214,31 @@ export function computePrefill(
 // ── Service functions ────────────────────────────────────────────────────────
 
 /** List quotes this merchant was broadcast to, optionally filtered by status. */
+/**
+ * Resolves a quote's serviceDetails answers into human-readable lines using the
+ * category's question schema, e.g. ["AC type: Wall unit", "Units: 2"]. Unknown
+ * keys/values fall back to their raw form so nothing silently disappears.
+ */
+export function formatServiceDetails(
+  serviceDetails: Record<string, string | string[]> | null | undefined,
+  questionSchema: QuestionSchemaItem[] | null,
+): string[] {
+  if (!serviceDetails) return [];
+  const schema = questionSchema ?? [];
+  const lines: string[] = [];
+  for (const [key, raw] of Object.entries(serviceDetails)) {
+    if (raw === undefined || raw === null || (Array.isArray(raw) && raw.length === 0) || raw === '') continue;
+    const q = schema.find((s) => s.key === key);
+    const label = q?.label ?? key;
+    const values = Array.isArray(raw) ? raw : [raw];
+    const readable = values
+      .map((v) => q?.options?.find((o) => o.value === v)?.label ?? String(v))
+      .join(', ');
+    lines.push(`${label}: ${readable}`);
+  }
+  return lines;
+}
+
 export async function listIncomingQuotes(merchantId: string, status?: string) {
   const broadcasts = await prisma.quoteBroadcast.findMany({
     // BE-045: defence-in-depth — never surface a quote created by this
@@ -224,9 +250,10 @@ export async function listIncomingQuotes(merchantId: string, status?: string) {
     include: {
       quoteRequest: {
         include: {
-          category: { select: { name: true, slug: true } },
+          category: { select: { name: true, slug: true, questionSchema: true } },
           proposals: { where: { merchantId }, select: { id: true, status: true, isAuto: true } },
           user: { select: { name: true, avatarUrl: true } },
+          address: { select: { address: true, postcode: true, district: true, state: true } },
         },
       },
     },
@@ -246,6 +273,7 @@ export async function listIncomingQuotes(merchantId: string, status?: string) {
         propertyType: q.propertyType,
         budgetMin: q.budgetMin,
         budgetMax: q.budgetMax,
+        paymentMode: q.paymentMode,
         status: q.status,
         derivedStatus: derived,
         openedAt: b.openedAt,
@@ -254,8 +282,24 @@ export async function listIncomingQuotes(merchantId: string, status?: string) {
         myProposalIsAuto: myProposal?.isAuto ?? false,
         customerAvatarUrl: q.user.avatarUrl,
         customerName: q.user.name,
+        // Address (for the card row + map button).
+        address: q.address?.address ?? null,
+        postcode: q.address?.postcode ?? null,
+        district: q.address?.district ?? null,
+        state: q.address?.state ?? null,
+        lat: q.lat,
+        lng: q.lng,
+        // Descriptions: free-text notes + readable question-schema answers.
+        notes: q.notes,
+        descriptions: formatServiceDetails(
+          q.serviceDetails as Record<string, string | string[]> | null,
+          q.category.questionSchema as QuestionSchemaItem[] | null,
+        ),
       };
     })
+    // Pending feed = only quotes still open for proposals. Once a quote is
+    // matched/expired/cancelled it belongs in Active/History, not here.
+    .filter((q) => q.status === 'open')
     .filter((q) => !status || q.derivedStatus === status);
 }
 
@@ -426,6 +470,10 @@ export async function submitProposal(merchantId: string, quoteId: string, input:
     linkUrl: `/customer/quotes/${quoteId}/proposals`,
     category: quote.categoryId,
   });
+
+  // Real-time push so the customer's open proposals list refreshes live
+  // (the notification badge alone does not reload the proposals page).
+  emitToUser(quote.userId, 'proposal.submitted', { quoteId, proposalId: proposal.id });
 
   logger.info('Proposal submitted', { quoteId, merchantId, proposalId: proposal.id });
   return proposal;
