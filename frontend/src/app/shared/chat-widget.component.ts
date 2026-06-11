@@ -2477,7 +2477,13 @@ export class ChatWidgetComponent
             ? (b.data["categoryId"] as string)
             : "";
         if (cid && !this.widget.prefillData()["categoryId"]) {
-          this.widget.accumulatePrefill({ categoryId: cid });
+          this.widget.accumulatePrefill({
+            categoryId: cid,
+            categoryName:
+              (b.data["categoryName"] as string) ||
+              (b.data["category"] as string) ||
+              "",
+          });
         }
         // Collapse the matching quote_options card so a text-confirm ("yep") shows
         // as resolved just like tapping "Yes, that's it".
@@ -2629,6 +2635,7 @@ export class ChatWidgetComponent
       "contactNumber",
       "notes",
       "propertyType",
+      "categoryName",
     ];
     const out: Record<string, string> = {};
     for (const k of keys) {
@@ -3647,7 +3654,10 @@ export class ChatWidgetComponent
     // picked, so nothing collected-this-flow is lost.
     this.resetQuoteFlowState();
     this.markCardResolved(data["categoryId"] as string);
-    this.widget.accumulatePrefill({ categoryId: data["categoryId"] as string });
+    this.widget.accumulatePrefill({
+      categoryId: data["categoryId"] as string,
+      categoryName: category || (data["categoryName"] as string) || "",
+    });
     // Send a follow-up message to advance the conversational flow. categoryLocked
     // (set from prefillData above) tells the backend to suppress further category
     // suggestion cards, so confirming can't loop back to the same prompt.

@@ -998,6 +998,174 @@ export async function judgeConversation(
   return "JUDGE_ERROR: no judge reply";
 }
 
+// ─── LLM extraction fallback ────────────────────────────────────────────────────────
+// The deterministic regex extractors (budget/phone/name/date/question options) are
+// brittle against slang-wrapped answers ("eh boss, i can spend about 302 lah"). When
+// they miss, the reply LLM still UNDERSTANDS the message and says "noted" while the
+// state machine stays pinned on the field — prose and cards diverge and the flow
+// loops (ChatQA_Log_005312062601). This fallback closes that gap: one small,
+// strict-JSON LLM call that reads ONLY the pending field/question out of the user's
+// message. Every result is hard-validated before it can enter the state, and any
+// error/no-key returns undefined so the flow degrades exactly to the old behavior.
+
+const EXTRACT_SYSTEM = `You extract ONE answer from a customer's chat message for a home-services booking.
+The message may be informal Malaysian chat (Manglish/rojak slang, Malay SMS shortcuts, filler around the answer).
+Return STRICT JSON only, no commentary, no markdown: {"value": ...}.
+If the message does NOT contain an answer for the requested item, return {"value": null}.
+Never invent or guess a value that is not in the message.`;
+
+/** One strict-JSON extraction call over the LLM chain. Returns the parsed "value". */
+async function llmExtractRaw(userPrompt: string): Promise<unknown> {
+  let reply = "";
+  // Same provider preference as the QA judge: DeepSeek flash first (cheap, off the
+  // quota-limited keys), then the normal failover chain. Always noFallback — the
+  // localFallback boilerplate must never be parsed as an extraction result.
+  try {
+    const dsKey = (await getLlmKeys()).find((k) => k.provider === "deepseek");
+    if (dsKey) {
+      const r = await callDeepSeek(
+        EXTRACT_SYSTEM,
+        userPrompt,
+        [],
+        "guest",
+        dsKey.value,
+        "deepseek-v4-flash",
+        true,
+      );
+      reply = (r.answer || "").trim();
+    }
+  } catch {
+    /* fall through to the generic chain */
+  }
+  if (!reply) {
+    try {
+      const chain = await buildLlmChain(EXTRACT_SYSTEM, userPrompt, [], "guest", true);
+      for (const llm of chain) {
+        if (isCoolingDown(llm.id)) continue;
+        try {
+          const r = await llm.run();
+          reply = (r.answer || "").trim();
+          if (reply) break;
+        } catch (e) {
+          noteKeyFailure(llm.id, e);
+        }
+      }
+    } catch {
+      /* no provider — extraction unavailable */
+    }
+  }
+  if (!reply) return undefined;
+  const m = reply.match(/\{[\s\S]*\}/);
+  if (!m) return undefined;
+  try {
+    return (JSON.parse(m[0]) as { value?: unknown }).value;
+  } catch {
+    return undefined;
+  }
+}
+
+const LLM_EXTRACT_FIELDS: Record<string, string> = {
+  preferredDate:
+    'the preferred service DATE. Resolve relative words ("next week tuesday") to an absolute date. Output "value" as YYYY-MM-DD.',
+  timeSlot:
+    'the preferred TIME OF DAY. Output "value" as exactly one of: morning, noon, afternoon, evening, night.',
+  budgetMax:
+    'the customer\'s BUDGET in RM. Output "value" as the plain number, digits only.',
+  contactName: 'the customer\'s NAME. Output "value" as the name only.',
+  contactNumber:
+    'the customer\'s PHONE NUMBER. Output "value" as the digits exactly as typed.',
+};
+
+/**
+ * LLM fallback for ONE pending base field the regex extractors missed. Validation is
+ * strict per field (format/enum, and the digits must actually appear in the message
+ * for budget/phone) so a hallucinated value can never enter the booking state.
+ * Address is deliberately unsupported — it is structured-card-only by design.
+ */
+export async function llmExtractFieldValue(
+  key: string,
+  message: string,
+): Promise<string | undefined> {
+  const what = LLM_EXTRACT_FIELDS[key];
+  const text = message.trim();
+  if (!what || !text || text.length > 400) return undefined;
+  const today = new Date().toISOString().slice(0, 10);
+  const v = await llmExtractRaw(
+    `Item to extract: ${what}\nToday's date: ${today}\nCustomer message: """${text}"""`,
+  );
+  if (typeof v !== "string" && typeof v !== "number") return undefined;
+  const s = String(v).trim();
+  if (!s) return undefined;
+  switch (key) {
+    case "preferredDate":
+      return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : undefined;
+    case "timeSlot": {
+      const slot = s.toLowerCase();
+      return ["morning", "noon", "afternoon", "evening", "night"].includes(slot)
+        ? slot
+        : undefined;
+    }
+    case "budgetMax": {
+      const n = parseInt(s.replace(/[^\d]/g, ""), 10);
+      if (!Number.isFinite(n) || n < 10 || n > 10_000_000) return undefined;
+      // Anti-hallucination: the number must literally appear in the user's words.
+      return text.replace(/,/g, "").includes(String(n)) ? String(n) : undefined;
+    }
+    case "contactNumber": {
+      const digits = s.replace(/[^\d+]/g, "");
+      if (!/^\+?\d{9,13}$/.test(digits)) return undefined;
+      return message.replace(/[^\d]/g, "").includes(digits.replace(/^\+/, ""))
+        ? digits
+        : undefined;
+    }
+    case "contactName": {
+      if (!/^[\p{L} .'-]{2,40}$/u.test(s)) return undefined;
+      // The first name token must appear in the message (no invented names).
+      const first = s.toLowerCase().split(/\s+/)[0];
+      return text.toLowerCase().includes(first) ? s : undefined;
+    }
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * LLM fallback mapping a free-text answer onto a service-question's option values
+ * when matchQuestionAnswer's literal matching missed (paraphrase, cross-language
+ * answer). Only option questions — the result is whitelisted against the schema's
+ * option values, so the LLM can only ever pick from what the admin defined.
+ */
+export async function llmExtractQuestionAnswer(
+  q: {
+    type: string;
+    label?: string;
+    options?: Array<{ value: string; label: string }>;
+  },
+  message: string,
+): Promise<string | string[] | undefined> {
+  const text = message.trim();
+  if (!text || text.length > 400) return undefined;
+  if ((q.type !== "radio" && q.type !== "checkbox") || !q.options?.length)
+    return undefined;
+  const optList = q.options.map((o) => `"${o.value}" = ${o.label}`).join("; ");
+  const v = await llmExtractRaw(
+    `Item to extract: the customer's choice for the question "${q.label ?? ""}".\n` +
+      `Allowed option values: ${optList}\n` +
+      `Output "value" as ${q.type === "radio" ? "ONE option value (a string)" : "a JSON array of option values"} from the allowed list, or null if the message does not pick any.\n` +
+      `Customer message: """${text}"""`,
+  );
+  const valid = new Set(q.options.map((o) => o.value));
+  if (q.type === "radio")
+    return typeof v === "string" && valid.has(v) ? v : undefined;
+  if (Array.isArray(v)) {
+    const picked = v.filter(
+      (x): x is string => typeof x === "string" && valid.has(x),
+    );
+    return picked.length ? picked : undefined;
+  }
+  return typeof v === "string" && valid.has(v) ? [v] : undefined;
+}
+
 // ─── Question-schema auto-translation ──────────────────────────────────────────────
 // When an admin saves a category's questionSchema, fill the per-language label
 // translations (labelI18n) so the in-chat quote flow can show each question/option in
@@ -1424,14 +1592,17 @@ function extractPhone(message: string): string | undefined {
 /**
  * Extract a budget amount (RM) the user stated, so the budget slider can pre-select
  * the matching bracket instead of defaulting to the lowest. Matches "RM999", "999
- * budget", "budget of 1000", "around 1500". Returns the first plausible amount.
+ * budget", "budget of 1000", "around 1500", and spend-verb phrasings with a bare
+ * number ("i can spend about 302", "can pay 150") — the rm-anchored-only pattern
+ * missed those while the reply LLM acknowledged them, splitting prose from state
+ * (ChatQA_Log_005312062601). Returns the first plausible amount.
  */
 function extractBudget(text: string): number | undefined {
   const m = text.match(
-    /(?:rm|myr|\$)\s*([0-9][0-9,]{0,7})|([0-9][0-9,]{1,7})\s*(?:budget|ringgit|bucks)|budget(?:\s+(?:of|is|around|about|approx\.?|~))?\s*(?:rm|myr|\$)?\s*([0-9][0-9,]{0,7})/i,
+    /(?:rm|myr|\$)\s*([0-9][0-9,]{0,7})|([0-9][0-9,]{1,7})\s*(?:budget|ringgit|bucks)|budget(?:\s+(?:of|is|around|about|approx\.?|~))?\s*(?:rm|myr|\$)?\s*([0-9][0-9,]{0,7})|(?:spend|pay|afford|stretch(?:\s+to)?|go\s+(?:up\s+)?to)\s*(?:up\s+to|about|around|roughly|approx\.?|~|like|max(?:imum)?)?\s*([0-9][0-9,]{0,7})\b/i,
   );
   if (!m) return undefined;
-  const raw = (m[1] ?? m[2] ?? m[3] ?? "").replace(/,/g, "");
+  const raw = (m[1] ?? m[2] ?? m[3] ?? m[4] ?? "").replace(/,/g, "");
   const n = parseInt(raw, 10);
   return Number.isFinite(n) && n >= 10 && n <= 10_000_000 ? n : undefined;
 }
@@ -1539,6 +1710,68 @@ export function extractName(
  * looped forever in zh/ta chats (the option labels are translated but the answer was
  * only compared to the English label). Tolerates a rojak wrapper around the answer.
  */
+
+/**
+ * Strip sentences from the LLM's text reply that re-ask for already-confirmed
+ * fields. The card dedup already strips the cards — this prevents the text from
+ * contradicting the on-screen state (e.g. "I need your phone number" when Phone
+ * is in the CONFIRMED DETAILS). Without this, users see a bot that keeps asking
+ * for their phone number even though it's already filled on screen.
+ */
+function stripReaskSentences(
+  text: string,
+  opts: { collected?: string[]; collectedData?: Record<string, unknown> },
+): string {
+  const confirmed = new Set([
+    ...(opts.collected ?? []),
+    ...Object.keys(opts.collectedData ?? {}),
+  ]);
+  if (!confirmed.size) return text;
+
+  // Phone re-ask patterns — only strip when contactNumber is already confirmed
+  if (
+    confirmed.has("contactNumber") &&
+    /\b(phone\s*(number|#)?|(need|get|share|provide|reach|contact|call)\s*(your\s*)?(phone|number)|still\s*(need|missing|waiting)\s*(your\s*)?(phone|number)|(i('?m| am)\s*)?(still\s*)?(need|missing|waiting)\s*(your\s*)?(phone|number|contact))\b/i.test(
+      text,
+    )
+  ) {
+    // Split on sentence boundaries, drop any sentence with a phone-ask pattern
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const clean = sentences.filter((s) => {
+      const hasPhoneAsk =
+        /\b(phone\s*(number|#)?|(need|get|share|provide|reach|contact|call)\s*(your\s*)?(phone|number)|still\s*(need|missing|waiting)\s*(your\s*)?(phone|number)|(i('?m| am)\s*)?(still\s*)?(need|missing|waiting)\s*(your\s*)?(phone|number|contact))\b/i.test(
+          s,
+        );
+      return !hasPhoneAsk;
+    });
+    if (clean.length !== sentences.length) {
+      text = clean.join(" ").replace(/\s{2,}/g, " ").trim();
+    }
+  }
+
+  // Budget re-ask patterns — only strip when budgetMax is already confirmed
+  if (
+    confirmed.has("budgetMax") &&
+    /\b(budget|spend|price range|how much|capture.*budget|let me.*budget|still.*budget|need.*budget)\b/i.test(
+      text,
+    )
+  ) {
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const clean = sentences.filter((s) => {
+      const hasBudgetAsk =
+        /\b(budget|spend|price range|how much|capture.*budget|let me.*budget|still.*budget|need.*budget)\b/i.test(
+          s,
+        );
+      return !hasBudgetAsk;
+    });
+    if (clean.length !== sentences.length) {
+      text = clean.join(" ").replace(/\s{2,}/g, " ").trim();
+    }
+  }
+
+  return text;
+}
+
 export function matchQuestionAnswer(
   q: {
     type: string;
@@ -1551,12 +1784,38 @@ export function matchQuestionAnswer(
   message: string,
 ): string | string[] | undefined {
   const text = message.trim();
-  if (!text || text.length > 60) return undefined;
+  if (!text) return undefined;
+  // Length caps are PER TYPE, not global. Option matching is substring-based and
+  // safe on longer slang-wrapped answers — "eh boss, so basically Motor/Engine, if
+  // that makes sense lah, can help anot?" is ~76 chars; the old global 60 cap
+  // rejected it, the question was never marked answered, and the same card looped
+  // forever (ChatQA_Log_005312062601). Numeric capture stays tighter: long messages
+  // often carry unrelated digits (phone, postcode, house no) that would be mis-read
+  // as the count.
   if (q.type === "number" || q.type === "quantity") {
-    const m = text.match(/^\D{0,8}(\d{1,7})\D{0,8}$/);
-    return m ? m[1] : undefined;
+    if (text.length > 120) return undefined;
+    // Real users wrap their answer in framing text ("about 1", "roughly 3 cameras",
+    // "Hi, could you help me — about 1? Thank you."). The old \D{0,8} limit rejected
+    // anything with more than 8 non-digit chars before the number, so every QA
+    // persona that wraps answers in polite framing got "undefined" and the LLM
+    // treated "about 1" as noise instead of the camera-count answer.
+    // Extract ANY plausible count — 1-7 digit run with 0-200 surrounding non-digits,
+    // anchored to word boundaries so "abc123def" still works but random strings don't.
+    // Multiple matches: pick the LAST (closest to the tail = most likely the answer,
+    // since QA framing appends question-like suffixes AFTER the answer).
+    const matches = [...text.matchAll(/\b\D{0,200}(\d{1,7})\D{0,200}\b/g)];
+    if (!matches.length) return undefined;
+    // Prefer a match where the number is standalone ("1" or " 1 ") or near quantity
+    // words ("about 2", "around 3", "roughly 4"), falling back to the last match.
+    const quantityish = /(?:about|around|roughly|approx|maybe|like|only|just|need|want|total)\s*\d{1,7}/i;
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const full = matches[i][0];
+      if (quantityish.test(full)) return matches[i][1];
+    }
+    return matches[matches.length - 1][1];
   }
   if ((q.type === "radio" || q.type === "checkbox") && q.options?.length) {
+    if (text.length > 300) return undefined;
     const lower = text.toLowerCase();
     // An option matches when its value/label (any language) equals the answer, or
     // appears (>= 3 chars, to avoid 1-2 char noise) inside a wrapped answer
@@ -2040,6 +2299,7 @@ export async function sendToAi(
       contactNumber: "Phone",
       notes: "Notes",
       propertyType: "Property type",
+      categoryName: "Service",
     };
     const cd = opts.collectedData ?? {};
     const valueLines = opts.collected
@@ -2056,7 +2316,10 @@ export async function sendToAi(
       systemPrompt +=
         `\n\n## CONFIRMED DETAILS — exact values, never alter or invent` +
         `\n${valueLines.join("\n")}` +
-        `\nThese are captured and shown on screen. NEVER ask for any of them again. If you reference or recap any, use these EXACT values verbatim — NEVER state a value that is not in this list. The review card shows the full summary, so do NOT re-list these in prose. Acknowledge briefly, then ask ONLY for the next missing detail.`;
+        `\nThese are ALREADY COLLECTED and LOCKED on screen. Asking for ANY of them again will trap the user in an infinite loop — the booking WILL fail.` +
+        `\nSTRICT RULE: If you see a field in this list, you MUST NOT ask for it, MUST NOT mention you need it, and MUST NOT say "let me capture" it. It is DONE. Move on.` +
+        `\nThe ONLY exception: if the user EXPLICITLY asks to change a value (says "change", "fix", "wrong", "re-enter"), then and only then may you re-open that one field.` +
+        `\nWhen you acknowledge a detail the user JUST gave, echo back only THAT one value in a short phrase. NEVER re-list all the collected fields in prose — the review card shows the full summary.`;
     } else {
       const friendly: Record<string, string> = {
         preferredDate: "date",
@@ -2068,6 +2331,7 @@ export async function sendToAi(
         notes: "notes",
         budgetMin: "budget",
         budgetMax: "budget",
+        categoryName: "service",
       };
       const done = [
         ...new Set(opts.collected.map((k) => friendly[k]).filter(Boolean)),
@@ -2075,8 +2339,40 @@ export async function sendToAi(
       if (done.length > 0) {
         systemPrompt +=
           `\n\n## ALREADY COLLECTED — do not ask again` +
-          `\nThe user has already provided: ${done.join(", ")}. These are captured and shown as confirmed on screen. NEVER ask for any of them again and never re-show them as a question. Briefly acknowledge in a few words at most, then ask ONLY for the next missing detail.`;
+          `\nThe user has already provided: ${done.join(", ")}. These are LOCKED on screen. Asking for them again will loop the user forever — the booking will fail.` +
+          `\nMUST NOT ask for, mention needing, or say "let me capture" any of these. They are DONE. Only re-open if the user explicitly asks to change one.`;
       }
+    }
+
+    // When a category is locked, reinforce it explicitly — the absence of the
+    // catalog alone is a weak signal, and LLMs (especially in non-English output)
+    // occasionally regress to "what service do you want?" even after Step 2 is done.
+    if (opts?.suppressCategorySuggest) {
+      systemPrompt +=
+        `\n\n## SERVICE LOCKED — DO NOT MENTION` +
+        `\nThe service category has already been confirmed and LOCKED. The user saw the card, tapped "Yes, that's it", and the booking is now in the field-collection phase (Steps 3–10).` +
+        `\nUNDER NO CIRCUMSTANCES ask "what service do you want", "which service would you like", "what would you like to book", or any similar question.` +
+        `\nUNDER NO CIRCUMSTANCES mention choosing, changing, switching, browsing, or registering for a service. The category step is COMPLETE.` +
+        `\nFocus ONLY on the next missing field: ask for it, emit its card, and move forward.`;
+
+      // Name the EXACT pending step so the model's prose can never run ahead of the
+      // deterministic card pipeline. Without this, the model said "RM302 noted, now
+      // your name" while the state machine was still pinned on budget (its extractor
+      // had rejected the value) — text guided one way, the card another, and the QA
+      // run looped (ChatQA_Log_005312062601).
+      const collSet = new Set(opts.collected ?? []);
+      const stepOrder: Array<[string, string]> = [
+        ["preferredDate", "date (key preferredDate)"],
+        ["timeSlot", "time of day (key timeSlot)"],
+        ["address", "address (key address)"],
+        ["budgetMax", "budget (key budgetMax)"],
+        ["contactName", "name (key contactName)"],
+        ["contactNumber", "phone (key contactNumber)"],
+      ];
+      const pendingStep = stepOrder.find(([k]) => !collSet.has(k));
+      systemPrompt += pendingStep
+        ? `\nNEXT REQUIRED STEP: the ${pendingStep[1]}. If the user's message contains its value, EMIT its [action:quote_field] card WITH a value: line THIS turn. If you cannot read a clean value from their message, ask them to clarify it — do NOT pretend it was captured. NEVER say "noted"/"got it" or move to a later step without emitting the filled card: the booking state only advances through the card, never through your words.`
+        : `\nAll base fields are collected. Continue with the category's service questions, then the review.`;
     }
   }
 
@@ -2154,6 +2450,36 @@ export async function sendToAi(
       }
     } catch {
       /* non-critical — questions just won't be asked in chat */
+    }
+  }
+
+  // Inject the current unanswered question(s) into the prompt so the LLM knows
+  // EXACTLY what the user is being asked right now — without this, the LLM sees
+  // a bare "about 1" or "just walls" with zero context and defaults to treating
+  // it as noise (hallucinating about dogs, asking for phone again, etc.).
+  if (opts?.categoryId && categoryQuestions.length > 0) {
+    const answered = new Set(opts?.answeredQuestions ?? []);
+    const unanswered = categoryQuestions.filter((q) => !answered.has(q.key));
+    if (unanswered.length > 0) {
+      const q = unanswered[0];
+      const label = pickI18n(q.label, q.labelI18n, opts?.lang);
+      systemPrompt +=
+        `\n\n## CURRENT QUESTION — focus your reply on THIS` +
+        `\nQuestion: "${label}" (key: \`${q.key}\`, type: \`${q.type}\`)` +
+        (q.description
+          ? `\nDescription: ${pickI18n(q.description, q.descriptionI18n, opts?.lang)}`
+          : ``);
+      if (q.options?.length) {
+        systemPrompt +=
+          `\nOptions: ${q.options.map((o) => `"${pickI18n(o.label, o.labelI18n, opts?.lang)}" (value: ${o.value})`).join(", ")}`;
+      }
+      systemPrompt +=
+        `\nThe user's NEXT message is likely their answer to THIS question. Interpret their words against the question context.` +
+        `\nIf the user gives a valid answer, acknowledge it briefly (ONE warm sentence max) and move on — the app shows the next card.` +
+        `\nNEVER re-show a question card for a question the user already answered in THIS turn.` +
+        (unanswered.length > 1
+          ? `\nRemaining after this: ${unanswered.slice(1).map((qq) => `"${pickI18n(qq.label, qq.labelI18n, opts?.lang)}"`).join(", ")}. Do NOT ask these yet — ONE at a time.`
+          : ``);
     }
   }
 
@@ -2436,6 +2762,43 @@ export async function sendToAi(
         fillField("contactNumber", extractPhone(userConvo));
       }
 
+      // LLM extraction fallback for the SINGLE pending base field when every regex
+      // above missed it. Without this, the reply LLM acknowledges the value in prose
+      // ("RM302 noted, now your name") while the state machine stays pinned on the
+      // field — text and cards diverge and the flow loops. Hard-validated, so a wrong
+      // LLM read can never enter the state; a null leaves the card pinned as before.
+      // Address is excluded (structured card only by design).
+      if (opts?.categoryId) {
+        const filledNow = new Set(
+          outBlocks
+            .filter(
+              (b) =>
+                b.type === "quote_field" &&
+                b.data.value != null &&
+                b.data.value !== "",
+            )
+            .map((b) => b.data.key as string),
+        );
+        const BASE_ORDER = [
+          "preferredDate",
+          "timeSlot",
+          "budgetMax",
+          "contactName",
+          "contactNumber",
+        ];
+        const pendingKey = BASE_ORDER.find(
+          (k) => !clientHas.has(k) && !filledNow.has(k),
+        );
+        if (pendingKey) {
+          try {
+            const v = await llmExtractFieldValue(pendingKey, message);
+            if (v) fillField(pendingKey, v);
+          } catch {
+            /* extraction is best-effort — the card simply stays pinned */
+          }
+        }
+      }
+
       // Fields are "done" if the client already collected them OR the model just
       // pre-filled them with a value in this reply.
       const done = new Set(opts?.collected ?? []);
@@ -2478,7 +2841,18 @@ export async function sendToAi(
       // first unanswered one), so it's marked answered and not re-asked.
       if (unansweredQ.length > 0) {
         const q = unansweredQ[0];
-        const ans = matchQuestionAnswer(q, message);
+        let ans = matchQuestionAnswer(q, message);
+        // Literal matching missed — let the LLM map a paraphrased/cross-language
+        // answer onto the schema's option values (whitelisted, so it can only pick
+        // from the admin-defined options). Same prose-vs-state guard as the field
+        // fallback above: the reply LLM understood the answer, the state must too.
+        if (!ans) {
+          try {
+            ans = await llmExtractQuestionAnswer(q, message);
+          } catch {
+            /* best-effort — question stays pending */
+          }
+        }
         if (ans) {
           // Fill the model's existing (empty) card, else push a new filled one — so
           // the answer shows once as confirmed and the question is never re-asked.
@@ -2735,7 +3109,17 @@ export async function sendToAi(
   }
 
   const roleBase = role === "customer" ? "/customer" : "/guest";
-  const answer = linkifyServices(processed.text, linkServices, roleBase);
+  let answer = linkifyServices(processed.text, linkServices, roleBase);
+
+  // Post-process text: the LLM sometimes re-asks for already-confirmed fields
+  // (especially phone/budget) even though the card dedup already strips those
+  // cards — the text still says "I need your phone number" when Phone is in the
+  // CONFIRMED DETAILS. This is a deterministic safety net that strips those
+  // re-ask sentences from the text so the text never contradicts the cards.
+  answer = stripReaskSentences(answer, {
+    collected: opts?.collected,
+    collectedData: opts?.collectedData,
+  });
 
   // Empty reply = the AI chain failed/timed out (and no FAQ matched) or the model
   // returned only a stripped block. Don't show the bare "How can I help you?" —
