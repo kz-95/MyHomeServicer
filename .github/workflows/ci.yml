@@ -1,45 +1,116 @@
 name: CI
 
-# Legacy — replaced by push-checks.yml + pr-gate.yml + nightly.yml.
-# Kept for backward compat until new pipelines confirmed working.
-# Will be deleted after verification.
+# Single pipeline: lint, build, test, E2E, Docker image, deploy report, notify.
+#
+# Triggers:
+#   push to master  → full pipeline (build + publish backend image + deploy report)
+#   pull request    → checks only (no push, no Pages deploy)
+#
+# Cost estimate:
+#   backend-check  ~2 min
+#   frontend-check ~1 min
+#   e2e-check      ~3 min
+#   backend-image  ~2 min
+#   deploy-report  ~0.5 min
+#   notify         ~0.1 min
+#   Total          ~5–8 min
+#
+# WhatsApp: set META_TOKEN, META_PHONE_ID, META_WHATSAPP_TO secrets.
+# Uses Meta WhatsApp Cloud API (free tier: 1000 msgs/month). Skipped if not set.
+
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  actions: read
+  contents: read
+  deployments: write
+  id-token: write
+  packages: write
+  pages: write
+
+env:
+  NODE_VERSION: 20
+  TZ: Asia/Kuala_Lumpur
 
 jobs:
-  # ── Backend: typecheck, lint, build, unit tests ──────────────────────────────
-  backend:
+  # ── Backend: lint, TypeScript, unit tests, build ──────────────────────────
+  backend-check:
+    name: Backend checks
     runs-on: ubuntu-latest
     env:
-      # Pin to Malaysia time (UTC+8) so Date local-time methods in unit tests
-      # (slotEndTime etc.) behave correctly on GitHub's UTC runners. See BUG-004.
-      TZ: Asia/Kuala_Lumpur
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+
       - name: Install dependencies
         working-directory: backend
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+
       - name: Generate Prisma client
         working-directory: backend
         run: npx prisma generate
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
+
       - name: Lint
         working-directory: backend
         run: npm run lint
-      - name: Build
+
+      - name: TypeScript check
         working-directory: backend
-        run: npm run build
+        run: npx tsc --noEmit
+
       - name: Unit tests
         working-directory: backend
         run: npm test
 
-  # ── Backend: end-to-end test against a real Postgres + Redis ─────────────────
-  backend-e2e:
+      - name: Build
+        working-directory: backend
+        run: npm run build
+
+  # ── Frontend: TypeScript, build ───────────────────────────────────────────
+  frontend-check:
+    name: Frontend checks
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  # ── E2E: Playwright against real Postgres + Redis ─────────────────────────
+  e2e-check:
+    name: E2E checks
+    runs-on: ubuntu-latest
+    needs:
+      - backend-check
+      - frontend-check
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-test-jwt-secret-value-0123456789abcdef
+      REFRESH_SECRET: ci-test-refresh-secret-value-0123456789abcdef
+      NODE_ENV: development
+      BASE_URL: http://localhost:4200
     services:
       postgres:
         image: postgres:16
@@ -50,89 +121,231 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres"
-          --health-interval 5s --health-timeout 5s --health-retries 5
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
       redis:
         image: redis:7
         ports: ['6379:6379']
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 5s --health-retries 5
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
-      REDIS_URL: redis://localhost:6379
-      JWT_SECRET: ci-test-jwt-secret-value-0123456789abcdef
-      REFRESH_SECRET: ci-test-refresh-secret-value-0123456789abcdef
-      NODE_ENV: development
-      # Pin to Malaysia time (UTC+8) — GitHub runners are UTC by default.
-      # Without this, slot-end time calculations and any Date local-time methods
-      # are 8 hours off, causing timing-sensitive E2E assertions to fail.
-      # Mirrors TZ set in docker-compose.yml and backend/.env.example (BUG-001).
-      TZ: Asia/Kuala_Lumpur
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Install dependencies
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install backend dependencies
         working-directory: backend
-        run: npm install --no-audit --no-fund
-      - name: Sync schema + generate
+        run: npm ci --no-audit --no-fund
+
+      - name: Sync schema + seed
         working-directory: backend
-        # The project's workflow is `prisma db push` (db:sync / db:reset), not
-        # migration files — db push builds the DB straight from schema.prisma
-        # so it can never drift. `migrate deploy` was replaying a stale
-        # `init` migration that lacked recently-added columns.
         run: |
           npx prisma db push --skip-generate
           npx prisma generate
-      - name: Seed demo data
-        working-directory: backend
-        run: npm run seed
+          npm run seed
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
       - name: Run E2E tests
-        working-directory: backend
-        run: npm test
-        env:
-          RUN_E2E: '1'
-
-  # ── Frontend: build ──────────────────────────────────────────────────────────
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install dependencies
+        id: e2e_run
+        continue-on-error: true
         working-directory: frontend
-        run: npm install --no-audit --no-fund
-      - name: Build
-        working-directory: frontend
-        run: npm run build
-
-  # ── WhatsApp notification on completion ─────────────────────────────────────
-  notify:
-    needs: [backend, backend-e2e, frontend]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send WhatsApp notification
-        if: env.CALLMEBOT_APIKEY != ''
+        run: npx playwright test --reporter=html --config=e2e/playwright.config.ts
         env:
-          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY || '' }}
-          CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE || '' }}
+          CI: 'true'
+
+      - name: Prepare E2E report site
+        if: always()
+        shell: bash
         run: |
-          STATUS_BACKEND="${{ needs.backend.result }}"
-          STATUS_E2E="${{ needs.backend-e2e.result }}"
-          STATUS_FRONTEND="${{ needs.frontend.result }}"
+          set -euo pipefail
 
-          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          REF="${{ github.ref_name }}"
-          ACTOR="${{ github.triggering_actor }}"
+          report_dir="frontend/playwright-report"
+          pages_dir="dist/e2e-report-site"
+          mkdir -p "$pages_dir"
 
-          if [ "$STATUS_BACKEND" = "success" ] && [ "$STATUS_E2E" = "success" ] && [ "$STATUS_FRONTEND" = "success" ]; then
-            TEXT="Pass CI $(echo "${REF}" | sed 's/ /%20/g') Backend=${STATUS_BACKEND} E2E=${STATUS_E2E} Frontend=${STATUS_FRONTEND} ${WORKFLOW_URL}"
+          if [ -d "$report_dir" ]; then
+            cp -R "$report_dir"/. "$pages_dir"/
           else
-            TEXT="FAIL CI $(echo "${REF}" | sed 's/ /%20/g') Backend=${STATUS_BACKEND} E2E=${STATUS_E2E} Frontend=${STATUS_FRONTEND} ${WORKFLOW_URL}"
+            cat > "$pages_dir/index.html" <<'HTML'
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>HomeServices E2E Report</title>
+            </head>
+            <body>
+              <h1>HomeServices E2E Report</h1>
+              <p>No Playwright HTML report was produced for this run.</p>
+            </body>
+          </html>
+          HTML
           fi
 
-          curl -s "https://api.callmebot.com/whatsapp.php?phone=${CALLMEBOT_PHONE}&text=${TEXT}&apikey=${CALLMEBOT_APIKEY}"
+          cat > "$pages_dir/commit.json" <<JSON
+          {
+            "repository": "$GITHUB_REPOSITORY",
+            "runId": "$GITHUB_RUN_ID",
+            "runNumber": "$GITHUB_RUN_NUMBER",
+            "sha": "$GITHUB_SHA",
+            "ref": "$GITHUB_REF_NAME",
+            "actor": "$GITHUB_ACTOR",
+            "runUrl": "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID",
+            "commitUrl": "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
+          }
+          JSON
+
+      - name: Upload E2E report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-playwright-report
+          path: dist/e2e-report-site
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload E2E report for GitHub Pages
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/e2e-report-site
+
+      - name: Fail if E2E failed
+        if: steps.e2e_run.outcome != 'success'
+        run: exit 1
+
+  # ── Publish E2E report to GitHub Pages (master only) ──────────────────────
+  deploy-e2e-report:
+    name: Publish E2E report
+    runs-on: ubuntu-latest
+    needs: e2e-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    continue-on-error: true
+    steps:
+      - name: Deploy E2E report to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Add E2E report link to summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${{ steps.deployment.outputs.page_url }}" ]; then
+            echo "E2E report: ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "E2E report was uploaded as the e2e-playwright-report workflow artifact." >> "$GITHUB_STEP_SUMMARY"
+            echo "Enable GitHub Pages in repository settings (Source: GitHub Actions) to publish the report URL." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── Backend Docker image (build + push to GHCR on master) ────────────────
+  backend-image:
+    name: Backend Docker image
+    runs-on: ubuntu-latest
+    needs: e2e-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-backend
+          tags: |
+            type=raw,value=master,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+            type=sha,prefix=sha-
+            type=ref,event=pr
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+  # ── WhatsApp notification via Meta Cloud API ──────────────────────────────
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs:
+      - backend-check
+      - frontend-check
+      - e2e-check
+      - backend-image
+      - deploy-e2e-report
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    continue-on-error: true
+    env:
+      META_TOKEN: ${{ secrets.META_TOKEN || '' }}
+      META_PHONE_ID: ${{ secrets.META_PHONE_ID || '' }}
+      META_WHATSAPP_TO: ${{ secrets.META_WHATSAPP_TO || '' }}
+    steps:
+      - name: Send WhatsApp notification
+        if: env.META_TOKEN != '' && env.META_PHONE_ID != '' && env.META_WHATSAPP_TO != ''
+        shell: bash
+        run: |
+          REF="${{ github.ref_name }}"
+          EVENT="${{ github.event_name }}"
+
+          if [ "$EVENT" = "pull_request" ]; then
+            TITLE="[PR #${{ github.event.pull_request.number }}] ${{ github.event.pull_request.title }}"
+          elif [ "$EVENT" = "push" ] && [ "$REF" = "master" ]; then
+            TITLE="[master deploy]"
+          else
+            TITLE="[$REF]"
+          fi
+
+          URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          B="${{ needs.backend-check.result }}"
+          F="${{ needs.frontend-check.result }}"
+          E="${{ needs.e2e-check.result }}"
+          IMG="${{ needs.backend-image.result }}"
+
+          FAILS=0
+          [ "$B" != "success" ] && [ "$B" != "skipped" ] && FAILS=$((FAILS+1))
+          [ "$F" != "success" ] && [ "$F" != "skipped" ] && FAILS=$((FAILS+1))
+          [ "$E" != "success" ] && [ "$E" != "skipped" ] && FAILS=$((FAILS+1))
+          [ "$IMG" != "success" ] && [ "$IMG" != "skipped" ] && FAILS=$((FAILS+1))
+
+          COMMIT="${{ github.sha }}"
+          if [ "$FAILS" -eq 0 ]; then
+            TEXT="*PASS* ${TITLE}%0ACommit: ${COMMIT:0:7}%0AB=${B} F=${F} E2E=${E} Img=${IMG}%0A${URL}"
+          else
+            TEXT="*FAIL* ${TITLE}%0ACommit: ${COMMIT:0:7}%0AB=${B} F=${F} E2E=${E} Img=${IMG}%0A${URL}"
+          fi
+
+          TO="$META_WHATSAPP_TO"
+          RTYPE="individual"
+          if echo "$TO" | grep -q "@g.us"; then RTYPE="group"; fi
+
+          RESP=$(curl -s -w '\n%{http_code}' -X POST "https://graph.facebook.com/v25.0/${META_PHONE_ID}/messages" \
+            -H "Authorization: Bearer ${META_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"messaging_product\":\"whatsapp\",\"recipient_type\":\"${RTYPE}\",\"to\":\"${TO}\",\"type\":\"text\",\"text\":{\"preview_url\":true,\"body\":\"${TEXT}\"}}")
+          HTTP_CODE=$(echo "$RESP" | tail -1)
+          BODY=$(echo "$RESP" | sed '$d')
+          echo "Meta API HTTP ${HTTP_CODE}: ${BODY}"

@@ -5,6 +5,7 @@ import { ApiService } from '../core/services/api.service';
 import { ConfigService } from '../core/services/config.service';
 import { NotificationService } from '../core/services/notification.service';
 import { DialogService } from '../core/services/dialog.service';
+import { DemoUnlockService } from '../core/services/demo-unlock.service';
 import { ModalComponent } from './modal.component';
 import { FormsModule } from '@angular/forms';
 
@@ -234,7 +235,7 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
   standalone: true,
   imports: [FormsModule, ModalComponent],
   template: `
-    @if (config.hasDemoData) {
+    @if (config.hasDemoData && unlock.unlocked()) {
     <div class="demo-bar">
       <button class="demo-badge" (click)="openUnplug()" title="Unplug from demo">Demo</button>
       <nav class="demo-nav">
@@ -488,6 +489,7 @@ export class DemoBarComponent {
   private router = inject(Router);
   private notifications = inject(NotificationService);
   private dialog = inject(DialogService);
+  protected readonly unlock = inject(DemoUnlockService);
   private el = inject(ElementRef);
 
   demoLoggingIn = signal(false);

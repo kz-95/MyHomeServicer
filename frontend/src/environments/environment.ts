@@ -15,4 +15,6 @@ export const environment = {
   googleMapsApiKey: '',
   /** Stripe publishable key - served from backend /config/public, blank = degrade gracefully. */
   stripePublishableKey: '',
+  /** Phrase the user must type (anywhere on page) to reveal demo/QA UI. */
+  demoUnlockPhrase: 'unlockdemobar',
 };

@@ -11,8 +11,8 @@ export async function loginAsCustomer(
   await page.goto('/login');
   await page.fill('input[type="email"]', email);
   await page.fill('input[type="password"]', password);
-  await page.click('button[type="submit"]');
-  await page.waitForURL('**/customer/**', { timeout: 10_000 });
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.waitForURL('**\customer**', { timeout: 10_000 });
 }
 
 export async function loginAsServicer(
@@ -23,8 +23,8 @@ export async function loginAsServicer(
   await page.goto('/login');
   await page.fill('input[type="email"]', email);
   await page.fill('input[type="password"]', password);
-  await page.click('button[type="submit"]');
-  await page.waitForURL('**/servicer/**', { timeout: 10_000 });
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.waitForURL('**/servicer**', { timeout: 10_000 });
 }
 
 export async function loginAsAdmin(
@@ -36,8 +36,8 @@ export async function loginAsAdmin(
   await page.goto('/login');
   await page.fill('input[type="email"]', email);
   await page.fill('input[type="password"]', password);
-  await page.click('button[type="submit"]');
-  await page.waitForURL('**/admin/**', { timeout: 10_000 });
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.waitForURL('**/admin**', { timeout: 10_000 });
 
   // PIN gate — admin routes require PIN re-entry
   const pinInput = page.locator('input[placeholder*="PIN" i], input[type="tel"], input[maxlength="4"]');
@@ -49,14 +49,16 @@ export async function loginAsAdmin(
 }
 
 export async function logout(page: Page) {
-  // Click user menu / avatar → logout
-  const userMenu = page.locator('[data-testid="user-menu"], .user-menu, .avatar, [aria-label="User menu"]');
-  if (await userMenu.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await userMenu.click();
-  }
-  const logoutBtn = page.locator('text=Logout, text=Sign out, text=Log out');
-  if (await logoutBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await logoutBtn.click();
-    await page.waitForURL('**/login', { timeout: 10_000 }).catch(() => {});
-  }
+  // Shell has "Sign out" button (.btn-signout on desktop, .logout-switch on mobile)
+  const signOutBtn = page.getByRole('button', { name: 'Sign out' });
+  await signOutBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await signOutBtn.click();
+
+  // Confirmation dialog appears — click "Sign out" inside the dialog to confirm
+  const dialogConfirm = page.locator('[role="dialog"] button:has-text("Sign out")');
+  await dialogConfirm.waitFor({ state: 'visible', timeout: 5000 });
+  await dialogConfirm.click();
+
+  // Navigates to home page after logout
+  await page.waitForURL('**/', { timeout: 10_000 });
 }

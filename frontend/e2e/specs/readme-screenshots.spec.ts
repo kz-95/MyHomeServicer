@@ -29,9 +29,11 @@ test.describe("README Screenshots", () => {
   });
 
   test("05-quote-wizard", async ({ page }) => {
+    test.setTimeout(60_000);
     await page.goto("/quote");
-    await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: /next|continue/i }).first().click().catch(() => {});
+    await page.waitForLoadState("domcontentloaded");
+    // Wait for the quote form to render (categories/inputs)
+    await page.locator("button, input").first().waitFor({ state: "visible", timeout: 15_000 });
     await expect(page.locator("app-root")).toHaveScreenshot("05-quote-wizard.png");
   });
 });

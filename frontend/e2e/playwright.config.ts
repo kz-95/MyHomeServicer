@@ -24,19 +24,20 @@ export default defineConfig({
     },
   ],
 
-  // Backend API for health checks
-  webServer: [
-    {
-      command: 'cd ../backend && npx ts-node src/index.ts',
-      port: 3000,
-      timeout: 15_000,
-      reuseExistingServer: !process.env['CI'],
-    },
-    {
-      command: 'cd ../frontend && npx ng serve --host 0.0.0.0 --port 4200',
-      port: 4200,
-      timeout: 60_000,
-      reuseExistingServer: !process.env['CI'],
-    },
-  ],
+  // webServer disabled for local dev — start backend + frontend manually.
+  // CI workflow handles server startup via its own steps.
+  // webServer: [
+  //   {
+  //     command: 'cd ../backend && npx ts-node src/index.ts',
+  //     port: 3000,
+  //     timeout: 15_000,
+  //     reuseExistingServer: !process.env['CI'],
+  //   },
+  //   {
+  //     command: 'cd ../frontend && npx ng serve --host 0.0.0.0 --port 4200',
+  //     port: 4200,
+  //     timeout: 60_000,
+  //     reuseExistingServer: !process.env['CI'],
+  //   },
+  // ],
 });

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, HostListener, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SnackbarComponent } from './shared/snackbar.component';
 import { PinPromptComponent } from './shared/pin-prompt.component';
@@ -7,6 +7,7 @@ import { ChatWidgetComponent } from './shared/chat-widget.component';
 import { NotificationPanelComponent } from './shared/notification-panel.component';
 import { SiteFooterComponent } from './shared/site-footer.component';
 import { StripePaymentService } from './core/services/stripe-payment.service';
+import { DemoUnlockService } from './core/services/demo-unlock.service';
 
 @Component({
     selector: 'app-root',
@@ -22,7 +23,14 @@ import { StripePaymentService } from './core/services/stripe-payment.service';
   `
 })
 export class AppComponent {
+  private readonly unlock = inject(DemoUnlockService);
+
   constructor() {
     inject(StripePaymentService).checkPopupContext();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(e: KeyboardEvent): void {
+    this.unlock.handleKey(e);
   }
 }

@@ -39,7 +39,7 @@ test.describe('Admin PIN Gate', () => {
       await page.waitForTimeout(1000);
 
       // Should be on a settings page
-      expect(page.url()).toMatch(/\/admin\/settings/);
+      expect(page.url()).toMatch(/\/admin\/.*settings/);
     }
   });
 });

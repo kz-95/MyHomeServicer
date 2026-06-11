@@ -7,6 +7,7 @@ import {
   effect,
   inject,
   signal,
+  isDevMode,
   ElementRef,
   viewChild,
   SecurityContext,
@@ -31,6 +32,7 @@ import {
 import { ChatQaService } from "./chat-qa.service";
 import { QaHost, QaBlock, QaAnswer, QaLang } from "./chat-qa-harness";
 import { QaFormBridge } from "./qa-form-bridge.service";
+import { DemoUnlockService } from "../core/services/demo-unlock.service";
 import { environment } from "../../environments/environment";
 
 /** PIN that unlocks the dev-only automated chat QA run. */
@@ -329,7 +331,7 @@ interface PublicConfig {
             </div>
           </div>
           <div class="header-acts">
-            @if (qaVisible) {
+            @if (qaVisible && isLocalhost() && unlock.unlocked()) {
               <button
                 class="clear-btn qa-btn"
                 (click)="onQaPress()"
@@ -338,15 +340,15 @@ interface PublicConfig {
               >
                 {{ qa.running() ? "Stop QA" : "QA" }}
               </button>
-              @if (!qa.running()) {
-                <button
-                  class="clear-btn qa-btn"
-                  (click)="onDemoPress()"
-                  title="Demo flow — 4 guaranteed-pass bookings, one per language (dev only)"
-                >
-                  Demo
-                </button>
-              }
+            }
+            @if (qaVisible && !qa.running() && unlock.unlocked()) {
+              <button
+                class="clear-btn qa-btn"
+                (click)="onDemoPress()"
+                title="Demo flow — 4 guaranteed-pass bookings, one per language (dev only)"
+              >
+                Demo
+              </button>
             }
             <button
               class="clear-btn"
@@ -365,7 +367,7 @@ interface PublicConfig {
           </div>
         </div>
 
-        @if (qaVisible && (qaPanelOpen() || demoPanelOpen() || qa.running())) {
+        @if (qaVisible && unlock.unlocked() && (qaPanelOpen() || demoPanelOpen() || qa.running())) {
           <div class="qa-panel">
             @if (qa.running()) {
               <span class="qa-status">{{ qa.status() || "Running…" }}</span>
@@ -2763,6 +2765,17 @@ export class ChatWidgetComponent
   }
   /** The QA button only renders in dev builds (demo/dev deploy), never in production. */
   protected readonly qaVisible = !environment.production;
+  /** Unlock service — QA + Demo UI hidden until user types "unlockdemobar" anywhere. */
+  protected readonly unlock = inject(DemoUnlockService);
+  /** QA run button only visible when served from localhost (dev machine). */
+  protected readonly isLocalhost = computed(() => {
+    try {
+      const h = globalThis.location?.hostname ?? '';
+      return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+    } catch { return false; }
+  });
+  /** Demo button only visible in Angular dev mode (ng serve), not prod builds. */
+  protected readonly devMode = computed(() => isDevMode());
   /** How many runs the next QA press fires (manual int input, default 1, max 500). */
   protected readonly qaRuns = signal(1);
   /** Inline QA panel open state + PIN draft (no window.prompt — renders in-DOM). */
