@@ -1,17 +1,27 @@
 import { Injectable, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
 
+const STORAGE_KEY = 'demoUnlock';
+
+function readStored(): boolean {
+  try { return sessionStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
+}
+
+function writeStored(v: boolean): void {
+  try { v ? sessionStorage.setItem(STORAGE_KEY, '1') : sessionStorage.removeItem(STORAGE_KEY); } catch { /* noop */ }
+}
+
 /**
  * Hidden gate for all demo/QA UI. Everything is hidden until the user types
  * the secret phrase (from environment.demoUnlockPhrase) anywhere on the page.
  *
- * Once unlocked it stays unlocked for the session. Production builds keep
- * their own environment.production gate on top.
+ * Once unlocked it persists across refreshes (sessionStorage). Production
+ * builds keep their own environment.production gate on top.
  */
 @Injectable({ providedIn: 'root' })
 export class DemoUnlockService {
   /** True after the secret phrase has been typed anywhere on the page. */
-  readonly unlocked = signal(false);
+  readonly unlocked = signal(readStored());
 
   /** Expected next character position in the secret phrase. 0 = waiting for first char. */
   private pos = 0;
@@ -31,6 +41,7 @@ export class DemoUnlockService {
       this.pos++;
       if (this.pos === phrase.length) {
         this.unlocked.set(true);
+        writeStored(true);
         this.pos = 0;
       }
     } else {
