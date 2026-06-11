@@ -15,6 +15,11 @@ export const environment = {
   googleMapsApiKey: '',
   /** Stripe publishable key - served from backend /config/public, blank = degrade gracefully. */
   stripePublishableKey: '',
-  /** Phrase the user must type (anywhere on page) to reveal demo/QA UI. */
+  /**
+   * Build-time fallback for the demo/QA unlock phrase. The live value comes from
+   * the backend (GET /config/public → demoUnlockPhrase, driven by the
+   * DEMO_UNLOCK_PHRASE env var); this default only applies before that response
+   * arrives or if the call fails. Typing it anywhere toggles demo UI on/off.
+   */
   demoUnlockPhrase: 'unlockdemobar',
 };

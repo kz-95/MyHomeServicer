@@ -1,6 +1,49 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-10 (code simplifier pass: DRY refactors, dead bat scripts removed, AlterAIChat.md archived)
+> **State: 🟢 ACTIVE** — 2026-06-12 (loading-skeleton reveal fix on 3 browse pages + demo unlock phrase made env-driven)
+
+---
+
+## ✅ Loading-skeleton reveal fix + demo unlock env var — SESSION 2026-06-12
+
+### Loading skeletons (per-card image gating)
+Cards used to appear before their thumbnail finished decoding, so the user saw
+the image interlace-load inside a live card. Skeletons were also a different size
+than the real cards, causing a layout jump on reveal. Fixed on all three browse
+surfaces so each card slot stays a skeleton until **its own** thumbnail is fully
+preloaded (`new Image()` queue, sequential with a short gap so reveals cascade),
+then the whole card fades in (`card-reveal`). Skeletons now sit in the same grid
+track at the same `min-height: 100px` as real cards — no size jump.
+
+- [x] **`/customer`** (`browse.component.ts`) — replaced the 100ms `setInterval`
+      stagger (revealed cards by timer, not by image load) with a thumbnail
+      preload queue driven by an `effect()` over `filtered()`; `loadedIds` signal
+      gates each card. `revealCount`/`staggerTimer` removed; `staggerDone` +
+      `loadingOrStaggering` now derived from `loadedIds`.
+- [x] **`/`** (`home.component.ts`) — added the same preload queue (none existed;
+      images streamed into the live card). Skeleton `height: 120px` → `min-height:
+      100px` to match `.svc-card`. `isLoaded()`/`thumbUrl()` helpers + `OnDestroy`.
+- [x] **`/services/:parentSlug`** (`children-browse.component.ts`) — preload already
+      existed but skeleton grid used `minmax(180px)`/120px vs the real
+      `svc-grid` `minmax(260px)`/100px; unified to `svc-grid` + `min-height: 100px`.
+      Card shell no longer renders before its photo (skeleton-or-card `@if`).
+- [x] All three respect `prefers-reduced-motion`. `tsc` + `ng build` (AOT) pass.
+      Runtime-verified `/` and `/services/cleaning-service` (mid-load showed
+      skeletons + revealed cards coexisting); `/customer` compiles, same mechanism.
+
+### Demo unlock phrase → env var
+Phrase was hardcoded `'unlockdemobar'` in the backend fallback + seed. Now driven
+by `DEMO_UNLOCK_PHRASE`. Resolution order: DB row `demo_unlock_phrase`
+(admin-editable live) → `env.DEMO_UNLOCK_PHRASE` (deploy default) → no hardcode.
+
+- [x] **`backend/src/config/env.ts`** — added `DEMO_UNLOCK_PHRASE` (Zod, default `unlockdemobar`).
+- [x] **`backend/src/routes/index.ts`** — `/config/public` returns `byKey['demo_unlock_phrase'] || env.DEMO_UNLOCK_PHRASE`.
+- [x] **`backend/prisma/seed/data/static.ts`** — seeds `process.env.DEMO_UNLOCK_PHRASE || "unlockdemobar"`.
+- [x] **`backend/.env` + `.env.example`** — documented `DEMO_UNLOCK_PHRASE`.
+- [x] **`frontend/environment.ts`** — comment clarified it's a build-time fallback;
+      live value comes from `/config/public`. Frontend already var-driven (toggle:
+      type phrase to show demo UI, type again to hide). `tsc` passes.
+- [x] Docs: `docs/ai-context/tech-stack.md` env block updated.
 
 ---
 

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from "@angular/core";
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { RouterLink } from "@angular/router";
 import { ApiService } from "../../core/services/api.service";
@@ -384,12 +384,25 @@ export class BrowseComponent implements OnInit, OnDestroy {
   query = signal("");
   sortField = signal<'name' | 'price'>('name');
   sortDir = signal<'asc' | 'desc'>('asc');
-  revealCount = signal(0);
-  staggerDone = signal(false);
+  /** Category ids whose thumbnail has finished preloading (card reveals then). */
+  loadedIds = signal<Set<string>>(new Set());
 
-  private staggerTimer: ReturnType<typeof setInterval> | null = null;
+  private queuedIds = new Set<string>();
+  private preloadQueue: Category[] = [];
+  private preloading = false;
+  private destroyed = false;
 
-  loadingOrStaggering = computed(() => this.loading() || this.revealCount() < this.filtered().length);
+  staggerDone = computed(() => this.filtered().every((c) => this.loadedIds().has(c.id)));
+
+  loadingOrStaggering = computed(() => this.loading() || !this.staggerDone());
+
+  constructor() {
+    // Preload thumbnails for whatever the grid currently shows (tracks search +
+    // sort changes) so each card reveals only once its image is fully loaded.
+    effect(() => {
+      this.queuePreload(this.filtered());
+    });
+  }
 
   /** Categories filtered by the search box (case-insensitive name match). */
   filtered = computed(() => {
@@ -414,35 +427,22 @@ export class BrowseComponent implements OnInit, OnDestroy {
 
   visibleList = computed(() => {
     const cats = this.filtered();
-    const count = this.revealCount();
-    const total = cats.length;
+    const loaded = this.loadedIds();
 
     // During initial API load, show skeleton placeholders
-    if (this.loading() && total === 0) {
+    if (this.loading() && cats.length === 0) {
       return Array.from({ length: SKELETON_COUNT }, (_, i) => ({
         revealed: false as const,
         index: i,
       }));
     }
 
-    if (count >= total) {
-      return cats.map((c, i) => ({ revealed: true as const, index: i, ...c }));
-    }
-
-    const slots: Array<
-      | ({ revealed: true; index: number } & Category)
-      | { revealed: false; index: number }
-    > = [];
-
-    for (let i = 0; i < total; i++) {
-      if (i < count) {
-        slots.push({ revealed: true, index: i, ...cats[i] });
-      } else {
-        slots.push({ revealed: false, index: i });
-      }
-    }
-
-    return slots;
+    // A card stays a skeleton until its own thumbnail finished preloading.
+    return cats.map((c, i) =>
+      loaded.has(c.id)
+        ? { revealed: true as const, index: i, ...c }
+        : { revealed: false as const, index: i },
+    );
   });
 
   ngOnInit(): void {
@@ -450,21 +450,20 @@ export class BrowseComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.clearStagger();
+    this.destroyed = true;
   }
 
   reload(): void {
-    this.clearStagger();
     this.loading.set(true);
     this.error.set(false);
-    this.revealCount.set(0);
-    this.staggerDone.set(false);
+    this.loadedIds.set(new Set());
+    this.queuedIds.clear();
+    this.preloadQueue = [];
     this.api.get<{ data: Category[] }>("/categories", { scope: "all" }).subscribe({
       next: (res) => {
         // Show the leaf services (children), not the 7 parent groupings.
         this.categories.set((res.data ?? []).filter((c) => c.parentCategoryId));
         this.loading.set(false);
-        this.staggerReveal();
       },
       error: () => {
         this.error.set(true);
@@ -473,27 +472,37 @@ export class BrowseComponent implements OnInit, OnDestroy {
     });
   }
 
-  private staggerReveal(): void {
-    this.clearStagger();
-    this.staggerDone.set(false);
-    const total = this.filtered().length;
-    if (total === 0) return;
-
-    let i = 0;
-    this.staggerTimer = setInterval(() => {
-      i++;
-      this.revealCount.set(i);
-      if (i >= total) {
-        this.clearStagger();
-        this.staggerDone.set(true);
+  /** Queue thumbnails for sequential preload; each card reveals as its own
+   *  image finishes, with a short gap so reveals cascade instead of popping. */
+  private queuePreload(cats: Category[]): void {
+    for (const c of cats) {
+      if (!this.queuedIds.has(c.id)) {
+        this.queuedIds.add(c.id);
+        this.preloadQueue.push(c);
       }
-    }, STAGGER_MS);
+    }
+    if (!this.preloading) this.drainPreload();
   }
 
-  private clearStagger(): void {
-    if (this.staggerTimer !== null) {
-      clearInterval(this.staggerTimer);
-      this.staggerTimer = null;
+  private drainPreload(): void {
+    const cat = this.preloadQueue.shift();
+    if (!cat || this.destroyed) {
+      this.preloading = false;
+      return;
     }
+    this.preloading = true;
+    const img = new Image();
+    const done = () => {
+      if (this.destroyed) return;
+      this.loadedIds.update((s) => {
+        const n = new Set(s);
+        n.add(cat.id);
+        return n;
+      });
+      setTimeout(() => this.drainPreload(), STAGGER_MS);
+    };
+    img.onload = done;
+    img.onerror = done;
+    img.src = cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug);
   }
 }

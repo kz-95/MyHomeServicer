@@ -1,7 +1,9 @@
 import {
   Component,
+  OnDestroy,
   OnInit,
   computed,
+  effect,
   inject,
   isDevMode,
   signal,
@@ -194,45 +196,46 @@ interface Category {
         } @else {
           <div class="svc-grid">
             @for (cat of displayed(); track cat.id) {
-              <button
-                class="svc-card page-child"
-                (click)="pick(cat)"
-                [style]="{
-                  '--cat-color': cat.cardColor || 'var(--color-primary)',
-                }"
-              >
-                <span
-                  class="svc-photo"
-                  [style.background-image]="
-                    'url(' +
-                    (cat.bannerUrl ||
-                      cat.imageUrl ||
-                      placeholderUrl(cat.slug)) +
-                    ')'
-                  "
-                  [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'"
-                  [style.background-position]="
-                    (cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'
-                  "
-                ></span>
-                <span class="svc-wash"></span>
-                <span class="svc-body">
-                  <span class="svc-ic"
-                    ><app-icon
-                      [name]="cat.icon || 'home'"
-                      sizeToken="md"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                  /></span>
-                  <strong>{{ cat.name }}</strong>
-                  @if (cat.defaultPriceSuggestion) {
-                    <span class="svc-price"
-                      >from RM {{ cat.defaultPriceSuggestion }}</span
-                    >
-                  }
-                  <span class="svc-cta">Request a quote →</span>
-                </span>
-              </button>
+              @if (isLoaded(cat.id)) {
+                <button
+                  class="svc-card svc-reveal"
+                  (click)="pick(cat)"
+                  [style]="{
+                    '--cat-color': cat.cardColor || 'var(--color-primary)',
+                  }"
+                >
+                  <span
+                    class="svc-photo"
+                    [style.background-image]="'url(' + thumbUrl(cat) + ')'"
+                    [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'"
+                    [style.background-position]="
+                      (cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'
+                    "
+                  ></span>
+                  <span class="svc-wash"></span>
+                  <span class="svc-body">
+                    <span class="svc-ic"
+                      ><app-icon
+                        [name]="cat.icon || 'home'"
+                        sizeToken="md"
+                        stroke="#fff"
+                        strokeWidth="1.5"
+                    /></span>
+                    <strong>{{ cat.name }}</strong>
+                    @if (cat.defaultPriceSuggestion) {
+                      <span class="svc-price"
+                        >from RM {{ cat.defaultPriceSuggestion }}</span
+                      >
+                    }
+                    <span class="svc-cta">Request a quote →</span>
+                  </span>
+                </button>
+              } @else {
+                <div class="card skeleton">
+                  <span class="bw-scan"></span>
+                  <span class="bw-sweep"></span>
+                </div>
+              }
             }
           </div>
         }
@@ -693,16 +696,23 @@ interface Category {
         color: var(--color-muted);
       }
 
-      /* ── Skeleton ── */
+      /* ── Skeleton ── sized like .svc-card so the placeholder occupies the
+         exact same grid track (no jump when the real card reveals). */
       .skeleton {
         position: relative;
         overflow: hidden;
-        height: 120px;
+        min-height: 100px;
         background: var(--color-surface);
         border-color: var(--color-border);
         cursor: default;
         animation: border-glow 1.2s cubic-bezier(0.85, 0, 0.15, 1) infinite;
       }
+      /* Card fades in only after its thumbnail finished preloading. */
+      @keyframes card-reveal {
+        from { opacity: 0; transform: translateY(10px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .svc-reveal { animation: card-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
       .skeleton:hover {
         transform: none;
         box-shadow: var(--shadow);
@@ -880,6 +890,9 @@ interface Category {
           animation: none;
         }
         .skeleton {
+          animation: none;
+        }
+        .svc-reveal {
           animation: none;
         }
       }
@@ -1547,7 +1560,7 @@ interface Category {
     `,
   ],
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   isDevMode = isDevMode;
   placeholderUrl = placeholderUrl;
   config = inject(ConfigService);
@@ -1559,7 +1572,68 @@ export class HomeComponent implements OnInit {
 
   categories = signal<Category[]>([]);
   allCategories = signal<Category[]>([]);
+  /** Category ids whose thumbnail has finished preloading (card reveals then). */
+  loadedIds = signal<Set<string>>(new Set());
   loading = signal(true);
+
+  private queuedIds = new Set<string>();
+  private preloadQueue: Category[] = [];
+  private preloading = false;
+  private destroyed = false;
+
+  constructor() {
+    // Preload thumbnails for whatever the grid currently shows (tracks search
+    // results too) so each card reveals only once its image is fully loaded.
+    effect(() => {
+      this.queuePreload(this.displayed());
+    });
+  }
+
+  isLoaded(id: string): boolean {
+    return this.loadedIds().has(id);
+  }
+
+  thumbUrl(cat: Category): string {
+    return cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug);
+  }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+  }
+
+  /** Queue thumbnails for sequential preload; each card reveals as its own
+   *  image finishes, with a short gap so reveals cascade instead of popping. */
+  private queuePreload(cats: Category[]): void {
+    for (const c of cats) {
+      if (!this.queuedIds.has(c.id)) {
+        this.queuedIds.add(c.id);
+        this.preloadQueue.push(c);
+      }
+    }
+    if (!this.preloading) this.drainPreload();
+  }
+
+  private drainPreload(): void {
+    const cat = this.preloadQueue.shift();
+    if (!cat || this.destroyed) {
+      this.preloading = false;
+      return;
+    }
+    this.preloading = true;
+    const img = new Image();
+    const done = () => {
+      if (this.destroyed) return;
+      this.loadedIds.update((s) => {
+        const n = new Set(s);
+        n.add(cat.id);
+        return n;
+      });
+      setTimeout(() => this.drainPreload(), 120);
+    };
+    img.onload = done;
+    img.onerror = done;
+    img.src = this.thumbUrl(cat);
+  }
   error = signal(false);
   query = signal("");
   searchDropdownOpen = signal(false);

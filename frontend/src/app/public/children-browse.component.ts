@@ -31,7 +31,7 @@ interface Category {
 
       <section class="children-section">
         @if (loading()) {
-          <div class="grid">
+          <div class="svc-grid">
             @for (_ of [1, 2, 3, 4]; track _) {
               <div class="card skeleton">
                   <span class="bw-scan"></span>
@@ -58,22 +58,26 @@ interface Category {
           <h2>{{ parentName() }}</h2>
           <div class="svc-grid">
             @for (cat of children(); track cat.id) {
-              <button class="svc-card" [class.is-loading]="!isLoaded(cat.id)" (click)="pick(cat)" [style]="{'--cat-color': cat.cardColor || 'var(--color-primary)'}">
-                <span class="svc-wash"></span>
-                <span class="svc-photo" [class.shown]="isLoaded(cat.id)" [style.background-image]="isLoaded(cat.id) ? ('url(' + thumbUrl(cat) + ')') : 'none'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
-                @if (!isLoaded(cat.id)) {
-                  <span class="svc-scan"><span class="bw-scan"></span><span class="bw-sweep"></span></span>
-                }
-                <span class="svc-body">
-                  <span class="svc-row">
-                    <span class="svc-ic"><app-icon [name]="cat.icon || 'home'" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
-                    <strong>{{ cat.name }}</strong>
+              @if (isLoaded(cat.id)) {
+                <button class="svc-card svc-reveal" (click)="pick(cat)" [style]="{'--cat-color': cat.cardColor || 'var(--color-primary)'}">
+                  <span class="svc-wash"></span>
+                  <span class="svc-photo shown" [style.background-image]="'url(' + thumbUrl(cat) + ')'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
+                  <span class="svc-body">
+                    <span class="svc-row">
+                      <span class="svc-ic"><app-icon [name]="cat.icon || 'home'" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
+                      <strong>{{ cat.name }}</strong>
+                    </span>
+                    @if (cat.defaultPriceSuggestion) {
+                      <span class="svc-price">from RM {{ cat.defaultPriceSuggestion }}</span>
+                    }
                   </span>
-                  @if (cat.defaultPriceSuggestion) {
-                    <span class="svc-price">from RM {{ cat.defaultPriceSuggestion }}</span>
-                  }
-                </span>
-              </button>
+                </button>
+              } @else {
+                <div class="card skeleton">
+                  <span class="bw-scan"></span>
+                  <span class="bw-sweep"></span>
+                </div>
+              }
             }
           </div>
         }
@@ -176,16 +180,12 @@ interface Category {
         transition: opacity 0.45s ease;
       }
       .svc-photo.shown { opacity: 1; }
-      /* Per-card scanning overlay shown until this card's thumbnail is ready. */
-      .svc-scan {
-        position: absolute;
-        inset: 0;
-        z-index: 4;
-        overflow: hidden;
-        pointer-events: none;
-        border-radius: var(--radius);
+      /* Card fades in only after its thumbnail finished preloading. */
+      @keyframes card-reveal {
+        from { opacity: 0; transform: translateY(10px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
       }
-      .svc-card.is-loading { animation: border-glow 1.2s cubic-bezier(0.85, 0, 0.15, 1) infinite; }
+      .svc-reveal { animation: card-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
       .svc-body {
         position: relative;
         z-index: 3;
@@ -223,16 +223,13 @@ interface Category {
         color: rgba(255, 255, 255, 0.85);
       }
 
-      /* ── Skeleton ── */
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 1rem;
-      }
+      /* ── Skeleton ── sized by the same .svc-grid as the real cards so the
+         placeholder occupies the exact same track (no jump on reveal). */
       .skeleton {
         position: relative;
         overflow: hidden;
-        height: 120px;
+        min-height: 100px;
+        border-radius: var(--radius);
         background: var(--color-surface);
         border-color: var(--color-border);
         cursor: default;
@@ -330,6 +327,9 @@ interface Category {
           animation: none;
         }
         .skeleton {
+          animation: none;
+        }
+        .svc-reveal {
           animation: none;
         }
       }

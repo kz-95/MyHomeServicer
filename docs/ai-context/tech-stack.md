@@ -391,6 +391,12 @@ ADMIN_EMAILS=
 # Google Maps
 GOOGLE_MAPS_API_KEY=
 
+# Demo / QA UI gate — secret phrase typed anywhere on the page to toggle
+# demo/QA UI on/off (toggle: type once to show, again to hide). Seeded into
+# platform_settings.demo_unlock_phrase and served via GET /config/public;
+# admins can override the DB row live without a redeploy. Default: unlockdemobar
+DEMO_UNLOCK_PHRASE=unlockdemobar
+
 # Stripe
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
