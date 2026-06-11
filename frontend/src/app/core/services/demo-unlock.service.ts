@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
+import { ToastService } from './toast.service';
 
 const STORAGE_KEY = 'demoUnlock';
 
@@ -20,6 +21,8 @@ function writeStored(v: boolean): void {
  */
 @Injectable({ providedIn: 'root' })
 export class DemoUnlockService {
+  private readonly toast = inject(ToastService);
+
   /** True after the secret phrase has been typed anywhere on the page. */
   readonly unlocked = signal(readStored());
 
@@ -40,6 +43,7 @@ export class DemoUnlockService {
         const next = !this.unlocked();
         this.unlocked.set(next);
         writeStored(next);
+        this.toast.info(next ? 'Demo UI on' : 'Demo UI off');
         this.pos = 0;
       }
     } else {
