@@ -12,11 +12,11 @@ function writeStored(v: boolean): void {
 }
 
 /**
- * Hidden gate for all demo/QA UI. Everything is hidden until the user types
- * the secret phrase (from environment.demoUnlockPhrase) anywhere on the page.
+ * Hidden gate for all demo/QA UI. Typing the secret phrase
+ * (environment.demoUnlockPhrase) toggles visibility on/off.
  *
- * Once unlocked it persists across refreshes (sessionStorage). Production
- * builds keep their own environment.production gate on top.
+ * State persists across refreshes (sessionStorage). Production builds
+ * keep their own environment.production gate on top.
  */
 @Injectable({ providedIn: 'root' })
 export class DemoUnlockService {
@@ -28,24 +28,21 @@ export class DemoUnlockService {
 
   /** Feed every keydown to this method — call from a global @HostListener. */
   handleKey(e: KeyboardEvent): void {
-    if (this.unlocked()) return;
-
     const phrase = environment.demoUnlockPhrase;
     if (!phrase) return;
 
     const k = e.key;
-    // Only track single printable characters (skip modifiers, arrows, etc.)
     if (k.length !== 1) return;
 
     if (k === phrase[this.pos]) {
       this.pos++;
       if (this.pos === phrase.length) {
-        this.unlocked.set(true);
-        writeStored(true);
+        const next = !this.unlocked();
+        this.unlocked.set(next);
+        writeStored(next);
         this.pos = 0;
       }
     } else {
-      // Reset, but re-check: this key might start a fresh sequence
       this.pos = (k === phrase[0]) ? 1 : 0;
     }
   }
