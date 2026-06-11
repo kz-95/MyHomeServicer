@@ -223,6 +223,14 @@ describe('matchQuestionAnswer — confirms a typed radio answer in any language'
     expect(matchQuestionAnswer(areaQ, 'eh boss, bathtub sia, can help anot?')).toBe('bathtub');
   });
 
+  it('matches a LONG rojak-wrapped option (>60 chars) — the component loop fix', () => {
+    // The old global 60-char cap rejected this exact shape; the question was never
+    // marked answered and the card re-emitted forever (ChatQA_Log_005312062601).
+    expect(
+      matchQuestionAnswer(areaQ, 'eh boss, so basically Bathtub, if that makes sense lah, can help anot?'),
+    ).toBe('bathtub');
+  });
+
   it('returns undefined when nothing matches', () => {
     expect(matchQuestionAnswer(areaQ, 'something unrelated entirely')).toBeUndefined();
   });

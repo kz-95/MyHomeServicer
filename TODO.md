@@ -151,9 +151,31 @@ All items below: `tsc` + `ng build` pass, committed to `feat/ux-polish`, pushed.
         bumping to "6.0" silences them under standalone tsc but breaks the ts-node seed (project's
         bundled TS only accepts 5.0 → TS5103). Cosmetic noise; not worth breaking the seed. To
         truly remove, migrate `moduleResolution: node` → `node16`/`bundler` + drop `baseUrl` (risky).
+- [x] **Follow-ups DONE (2026-06-12, branch `feat/demo-unlock`, from `ChatQA_Log_005312062601`):**
+      Root cause of that run's loops: the reply LLM and the deterministic extractors are two
+      parallel comprehension layers — whenever a regex missed a value the LLM understood, prose
+      said "noted, next step" while the state machine stayed pinned → text/card divergence → loop.
+      - `extractBudget` now catches spend-verb bare numbers ("i can spend about 302") — was
+        rm-anchored only, so the budget step stalled while the bot's text moved on to name.
+      - `matchQuestionAnswer` 60-char global cap → per-type (option questions 300, numeric 120).
+        Rojak-wrapped answers ("eh boss, so basically Motor/Engine, … can help anot?" = 76 chars)
+        were rejected → `quote_question:component` re-emitted 4× (the run's FAIL). Unit-tested.
+      - **LLM extraction fallback** (`llmExtractFieldValue` / `llmExtractQuestionAnswer`): when the
+        regexes miss, one strict-JSON LLM call reads ONLY the pending base field / pending question
+        from the message. Hard-validated (format/enum; budget+phone digits must appear verbatim in
+        the message; question answers whitelisted to schema option values) so a hallucinated value
+        can never enter state. Failure-tolerant: any error/no-key degrades to old behavior.
+      - **NEXT REQUIRED STEP prompt anchor**: the system prompt now names the exact pending field
+        and forbids "noted/got it" or advancing in prose without emitting the filled card.
+- [ ] **QA harness follow-ups (from the same log, not yet done):** harness answers the visible
+      CARD even when the bot's TEXT asks a different question (re-sent "Motor/Engine" 4× verbatim
+      instead of answering "what's the problem?") — on a repeated card it should answer the bot's
+      text question (`humanAnswerText`) and vary retry phrasing.
 - [ ] **Deferred (need a log to reproduce, or a product call):** prose hallucination (model NAMES
       wrong services in text though the cards are correct); B2 structured address sub-fields
-      (No./postcode/type) empty for a credited free-text address (needs frontend geocode-on-prefill).
+      (No./postcode/type) empty for a credited free-text address (needs frontend geocode-on-prefill);
+      category linkifier corrupts prose mid-sentence ("Is it not [Moving](…)" — service-name word
+      auto-linked); date prose/state mismatch ("16 June" said, `2026-06-19` stored).
 - [ ] **No servicers seeded** under painting/moving/gardening yet (browse shows 0 providers).
 
 ### Done — LLM / DeepSeek
