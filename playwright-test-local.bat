@@ -70,6 +70,13 @@ REM === Backend setup =========================================
 REM ==========================================================
 cd /d "%~dp0backend"
 
+REM --- Force-kill stale node processes BEFORE npm install: a running
+REM --- backend holds query_engine-windows.dll.node, which makes the
+REM --- postinstall "prisma generate" fail ---
+echo [CLEAN] Stopping any stale node processes...
+taskkill /F /IM node.exe >nul 2>&1
+timeout /t 1 >nul
+
 echo.
 echo ============================================
 echo  Installing backend dependencies...
@@ -80,11 +87,6 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-
-REM --- Force-kill stale node processes (frees Prisma DLL lock) ---
-echo [CLEAN] Stopping any stale node processes...
-taskkill /F /IM node.exe >nul 2>&1
-timeout /t 1 >nul
 
 echo.
 echo ============================================
