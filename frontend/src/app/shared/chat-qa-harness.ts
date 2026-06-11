@@ -1214,10 +1214,12 @@ function humanAnswerText(scn: QaScenario): string {
  * Non-rambler behaviors pick the FIRST plausible option (most common/default).
  * Ramblers pick RANDOMLY among plausible options — they drift and contradict.
  */
-/** For the DEMO: the most SENSIBLE option for a question, matched to the service-need
- *  keywords (so "kitchen sink leaking" → a "sink/tap" area + a "leak/repair" problem),
- *  else the first plausible option. Deterministic — gives the demo coherent answers. */
-function demoBestOption(
+/** The most SENSIBLE option for a question, matched to the service-need keywords (so
+ *  "kitchen sink leaking" → a "sink/tap" area + a "leak/repair" problem), with a guard
+ *  so a repair need never picks an "install/new" option. Used for EVERY non-rambler
+ *  pick (demo and normal QA) so the harness answers coherently and doesn't manufacture
+ *  symptom-vs-service contradictions; ramblers still pick randomly on purpose. */
+function sensibleOption(
   real: Array<{ value: string; label: string }>,
   scn: QaScenario,
 ): { value: string; label: string } {
@@ -1232,12 +1234,22 @@ function demoBestOption(
   ];
   const words = new Set(need.split(/\W+/).filter((w) => w.length > 2));
   for (const list of SYN) if (list.some((w) => need.includes(w))) for (const w of list) words.add(w);
+  // Repair-intent guard: a leaking/broken/not-working need must NEVER auto-pick an
+  // "Install / new" action option just because it's first — that manufactures a
+  // symptom-vs-service contradiction the judge then flags (ChatQA_Log_032812062601:
+  // "leaking sink" → picked "Install"). When the need is clearly a repair, penalise
+  // install-ish options and boost repair/service/fix-ish ones.
+  const repairIntent = /\b(leak|leaking|drip|broken|bocor|rosak|not\s*work|stopped|spark|api|jam|tersangkut|crack|burst|clog|block|tersumbat|faulty|damage)\w*/.test(need);
+  const INSTALL_RE = /\b(install|installation|new|pasang|setup|set\s*up)\b/i;
+  const REPAIR_RE = /\b(repair|fix|service|baiki|maintain|maintenance|servis)\b/i;
   let best = real[0];
-  let bestScore = -1;
+  let bestScore = -Infinity;
   for (const o of real) {
     const label = `${o.value} ${o.label}`.toLowerCase();
     let score = 0;
     for (const w of words) if (label.includes(w)) score++;
+    if (repairIntent && INSTALL_RE.test(label)) score -= 5;
+    if (repairIntent && REPAIR_RE.test(label)) score += 3;
     if (score > bestScore) { bestScore = score; best = o; }
   }
   return best;
@@ -1251,14 +1263,15 @@ function answerForQuestion(b: QaBlock, scn: QaScenario): QaAnswer {
   switch (qtype) {
     case "radio":
       if (real.length) {
-        const choice = scn.demo ? demoBestOption(real, scn) : ramble ? pick(real) : real[0];
+        // Every non-rambler (demo + normal) picks the option that fits the stated need,
+        // so answers stay coherent across ALL question schemas; ramblers drift randomly.
+        const choice = ramble ? pick(real) : sensibleOption(real, scn);
         return { qtype: "radio", radio: choice.value };
       }
       return { qtype: "text", text: humanAnswerText(scn) };
     case "checkbox": {
       if (!real.length) return { qtype: "text", text: humanAnswerText(scn) };
-      if (scn.demo) return { qtype: "checkbox", checkbox: [demoBestOption(real, scn).value] };
-      if (!ramble) return { qtype: "checkbox", checkbox: [real[0].value] };
+      if (!ramble) return { qtype: "checkbox", checkbox: [sensibleOption(real, scn).value] };
       const n = Math.min(real.length, randInt(1, 2));
       const chosen = [...real].sort(() => Math.random() - 0.5).slice(0, n);
       return { qtype: "checkbox", checkbox: chosen.map((o) => o.value) };
@@ -1269,7 +1282,7 @@ function answerForQuestion(b: QaBlock, scn: QaScenario): QaAnswer {
       if (!real.length) return { qtype: "number", number: 1 };
       if (!ramble) {
         const q: Record<string, number> = {};
-        q[real[0].value] = 1;
+        q[sensibleOption(real, scn).value] = 1;
         return { qtype: "quantity", quantity: q };
       }
       const n = Math.min(real.length, randInt(1, 2));
