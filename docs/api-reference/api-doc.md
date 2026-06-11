@@ -899,6 +899,7 @@ List submitted KYC documents and their approval status.
 ### `GET /servicer/quotes`
 Quote requests where this servicer was broadcast to.
 **Query:** `?status=open|responded|matched|expired`
+Only quotes still `status: open` are returned (matched/expired/cancelled drop out of the pending feed).
 **Response (each item):**
 ```json
 {
@@ -909,16 +910,27 @@ Quote requests where this servicer was broadcast to.
   "propertyType": "condo",
   "budgetMin": 50,
   "budgetMax": 150,
+  "paymentMode": "pay_now",
   "status": "open",
   "derivedStatus": "open",
   "openedAt": null,
-  "servicerDeadline": "...",
+  "merchantDeadline": "...",
   "myProposalId": null,
+  "myProposalIsAuto": false,
   "customerAvatarUrl": "https://...",
-  "customerName": "Sarah Lim"
+  "customerName": "Sarah Lim",
+  "address": "12 Jalan Tempua 5",
+  "postcode": "47100",
+  "district": "Puchong",
+  "state": "Selangor",
+  "lat": 3.04,
+  "lng": 101.62,
+  "notes": "Gate code 1234",
+  "descriptions": ["AC type: Wall unit", "Units: 2"]
 }
 ```
 `customerAvatarUrl` (nullable) and `customerName` show the customer's identity to the servicer before accepting, enabling trust-building. When `customerAvatarUrl` is null, the frontend should display initials fallback.
+`address`/`postcode`/`district`/`state` + `lat`/`lng` drive the pending-card address row and Map button. `descriptions` is the customer's `serviceDetails` resolved to readable `label: value` lines via the category `questionSchema`; `notes` is their free-text note. `paymentMode` is shown beside the budget.
 
 ### `POST /servicer/quotes/:id/propose`
 Submit a proposal.
@@ -1982,6 +1994,9 @@ const socket = io('wss://api.domain', { auth: { token: accessToken } })
 | Event | Payload | When |
 |---|---|---|
 | `quote.new` | `{ quoteId, category, timeSlot, budgetRange, propertyType, generalArea }` | New quote broadcast (servicer rooms only) |
+| `proposal.submitted` | `{ quoteId, proposalId? }` | A servicer submitted a proposal (manual or auto) — sent to the customer room so the open proposals list refreshes live |
+| `quote.matched` | `{ quoteId }` | Customer accepted a proposal — sent to every *other* broadcast servicer so their pending list drops the now-unwinnable quote |
+| `job.new` | `{ bookingId, quoteId }` | Customer accepted this servicer's proposal — sent to the winning servicer room (new active job) |
 | `quote.proposals_ready` | `{ quoteId, proposalCount }` | Customer's quote deadline reached |
 | `quote.expired_no_response` | `{ quoteId, discountCode, discountValue }` | Quote expired with zero proposals — discount code auto-generated for customer |
 | `booking.confirmed` | `{ bookingId, servicerName }` | Servicer confirmed customer's booking |
