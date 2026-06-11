@@ -955,6 +955,19 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     }
 
     if (blocks.length === 0) {
+      // The review card can be DELIVERED in the RECV payload even when its transcript
+      // bubble hasn't been appended yet: cards drip in ~300-800ms after the text parts,
+      // so a fast flush logs the turn (text-only, ⚠ NO CARD) before the quote_prefill
+      // bubble lands. Consult the latest REST exchange — if the bot already returned
+      // quote_prefill, the booking reached the review and that's SUCCESS, not a stall.
+      // Without this, a delivered review was miscounted as "stalled: bot stayed on text"
+      // (ChatQA_Log_024512062601 — the bot's RECV cards=[quote_prefill] on every one of
+      // the 3 "stalled" turns, yet the run was failed).
+      const latestCards = (host.restLog?.() ?? []).at(-1)?.recv?.cards ?? [];
+      if (latestCards.some((c) => String(c).split(":")[0] === "quote_prefill")) {
+        success = true;
+        break;
+      }
       // No actionable card. First decide if this is a TERMINAL state (the bot can't
       // continue) rather than a transient text-only turn worth nudging through.
       const hasLink = rawBlocks.some((b) => b.type === "link");
