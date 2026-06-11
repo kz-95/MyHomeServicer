@@ -449,15 +449,18 @@ function freeTextForField(key: string, scn: QaScenario): string | null {
   }
 }
 
-/** A natural re-statement of info the customer already gave, for the idempotency test. */
-function repeatPhrase(scn: QaScenario): string {
-  const choices = [
-    scn.service.needs[scn.persona.language] ?? scn.service.needs.en,
-    `oh and my name is ${scn.name}`,
-    `the date i wanted is ${scn.dateWords}`,
-    `just to confirm, ${scn.timeSlot} works for me`,
-    `i'm at ${scn.addr.no} ${scn.addr.street}`,
-  ];
+/** A natural re-statement of info the customer already gave, for the idempotency test.
+ *  Only re-states fields that are ALREADY confirmed — re-stating a not-yet-given field
+ *  (e.g. timeSlot before its card was answered) would secretly PROVIDE that value, the
+ *  bot would capture it, and the run would then false-fail "unconfirmed: timeSlot is in
+ *  the review but was never collected via a card" (ChatQA_Log_032212062601). The service
+ *  need carries no structured field, so it's always safe to re-state. */
+function repeatPhrase(scn: QaScenario, confirmedKeys: ReadonlySet<string>): string {
+  const choices = [scn.service.needs[scn.persona.language] ?? scn.service.needs.en];
+  if (confirmedKeys.has("contactName")) choices.push(`oh and my name is ${scn.name}`);
+  if (confirmedKeys.has("preferredDate")) choices.push(`the date i wanted is ${scn.dateWords}`);
+  if (confirmedKeys.has("timeSlot")) choices.push(`just to confirm, ${scn.timeSlot} works for me`);
+  if (confirmedKeys.has("address")) choices.push(`i'm at ${scn.addr.no} ${scn.addr.street}`);
   return styleLine(scn.persona, pick(choices));
 }
 
@@ -1096,7 +1099,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     // the redundant/duplicate checks above catch it on the next turn.
     if (repeatsLeft > 0 && confirmedKeys.size > 0 && Math.random() < 0.4) {
       repeatsLeft--;
-      host.sendText(repeatPhrase(scn));
+      host.sendText(repeatPhrase(scn, confirmedKeys));
       await waitIdle();
       flush();
     }
