@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma';
 import { redis } from '../lib/redis';
 import { asyncHandler } from '../lib/async-handler';
 import { badRequest, notFound } from '../lib/errors';
-import { isProd, env } from '../config/env';
+import { allowDemo, env } from '../config/env';
 import { requireAuth } from '../middleware/auth';
 import { runReseed, runClear, runClearContent } from '../services/admin.service';
 import { seedDemoQuote, seedDemoProposal } from '../services/quote.service';
@@ -239,7 +239,7 @@ const DEMO_ACCOUNTS: Record<string, string> = {
 apiRouter.post(
   '/dev/demo-login',
   asyncHandler(async (req, res) => {
-    if (isProd) throw badRequest('Demo login is disabled in production');
+    if (!allowDemo) throw badRequest('Demo login is disabled in production');
     const { role, email: directEmail } = req.body ?? {};
     const email = directEmail || DEMO_ACCOUNTS[role as string];
     if (!email) throw notFound(`No demo account for role "${role}"`);
@@ -312,7 +312,7 @@ apiRouter.post(
   '/dev/topup',
   requireAuth,
   asyncHandler(async (req, res) => {
-    if (isProd) throw badRequest('Demo top-up is disabled in production');
+    if (!allowDemo) throw badRequest('Demo top-up is disabled in production');
     const amount = Number(req.body?.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       throw badRequest('A positive top-up amount is required');
@@ -335,7 +335,7 @@ apiRouter.post(
   '/dev/points',
   requireAuth,
   asyncHandler(async (req, res) => {
-    if (isProd) throw badRequest('Demo points are disabled in production');
+    if (!allowDemo) throw badRequest('Demo points are disabled in production');
     const u = req.user!;
     if (u.kind !== 'user' || u.role !== 'customer') {
       throw badRequest('Demo points are only available for customer accounts');

@@ -10,7 +10,7 @@ import { configVault } from '../lib/config-vault';
 import { recordAudit } from '../services/ledger.service';
 import { invalidateLlmKeyCache } from '../services/chat.service';
 import { logger } from '../lib/logger';
-import { isProd } from '../config/env';
+import { allowDemo } from '../config/env';
 
 export const llmKeysRouter = Router();
 llmKeysRouter.use(requireAuth, requireAdmin);
@@ -247,7 +247,7 @@ llmKeysRouter.post(
   '/demo-seed',
   validate([body('pin').isString().notEmpty()]),
   asyncHandler(async (req, res) => {
-    if (isProd) throw forbidden('Demo seed is disabled in production');
+    if (!allowDemo) throw forbidden('Demo seed is disabled in production');
 
     if (req.body.pin !== DEMO_PIN) throw forbidden('Incorrect demo PIN');
 

@@ -9,7 +9,7 @@ import { recordAudit, recordTransaction } from './ledger.service';
 import { validateSettingValue } from '../lib/json-schemas';
 import { maskPhone, maskBankAccount } from '../lib/mask';
 import { enqueue, JOB_NAMES } from '../lib/queue';
-import { isProd } from '../config/env';
+import { allowDemo } from '../config/env';
 
 const execAsync = promisify(exec);
 
@@ -82,7 +82,7 @@ export async function getDashboardRevenue(days = 30): Promise<{ date: string; re
  * afterwards since accounts are recreated with fresh IDs.
  */
 export async function runReseed(): Promise<{ ok: boolean; durationMs: number }> {
-  if (isProd) {
+  if (!allowDemo) {
     throw forbidden('Reseeding is disabled in production');
   }
   const start = Date.now();
@@ -103,7 +103,7 @@ export async function runReseed(): Promise<{ ok: boolean; durationMs: number }> 
 }
 
 export async function runClear(): Promise<{ ok: boolean; durationMs: number }> {
-  if (isProd) throw forbidden('Clear is disabled in production');
+  if (!allowDemo) throw forbidden('Clear is disabled in production');
   const start = Date.now();
   logger.warn('Admin triggered a content clear — demo accounts preserved');
   await prisma.chatMessage.deleteMany();
@@ -145,7 +145,7 @@ export async function runClear(): Promise<{ ok: boolean; durationMs: number }> {
  * Requires the admin action PIN for confirmation.
  */
 export async function runClearContent(pin: string): Promise<{ ok: boolean; durationMs: number }> {
-  if (isProd) throw forbidden('Clear content is disabled in production');
+  if (!allowDemo) throw forbidden('Clear content is disabled in production');
   const admin = await prisma.user.findFirst({ where: { role: 'admin' } });
   if (!admin?.actionPinHash) throw badRequest('Admin account not found or PIN not set');
   const pinValid = await bcrypt.compare(pin, admin.actionPinHash);

@@ -2,7 +2,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
-import { env, isProd } from '../config/env';
+import { env, allowDemo } from '../config/env';
 import { ApiError, badRequest, unauthorized } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { pairedCustomerEmail } from '../lib/paired-account';
@@ -295,8 +295,9 @@ export async function login(
     throw new ApiError('ACCOUNT_LOCKED', 'Account locked — too many failed attempts. Try again later.');
   }
 
-  // Demo accounts are blocked entirely in production.
-  if (record.isDemo && isProd) {
+  // Demo accounts are blocked in production unless the demo surface is opted in
+  // (DEMO_LOGIN_ENABLED) — e.g. on a dedicated demo deployment.
+  if (record.isDemo && !allowDemo) {
     throw new ApiError('FORBIDDEN', 'Demo accounts are disabled in production');
   }
 

@@ -24,6 +24,16 @@ const envSchema = z.object({
   // e.g. CORS_EXTRA_ORIGINS=http://192.168.1.42:4200,https://abc.trycloudflare.com
   CORS_EXTRA_ORIGINS: z.string().default(''),
 
+  // Opt-in: permit the demo `/dev/*` routes + demo-account login on a deployed
+  // (NODE_ENV=production) backend. Default OFF so real production stays
+  // hard-blocked; set true ONLY on a dedicated demo deployment.
+  // String env → bool: only "true"/"1"/"yes"/"on" (case-insensitive) enable it.
+  // Avoids z.coerce.boolean()'s trap where the string "false" is truthy → true.
+  DEMO_LOGIN_ENABLED: z.preprocess(
+    (v) => (typeof v === 'string' ? ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase()) : v),
+    z.boolean().default(false),
+  ),
+
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
 
@@ -84,3 +94,11 @@ if (!parsed.success) {
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === 'production';
 export const isDev = env.NODE_ENV === 'development';
+/**
+ * True when the demo surface (`/dev/*` seed/login/reseed routes + demo-account
+ * login) is permitted: always in non-prod, and in prod only when
+ * DEMO_LOGIN_ENABLED is explicitly set. Use this instead of `isProd` to gate
+ * demo features so a dedicated demo deployment can opt in without leaving
+ * production mode. Real prod (flag unset) stays hard-blocked.
+ */
+export const allowDemo = !isProd || env.DEMO_LOGIN_ENABLED;

@@ -10,7 +10,7 @@ import { getSetting, resolveBudgetRanges } from './settings.service';
 import { submitProposal } from './servicer-quote.service';
 import { requireNoUnpaidInvoice } from './booking.service';
 import { notify } from './notification.service';
-import { isProd } from '../config/env';
+import { allowDemo } from '../config/env';
 import { adjustCredit } from './credit.service';
 import { recordTransaction } from './ledger.service';
 import { haversineKm } from '../lib/distance';
@@ -474,7 +474,7 @@ const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
  * Development only.
  */
 export async function seedDemoQuote() {
-  if (isProd) throw badRequest('Demo quote seeding is disabled in production');
+  if (!allowDemo) throw badRequest('Demo quote seeding is disabled in production');
 
   const customers = await prisma.user.findMany({
     where: { role: 'customer', deletedAt: null, addresses: { some: {} } },
@@ -532,7 +532,7 @@ export async function seedDemoProposal(opts?: {
   userId?: string;
   ownQuotesOnly?: boolean;
 }) {
-  if (isProd) throw badRequest('Demo proposal seeding is disabled in production');
+  if (!allowDemo) throw badRequest('Demo proposal seeding is disabled in production');
 
   const quotes = await prisma.quoteRequest.findMany({
     where: {
