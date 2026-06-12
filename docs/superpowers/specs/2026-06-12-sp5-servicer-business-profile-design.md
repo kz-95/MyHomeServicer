@@ -29,7 +29,7 @@ personal account management belongs on the customer side, not duplicated here.
 ## 3. Non-goals (deferred)
 
 - `isOnline` manual availability toggle → **SP-2**.
-- Per-listing radius, `maxAutoAccepts`, contact-prefill enforcement → **SP-3** (service listings, a large redesign of its own).
+- `maxAutoAccepts`, contact-prefill enforcement → **SP-3** (service listings, a large redesign of its own). (Service radius is now account-level and lives in this spec, §5.2.)
 - KYC document upload UI → **SP-6**.
 - Popout firing gate → **SP-1**.
 - Calendar reroute (`/calendar/schedule` + `/calendar/workhours`) → **CAL** (separate, but its WorkHours target is fed by this spec's operating-hours sync).
@@ -72,7 +72,10 @@ uses its existing "My account").
   ```
 - **Operating hours** (`operatingHours`): weekly editor (per-day open/close or
   "off"). See §7 for the calendar sync semantics.
-- **No radius here** — coverage radius lives per-listing (SP-3).
+- **Service radius** (`serviceRadiusKm`, NEW): one **account-level** radius (km)
+  applied to all listings; used by the SP-3 auto-accept coverage check
+  (`haversine(serviceArea coords, job) ≤ radius`). Requires serviceAreas to store
+  Google-Places **coords** (fixes the `quote.service.ts:108` `|| true` bypass).
 
 ### 5.3 Status
 - `kycStatus` rendered as **Reviewing / Approved / Rejected [reason]**.

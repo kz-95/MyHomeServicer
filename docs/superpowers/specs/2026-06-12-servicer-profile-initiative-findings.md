@@ -26,7 +26,7 @@
 |----|-------|--------|------------|
 | **SP-1** | Popout firing gate | designed (answers locked) | SP-2, SP-3, categories |
 | **SP-2** | `isOnline` manual availability toggle | deferred | — |
-| **SP-3** | **Service listings — BIG REDESIGN** (modules library, lean listing, auto-accept, customer proposal) | **brainstorm active** | SP-5 contacts |
+| **SP-3** | **Service listings — BIG REDESIGN** (modules library, lean listing, auto-accept, customer proposal) | **spec written** → `2026-06-12-sp3-service-listings-design.md` | SP-5 contacts |
 | **SP-4** | Role switch toggle (servicer↔customer single switch) | deferred | — |
 | **SP-5** | Servicer Business Profile restructure | **spec written** → `2026-06-12-sp5-servicer-business-profile-design.md` | — |
 | **SP-6?** | KYC document upload UI | deferred (own SP) | — |
@@ -190,8 +190,8 @@ Redesign **backward from the customer proposal + auto-accept**.
 - Step ② **Pricing & options** (optional) — Modules picker (each **included** or
   **optional add-on**; `+ New module` inline) **+** per-option pricing on the
   category questions. A listing may have **zero modules** (question-only).
-- Step ③ **Coverage & auto-accept** (optional) — radius (km) · auto-accept toggle
-  (4 conditions) · auto message.
+- Step ③ **Auto-accept** (optional) — auto-accept toggle (4 conditions) · auto
+  message. (Radius/coverage is **account-level** in the business profile, not here.)
 - **Preview** = a `👁 Preview as customer` **toggle button** (overlay) available on
   any step — not a step.
 - Nav: step dots **clickable + skip-ahead** once Basics is valid; **guided hints**
@@ -212,20 +212,97 @@ Redesign **backward from the customer proposal + auto-accept**.
 - Expand (▾): modules (included/add-on), question schema, coverage/auto-accept,
   `Preview as customer`.
 
-### Auto-accept — fires only when ALL pass
-1. **Budget fit** — computed total within customer budget.
-2. **Availability match** — requested time within operating hours / calendar work-hours (no auto-accept while resting).
-3. **Coverage / radius** — job within listing radius.
-4. **Question-answer match** — customer answers map to offered options (not N/A).
-- Replaces today's `quoteMatchesAutoAccept` + `MerchantProposalPreset` (priceOffset/message) flow (`quote.service.ts:353`).
+### Auto-accept engine (resolved) — ALL 4 always apply
+When auto-accept is ON, **all four gates are enforced** (not individually toggleable):
+1. **Budget fit** — compute total for THIS quote (base + included modules +
+   question-option upcharges matching the customer's answers + flat tax; **add-ons
+   excluded** — customer ticks those later). **Pass if `total ≤ quote.budgetMax`**
+   (no budgetMax → passes). `priceType` hourly/quote → can't fix a total → **no auto-accept**.
+2. **Availability** — `quote.preferredDate + timeSlot` is ticked-available in the
+   servicer's **calendar work-hours** (live, respects per-week rest) **AND** `isOnline`.
+3. **Coverage** — `haversine(serviceArea coords, quote address) ≤ account radius`
+   for **any** service area. **Derives from serviceAreas coords** (no new base-pin
+   field). → **Dependency:** the SP-5 serviceAreas input must store Google-Places
+   **coords** (not free text); this also fixes the `quote.service.ts:108` `|| true`
+   bypass.
+4. **Q-match** — every customer answer maps to an option the listing marked
+   **offered** (not N/A); any N-A'd option the customer picked → fail.
+- **Cap:** servicer not already at `maxAutoAccepts` (**per-account**) concurrent auto-accepts.
+- All pass → create proposal at computed total, `isAuto=true`. Replaces today's
+  `quoteMatchesAutoAccept` + `MerchantProposalPreset` (priceOffset/message) flow
+  (`quote.service.ts:353`).
 
 ### Dropped from old design
 - Sub-category · two-tier quick/advanced (replaced by lean single page + separate Modules tab) · the opaque single-number proposal.
 
+### Customer proposal view (output anchor) — `/customer/quotes/:id/proposals`
+Today thin (`proposals.component.ts`: name/rating/logo/message/eta/price). Redesign:
+- **List** of proposal cards · sort (price/rating/distance/recent) + reverse · filter (rating).
+- **Card collapsed:** logo · businessName · ★rating(count) · auto-proposed badge ·
+  **distance** · **service title** · **what's included** (from included modules) ·
+  **availability/ETA window** · **total** · `View breakdown ▾` · **[Choose]**.
+- **Card expanded:** itemized **breakdown** (base + included modules + question-option
+  prices + service charge + SST = total) · **optional add-ons** (tickable) · message ·
+  coverage summary · [Choose this servicer].
+- **Optional add-ons:** customer **ticks at proposal → total recomputes** before
+  choosing; selected add-ons **captured into the booking**. (Implies the proposal
+  payload carries the listing's add-on modules + the booking records the selection.)
+- This view is the spec for what every listing must produce (title, what's-included,
+  breakdown, availability, distance).
+
+### Pricing math (resolved) — Model B + FLAT tax
+Transparent stacking; tax applied flat to the whole subtotal (tax config comes
+entirely from the **business profile** — no per-line/per-option adjustment).
+```
+subtotal      = base + Σ included modules + Σ question-option upcharges + Σ ticked add-ons
+serviceCharge = subtotal × serviceChargeRate            (business-profile rate)
+sst           = (subtotal + serviceCharge) × sstRate     (only if sstRegistered)
+total (tax-excl) = subtotal + serviceCharge + sst
+tax-inclusive    → prices already include tax; total = subtotal; serviceCharge + sst
+                   back-extracted and shown as "included" for transparency
+```
+- **Consequence:** under flat tax the module-level `taxable` / `serviceChargeable`
+  flags are redundant → **drop them from the Module CRUD** (keep modules to: name,
+  price, SKU?). Re-add only if per-line tax is ever needed.
+- Add-on tick on the proposal recomputes `total` live and is captured into the booking.
+
+### Seeding requirements (demo data — `docs/ai-context/seed-plan.md` + seed)
+All new/missing content must seed so the demo shows the redesigned surfaces:
+- **Business profile:** ≥1 `ServicerContact` per demo servicer (one primary,
+  visibleToCustomer set) · `operatingHours` (a sane weekly template) · `categoryId`
+  (already) · tax config (serviceChargeRate, sstRegistered/number, taxInclusive) ·
+  invoice settings · **withdrawal bank = Public Bank `6343 08 2002`** (masked
+  display) · `backupEmail` on demo users.
+- **Modules (item library):** a few reusable modules per demo servicer, category-apt
+  (e.g. Aircon → Chemical Wash RM30, Gas Top-up RM25).
+- **Service listings:** seed **both** a Simple listing (basics + offered options, no
+  modules/auto-accept) and an Advanced listing (modules incl/add-on + question-option
+  pricing + radius + auto-accept on) per demo servicer, so matching + proposals +
+  breakdown are exercised end-to-end.
+- Ensure painting/moving/gardening (and any new categories) get demo servicers +
+  listings (the existing gap: "no servicers seeded under painting/moving/gardening").
+
+### Duration (resolved) — mirrors the price model
+- **Simple:** one flat estimate.
+- **Advanced:** `duration = base + Σ matched option deltas + Σ included module deltas`.
+  - Number/quantity questions: **per-unit × count** (servicer sets minutes-per-unit).
+  - Radio/checkbox options: flat delta per option.
+  - Modules: optional duration delta (included modules add to the estimate).
+  - Duration deltas sit **next to price** on each option/module in Advanced step ②.
+- **Customer display:** computed **estimate + arrival window** (e.g. "~90 min ·
+  today 2–4pm"); the arrival window comes from calendar work-hours.
+
+### Coverage radius — ACCOUNT-LEVEL (overall, not per-listing)
+- Radius (km) is **one overall account setting**, applied to all listings. Lives in
+  the **business profile** (SP-5 Type of Services, with serviceAreas + operating
+  hours) — **moves back from the listing**. Auto-accept §Coverage uses the account
+  radius. (Reverses the earlier per-listing note.)
+- **SP-5 impact:** radius returns to the business profile; SP-5 spec's "no radius
+  here" line is superseded — add the overall radius field to Type of Services.
+
 ### Open
-- How modules + question-schema pricing combine into the final computed total (precedence, included vs add-on math).
 - Migration of existing `MerchantService.modifiers`/`moduleRefs` → new Modules library.
-- `maxAutoAccepts` (cap, from SP-5 deferral) lands here — per-listing or per-account?
+- `maxAutoAccepts` = **per-account** (locked); lands here as the cap on concurrent auto-accepts.
 
 ---
 
