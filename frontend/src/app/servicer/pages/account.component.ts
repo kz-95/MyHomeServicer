@@ -318,8 +318,8 @@ interface Penalty {
                   <div class="oh-row">
                     <span class="oh-days">{{ formatOhDays(entry.days) }}</span>
                     <span class="oh-times">{{ entry.open }} – {{ entry.close }}</span>
-                    @if (entry.restMinutes > 0) {
-                      <span class="oh-rest">Break: {{ formatRest(entry.restMinutes) }}</span>
+                    @if (entry.restOpen && entry.restClose) {
+                      <span class="oh-rest">Break: {{ entry.restOpen }} – {{ entry.restClose }}</span>
                     }
                     <button class="btn-ghost small-btn" (click)="editOhEntry(i)">Edit</button>
                     <button class="btn-ghost small-btn btn-remove" (click)="removeOhEntry(i)">Remove</button>
@@ -340,32 +340,15 @@ interface Penalty {
                   }
                 </div>
                 <div class="oh-form-row">
-                  <input
-                    class="time-input"
-                    type="text"
-                    [ngModel]="ohForm.open"
-                    (ngModelChange)="formatOhFormTime('open', $event)"
-                    name="ohFOpen"
-                    placeholder="09:00"
-                    maxlength="5"
-                  />
+                  <input class="time-input" type="text" [ngModel]="ohForm.open" (ngModelChange)="formatOhFormTime('open', $event)" name="ohFOpen" placeholder="09:00" maxlength="5" />
                   <span class="muted">to</span>
-                  <input
-                    class="time-input"
-                    type="text"
-                    [ngModel]="ohForm.close"
-                    (ngModelChange)="formatOhFormTime('close', $event)"
-                    name="ohFClose"
-                    placeholder="17:00"
-                    maxlength="5"
-                  />
-                  <select [(ngModel)]="ohForm.restMinutes" name="ohFRest" class="oh-rest-select">
-                    <option [ngValue]="0">No break</option>
-                    <option [ngValue]="30">30m break</option>
-                    <option [ngValue]="60">1h break</option>
-                    <option [ngValue]="90">1.5h break</option>
-                    <option [ngValue]="120">2h break</option>
-                  </select>
+                  <input class="time-input" type="text" [ngModel]="ohForm.close" (ngModelChange)="formatOhFormTime('close', $event)" name="ohFClose" placeholder="17:00" maxlength="5" />
+                </div>
+                <div class="oh-form-row">
+                  <span class="muted small" style="min-width:50px">Rest:</span>
+                  <input class="time-input" type="text" [ngModel]="ohForm.restOpen" (ngModelChange)="formatOhFormTime('restOpen', $event)" name="ohFRestO" placeholder="12:00" maxlength="5" />
+                  <span class="muted">to</span>
+                  <input class="time-input" type="text" [ngModel]="ohForm.restClose" (ngModelChange)="formatOhFormTime('restClose', $event)" name="ohFRestC" placeholder="13:00" maxlength="5" />
                 </div>
                 @if (ohFormError()) {
                   <p class="err small">{{ ohFormError() }}</p>
@@ -469,34 +452,34 @@ interface Penalty {
           <div class="form">
             <label class="toggle-row">
               <span><strong>SST registered</strong></span>
-              <input type="checkbox" [(ngModel)]="f.sstRegistered" name="sstr" class="toggle" (change)="onSstToggled()" />
+              <input type="checkbox" [ngModel]="sstRegistered()" (ngModelChange)="sstRegistered.set($event); onSstToggled()" name="sstr" class="toggle" />
             </label>
-            @if (f.sstRegistered) {
+            @if (sstRegistered()) {
               <label>
                 SST number
-                <input [(ngModel)]="f.sstNumber" name="sstn" placeholder="e.g. SST-1234-567890" />
+                <input [ngModel]="sstNumber()" (ngModelChange)="sstNumber.set($event)" name="sstn" placeholder="e.g. SST-1234-567890" />
               </label>
             }
             <label>
               Service charge rate (%)
-              <input type="number" min="0" step="0.5" [(ngModel)]="f.serviceChargeRate" name="scr" placeholder="e.g. 5 or 10" (change)="recalcTax()" />
+              <input type="number" min="0" step="0.5" [ngModel]="serviceChargeRate()" (ngModelChange)="serviceChargeRate.set($event)" name="scr" placeholder="e.g. 5 or 10" />
             </label>
             <label class="toggle-row">
               <span><strong>Tax inclusive</strong> <span class="muted">(quoted prices include SC + SST)</span></span>
-              <input type="checkbox" [(ngModel)]="f.taxInclusive" name="ti" class="toggle" (change)="recalcTax()" />
+              <input type="checkbox" [ngModel]="taxInclusive()" (ngModelChange)="taxInclusive.set($event)" name="ti" class="toggle" />
             </label>
 
             <!-- Tax calculator -->
             <div class="tax-calc">
               <label>
                 Try amount (RM)
-                <input type="number" min="1" step="0.01" [(ngModel)]="taxTryAmount" name="tta" (input)="recalcTax()" placeholder="e.g. 100.00" />
+                <input type="number" min="1" step="0.01" [ngModel]="taxTryAmount()" (ngModelChange)="taxTryAmount.set($event)" name="tta" placeholder="e.g. 100.00" />
               </label>
               @if (taxTryAmount() > 0) {
                 <div class="tax-breakdown">
                   <div class="tax-row"><span>Subtotal</span><span>RM {{ taxSubtotal() | number:'1.2-2' }}</span></div>
-                  <div class="tax-row"><span>Service charge ({{ f.serviceChargeRate ?? 0 }}%)</span><span>RM {{ taxSC() | number:'1.2-2' }}</span></div>
-                  @if (f.sstRegistered) {
+                  <div class="tax-row"><span>Service charge ({{ serviceChargeRate() ?? 0 }}%)</span><span>RM {{ taxSC() | number:'1.2-2' }}</span></div>
+                  @if (sstRegistered()) {
                     <div class="tax-row"><span>SST ({{ sstRate() }}%)</span><span>RM {{ taxSST() | number:'1.2-2' }}</span></div>
                   }
                   <div class="tax-row total"><span>Total</span><span>RM {{ taxTotal() | number:'1.2-2' }}</span></div>
@@ -911,10 +894,6 @@ export class ServicerAccountComponent implements OnInit {
     businessEntityType: "",
     businessRegNumber: "",
     taxNumber: "",
-    sstRegistered: false,
-    sstNumber: "",
-    serviceChargeRate: null as number | null,
-    taxInclusive: false,
   };
   newAreaInput = "";
   identityFieldsDirty = signal(false);
@@ -943,6 +922,10 @@ export class ServicerAccountComponent implements OnInit {
   taxSavingError = signal("");
   taxTryAmount = signal<number>(0);
   sstRate = signal<number>(6);
+  sstRegistered = signal(false);
+  sstNumber = signal('');
+  serviceChargeRate = signal<number | null>(null);
+  taxInclusive = signal(false);
 
   derivedIsCompany = computed(() => {
     return this.f.businessEntityType && this.f.businessEntityType !== 'sole_proprietorship';
@@ -950,23 +933,23 @@ export class ServicerAccountComponent implements OnInit {
 
   taxSubtotal = computed(() => {
     const amt = this.taxTryAmount() || 0;
-    if (this.f.taxInclusive) {
-      const scRate = (this.f.serviceChargeRate ?? 0) / 100;
-      const sstRate = this.f.sstRegistered ? this.sstRate() / 100 : 0;
-      return amt / (1 + scRate + sstRate);
+    if (this.taxInclusive()) {
+      const scRate = (this.serviceChargeRate() ?? 0) / 100;
+      const sr = this.sstRegistered() ? this.sstRate() / 100 : 0;
+      return amt / (1 + scRate + sr);
     }
     return amt;
   });
 
   taxSC = computed(() => {
-    const scRate = (this.f.serviceChargeRate ?? 0) / 100;
+    const scRate = (this.serviceChargeRate() ?? 0) / 100;
     return this.taxSubtotal() * scRate;
   });
 
   taxSST = computed(() => {
-    if (!this.f.sstRegistered) return 0;
-    const sstRate = this.sstRate() / 100;
-    return this.taxSubtotal() * sstRate;
+    if (!this.sstRegistered()) return 0;
+    const sr = this.sstRate() / 100;
+    return this.taxSubtotal() * sr;
   });
 
   taxTotal = computed(() => {
@@ -1017,15 +1000,15 @@ export class ServicerAccountComponent implements OnInit {
   deactivating = signal(false);
 
   // ── Operating hours — CRUD with multi-day pick + rest break ──
-  ohEntries = signal<{ _key: number; days: string[]; open: string; close: string; restMinutes: number }[]>([]);
+  ohEntries = signal<{ _key: number; days: string[]; open: string; close: string; restOpen: string; restClose: string }[]>([]);
   private _ohKey = 0;
   ohFormOpen = signal(false);
   ohFormEditing = signal<number | null>(null); // index being edited, null = new
-  ohForm = { days: [] as string[], open: '', close: '', restMinutes: 0 };
+  ohForm = { days: [] as string[], open: '', close: '', restOpen: '', restClose: '' };
   ohFormError = signal('');
 
   openOhForm(): void {
-    this.ohForm = { days: [], open: '', close: '', restMinutes: 0 };
+    this.ohForm = { days: [], open: '', close: '', restOpen: '', restClose: '' };
     this.ohFormError.set('');
     this.ohFormEditing.set(null);
     this.ohFormOpen.set(true);
@@ -1033,7 +1016,7 @@ export class ServicerAccountComponent implements OnInit {
 
   editOhEntry(i: number): void {
     const e = this.ohEntries()[i];
-    this.ohForm = { days: [...e.days], open: e.open, close: e.close, restMinutes: e.restMinutes };
+    this.ohForm = { days: [...e.days], open: e.open, close: e.close, restOpen: e.restOpen, restClose: e.restClose };
     this.ohFormError.set('');
     this.ohFormEditing.set(i);
     this.ohFormOpen.set(true);
@@ -1047,7 +1030,7 @@ export class ServicerAccountComponent implements OnInit {
       : [...this.ohForm.days, day];
   }
 
-  formatOhFormTime(slot: 'open' | 'close', raw: string): void {
+  formatOhFormTime(slot: 'open' | 'close' | 'restOpen' | 'restClose', raw: string): void {
     const digits = raw.replace(/\D/g, '').slice(0, 4);
     if (!digits) { this.ohForm[slot] = ''; return; }
     let formatted = '';
@@ -1069,7 +1052,7 @@ export class ServicerAccountComponent implements OnInit {
     const editing = this.ohFormEditing();
     if (editing !== null) {
       this.ohEntries.update(list => list.map((e, i) => i === editing
-        ? { ...e, days: [...this.ohForm.days].sort(), open: this.ohForm.open.trim(), close: this.ohForm.close.trim(), restMinutes: this.ohForm.restMinutes }
+        ? { ...e, days: [...this.ohForm.days].sort(), open: this.ohForm.open.trim(), close: this.ohForm.close.trim(), restOpen: this.ohForm.restOpen.trim(), restClose: this.ohForm.restClose.trim() }
         : e));
     } else {
       this.ohEntries.update(list => [...list, {
@@ -1077,7 +1060,8 @@ export class ServicerAccountComponent implements OnInit {
         days: [...this.ohForm.days].sort(),
         open: this.ohForm.open.trim(),
         close: this.ohForm.close.trim(),
-        restMinutes: this.ohForm.restMinutes,
+        restOpen: this.ohForm.restOpen.trim(),
+        restClose: this.ohForm.restClose.trim(),
       }]);
     }
     this.ohFormOpen.set(false);
@@ -1085,6 +1069,57 @@ export class ServicerAccountComponent implements OnInit {
 
   removeOhEntry(i: number): void {
     this.ohEntries.update(list => list.filter((_, idx) => idx !== i));
+  }
+
+  ngOnInit(): void {
+    this.api.get<ServicerProfile>("/servicer/me").subscribe({
+      next: (p) => {
+        this.profile.set(p);
+        this.f.businessName = p.businessName ?? "";
+        this.f.bio = p.bio ?? "";
+        this.f.serviceAreaList = p.serviceAreas ?? [];
+        this.f.serviceRadiusKm = p.serviceRadiusKm ?? 10;
+        this.f.invoicePrefix = p.invoicePrefix ?? "INV";
+        this.f.invoiceYearFormat = p.invoiceYearFormat ?? "YYYY";
+        this.f.invoiceSeparator = p.invoiceSeparator ?? "-";
+        this.f.invoicePadding = p.invoicePadding ?? 4;
+        this.f.invoiceContent = p.invoiceContent ?? "";
+        this.f.invoiceSuffix = p.invoiceSuffix ?? "";
+        this.f.businessEntityType = p.entityType ?? "";
+        this.f.businessRegNumber = p.businessRegistrationNumber ?? "";
+        this.f.taxNumber = p.taxNumber ?? "";
+        this.sstRegistered.set(p.sstRegistered ?? false);
+        this.sstNumber.set(p.sstNumber ?? "");
+        this.serviceChargeRate.set(p.serviceChargeRate ?? null);
+        this.taxInclusive.set(p.taxInclusive ?? false);
+        this.contacts.set(p.contacts ?? []);
+        this.contactsLoading.set(false);
+        this.loading.set(false);
+        if (p.operatingHours) {
+          const oh = p.operatingHours as Record<string, { open?: string; close?: string }>;
+          const entries: { _key: number; days: string[]; open: string; close: string; restOpen: string; restClose: string }[] = [];
+          for (const day of this.weekdays) {
+            if (oh[day]?.open && oh[day]?.close) {
+              entries.push({ _key: ++this._ohKey, days: [day], open: oh[day].open!, close: oh[day].close!, restOpen: '', restClose: '' });
+            }
+          }
+          if (entries.length > 0) this.ohEntries.set(entries);
+        }
+      },
+      error: () => { this.loading.set(false); this.profileFailed.set(true); },
+    });
+
+    this.api.get<{ data: Penalty[] }>("/servicer/me/penalties").subscribe({
+      next: (r) => { this.penalties.set(r.data ?? []); this.loadingPenalties.set(false); },
+      error: () => this.loadingPenalties.set(false),
+    });
+
+    this.api.get<FeeBreakdown>("/servicer/me/fee-breakdown").subscribe({
+      next: (r) => this.feeBreakdown.set(r),
+      error: () => {},
+    });
+
+    this.loadPinStatus();
   }
 
   /** Compact day range: "Mon, Wed-Fri" */
@@ -1105,223 +1140,12 @@ export class ServicerAccountComponent implements OnInit {
     return parts.join(', ');
   }
 
-  formatRest(minutes: number): string {
-    if (minutes >= 120) return `${minutes / 60}h`;
-    if (minutes >= 60) return '1h';
-    return `${minutes}m`;
+  isValidTime(val: string): boolean {
+    if (!val) return true;
+    return /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/.test(val.trim());
   }
 
-  ngOnInit(): void {
-    this.api.get<ServicerProfile>("/servicer/me").subscribe({
-      next: (p) => {
-        this.profile.set(p);
-        this.f.businessName = p.businessName ?? "";
-        this.f.bio = p.bio ?? "";
-        this.f.serviceAreaList = p.serviceAreas ?? [];
-        this.f.serviceRadiusKm = p.serviceRadiusKm ?? 10;
-        this.f.invoicePrefix = p.invoicePrefix ?? "INV";
-        this.f.invoiceYearFormat = p.invoiceYearFormat ?? "YYYY";
-        this.f.invoiceSeparator = p.invoiceSeparator ?? "-";
-        this.f.invoicePadding = p.invoicePadding ?? 4;
-        this.f.invoiceContent = p.invoiceContent ?? "";
-        this.f.invoiceSuffix = p.invoiceSuffix ?? "";
-        this.f.businessEntityType = p.entityType ?? "";
-        this.f.businessRegNumber = p.businessRegistrationNumber ?? "";
-        this.f.taxNumber = p.taxNumber ?? "";
-        this.f.sstRegistered = p.sstRegistered ?? false;
-        this.f.sstNumber = p.sstNumber ?? "";
-        this.f.serviceChargeRate = p.serviceChargeRate ?? null;
-        this.f.taxInclusive = p.taxInclusive ?? false;
-        this.contacts.set(p.contacts ?? []);
-        this.contactsLoading.set(false);
-        this.loading.set(false);
-        // Seed operating hours from profile
-        if (p.operatingHours) {
-          const oh = p.operatingHours as Record<string, { open?: string; close?: string }>;
-          const entries: { _key: number; days: string[]; open: string; close: string; restMinutes: number }[] = [];
-          for (const day of this.weekdays) {
-            if (oh[day]?.open && oh[day]?.close) {
-              entries.push({ _key: ++this._ohKey, days: [day], open: oh[day].open!, close: oh[day].close!, restMinutes: 0 });
-            }
-          }
-          if (entries.length > 0) this.ohEntries.set(entries);
-        }
-      },
-      error: () => { this.loading.set(false); this.profileFailed.set(true); },
-    });
-
-    this.api.get<{ data: Penalty[] }>("/servicer/me/penalties").subscribe({
-      next: (r) => { this.penalties.set(r.data ?? []); this.loadingPenalties.set(false); },
-      error: () => this.loadingPenalties.set(false),
-    });
-
-    this.api.get<FeeBreakdown>("/servicer/me/fee-breakdown").subscribe({
-      next: (r) => this.feeBreakdown.set(r),
-      error: () => {},
-    });
-
-    this.loadPinStatus();
-    this.recalcTax();
-  }
-
-  // ── Invoice preview ──
-  invoicePreview(): string {
-    const prefix = this.f.invoicePrefix || "INV";
-    const content = this.f.invoiceContent || "";
-    const suffix = this.f.invoiceSuffix || "";
-    const sep = this.f.invoiceSeparator || "-";
-    const year = this.f.invoiceYearFormat === "YYYY" ? new Date().getFullYear().toString()
-      : this.f.invoiceYearFormat === "YY" ? new Date().getFullYear().toString().slice(2) : null;
-    const num = String(42).padStart(Number(this.f.invoicePadding) || 4, "0");
-    return year ? `${prefix}${content}${sep}${year}${sep}${num}${suffix}` : `${prefix}${content}${sep}${num}${suffix}`;
-  }
-
-  // ── Tax recalc ──
-  recalcTax(): void { /* triggers computed signals */ }
-  onSstToggled(): void { if (!this.f.sstRegistered) this.f.sstNumber = ""; this.recalcTax(); }
-
-  // ── Profile save ──
-  saveProfile(): void {
-    this.savingProfile.set(true);
-    this.profileError.set("");
-    this.api.patch<ServicerProfile>("/servicer/me", {
-      businessName: this.f.businessName || undefined,
-      bio: this.f.bio || undefined,
-    }).subscribe({
-      next: (updated) => {
-        this.profile.update((p) => p ? { ...p, ...updated } : p);
-        this.savingProfile.set(false);
-        this.toast.success("Business identity saved.");
-      },
-      error: (e) => {
-        this.savingProfile.set(false);
-        this.profileError.set(e.message ?? "Could not save profile");
-      },
-    });
-  }
-
-  saveServices(): void {
-    this.savingProfile.set(true);
-    this.profileError.set("");
-    const serviceAreas = this.f.serviceAreaList.map(s => s.trim()).filter(Boolean);
-
-    // Validate time inputs
-    for (const entry of this.ohEntries()) {
-      if (!this.isValidTime(entry.open)) { this.profileError.set(`Invalid open time "${entry.open}": use HH:MM (24h)`); this.savingProfile.set(false); return; }
-      if (!this.isValidTime(entry.close)) { this.profileError.set(`Invalid close time "${entry.close}": use HH:MM (24h)`); this.savingProfile.set(false); return; }
-    }
-
-    const oh: Record<string, { open: string; close: string }> = {};
-    for (const entry of this.ohEntries()) {
-      for (const day of entry.days) {
-        if (!oh[day]) oh[day] = { open: entry.open.trim(), close: entry.close.trim() };
-      }
-    }
-    this.api.patch<ServicerProfile>("/servicer/me", {
-      serviceAreas: serviceAreas.length ? serviceAreas : undefined,
-      serviceRadiusKm: this.f.serviceRadiusKm ?? undefined,
-      operatingHours: Object.keys(oh).length > 0 ? oh : [],
-    }).subscribe({
-      next: (updated) => {
-        this.profile.update((p) => p ? { ...p, ...updated } : p);
-        this.savingProfile.set(false);
-        this.toast.success("Services saved.");
-      },
-      error: (e) => {
-        this.savingProfile.set(false);
-        this.profileError.set(e.message ?? "Could not save services");
-      },
-    });
-  }
-
-  saveInvoiceSettings(): void {
-    this.savingProfile.set(true);
-    this.profileError.set("");
-    this.api.patch<ServicerProfile>("/servicer/me", {
-      invoicePrefix: this.f.invoicePrefix || undefined,
-      invoiceContent: this.f.invoiceContent || undefined,
-      invoiceSuffix: this.f.invoiceSuffix || undefined,
-      invoiceYearFormat: this.f.invoiceYearFormat || undefined,
-      invoiceSeparator: this.f.invoiceSeparator || undefined,
-      invoicePadding: this.f.invoicePadding ?? undefined,
-    }).subscribe({
-      next: (updated) => {
-        this.profile.update((p) => p ? { ...p, ...updated } : p);
-        this.savingProfile.set(false);
-        this.toast.success("Invoice settings saved.");
-      },
-      error: (e) => {
-        this.savingProfile.set(false);
-        this.profileError.set(e.message ?? "Could not save invoice settings");
-      },
-    });
-  }
-
-  // ── Business details (admin review) ──
-  saveBusinessDetails(): void {
-    this.identitySavingError.set("");
-    this.savingIdentity.set(true);
-    const proposed: Record<string, unknown> = {};
-    if (this.f.businessEntityType) proposed['entityType'] = this.f.businessEntityType;
-    if (this.f.businessRegNumber) proposed['businessRegistrationNumber'] = this.f.businessRegNumber;
-    if (this.f.taxNumber) proposed['taxNumber'] = this.f.taxNumber;
-    this.api.post<IdentityChangeRequest>("/servicer/me/identity-change-request", { proposed }).subscribe({
-      next: (req) => {
-        // Update local list
-        const p = this.profile();
-        if (p) {
-          const existing = p.identityChangeRequests ?? [];
-          this.profile.set({ ...p, identityChangeRequests: [...existing, req] });
-        }
-        this.identityFieldsDirty.set(false);
-        this.savingIdentity.set(false);
-        this.toast.success("Identity change request submitted for admin review.");
-      },
-      error: (e) => {
-        this.savingIdentity.set(false);
-        this.identitySavingError.set(e.message ?? "Could not submit request");
-      },
-    });
-  }
-
-  saveTaxConfig(): void {
-    this.taxSavingError.set("");
-    this.savingTax.set(true);
-    const body: Record<string, unknown> = {
-      sstRegistered: this.f.sstRegistered,
-      serviceChargeRate: this.f.serviceChargeRate ?? 0,
-      taxInclusive: this.f.taxInclusive,
-    };
-    if (this.f.sstRegistered && this.f.sstNumber) body['sstNumber'] = this.f.sstNumber;
-    this.api.patch<ServicerProfile>("/servicer/me", body).subscribe({
-      next: (updated) => {
-        this.profile.update((p) => p ? { ...p, ...updated } : p);
-        this.savingTax.set(false);
-        this.toast.success("Tax settings saved.");
-      },
-      error: (e) => {
-        this.savingTax.set(false);
-        this.taxSavingError.set(e.message ?? "Could not save tax settings");
-      },
-    });
-  }
-
-  requestCategoryChange(): void {
-    const p = this.profile();
-    if (!p?.categoryId) { this.toast.error("No category set."); return; }
-    this.dialog.prompt("Enter the new category name or ID to request an admin review.", {
-      placeholder: "e.g. plumbing",
-      confirmLabel: "Submit request",
-    }).subscribe((val) => {
-      if (!val) return;
-      this.api.post("/servicer/me/identity-change-request", {
-        proposed: { categoryId: val },
-      }).subscribe({
-        next: () => this.toast.success("Category change request submitted for review."),
-        error: (e) => this.toast.error(e.message ?? "Request failed"),
-      });
-    });
-  }
+  onSstToggled(): void { if (!this.sstRegistered()) this.sstNumber.set(''); }
 
   // ── Service areas ──
   onServiceAreaSelect(place: PlaceResult): void {
@@ -1335,9 +1159,28 @@ export class ServicerAccountComponent implements OnInit {
     this.f.serviceAreaList = this.f.serviceAreaList.filter((_, i) => i !== index);
   }
 
-  isValidTime(val: string): boolean {
-    if (!val) return true;
-    return /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/.test(val.trim());
+  requestCategoryChange(): void {
+    this.dialog.prompt("Enter the new category name or ID to request an admin review.", {
+      placeholder: "e.g. plumbing", confirmLabel: "Submit request",
+    }).subscribe((val) => {
+      if (!val) return;
+      this.api.post("/servicer/me/identity-change-request", { proposed: { categoryId: val } }).subscribe({
+        next: () => this.toast.success("Category change request submitted."),
+        error: (e) => this.toast.error(e.message ?? "Request failed"),
+      });
+    });
+  }
+
+  // ── Invoice preview ──
+  invoicePreview(): string {
+    const prefix = this.f.invoicePrefix || "INV";
+    const content = this.f.invoiceContent || "";
+    const suffix = this.f.invoiceSuffix || "";
+    const sep = this.f.invoiceSeparator || "-";
+    const year = this.f.invoiceYearFormat === "YYYY" ? new Date().getFullYear().toString()
+      : this.f.invoiceYearFormat === "YY" ? new Date().getFullYear().toString().slice(2) : null;
+    const num = String(42).padStart(Number(this.f.invoicePadding) || 4, "0");
+    return year ? `${prefix}${content}${sep}${year}${sep}${num}${suffix}` : `${prefix}${content}${sep}${num}${suffix}`;
   }
 
   // ── Contacts CRUD ──
@@ -1459,6 +1302,129 @@ export class ServicerAccountComponent implements OnInit {
         },
         error: (e) => this.toast.error(e.message ?? "Could not submit appeal"),
       });
+    });
+  }
+
+  // ── Save methods (restored) ──
+  saveTaxConfig(): void {
+    this.taxSavingError.set("");
+    this.savingTax.set(true);
+    const body: Record<string, unknown> = {
+      sstRegistered: this.sstRegistered(),
+      serviceChargeRate: this.serviceChargeRate() ?? 0,
+      taxInclusive: this.taxInclusive(),
+    };
+    if (this.sstRegistered() && this.sstNumber()) body['sstNumber'] = this.sstNumber();
+    this.api.patch<ServicerProfile>("/servicer/me", body).subscribe({
+      next: (updated) => {
+        this.profile.update((p) => p ? { ...p, ...updated } : p);
+        this.savingTax.set(false);
+        this.toast.success("Tax settings saved.");
+      },
+      error: (e) => {
+        this.savingTax.set(false);
+        this.taxSavingError.set(e.message ?? "Could not save tax settings");
+      },
+    });
+  }
+
+  saveBusinessDetails(): void {
+    this.identitySavingError.set("");
+    this.savingIdentity.set(true);
+    const proposed: Record<string, unknown> = {};
+    if (this.f.businessEntityType) proposed['entityType'] = this.f.businessEntityType;
+    if (this.f.businessRegNumber) proposed['businessRegistrationNumber'] = this.f.businessRegNumber;
+    if (this.f.taxNumber) proposed['taxNumber'] = this.f.taxNumber;
+    this.api.post<IdentityChangeRequest>("/servicer/me/identity-change-request", { proposed }).subscribe({
+      next: (req) => {
+        const p = this.profile();
+        if (p) {
+          const existing = p.identityChangeRequests ?? [];
+          this.profile.set({ ...p, identityChangeRequests: [...existing, req] });
+        }
+        this.identityFieldsDirty.set(false);
+        this.savingIdentity.set(false);
+        this.toast.success("Identity change request submitted for admin review.");
+      },
+      error: (e) => {
+        this.savingIdentity.set(false);
+        this.identitySavingError.set(e.message ?? "Could not submit request");
+      },
+    });
+  }
+
+  saveInvoiceSettings(): void {
+    this.savingProfile.set(true);
+    this.profileError.set("");
+    this.api.patch<ServicerProfile>("/servicer/me", {
+      invoicePrefix: this.f.invoicePrefix || undefined,
+      invoiceContent: this.f.invoiceContent || undefined,
+      invoiceSuffix: this.f.invoiceSuffix || undefined,
+      invoiceYearFormat: this.f.invoiceYearFormat || undefined,
+      invoiceSeparator: this.f.invoiceSeparator || undefined,
+      invoicePadding: this.f.invoicePadding ?? undefined,
+    }).subscribe({
+      next: (updated) => {
+        this.profile.update((p) => p ? { ...p, ...updated } : p);
+        this.savingProfile.set(false);
+        this.toast.success("Invoice settings saved.");
+      },
+      error: (e) => {
+        this.savingProfile.set(false);
+        this.profileError.set(e.message ?? "Could not save invoice settings");
+      },
+    });
+  }
+
+  saveProfile(): void {
+    this.savingProfile.set(true);
+    this.profileError.set("");
+    this.api.patch<ServicerProfile>("/servicer/me", {
+      businessName: this.f.businessName || undefined,
+      bio: this.f.bio || undefined,
+    }).subscribe({
+      next: (updated) => {
+        this.profile.update((p) => p ? { ...p, ...updated } : p);
+        this.savingProfile.set(false);
+        this.toast.success("Business identity saved.");
+      },
+      error: (e) => {
+        this.savingProfile.set(false);
+        this.profileError.set(e.message ?? "Could not save profile");
+      },
+    });
+  }
+
+  saveServices(): void {
+    this.savingProfile.set(true);
+    this.profileError.set("");
+    const serviceAreas = this.f.serviceAreaList.map(s => s.trim()).filter(Boolean);
+
+    for (const entry of this.ohEntries()) {
+      if (!this.isValidTime(entry.open)) { this.profileError.set(`Invalid open time "${entry.open}": use HH:MM (24h)`); this.savingProfile.set(false); return; }
+      if (!this.isValidTime(entry.close)) { this.profileError.set(`Invalid close time "${entry.close}": use HH:MM (24h)`); this.savingProfile.set(false); return; }
+    }
+
+    const oh: Record<string, { open: string; close: string }> = {};
+    for (const entry of this.ohEntries()) {
+      for (const day of entry.days) {
+        if (!oh[day]) oh[day] = { open: entry.open.trim(), close: entry.close.trim() };
+      }
+    }
+    this.api.patch<ServicerProfile>("/servicer/me", {
+      serviceAreas: serviceAreas.length ? serviceAreas : undefined,
+      serviceRadiusKm: this.f.serviceRadiusKm ?? undefined,
+      operatingHours: Object.keys(oh).length > 0 ? oh : [],
+    }).subscribe({
+      next: (updated) => {
+        this.profile.update((p) => p ? { ...p, ...updated } : p);
+        this.savingProfile.set(false);
+        this.toast.success("Services saved.");
+      },
+      error: (e) => {
+        this.savingProfile.set(false);
+        this.profileError.set(e.message ?? "Could not save services");
+      },
     });
   }
 
