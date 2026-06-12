@@ -1,8 +1,14 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { IconComponent } from '../../shared/icon.component';
-import { ModalComponent } from '../../shared/modal.component';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
 import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -19,7 +25,7 @@ interface ServicerModule {
 @Component({
   selector: 'app-servicer-modules',
   standalone: true,
-  imports: [FormsModule, IconComponent, ModalComponent, ListToolbarComponent],
+  imports: [FormsModule, IconComponent, ListToolbarComponent],
   template: `
     <div class="head">
       <div>
@@ -99,33 +105,40 @@ interface ServicerModule {
       </div>
     }
 
-    <app-modal [open]="modalOpen()" [title]="editId() ? 'Edit module' : 'Add module'" (closed)="closeModal()">
-      <div class="form">
-        @if (formError()) {
-          <p class="err">{{ formError() }}</p>
-        }
-        <label>
-          <span>Name<span class="req"> *</span></span>
-          <input type="text" [(ngModel)]="f.name" name="mname" maxlength="200" placeholder="e.g. Chemical Wash" />
-        </label>
-        <div class="row">
+    @if (modalOpen()) {
+      <div class="pg-backdrop"></div>
+      <div class="pg-guard">
+        <div class="pg-header">
+          <h2>{{ editId() ? 'Edit module' : 'Add module' }}</h2>
+          <button class="pg-close" (click)="closeModal()" aria-label="Close">✕</button>
+        </div>
+        <div class="pg-body">
+          @if (formError()) {
+            <p class="err">{{ formError() }}</p>
+          }
           <label>
-            <span>Price (RM)<span class="req"> *</span></span>
-            <input type="number" [(ngModel)]="f.price" name="mprice" min="0" step="0.01" />
+            <span>Name<span class="req"> *</span></span>
+            <input type="text" [(ngModel)]="f.name" name="mname" maxlength="200" placeholder="e.g. Chemical Wash" />
           </label>
-          <label>
-            <span>SKU (optional)</span>
-            <input type="text" [(ngModel)]="f.sku" name="msku" placeholder="3–30 chars" />
-          </label>
+          <div class="row">
+            <label>
+              <span>Price (RM)<span class="req"> *</span></span>
+              <input type="number" [(ngModel)]="f.price" name="mprice" min="0" step="0.01" />
+            </label>
+            <label>
+              <span>SKU (optional)</span>
+              <input type="text" [(ngModel)]="f.sku" name="msku" placeholder="3–30 chars" />
+            </label>
+          </div>
+        </div>
+        <div class="pg-footer">
+          <button class="btn-ghost" (click)="closeModal()">Cancel</button>
+          <button class="btn-primary" (click)="save()" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : editId() ? 'Save changes' : 'Add module' }}
+          </button>
         </div>
       </div>
-      <div class="modal-actions">
-        <button class="btn-ghost" (click)="closeModal()">Cancel</button>
-        <button class="btn-primary" (click)="save()" [disabled]="saving()">
-          {{ saving() ? 'Saving…' : editId() ? 'Save changes' : 'Add module' }}
-        </button>
-      </div>
-    </app-modal>
+    }
   `,
   styles: [
     `
@@ -289,12 +302,66 @@ interface ServicerModule {
         color: var(--color-danger);
         background: var(--color-danger-bg);
       }
-      .form {
+
+      .pg-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        background: var(--color-backdrop);
+      }
+      .pg-guard {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+        width: 460px;
+        max-width: calc(100vw - 2rem);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        flex-direction: column;
+        max-height: 80vh;
+      }
+      .pg-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-border);
+      }
+      .pg-header h2 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+      .pg-close {
+        background: transparent;
+        border: none;
+        font-size: 1rem;
+        color: var(--color-muted);
+        padding: 0.25rem 0.5rem;
+        cursor: pointer;
+        border-radius: var(--radius);
+        line-height: 1;
+      }
+      .pg-close:hover {
+        color: var(--color-text);
+        background: var(--color-bg);
+      }
+      .pg-body {
+        padding: 1.25rem;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        flex: 1;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         gap: 0.7rem;
       }
-      .form label {
+      .pg-body label {
         display: flex;
         flex-direction: column;
         gap: 0.3rem;
@@ -314,13 +381,22 @@ interface ServicerModule {
       .req {
         color: var(--color-danger);
       }
+      .pg-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 1rem 1.25rem;
+        border-top: 1px solid var(--color-border);
+      }
     `,
   ],
 })
-export class ServicerModulesComponent implements OnInit {
+export class ServicerModulesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private dialog = inject(DialogService);
   private toast = inject(ToastService);
+  private bodyOverflow: string | null = null;
 
   modules = signal<ServicerModule[]>([]);
   loading = signal(true);
@@ -371,6 +447,22 @@ export class ServicerModulesComponent implements OnInit {
     this.load();
   }
 
+  ngOnDestroy(): void {
+    this.unlockBody();
+  }
+
+  private lockBody(): void {
+    this.bodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+  }
+
+  private unlockBody(): void {
+    document.body.style.overflow = this.bodyOverflow ?? '';
+    document.body.style.touchAction = '';
+    this.bodyOverflow = null;
+  }
+
   private load(): void {
     this.loading.set(true);
     this.loadFailed.set(false);
@@ -395,6 +487,7 @@ export class ServicerModulesComponent implements OnInit {
     this.f = this.blankForm();
     this.formError.set('');
     this.modalOpen.set(true);
+    this.lockBody();
   }
 
   openEdit(m: ServicerModule): void {
@@ -402,10 +495,12 @@ export class ServicerModulesComponent implements OnInit {
     this.f = { name: m.name, price: m.price, sku: m.sku ?? '' };
     this.formError.set('');
     this.modalOpen.set(true);
+    this.lockBody();
   }
 
   closeModal(): void {
     this.modalOpen.set(false);
+    this.unlockBody();
   }
 
   save(): void {
@@ -433,6 +528,7 @@ export class ServicerModulesComponent implements OnInit {
       next: () => {
         this.saving.set(false);
         this.modalOpen.set(false);
+        this.unlockBody();
         this.toast.success(id ? 'Module updated.' : 'Module added.');
         this.load();
       },

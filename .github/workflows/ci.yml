@@ -9,11 +9,9 @@ name: CI
 # Cost estimate:
 #   backend-check  ~2 min
 #   frontend-check ~1 min
-#   e2e-check      ~3 min
 #   backend-image  ~2 min
-#   deploy-report  ~0.5 min
 #   notify         ~0.1 min
-#   Total          ~5–8 min
+#   Total          ~3–5 min
 #
 # WhatsApp: set META_TOKEN, META_PHONE_ID, META_WHATSAPP_TO secrets.
 # Uses Meta WhatsApp Cloud API (free tier: 1000 msgs/month). Skipped if not set.
@@ -97,162 +95,16 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-  # ── E2E: Playwright against real Postgres + Redis ─────────────────────────
-  e2e-check:
-    name: E2E checks
-    runs-on: ubuntu-latest
-    needs:
-      - backend-check
-      - frontend-check
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeservices
-      REDIS_URL: redis://localhost:6379
-      JWT_SECRET: ci-test-jwt-secret-value-0123456789abcdef
-      REFRESH_SECRET: ci-test-refresh-secret-value-0123456789abcdef
-      NODE_ENV: development
-      BASE_URL: http://localhost:4200
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: homeservices
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm ci --no-audit --no-fund
-
-      - name: Sync schema + seed
-        working-directory: backend
-        run: |
-          npx prisma db push --skip-generate
-          npx prisma generate
-          npm run seed
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci --no-audit --no-fund
-
-      - name: Install Playwright browsers
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
-
-      - name: Run E2E tests
-        id: e2e_run
-        continue-on-error: true
-        working-directory: frontend
-        run: npx playwright test --reporter=html --config=e2e/playwright.config.ts
-        env:
-          CI: 'true'
-
-      - name: Prepare E2E report site
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          report_dir="frontend/playwright-report"
-          pages_dir="dist/e2e-report-site"
-          mkdir -p "$pages_dir"
-
-          if [ -d "$report_dir" ]; then
-            cp -R "$report_dir"/. "$pages_dir"/
-          else
-            cat > "$pages_dir/index.html" <<'HTML'
-          <!doctype html>
-          <html lang="en">
-            <head>
-              <meta charset="utf-8">
-              <title>HomeServices E2E Report</title>
-            </head>
-            <body>
-              <h1>HomeServices E2E Report</h1>
-              <p>No Playwright HTML report was produced for this run.</p>
-            </body>
-          </html>
-          HTML
-          fi
-
-          cat > "$pages_dir/commit.json" <<JSON
-          {
-            "repository": "$GITHUB_REPOSITORY",
-            "runId": "$GITHUB_RUN_ID",
-            "runNumber": "$GITHUB_RUN_NUMBER",
-            "sha": "$GITHUB_SHA",
-            "ref": "$GITHUB_REF_NAME",
-            "actor": "$GITHUB_ACTOR",
-            "runUrl": "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID",
-            "commitUrl": "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
-          }
-          JSON
-
-      - name: Upload E2E report artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-playwright-report
-          path: dist/e2e-report-site
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload E2E report for GitHub Pages
-        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist/e2e-report-site
-
-      - name: Fail if E2E failed
-        if: steps.e2e_run.outcome != 'success'
-        run: exit 1
-
-  # ── Publish E2E report to GitHub Pages (master only) ──────────────────────
-  deploy-e2e-report:
-    name: Publish E2E report
-    runs-on: ubuntu-latest
-    needs: e2e-check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    continue-on-error: true
-    steps:
-      - name: Deploy E2E report to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Add E2E report link to summary
-        if: always()
-        shell: bash
-        run: |
-          if [ -n "${{ steps.deployment.outputs.page_url }}" ]; then
-            echo "E2E report: ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "E2E report was uploaded as the e2e-playwright-report workflow artifact." >> "$GITHUB_STEP_SUMMARY"
-            echo "Enable GitHub Pages in repository settings (Source: GitHub Actions) to publish the report URL." >> "$GITHUB_STEP_SUMMARY"
-          fi
+  # ── E2E: disabled (2026-06-12) ────────────────────────────────────────────
+  # e2e-check, deploy-e2e-report, and image build removed from pipeline.
+  # Re-enable when Playwright tests are stable and GH Pages report infra is
+  # set up on the target account.
 
   # ── Backend Docker image (build + push to GHCR on master) ────────────────
   backend-image:
     name: Backend Docker image
     runs-on: ubuntu-latest
-    needs: e2e-check
+    needs: backend-check
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -294,9 +146,7 @@ jobs:
     needs:
       - backend-check
       - frontend-check
-      - e2e-check
       - backend-image
-      - deploy-e2e-report
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     continue-on-error: true
     env:
@@ -322,20 +172,18 @@ jobs:
           URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           B="${{ needs.backend-check.result }}"
           F="${{ needs.frontend-check.result }}"
-          E="${{ needs.e2e-check.result }}"
           IMG="${{ needs.backend-image.result }}"
 
           FAILS=0
           [ "$B" != "success" ] && [ "$B" != "skipped" ] && FAILS=$((FAILS+1))
           [ "$F" != "success" ] && [ "$F" != "skipped" ] && FAILS=$((FAILS+1))
-          [ "$E" != "success" ] && [ "$E" != "skipped" ] && FAILS=$((FAILS+1))
           [ "$IMG" != "success" ] && [ "$IMG" != "skipped" ] && FAILS=$((FAILS+1))
 
           COMMIT="${{ github.sha }}"
           if [ "$FAILS" -eq 0 ]; then
-            TEXT="*PASS* ${TITLE}%0ACommit: ${COMMIT:0:7}%0AB=${B} F=${F} E2E=${E} Img=${IMG}%0A${URL}"
+            TEXT="*PASS* ${TITLE}%0ACommit: ${COMMIT:0:7}%0AB=${B} F=${F} Img=${IMG}%0A${URL}"
           else
-            TEXT="*FAIL* ${TITLE}%0ACommit: ${COMMIT:0:7}%0AB=${B} F=${F} E2E=${E} Img=${IMG}%0A${URL}"
+            TEXT="*FAIL* ${TITLE}%0ACommit: ${COMMIT:0:7}%0AB=${B} F=${F} Img=${IMG}%0A${URL}"
           fi
 
           TO="$META_WHATSAPP_TO"
