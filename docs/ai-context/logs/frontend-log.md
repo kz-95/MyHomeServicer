@@ -24,6 +24,12 @@
 **Nav cleanup:**
 - Removed redundant dashboard/stats block (earnings chart, stat-row, chart) from jobs component history tab. History view now shows only the jobs list.
 
+**Follow-up 2026-06-12 — Operating hours editor:**
+- Replaced limited dropdown selects (8-11AM open, 5-10PM close only) with free-form `HH:MM` (24h) text inputs.
+- Regex validation: `^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$` — red border on invalid, cleared on empty.
+- Auto-format on input: strips non-digits, `"9"`→`"09:00"`, `"1130"`→`"11:30"`, `"150"`→`"15:00"`. Validation deferred to blur so mid-type states don't flash errors.
+- SaveServices validates all time inputs before submitting.
+
 ## Session 2026-06-04 — LLM API Keys admin page UX overhaul
 
 **Scope:** Full UX rebuild of `/admin/settings/api-keys` — model dropdowns, validation, fetch, delete guards, CSS fixes.
