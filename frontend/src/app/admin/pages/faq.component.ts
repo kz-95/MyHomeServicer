@@ -231,25 +231,23 @@ function emptyForm(tier: string): FaqForm {
     }
     .tabs {
       display: flex;
-      gap: 0;
+      gap: 0.4rem;
       margin-bottom: 0.6rem;
-      border-bottom: 2px solid var(--color-border);
     }
     .tab {
       background: transparent;
       border: none;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
+      border-radius: 999px;
       padding: 0.5rem 1.1rem;
       font-size: 0.88rem;
       font-weight: 500;
       color: var(--color-muted);
       cursor: pointer;
       font-family: inherit;
-      transition: color 0.15s ease, border-color 0.15s ease;
+      transition: background 0.15s ease, color 0.15s ease;
     }
-    .tab:hover { color: var(--color-text); }
-    .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+    .tab:hover:not(.active) { color: var(--color-text); background: var(--color-bg); }
+    .tab.active { background: var(--color-primary); background: var(--gradient-sidebar); color: #fff; font-weight: 600; box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2); }
     .search-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
     .search-row input[type="text"], .search-row input:not([type]) { flex: 1; min-width: 200px; font-size: 0.9rem; }
 

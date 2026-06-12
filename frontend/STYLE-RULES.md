@@ -634,32 +634,45 @@ day surface looks off.
 
 ### 7.10 Tabbed views
 
-Multi-section pages use one shared tab-bar pattern (admin Accounts, admin
-Review Queues, AI Chat Settings, servicer Jobs):
+Multi-section pages use one shared **pill tab-bar** pattern (admin Accounts,
+admin Review Queues, AI Chat Settings, Platform/Money/Category Settings, FAQ,
+servicer Jobs, servicer Calendar). The active tab is a filled pill matching the
+sidebar active link — **no underline tabs** (rev. 2026-06-12; the old
+`border-bottom` underline pattern is retired):
 
 ```css
 .tabs {
   display: flex;
-  border-bottom: 2px solid var(--color-border);
+  gap: 0.4rem;
 }
 .tab {
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  border-radius: 999px;
   padding: 0.6rem 1.2rem;
   color: var(--color-muted);
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tab:hover:not(.active) {
+  color: var(--color-text);
+  background: var(--color-bg);
 }
 .tab.active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+  background: var(--color-primary); /* solid fallback (§2.6) */
+  background: var(--gradient-sidebar);
+  color: #fff;
   font-weight: 600;
+  box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2);
 }
 .tab .n {
-  /* count chip */
+  /* count chip — inverts on the active pill */
   border-radius: 999px;
   padding: 0.05rem 0.5rem;
+}
+.tab.active .n {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
 }
 ```
 

@@ -283,29 +283,31 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
       }
       .tabs {
         display: flex;
-        gap: 0;
-        border-bottom: 2px solid var(--color-border);
+        gap: 0.4rem;
         margin-bottom: 1rem;
         flex-shrink: 0;
       }
       .tab {
         background: none;
         border: none;
+        border-radius: 999px;
         padding: 0.5rem 1rem;
         font-size: 0.9rem;
         font-weight: 500;
         color: var(--color-muted);
         cursor: pointer;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -2px;
-        transition: color var(--transition-fast), border-color var(--transition-fast);
+        transition: background var(--transition-fast), color var(--transition-fast);
       }
-      .tab:hover {
+      .tab:hover:not(.active) {
         color: var(--color-text);
+        background: var(--color-bg);
       }
       .tab.active {
-        color: var(--color-primary);
-        border-bottom-color: var(--color-primary);
+        background: var(--color-primary);
+        background: var(--gradient-sidebar);
+        color: #fff;
+        font-weight: 600;
+        box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2);
       }
       .q {
         width: 100%;

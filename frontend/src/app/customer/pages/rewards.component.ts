@@ -341,7 +341,7 @@ interface VoucherWithApp extends Redemption {
         transition: box-shadow var(--transition), transform var(--transition);
       }
       .reward-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); transform: translateY(-1px); }
-      .reward-card.affordable { border-color: var(--color-primary); border-left: 3px solid var(--color-primary); }
+      .reward-card.affordable { border-color: var(--color-primary); }
       .reward-info { display: flex; flex-direction: column; gap: 0.15rem; }
       .reward-info p { margin: 0; font-size: 0.82rem; }
       .reward-action { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }

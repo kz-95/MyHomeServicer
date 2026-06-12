@@ -512,15 +512,13 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
       .tabs {
         display: flex;
         justify-content: center;
-        gap: 0;
-        border-bottom: 2px solid var(--color-border);
+        gap: 0.4rem;
         margin-bottom: 1rem;
       }
       .tab {
         background: transparent;
         border: none;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -2px;
+        border-radius: 999px;
         padding: 0.6rem 1.2rem;
         font-size: 0.92rem;
         font-weight: 500;
@@ -530,18 +528,20 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
-        transition: color 0.15s ease, border-color 0.15s ease;
+        transition: background 0.15s ease, color 0.15s ease;
       }
-      .tab:hover { color: var(--color-text); }
+      .tab:hover:not(.active) { color: var(--color-text); background: var(--color-bg); }
       .tab.active {
-        color: var(--color-primary);
-        border-bottom-color: var(--color-primary);
+        background: var(--color-primary);
+        background: var(--gradient-sidebar);
+        color: #fff;
         font-weight: 600;
+        box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2);
       }
       .tab .n {
         font-size: 0.72rem;
         font-weight: 600;
-        background: var(--color-primary);
+        background: rgba(255, 255, 255, 0.25);
         color: #fff;
         border-radius: 999px;
         padding: 0.05rem 0.5rem;

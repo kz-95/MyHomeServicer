@@ -101,11 +101,7 @@ interface Notification {
         outline: 2px solid var(--color-primary);
         box-shadow: 0 0 0 4px rgba(201, 90, 60, 0.1);
       }
-      .note.unread {
-        border-left: 3px solid var(--color-primary);
-      }
       .note.unread:hover {
-        border-left-color: var(--color-primary);
         box-shadow: 0 4px 14px rgba(201, 90, 60, 0.12);
       }
       .note p {

@@ -666,7 +666,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
     styles: [
         `
       :host { display: block; }
-      .load-err { color: var(--color-danger); border-left: 3px solid var(--color-danger); }
+      .load-err { color: var(--color-danger); }
       .pane { display: flex; flex-direction: column; gap: 0.9rem; max-width: 720px; }
       .cat-row { display: flex; gap: 0.75rem; }
       .cat-field { flex: 1 1 0; display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }

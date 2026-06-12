@@ -20,8 +20,8 @@ const TYPE_LABELS: Record<string, string> = {
 @Component({
     selector: 'app-notifications',
     imports: [ModalComponent, NotificationSettingsComponent],
-    host: { class: 'page-enter' },
     template: `
+    <div class="page-enter">
     <div class="head">
       <h1>Notifications</h1>
       <div class="head-acts">
@@ -62,14 +62,15 @@ const TYPE_LABELS: Record<string, string> = {
       <p class="muted">No notifications{{ filter() === 'all' ? '' : ' in this category' }}.</p>
     }
 
+    </div>
+
     <app-modal
       [open]="settingsOpen()"
       title="Notification settings"
       (closed)="settingsOpen.set(false)"
     >
       <app-notification-settings />
-    </app-modal>
-  `,
+    </app-modal>`,
     styles: [
         `
       :host {
@@ -123,9 +124,6 @@ const TYPE_LABELS: Record<string, string> = {
         gap: 1rem;
         margin-bottom: 0.5rem;
         transition: box-shadow var(--transition), transform var(--transition);
-      }
-      .note.unread {
-        border-left: 3px solid var(--color-primary);
       }
       .note.clickable {
         cursor: pointer;

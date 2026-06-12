@@ -78,9 +78,7 @@ import type { NavItem } from './shell.component';
       background: var(--gradient-sidebar);
       color: #fff;
       transform: none;
-      box-shadow:
-        inset 3px 0 0 rgba(255, 255, 255, 0.25),
-        0 1px 6px rgba(201, 90, 60, 0.2);
+      box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2);
     }
     .nav-ic {
       margin-right: 0.5rem;

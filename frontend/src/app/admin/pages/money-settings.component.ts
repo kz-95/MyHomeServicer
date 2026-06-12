@@ -426,11 +426,13 @@ type FinancialTab = 'pricing' | 'rewards' | 'servicer_rules';
     styles: [
         `
       :host { display: block; }
-      /* Tab bar (shared pattern §7.7) */
-      .tabs { display: flex; border-bottom: 2px solid var(--color-border); margin-bottom: 1.2rem; }
-      .tab { background: transparent; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px;
-             padding: 0.6rem 1.2rem; color: var(--color-muted); cursor: pointer; font-size: 0.9rem; }
-      .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+      /* Tab bar (shared pill pattern §7.10) */
+      .tabs { display: flex; gap: 0.4rem; margin-bottom: 1.2rem; }
+      .tab { background: transparent; border: none; border-radius: 999px;
+             padding: 0.6rem 1.2rem; color: var(--color-muted); cursor: pointer; font-size: 0.9rem;
+             transition: background 0.15s ease, color 0.15s ease; }
+      .tab:hover:not(.active) { color: var(--color-text); background: var(--color-bg); }
+      .tab.active { background: var(--color-primary); background: var(--gradient-sidebar); color: #fff; font-weight: 600; box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2); }
       section { max-width: 680px; margin-bottom: 1.4rem; }
       h2 { margin-top: 0; font-size: 1.05rem; }
       h3 { font-size: 0.95rem; margin: 1rem 0 0.3rem; }

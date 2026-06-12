@@ -638,9 +638,10 @@ interface QForm {
     .badge.price { background: #f0fdf4; color: #166534; border-color: #f0fdf4; }
     .badge.priced { background: var(--color-primary-light); color: var(--color-primary); border-color: var(--color-primary-light); }
     .badge.off { background: var(--color-danger-bg, #f8edec); color: var(--color-danger); border-color: var(--color-danger-bg, #f8edec); }
-    .section-tabs { display: flex; border-bottom: 1px solid var(--color-border); margin-bottom: 1rem; gap: 0; }
-    .stab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 0.5rem 1rem; font-size: 0.88rem; color: var(--color-muted); cursor: pointer; }
-    .stab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+    .section-tabs { display: flex; margin-bottom: 1rem; gap: 0.4rem; }
+    .stab { background: none; border: none; border-radius: 999px; padding: 0.5rem 1rem; font-size: 0.88rem; color: var(--color-muted); cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
+    .stab:hover:not(.active) { color: var(--color-text); background: var(--color-bg); }
+    .stab.active { background: var(--color-primary); background: var(--gradient-sidebar); color: #fff; font-weight: 600; box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2); }
     .section-body { display: flex; flex-direction: column; gap: 0.7rem; }
     .section-body label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; font-weight: 500; }
     .inline-check { flex-direction: row !important; align-items: center; gap: 0.4rem !important; font-weight: 400 !important; }

@@ -141,7 +141,6 @@ interface WeekDay {
       .fee-notice {
         margin-top: 1.2rem;
         padding: 0.9rem 1rem;
-        border-left: 3px solid var(--color-primary);
         background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
       }
       .fee-notice strong { display: block; margin-bottom: 0.25rem; }

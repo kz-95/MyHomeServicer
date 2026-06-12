@@ -275,27 +275,28 @@ interface CalendarData {
     /* ── Tabs ── */
     .tabs {
       display: flex;
-      border-bottom: 2px solid var(--color-border);
+      gap: 0.4rem;
       margin: 1rem 0 0;
     }
     .tab {
       background: transparent;
       border: none;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
+      border-radius: 999px;
       padding: 0.55rem 1.2rem;
       font-size: 0.9rem;
       font-weight: 500;
       color: var(--color-muted);
       cursor: pointer;
-      transition: color var(--transition), border-color var(--transition);
+      transition: background var(--transition), color var(--transition);
     }
     .tab.active {
-      color: var(--color-primary);
-      border-bottom-color: var(--color-primary);
+      background: var(--color-primary);
+      background: var(--gradient-sidebar);
+      color: #fff;
       font-weight: 600;
+      box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2);
     }
-    .tab:hover:not(.active) { color: var(--color-text); }
+    .tab:hover:not(.active) { color: var(--color-text); background: var(--color-bg); }
 
     .tab-body { margin-top: 1.25rem; }
 

@@ -320,10 +320,10 @@ function emptyForm(tier: string): FaqForm {
     :host { display: block; }
     h2 { margin-top: 0; font-size: 1.05rem; }
 
-    .tabs { display: flex; gap: 0; margin-bottom: 1rem; border-bottom: 2px solid var(--color-border); align-items: center; }
-    .tab { background: transparent; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; padding: 0.5rem 1.1rem; font-size: 0.88rem; font-weight: 500; color: var(--color-muted); cursor: pointer; font-family: inherit; transition: color 0.15s ease, border-color 0.15s ease; }
-    .tab:hover { color: var(--color-text); }
-    .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+    .tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; align-items: center; }
+    .tab { background: transparent; border: none; border-radius: 999px; padding: 0.5rem 1.1rem; font-size: 0.88rem; font-weight: 500; color: var(--color-muted); cursor: pointer; font-family: inherit; transition: background 0.15s ease, color 0.15s ease; }
+    .tab:hover:not(.active) { color: var(--color-text); background: var(--color-bg); }
+    .tab.active { background: var(--color-primary); background: var(--gradient-sidebar); color: #fff; font-weight: 600; box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2); }
 
     section { max-width: 680px; margin-bottom: 1.4rem; }
     .err { color: var(--color-danger); font-size: 0.85rem; }

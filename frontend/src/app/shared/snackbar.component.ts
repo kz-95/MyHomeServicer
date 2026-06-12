@@ -91,10 +91,7 @@ import { PinService } from '../core/services/pin.service';
       .toast.clickable:hover {
         border-color: var(--color-primary);
       }
-      /* Important (order-lifecycle) notifications - accent bar + pill. */
-      .toast.notif.important {
-        border-left: 3px solid var(--color-danger);
-      }
+      /* Important (order-lifecycle) notifications - pill marker. */
       .t-important {
         display: inline-block;
         margin-left: 0.35rem;

@@ -781,25 +781,24 @@ const POSTCODES_PER_PAGE = 20;
       h2 { margin-top: 0; font-size: 1.05rem; }
       .tabs {
         display: flex;
-        border-bottom: 2px solid var(--color-border);
+        gap: 0.4rem;
         margin-bottom: 1rem;
         flex-wrap: wrap;
       }
       .tab {
         background: transparent;
         border: none;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -2px;
+        border-radius: 999px;
         padding: 0.6rem 1.2rem;
         font-size: 0.92rem;
         font-weight: 500;
         color: var(--color-muted);
         cursor: pointer;
         font-family: inherit;
-        transition: color 0.15s ease, border-color 0.15s ease;
+        transition: background 0.15s ease, color 0.15s ease;
       }
-      .tab:hover { color: var(--color-text); }
-      .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+      .tab:hover:not(.active) { color: var(--color-text); background: var(--color-bg); }
+      .tab.active { background: var(--color-primary); background: var(--gradient-sidebar); color: #fff; font-weight: 600; box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2); }
       .cat-select {
         display: flex;
         flex-direction: column;

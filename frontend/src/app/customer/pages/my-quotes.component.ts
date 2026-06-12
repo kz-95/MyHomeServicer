@@ -218,7 +218,6 @@ interface Address {
     }
     .load-err {
       color: var(--color-danger);
-      border-left: 3px solid var(--color-danger);
     }
     .btn-cta {
       font-size: 0.85rem;

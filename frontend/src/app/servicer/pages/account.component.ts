@@ -291,6 +291,21 @@ interface Penalty {
               }
             </div>
 
+            <!-- Service radius -->
+            <label>
+              Service radius (km)
+              <span class="muted">(how far you'll travel — used to match jobs to you)</span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                [(ngModel)]="f.serviceRadiusKm"
+                name="serviceRadiusKm"
+                placeholder="10"
+                style="max-width: 120px"
+              />
+            </label>
+
             <!-- Operating hours -->
             <label>
               Operating hours
