@@ -309,42 +309,47 @@ interface Penalty {
             <!-- Operating hours -->
             <label>
               Operating hours
-              <span class="muted">(base schedule — your weekly template)</span>
+              <span class="muted">(base schedule — your weekly template; add multiple ranges for rest breaks)</span>
             </label>
-            <div class="hours-grid">
-              @for (day of weekdays; track day) {
-                <div class="hours-row">
-                  <span class="day-label">{{ dayLabels[day] }}</span>
-                  <input
-                    class="time-input"
-                    type="text"
-                    [ngModel]="ohF[day].open"
-                    (ngModelChange)="onTimeInput(day, 'open', $event)"
-                    name="ohOpen{{day}}"
-                    placeholder="09:00"
-                    maxlength="5"
-                    (blur)="onHoursChange()"
-                    [class.err-input]="ohF[day].open && !isValidTime(ohF[day].open)"
-                  />
-                  <span class="muted">to</span>
-                  <input
-                    class="time-input"
-                    type="text"
-                    [ngModel]="ohF[day].close"
-                    (ngModelChange)="onTimeInput(day, 'close', $event)"
-                    name="ohClose{{day}}"
-                    placeholder="17:00"
-                    maxlength="5"
-                    (blur)="onHoursChange()"
-                    [class.err-input]="ohF[day].close && !isValidTime(ohF[day].close)"
-                  />
-                  @if (!ohF[day].open && !ohF[day].close) {
-                    <span class="muted small">Closed</span>
-                  }
-                </div>
-              }
-            </div>
-            <p class="muted small" style="margin-top:0.3rem">Enter time as HH:MM (24h), e.g. 08:30 or leave blank for closed.</p>
+            @if (ohEntries().length === 0) {
+              <p class="muted small">No hours set yet — add a time range below.</p>
+            } @else {
+              <div class="oh-list">
+                @for (entry of ohEntries(); track entry._key; let i = $index) {
+                  <div class="oh-entry">
+                    <select [(ngModel)]="entry.day" name="ohDay{{i}}" class="oh-day-select">
+                      @for (d of weekdays; track d) {
+                        <option [value]="d">{{ dayLabels[d] }}</option>
+                      }
+                    </select>
+                    <input
+                      class="time-input"
+                      type="text"
+                      [ngModel]="entry.open"
+                      (ngModelChange)="onTimeEntryInput(i, 'open', $event)"
+                      name="ohOpen{{i}}"
+                      placeholder="09:00"
+                      maxlength="5"
+                      [class.err-input]="entry.open && !isValidTime(entry.open)"
+                    />
+                    <span class="muted">to</span>
+                    <input
+                      class="time-input"
+                      type="text"
+                      [ngModel]="entry.close"
+                      (ngModelChange)="onTimeEntryInput(i, 'close', $event)"
+                      name="ohClose{{i}}"
+                      placeholder="17:00"
+                      maxlength="5"
+                      [class.err-input]="entry.close && !isValidTime(entry.close)"
+                    />
+                    <button class="btn-ghost oh-remove" (click)="removeOhEntry(i)" aria-label="Remove" title="Remove this time block">&times;</button>
+                  </div>
+                }
+              </div>
+            }
+            <button class="btn-ghost oh-add" (click)="addOhEntry()">+ Add time range</button>
+            <p class="muted small" style="margin-top:0.3rem">Enter time as HH:MM (24h), e.g. 08:30.</p>
             @if (profileError()) {
               <p class="err">{{ profileError() }}</p>
             }
@@ -760,12 +765,14 @@ interface Penalty {
       .sa-remove { background: none; border: none; color: inherit; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0; opacity: 0.6; transition: opacity 0.12s ease; }
       .sa-remove:hover { opacity: 1; }
 
-      /* Hours grid */
-      .hours-grid { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.5rem; }
-      .hours-row { display: flex; align-items: center; gap: 0.5rem; }
-      .day-label { width: 50px; font-size: 0.85rem; font-weight: 600; text-transform: capitalize; }
-      .hours-row .time-input { width: 80px; padding: 0.4rem 0.5rem; font-family: monospace; font-size: 0.85rem; }
+      /* Operating hours — CRUD list */
+      .oh-list { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.3rem; }
+      .oh-entry { display: flex; align-items: center; gap: 0.5rem; }
+      .oh-day-select { width: 90px; }
+      .oh-entry .time-input { width: 80px; padding: 0.4rem 0.5rem; font-family: monospace; font-size: 0.85rem; }
       .time-input.err-input { border-color: var(--color-danger); }
+      .oh-remove { font-size: 1.1rem; padding: 0 0.3rem; color: var(--color-danger); line-height: 1; }
+      .oh-add { font-size: 0.85rem; }
 
       /* Tax calculator */
       .tax-calc { border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.8rem; margin-top: 0.5rem; background: var(--color-bg); }
@@ -973,16 +980,39 @@ export class ServicerAccountComponent implements OnInit {
   deactivateError = signal<string | null>(null);
   deactivating = signal(false);
 
-  // ── Operating hours ──
-  ohF: Record<string, { open: string; close: string }> = {
-    mon: { open: '', close: '' },
-    tue: { open: '', close: '' },
-    wed: { open: '', close: '' },
-    thu: { open: '', close: '' },
-    fri: { open: '', close: '' },
-    sat: { open: '', close: '' },
-    sun: { open: '', close: '' },
-  };
+  // ── Operating hours — CRUD list ──
+  ohEntries = signal<{ _key: number; day: string; open: string; close: string }[]>([]);
+  private _ohKey = 0;
+
+  addOhEntry(): void {
+    this.ohEntries.update(list => [...list, { _key: ++this._ohKey, day: 'mon', open: '', close: '' }]);
+  }
+
+  removeOhEntry(i: number): void {
+    this.ohEntries.update(list => list.filter((_, idx) => idx !== i));
+  }
+
+  /** Auto-format time input for an oh entry: "9"→"09:00", "1130"→"11:30", etc. */
+  onTimeEntryInput(i: number, slot: 'open' | 'close', raw: string): void {
+    const digits = raw.replace(/\D/g, '').slice(0, 4);
+    if (!digits) {
+      this.ohEntries.update(list => list.map((e, idx) => idx === i ? { ...e, [slot]: '' } : e));
+      return;
+    }
+    let formatted = '';
+    if (digits.length <= 2) {
+      const h = parseInt(digits, 10);
+      if (h > 23) return;
+      formatted = String(h).padStart(2, '0') + ':00';
+    } else {
+      const h = parseInt(digits.slice(0, 2), 10);
+      const m = parseInt(digits.slice(2, 4), 10);
+      if (h > 23) return;
+      const mm = Math.min(m, 59);
+      formatted = String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+    }
+    this.ohEntries.update(list => list.map((e, idx) => idx === i ? { ...e, [slot]: formatted } : e));
+  }
 
   ngOnInit(): void {
     this.api.get<ServicerProfile>("/servicer/me").subscribe({
@@ -1011,12 +1041,13 @@ export class ServicerAccountComponent implements OnInit {
         // Seed operating hours from profile
         if (p.operatingHours) {
           const oh = p.operatingHours as Record<string, { open?: string; close?: string }>;
+          const entries: { _key: number; day: string; open: string; close: string }[] = [];
           for (const day of this.weekdays) {
-            if (oh[day]) {
-              this.ohF[day].open = oh[day].open || '';
-              this.ohF[day].close = oh[day].close || '';
+            if (oh[day]?.open && oh[day]?.close) {
+              entries.push({ _key: ++this._ohKey, day, open: oh[day].open!, close: oh[day].close! });
             }
           }
+          if (entries.length > 0) this.ohEntries.set(entries);
         }
       },
       error: () => { this.loading.set(false); this.profileFailed.set(true); },
@@ -1078,18 +1109,18 @@ export class ServicerAccountComponent implements OnInit {
     const serviceAreas = this.f.serviceAreaList.map(s => s.trim()).filter(Boolean);
 
     // Validate time inputs
-    for (const day of this.weekdays) {
-      const open = this.ohF[day].open?.trim();
-      const close = this.ohF[day].close?.trim();
-      if (open && !this.isValidTime(open)) { this.profileError.set(`Invalid open time for ${this.dayLabels[day]}: use HH:MM (24h)`); this.savingProfile.set(false); return; }
-      if (close && !this.isValidTime(close)) { this.profileError.set(`Invalid close time for ${this.dayLabels[day]}: use HH:MM (24h)`); this.savingProfile.set(false); return; }
+    for (const entry of this.ohEntries()) {
+      const open = entry.open?.trim();
+      const close = entry.close?.trim();
+      if (!open || !close) { this.profileError.set('Each time range needs both an open and close time.'); this.savingProfile.set(false); return; }
+      if (!this.isValidTime(open)) { this.profileError.set(`Invalid open time "${open}": use HH:MM (24h)`); this.savingProfile.set(false); return; }
+      if (!this.isValidTime(close)) { this.profileError.set(`Invalid close time "${close}": use HH:MM (24h)`); this.savingProfile.set(false); return; }
     }
 
     const oh: Record<string, { open: string; close: string }> = {};
-    for (const day of this.weekdays) {
-      if (this.ohF[day].open && this.ohF[day].close) {
-        oh[day] = { open: this.ohF[day].open, close: this.ohF[day].close };
-      }
+    for (const entry of this.ohEntries()) {
+      const d = entry.day;
+      if (!oh[d]) oh[d] = { open: entry.open.trim(), close: entry.close.trim() };
     }
     this.api.patch<ServicerProfile>("/servicer/me", {
       serviceAreas: serviceAreas.length ? serviceAreas : undefined,
@@ -1207,31 +1238,6 @@ export class ServicerAccountComponent implements OnInit {
 
   removeServiceArea(index: number): void {
     this.f.serviceAreaList = this.f.serviceAreaList.filter((_, i) => i !== index);
-  }
-
-  onHoursChange(): void { /* no-op, just tracks changes */ }
-
-  /** Auto-format time input as the user types: "9"→"09:00", "1130"→"11:30", etc. */
-  onTimeInput(day: string, slot: 'open' | 'close', raw: string): void {
-    // Strip non-digits
-    const digits = raw.replace(/\D/g, '').slice(0, 4);
-    if (!digits) { this.ohF[day][slot] = ''; return; }
-
-    let formatted = '';
-    if (digits.length <= 2) {
-      // 1-2 digits: treat as hour, pad to HH:00
-      const h = parseInt(digits, 10);
-      if (h > 23) return; // reject invalid while typing
-      formatted = String(h).padStart(2, '0') + ':00';
-    } else {
-      // 3-4 digits: HHMM → HH:MM
-      const h = parseInt(digits.slice(0, 2), 10);
-      const m = parseInt(digits.slice(2, 4), 10);
-      if (h > 23) return;
-      const mm = Math.min(m, 59);
-      formatted = String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
-    }
-    this.ohF[day][slot] = formatted;
   }
 
   isValidTime(val: string): boolean {

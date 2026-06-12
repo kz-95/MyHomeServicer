@@ -24,11 +24,12 @@
 **Nav cleanup:**
 - Removed redundant dashboard/stats block (earnings chart, stat-row, chart) from jobs component history tab. History view now shows only the jobs list.
 
-**Follow-up 2026-06-12 — Operating hours editor:**
-- Replaced limited dropdown selects (8-11AM open, 5-10PM close only) with free-form `HH:MM` (24h) text inputs.
-- Regex validation: `^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$` — red border on invalid, cleared on empty.
-- Auto-format on input: strips non-digits, `"9"`→`"09:00"`, `"1130"`→`"11:30"`, `"150"`→`"15:00"`. Validation deferred to blur so mid-type states don't flash errors.
-- SaveServices validates all time inputs before submitting.
+**Follow-up 2026-06-12 — Operating hours CRUD editor:**
+- Replaced fixed 7-day grid with a dynamic CRUD list: [Add time range] button, [day select] + [time from] + [time to] + [× delete] per entry.
+- Supports multiple ranges per day for rest breaks (e.g. Mon 9-12 and Mon 2-5).
+- Initial: replaced limited dropdown selects (8-11AM open, 5-10PM close only) with free-form `HH:MM` (24h) text inputs with regex validation and auto-format on input (`"9"`→`"09:00"`, `"1130"`→`"11:30"`).
+- Save validates all entries have both open+close in valid HH:MM format.
+- Backend payload unchanged (weekday-keyed object `{mon: {open,close}, ...}`).
 
 ## Session 2026-06-04 — LLM API Keys admin page UX overhaul
 
