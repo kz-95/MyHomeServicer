@@ -299,26 +299,34 @@ interface Penalty {
               @for (day of weekdays; track day) {
                 <div class="hours-row">
                   <span class="day-label">{{ dayLabels[day] }}</span>
-                  <select [(ngModel)]="ohF[day].open" name="ohOpen{{day}}" (change)="onHoursChange()">
-                    <option value="">Closed</option>
-                    <option value="08:00">8:00 AM</option>
-                    <option value="09:00">9:00 AM</option>
-                    <option value="10:00">10:00 AM</option>
-                    <option value="11:00">11:00 AM</option>
-                  </select>
+                  <input
+                    class="time-input"
+                    type="text"
+                    [(ngModel)]="ohF[day].open"
+                    name="ohOpen{{day}}"
+                    placeholder="09:00"
+                    maxlength="5"
+                    (input)="onHoursChange()"
+                    [class.err-input]="ohF[day].open && !isValidTime(ohF[day].open)"
+                  />
                   <span class="muted">to</span>
-                  <select [(ngModel)]="ohF[day].close" name="ohClose{{day}}" (change)="onHoursChange()">
-                    <option value="">—</option>
-                    <option value="17:00">5:00 PM</option>
-                    <option value="18:00">6:00 PM</option>
-                    <option value="19:00">7:00 PM</option>
-                    <option value="20:00">8:00 PM</option>
-                    <option value="21:00">9:00 PM</option>
-                    <option value="22:00">10:00 PM</option>
-                  </select>
+                  <input
+                    class="time-input"
+                    type="text"
+                    [(ngModel)]="ohF[day].close"
+                    name="ohClose{{day}}"
+                    placeholder="17:00"
+                    maxlength="5"
+                    (input)="onHoursChange()"
+                    [class.err-input]="ohF[day].close && !isValidTime(ohF[day].close)"
+                  />
+                  @if (!ohF[day].open && !ohF[day].close) {
+                    <span class="muted small">Closed</span>
+                  }
                 </div>
               }
             </div>
+            <p class="muted small" style="margin-top:0.3rem">Enter time as HH:MM (24h), e.g. 08:30 or leave blank for closed.</p>
             @if (profileError()) {
               <p class="err">{{ profileError() }}</p>
             }
@@ -720,7 +728,6 @@ interface Penalty {
       /* Contacts */
       .contact-row { display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.5rem; margin: 0 -0.5rem; border-bottom: 1px solid var(--color-border); border-radius: var(--radius); transition: background 0.12s ease; }
       .contact-row:hover { background: var(--color-surface); }
-      .contact-row.primary { border-left: 3px solid var(--color-primary); padding-left: calc(0.5rem - 3px); }
       .contact-info { flex: 1; }
       .contact-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
       .inline-check { flex-direction: row; align-items: center; gap: 0.3rem; font-weight: 400; font-size: 0.8rem; }
@@ -739,7 +746,8 @@ interface Penalty {
       .hours-grid { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.5rem; }
       .hours-row { display: flex; align-items: center; gap: 0.5rem; }
       .day-label { width: 50px; font-size: 0.85rem; font-weight: 600; text-transform: capitalize; }
-      .hours-row select { width: 110px; }
+      .hours-row .time-input { width: 80px; padding: 0.4rem 0.5rem; font-family: monospace; font-size: 0.85rem; }
+      .time-input.err-input { border-color: var(--color-danger); }
 
       /* Tax calculator */
       .tax-calc { border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.8rem; margin-top: 0.5rem; background: var(--color-bg); }
@@ -1048,6 +1056,15 @@ export class ServicerAccountComponent implements OnInit {
     this.savingProfile.set(true);
     this.profileError.set("");
     const serviceAreas = this.f.serviceAreaList.map(s => s.trim()).filter(Boolean);
+
+    // Validate time inputs
+    for (const day of this.weekdays) {
+      const open = this.ohF[day].open?.trim();
+      const close = this.ohF[day].close?.trim();
+      if (open && !this.isValidTime(open)) { this.profileError.set(`Invalid open time for ${this.dayLabels[day]}: use HH:MM (24h)`); this.savingProfile.set(false); return; }
+      if (close && !this.isValidTime(close)) { this.profileError.set(`Invalid close time for ${this.dayLabels[day]}: use HH:MM (24h)`); this.savingProfile.set(false); return; }
+    }
+
     const oh: Record<string, { open: string; close: string }> = {};
     for (const day of this.weekdays) {
       if (this.ohF[day].open && this.ohF[day].close) {
@@ -1172,6 +1189,11 @@ export class ServicerAccountComponent implements OnInit {
   }
 
   onHoursChange(): void { /* no-op, just tracks changes */ }
+
+  isValidTime(val: string): boolean {
+    if (!val) return true; // empty is ok (means closed)
+    return /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/.test(val.trim());
+  }
 
   // ── Contacts CRUD ──
   openContactForm(c?: ServicerContact): void {
