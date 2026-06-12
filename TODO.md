@@ -15,7 +15,7 @@ full field audit + security note** recorded in
 - SP-2 `isOnline` manual toggle — deferred
 - SP-3 service listings (radius, maxAutoAccepts, contact prefill) — deferred
 - SP-4 role switch toggle — deferred
-- **SP-5 Business Profile restructure — brainstorm active** (single page, new `ServicerContact` multi-contact model, tax calculator + invoice preview, operating-hours→calendar one-way sync)
+- **SP-5 Business Profile restructure — ✅ IMPLEMENTED 2026-06-12** — schema (`ServicerContact` model + migration with seed backfill), backend (contact CRUD, updated profile endpoints, `backupEmail` on customer update, auto-derived `isCompany`, public profile with `visibleToCustomer` contacts, categoryId change-request via identity pipeline), frontend (single Business Profile page with 7 sections, business contacts CRUD, tax config + calculator, operating hours editor, service areas, bank editor moved to deposit page, backupEmail on customer account, nav cleanup removing redundant dashboard from jobs history).
 - SP-6 KYC document upload UI — deferred
 - CAL calendar reroute → `/calendar/schedule` + `/calendar/workhours`
 - ⚠️ Security: `pin-prompt.component.ts:19` `false &&` disables gate-cover (uncommitted repro toggle) — restore before commit

@@ -28,6 +28,8 @@ interface Profile {
   contactName?: string | null;
   contactNumber?: string | null;
   preferredTimeSlot?: string | null;
+  backupEmail?: string | null;
+  avatarUrl?: string | null;
 }
 interface Address {
   id: string;
@@ -113,6 +115,11 @@ interface QuotePreset {
               <option value="evening">Evening (15:00–17:00)</option>
               <option value="night">Night (17:00–22:00)</option>
             </select>
+          </label>
+          <label>
+            Backup email
+            <span class="muted">(optional - recovery email)</span>
+            <input [(ngModel)]="p.backupEmail" name="bemail" type="email" placeholder="backup@example.com" />
           </label>
         </div>
         <button class="btn-primary" (click)="saveProfile()" [disabled]="savingProfile()">
@@ -960,10 +967,10 @@ export class AccountComponent implements OnInit {
 
   saveProfile(): void {
     this.savingProfile.set(true);
-    const { name, phone, contactName, contactNumber, preferredTimeSlot } = this.p;
+    const { name, phone, contactName, contactNumber, preferredTimeSlot, backupEmail } = this.p;
     const avatarUrl = this.avatarUrl();
     this.api
-      .patch('/user/me', { name, phone, contactName, contactNumber, preferredTimeSlot, avatarUrl })
+      .patch('/user/me', { name, phone, contactName, contactNumber, preferredTimeSlot, avatarUrl, backupEmail: backupEmail || null })
       .subscribe({
         next: () => {
           this.savingProfile.set(false);

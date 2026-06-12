@@ -5,11 +5,16 @@ import { recordTransaction } from './ledger.service';
 import { getSetting } from './settings.service';
 import { notifyWithdrawalSubmitted } from './admin.service';
 
-/** Servicer profile with deposit + credit. */
+/** Servicer profile with deposit + credit + contacts + tax config. */
 export async function getMerchantProfile(merchantId: string) {
   const m = await prisma.servicer.findUnique({
     where: { id: merchantId },
-    include: { deposit: true, category: true },
+    include: {
+      deposit: true,
+      category: true,
+      contacts: { orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }] },
+      identityChangeRequests: { orderBy: { createdAt: 'desc' }, take: 10 },
+    },
   });
   if (!m) throw notFound('Servicer not found');
   return {
@@ -25,6 +30,14 @@ export async function getMerchantProfile(merchantId: string) {
     bio: m.bio,
     logoUrl: m.logoUrl,
     isCompany: m.isCompany,
+    entityType: m.entityType,
+    taxNumber: m.taxNumber,
+    businessRegistrationNumber: m.businessRegistrationNumber,
+    kycStatus: m.kycStatus,
+    sstRegistered: m.sstRegistered,
+    sstNumber: m.sstNumber,
+    serviceChargeRate: Number(m.serviceChargeRate),
+    taxInclusive: m.taxInclusive,
     serviceAreas: m.serviceAreas,
     rating: m.rating,
     isOnline: m.isOnline,
@@ -39,7 +52,11 @@ export async function getMerchantProfile(merchantId: string) {
     invoicePadding: m.invoicePadding,
     // The fixed platform "big category" this merchant operates under.
     category: { id: m.category.id, name: m.category.name, slug: m.category.slug, imageUrl: m.category.imageUrl },
+    categoryId: m.categoryId,
     deposit: m.deposit,
+    contacts: m.contacts,
+    identityChangeRequests: m.identityChangeRequests,
+    operatingHours: m.operatingHours,
   };
 }
 
@@ -376,7 +393,7 @@ function getMondayOfCurrentWeek(): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + diff));
 }
 
-/** Update editable profile fields (bio, serviceAreas, logo, invoice settings, visibility, invoice content, bank). */
+/** Update editable profile fields (bio, serviceAreas, logo, invoice settings, visibility, invoice content, bank, tax config, business details). */
 export async function updateMerchantProfile(
   merchantId: string,
   data: {
@@ -393,27 +410,60 @@ export async function updateMerchantProfile(
     invoiceSuffix?: string;
     bankName?: string;
     bankAccount?: string;
+    // Tax config
+    sstRegistered?: boolean;
+    sstNumber?: string;
+    serviceChargeRate?: number;
+    taxInclusive?: boolean;
+    // Business identity
+    businessName?: string;
+    entityType?: string;
+    businessRegistrationNumber?: string;
+    taxNumber?: string;
+    operatingHours?: unknown;
+    categoryId?: string;
   },
 ) {
   const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
   if (!merchant) throw notFound('Servicer not found');
+
+  // Auto-derive isCompany from entityType
+  const effectiveEntityType = data.entityType !== undefined ? data.entityType : merchant.entityType;
+  const isCompany = effectiveEntityType && effectiveEntityType !== 'sole_proprietorship';
+
+  const updateData: Record<string, unknown> = {};
+  if (data.bio !== undefined) updateData['bio'] = data.bio;
+  if (data.logoUrl !== undefined) updateData['logoUrl'] = data.logoUrl;
+  if (data.serviceAreas !== undefined) updateData['serviceAreas'] = data.serviceAreas;
+  if (data.invoicePrefix !== undefined) updateData['invoicePrefix'] = data.invoicePrefix;
+  if (data.invoiceYearFormat !== undefined) updateData['invoiceYearFormat'] = data.invoiceYearFormat;
+  if (data.invoiceSeparator !== undefined) updateData['invoiceSeparator'] = data.invoiceSeparator;
+  if (data.invoicePadding !== undefined) updateData['invoicePadding'] = data.invoicePadding;
+  if (data.showEmailPublic !== undefined) updateData['showEmailPublic'] = data.showEmailPublic;
+  if (data.showPhonePublic !== undefined) updateData['showPhonePublic'] = data.showPhonePublic;
+  if (data.invoiceContent !== undefined) updateData['invoiceContent'] = data.invoiceContent;
+  if (data.invoiceSuffix !== undefined) updateData['invoiceSuffix'] = data.invoiceSuffix;
+  if (data.bankName !== undefined) updateData['bankName'] = data.bankName;
+  if (data.bankAccount !== undefined) updateData['bankAccount'] = data.bankAccount;
+  // Tax config
+  if (data.sstRegistered !== undefined) updateData['sstRegistered'] = data.sstRegistered;
+  if (data.sstNumber !== undefined) updateData['sstNumber'] = data.sstNumber;
+  if (data.serviceChargeRate !== undefined) updateData['serviceChargeRate'] = data.serviceChargeRate;
+  if (data.taxInclusive !== undefined) updateData['taxInclusive'] = data.taxInclusive;
+  // Business identity
+  if (data.businessName !== undefined) updateData['businessName'] = data.businessName;
+  if (data.entityType !== undefined) {
+    updateData['entityType'] = data.entityType;
+    updateData['isCompany'] = isCompany;
+  }
+  if (data.businessRegistrationNumber !== undefined) updateData['businessRegistrationNumber'] = data.businessRegistrationNumber;
+  if (data.taxNumber !== undefined) updateData['taxNumber'] = data.taxNumber;
+  if (data.operatingHours !== undefined) updateData['operatingHours'] = data.operatingHours;
+  if (data.categoryId !== undefined) updateData['categoryId'] = data.categoryId;
+
   return prisma.servicer.update({
     where: { id: merchantId },
-    data: {
-      bio: data.bio,
-      logoUrl: data.logoUrl,
-      serviceAreas: data.serviceAreas,
-      invoicePrefix: data.invoicePrefix,
-      invoiceYearFormat: data.invoiceYearFormat,
-      invoiceSeparator: data.invoiceSeparator,
-      invoicePadding: data.invoicePadding,
-      showEmailPublic: data.showEmailPublic,
-      showPhonePublic: data.showPhonePublic,
-      invoiceContent: data.invoiceContent,
-      invoiceSuffix: data.invoiceSuffix,
-      bankName: data.bankName,
-      bankAccount: data.bankAccount,
-    },
+    data: updateData,
   });
 }
 

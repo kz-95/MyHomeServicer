@@ -51,6 +51,8 @@ userRouter.get(
       contactName: user.contactName,
       contactNumber: user.contactNumber,
       preferredTimeSlot: user.preferredTimeSlot,
+      avatarUrl: user.avatarUrl,
+      backupEmail: user.backupEmail,
     });
   }),
 );
@@ -67,15 +69,22 @@ userRouter.patch(
       .optional({ values: 'null' })
       .isIn([...TIME_SLOTS]),
     body('avatarUrl').optional({ values: 'null' }).isString(),
+    body('backupEmail').optional({ values: 'null' }).isEmail(),
   ]),
   asyncHandler(async (req, res) => {
-    const { name, phone, contactName, contactNumber, preferredTimeSlot, avatarUrl } =
+    const { name, phone, contactName, contactNumber, preferredTimeSlot, avatarUrl, backupEmail } =
       req.body;
     const user = await prisma.user.update({
       where: { id: req.user!.id },
-      data: { name, phone, contactName, contactNumber, preferredTimeSlot, avatarUrl },
+      data: {
+        name, phone, contactName, contactNumber, preferredTimeSlot, avatarUrl,
+        ...(backupEmail !== undefined ? { backupEmail: backupEmail || null } : {}),
+      },
     });
-    res.json({ id: user.id, name: user.name, phone: user.phone, avatarUrl: user.avatarUrl });
+    res.json({
+      id: user.id, name: user.name, phone: user.phone, avatarUrl: user.avatarUrl,
+      backupEmail: user.backupEmail,
+    });
   }),
 );
 

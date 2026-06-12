@@ -337,61 +337,6 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
 
       <!-- ── History - completed / cancelled ────────────────────────────── -->
       @if (tab() === 'history') {
-        <section class="card summary page-child">
-          <div class="summary-head">
-            <div class="range-toggle">
-              <button class="range-btn" [class.on]="earningsDays() === 7" (click)="setEarningsRange(7)">7 days</button>
-              <button class="range-btn" [class.on]="earningsDays() === 30" (click)="setEarningsRange(30)">30 days</button>
-            </div>
-            <span class="muted">Last {{ earningsDays() }} days</span>
-          </div>
-          @if (loadingEarnings()) {
-            <p class="muted">Loading earnings…</p>
-          } @else if (earningsFailed()) {
-            <p class="load-err">Could not load earnings data.</p>
-          } @else {
-            <div class="stat-row">
-              <div class="stat">
-                <span class="n">RM {{ historySummary().totalEarnings | number: '1.2-2' }}</span>
-                <span class="muted">Total earned</span>
-              </div>
-              <div class="stat">
-                <span class="n">{{ historySummary().totalJobs }}</span>
-                <span class="muted">Completed jobs</span>
-              </div>
-              <div class="stat">
-                <span class="n">
-                  RM {{ historySummary().totalJobs > 0
-                    ? (historySummary().totalEarnings / historySummary().totalJobs | number: '1.2-2')
-                    : '0.00' }}
-                </span>
-                <span class="muted">Avg per job</span>
-              </div>
-            </div>
-            @if (chartDays().length) {
-              <div class="chart" aria-hidden="true">
-                @for (d of chartDays(); track d.date) {
-                  <div class="bar-col" [title]="d.date + ': RM ' + d.earnings" (click)="filterByDay(d.date)" [class.bar-selected]="selectedDay() === d.date">
-                    <div class="bar-track">
-                      <div class="bar" [style.height.%]="barHeight(d.earnings)"></div>
-                    </div>
-                  </div>
-                }
-              </div>
-              <div class="chart-labels">
-                <span>{{ earningsDays() }} days ago</span>
-                <span>Today</span>
-              </div>
-              @if (selectedDay()) {
-                <div class="day-filter">
-                  Showing {{ selectedDay() }}
-                  <button class="btn-ghost btn-sm" (click)="selectedDay.set(null)">Clear ×</button>
-                </div>
-              }
-            }
-          }
-        </section>
-
         @if (loadingHistory()) {
           <p class="muted small">Loading…</p>
         } @else {

@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -188,6 +188,35 @@ interface VoucherInfo {
       }
     </section>
 
+    <!-- Bank account -->
+    <section class="card page-child">
+      <h3>Bank Account</h3>
+      <p class="muted small">
+        Your bank details are used for withdrawals. Must be set before you can take jobs.
+      </p>
+      <div class="form" style="max-width: 420px;">
+        <label>
+          Bank name
+          <input [(ngModel)]="bankF.name" name="bankName" placeholder="e.g. CIMB, Maybank" />
+        </label>
+        <label>
+          Account number
+          <input [(ngModel)]="bankF.account" name="bankAccount" placeholder="e.g. 1234-567-890" />
+        </label>
+        @if (bankSavingError()) {
+          <p class="err">{{ bankSavingError() }}</p>
+        }
+        @if (bankSavedMsg()) {
+          <p class="success-msg">{{ bankSavedMsg() }}</p>
+        }
+        <div class="form-actions">
+          <button class="btn-primary" (click)="saveBank()" [disabled]="savingBank()">
+            {{ savingBank() ? 'Saving…' : 'Save bank details' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- Withdrawal -->
     <section class="card page-child">
       <h3>Withdraw credit</h3>
@@ -201,7 +230,7 @@ interface VoucherInfo {
             Withdraw to: <strong>{{ p.bankName }}</strong> · {{ maskAccount(p.bankAccount) }}
           </p>
         } @else {
-          <p class="warn">No bank account set. <a routerLink="/servicer/account">Go to Account Settings</a></p>
+          <p class="warn">No bank account set. <a href="javascript:void(0)" (click)="scrollToBank()">Set bank account above</a></p>
         }
       }
       <div class="withdraw-row">
@@ -532,6 +561,41 @@ export class ServicerDepositComponent implements OnInit {
   // Profile (for bank info)
   profile = signal<{ bankName?: string | null; bankAccount?: string | null } | null>(null);
 
+  // ── Bank account editor ──
+  bankF = { name: '', account: '' };
+  savingBank = signal(false);
+  bankSavingError = signal('');
+  bankSavedMsg = signal('');
+  scrollToBank(): void {
+    const el = document.querySelector('.card.page-child:nth-of-type(3)');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  saveBank(): void {
+    this.bankSavingError.set('');
+    this.bankSavedMsg.set('');
+    if (!this.bankF.name.trim() || !this.bankF.account.trim()) {
+      this.bankSavingError.set('Both bank name and account number are required.');
+      return;
+    }
+    this.savingBank.set(true);
+    this.api.patch('/servicer/me', {
+      bankName: this.bankF.name.trim(),
+      bankAccount: this.bankF.account.trim(),
+    }).subscribe({
+      next: (updated: any) => {
+        this.profile.update((p) => p ? { ...p, bankName: this.bankF.name.trim(), bankAccount: this.bankF.account.trim() } : p);
+        this.savingBank.set(false);
+        this.bankSavedMsg.set('Bank details saved.');
+        setTimeout(() => this.bankSavedMsg.set(''), 3000);
+      },
+      error: (e: any) => {
+        this.savingBank.set(false);
+        this.bankSavingError.set(e.message ?? 'Could not save bank details');
+      },
+    });
+  }
+
   ngOnInit(): void {
     this.loadBalance();
     this.loadCreditLog();
@@ -572,7 +636,11 @@ export class ServicerDepositComponent implements OnInit {
 
   private loadProfile(): void {
     this.api.get<{ bankName?: string | null; bankAccount?: string | null }>('/servicer/me').subscribe({
-      next: (p) => this.profile.set(p),
+      next: (p) => {
+        this.profile.set(p);
+        this.bankF.name = p.bankName ?? '';
+        this.bankF.account = p.bankAccount ?? '';
+      },
       error: () => {},
     });
   }

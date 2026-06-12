@@ -280,12 +280,14 @@ Verify the admin action PIN before performing a sensitive operation. Frontend sh
   "phone": "+60 12-345 ****",
   "contactName": "...",
   "contactNumber": "...",
-  "preferredTimeSlot": "morning"
+  "preferredTimeSlot": "morning",
+  "avatarUrl": "...",
+  "backupEmail": "sarah@backup.com"
 }
 ```
 
 ### `PATCH /user/me`
-Update any field above. All optional.
+Update any field above. All optional. Now accepts `backupEmail` (string | null) for recovery email.
 
 ### `GET /user/me/addresses`
 **Response:** `{ "data": [{ "id", "label", "address", "propertyType", "postcode", "district", "state", "isDefault" }] }`
@@ -556,7 +558,7 @@ Repost an expired quote with same data.
 ## Servicer endpoints (public)
 
 ### `GET /servicers/:id`
-Public servicer profile.
+Public servicer profile. Includes `contacts` array with only `visibleToCustomer` contacts (replaces deprecated `showEmailPublic`/`showPhonePublic`).
 
 ### `GET /servicers/:id/services`
 Active services offered.
@@ -590,7 +592,7 @@ paired `USER` on first call.
 ```
 
 ### `PATCH /servicer/me`
-Update profile fields. All optional. Non-legal fields (`bio`, `serviceAreas`, `invoicePrefix`, `invoiceYearFormat`, `invoiceSeparator`, `invoicePadding`, `businessName`, `serviceChargeRate`, `taxInclusive`, `logoUrl`) save directly. Legal-identity fields (`entityType`, `businessRegistrationNumber`, `taxNumber`, `sstNumber`) create a `ServicerIdentityChangeRequest` for admin review before being applied.
+Update profile fields. All optional. Non-legal fields (`bio`, `serviceAreas`, `invoicePrefix`, `invoiceYearFormat`, `invoiceSeparator`, `invoicePadding`, `businessName`, `serviceChargeRate`, `taxInclusive`, `sstRegistered`, `sstNumber`, `logoUrl`, `bankName`, `bankAccount`, `operatingHours`) save directly. Legal-identity fields (`entityType`, `businessRegistrationNumber`, `taxNumber`) create a `ServicerIdentityChangeRequest` for admin review before being applied. Entity type updates auto-derive `isCompany` (sole_proprietorship → false, others → true).
 
 **Auth:** Bearer (servicer)
 **Request:**
@@ -603,18 +605,20 @@ Update profile fields. All optional. Non-legal fields (`bio`, `serviceAreas`, `i
   "invoiceYearFormat": "YYYY",
   "invoiceSeparator": "-",
   "invoicePadding": 4,
-  "businessName": "Ahmad Plumbing",
   "serviceChargeRate": 0.05,
   "taxInclusive": false,
-  "entityType": "sdn_bhd",
   "sstRegistered": true,
   "sstNumber": "SST-12345678",
+  "entityType": "sdn_bhd",
   "businessRegistrationNumber": "202401000123",
   "taxNumber": "C-1234567890",
   "showEmailPublic": true,
   "showPhonePublic": false,
   "invoiceContent": "Thank you for your business!",
-  "invoiceSuffix": "A"
+  "invoiceSuffix": "A",
+  "bankName": "Maybank",
+  "bankAccount": "1234-567-890",
+  "operatingHours": { "mon": { "open": "09:00", "close": "17:00" } }
 }
 ```
 **Response 200:** Updated servicer profile. `identityChangePending: true` when legal fields were submitted for review.
@@ -737,6 +741,69 @@ Verify a PIN without changing it. Returns `{ ok: boolean }`.
 { "pin": "123456" }
 ```
 **Response 200:** `{ "ok": true }`
+
+---
+
+### Business Contacts (SP-5)
+
+### `GET /servicer/contacts`
+List all business contacts for the authenticated servicer.
+
+**Auth:** Bearer (servicer)
+**Response 200:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "servicerId": "uuid",
+      "contactPerson": "Ahmad",
+      "number": "60123456789",
+      "email": "ahmad@example.com",
+      "isPrimary": true,
+      "visibleToCustomer": true,
+      "createdAt": "2026-06-12T...",
+      "updatedAt": "2026-06-12T..."
+    }
+  ]
+}
+```
+
+### `POST /servicer/contacts`
+Create a new business contact. Max 10 per servicer.
+
+**Auth:** Bearer (servicer)
+**Request:**
+```json
+{
+  "contactPerson": "Ahmad",
+  "number": "60123456789",
+  "email": "ahmad@example.com",
+  "isPrimary": true,
+  "visibleToCustomer": true
+}
+```
+**Response 201:** The created contact object.
+**Errors:**
+- 400 — `contactPerson` required, at least one of `number`/`email` required, ≥10 contacts limit hit
+
+### `PATCH /servicer/contacts/:id`
+Update an existing contact.
+
+**Auth:** Bearer (servicer)
+**Request:** Any subset of fields above.
+**Errors:**
+- 400 — Cannot make the only remaining contact-name/number/email empty
+- 404 — Contact not found
+
+### `DELETE /servicer/contacts/:id`
+Delete a contact.
+
+**Auth:** Bearer (servicer)
+**Response 204:** No content.
+**Errors:**
+- 400 — Cannot delete the only contact or the primary contact
+- 404 — Contact not found
 
 ---
 

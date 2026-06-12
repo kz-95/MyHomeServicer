@@ -2,6 +2,31 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-12 — SP-5 Servicer Business Profile restructure
+
+**Schema + migration:**
+- Added `ServicerContact` model (`business_contacts` table) with 9 fields: id, servicerId FK, contactPerson, number, email, isPrimary, visibleToCustomer, timestamps.
+- Added `contacts` relation to Servicer model.
+- Migration `20260612050945_sp5_servicer_contacts` created and applied.
+- Seed backfill: one primary ServicerContact per existing servicer from name/phone; visibleToCustomer = showPhonePublic||showEmailPublic; Servicer.email kept as login email (not in contacts).
+
+**New service:**
+- Created `servicer-contact.service.ts` with CRUD functions: listContacts, createContact (validates: name required, number OR email, ≥1/≤10), updateContact, deleteContact (cannot delete last/primary).
+
+**Route changes:**
+- Added 4 contact CRUD routes under `/servicer/contacts` (GET, POST, PATCH, DELETE).
+- Updated PATCH `/servicer/me` validators to include tax config, business identity, operatingHours fields.
+- Updated identity change service to accept `categoryId` in approved changes.
+
+**Profile changes:**
+- `getMerchantProfile` now includes: contacts, entityType, taxNumber, businessRegistrationNumber, kycStatus, sstRegistered, sstNumber, serviceChargeRate, taxInclusive, identityChangeRequests, operatingHours, categoryId.
+- `updateMerchantProfile` auto-derives `isCompany` from entityType (sole_proprietorship=false, else true). Accepts all new tax/business/operatingHours fields.
+- Public profile (`GET /servicers/:id`) now renders `visibleToCustomer` contacts; stopped reading `showEmailPublic`/`showPhonePublic`.
+
+**Customer endpoint:**
+- `PATCH /user/me` now accepts `backupEmail`.
+- `GET /user/me` now returns `backupEmail`.
+
 ## Session 2026-06-04 — LLM API Keys routes: validate middleware fix + models endpoint
 
 ### validate middleware broken in all llm-keys routes

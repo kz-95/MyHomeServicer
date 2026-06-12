@@ -79,6 +79,12 @@ import { getPlatformFeeRate, getSstRate } from '../services/settings.service';
 import { transferBalance, requestWithdrawal as depositRequestWithdrawal } from '../services/deposit.service';
 import { createIdentityChangeRequest } from '../services/identity-change.service';
 import { switchToCustomer } from '../services/auth.service';
+import {
+  listContacts,
+  createContact,
+  updateContact,
+  deleteContact,
+} from '../services/servicer-contact.service';
 
 /**
  * Servicer self-service router (`/merchant/*`). Quote endpoints land in
@@ -188,6 +194,18 @@ servicerRouter.patch(
     body('invoiceSuffix').optional().isString().trim().isLength({ max: 20 }),
     body('bankName').optional().isString().trim().notEmpty(),
     body('bankAccount').optional().isString().trim().notEmpty(),
+    // Tax config
+    body('sstRegistered').optional().isBoolean(),
+    body('sstNumber').optional({ values: 'null' }).isString().trim(),
+    body('serviceChargeRate').optional().isFloat({ min: 0, max: 100 }),
+    body('taxInclusive').optional().isBoolean(),
+    // Business identity
+    body('businessName').optional().isString().trim().notEmpty(),
+    body('entityType').optional({ values: 'null' }).isIn(['sole_proprietorship', 'partnership', 'enterprise', 'sdn_bhd']),
+    body('businessRegistrationNumber').optional({ values: 'null' }).isString().trim(),
+    body('taxNumber').optional({ values: 'null' }).isString().trim(),
+    // Operating hours
+    body('operatingHours').optional(),
   ]),
   asyncHandler(async (req, res) => {
     res.json(await updateMerchantProfile(req.user!.id, req.body));
@@ -486,6 +504,8 @@ const serviceValidators = [
   body('taxRate').optional({ values: 'null' }).isFloat({ min: 0, max: 100 }),
   // Phase 6: modifiers is now an OptionPriceMap object, not an array.
   body('modifiers').optional({ values: 'null' }).isObject(),
+  body('imageUrl').optional({ values: 'null' }).isString().trim(),
+  body('published').optional().isBoolean(),
 ];
 
 /** Partial validators for PATCH — same rules but all fields optional. */
@@ -500,6 +520,8 @@ const servicePatchValidators = [
   body('taxName').optional({ values: 'null' }).isString().trim(),
   body('taxRate').optional({ values: 'null' }).isFloat({ min: 0, max: 100 }),
   body('modifiers').optional({ values: 'null' }).isObject(),
+  body('imageUrl').optional({ values: 'null' }).isString().trim(),
+  body('published').optional().isBoolean(),
 ];
 
 /** POST /merchant/me/services */
@@ -897,6 +919,55 @@ servicerRouter.post(
     if (!servicer) throw notFound('Servicer not found');
     const ok = await verifyPin(servicer, req.body.pin);
     res.json({ ok });
+  }),
+);
+
+// ── Business Contacts CRUD ─────────────────────────────────────────────────
+
+/** GET /merchant/contacts — list all business contacts for the authenticated servicer. */
+servicerRouter.get(
+  '/contacts',
+  asyncHandler(async (req, res) => {
+    res.json({ data: await listContacts(req.user!.id) });
+  }),
+);
+
+/** POST /merchant/contacts — create a new business contact. */
+servicerRouter.post(
+  '/contacts',
+  validate([
+    body('contactPerson').isString().trim().notEmpty(),
+    body('number').optional({ values: 'null' }).isString().trim(),
+    body('email').optional({ values: 'null' }).isEmail(),
+    body('isPrimary').optional().isBoolean(),
+    body('visibleToCustomer').optional().isBoolean(),
+  ]),
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await createContact(req.user!.id, req.body));
+  }),
+);
+
+/** PATCH /merchant/contacts/:id — update a business contact. */
+servicerRouter.patch(
+  '/contacts/:id',
+  validate([
+    body('contactPerson').optional().isString().trim().notEmpty(),
+    body('number').optional({ values: 'null' }).isString().trim(),
+    body('email').optional({ values: 'null' }).isEmail(),
+    body('isPrimary').optional().isBoolean(),
+    body('visibleToCustomer').optional().isBoolean(),
+  ]),
+  asyncHandler(async (req, res) => {
+    res.json(await updateContact(req.user!.id, req.params.id, req.body));
+  }),
+);
+
+/** DELETE /merchant/contacts/:id — delete a business contact. */
+servicerRouter.delete(
+  '/contacts/:id',
+  asyncHandler(async (req, res) => {
+    await deleteContact(req.user!.id, req.params.id);
+    res.status(204).send();
   }),
 );
 

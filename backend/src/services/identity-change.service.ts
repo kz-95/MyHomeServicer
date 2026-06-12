@@ -50,7 +50,7 @@ export async function updateIdentityChangeRequest(
     const updateData: Record<string, unknown> = {};
     const validFields = [
       'entityType', 'businessRegistrationNumber', 'taxNumber',
-      'sstRegistered', 'sstNumber',
+      'sstRegistered', 'sstNumber', 'categoryId',
     ];
     for (const f of validFields) {
       if (f in proposed) updateData[f] = proposed[f];

@@ -1,6 +1,6 @@
 # Database schema notes
 
-> My Home Servicer connecting tenants and homeowners to service servicers. 49 models (48 domain + 1 infrastructure) across 13 domain blocks. UUID PKs throughout. Decimal(10,2) for all money. Soft deletes on USER, SERVICER, SERVICER_SERVICE, CATEGORY. Admin setting changes require action PIN + audit log.
+> My Home Servicer connecting tenants and homeowners to service servicers. 50 models (49 domain + 1 infrastructure) across 13 domain blocks. UUID PKs throughout. Decimal(10,2) for all money. Soft deletes on USER, SERVICER, SERVICER_SERVICE, CATEGORY. Admin setting changes require action PIN + audit log.
 
 ---
 
@@ -194,6 +194,12 @@ There is no `DepositTopup` model — top-up requests are tracked as a `PLATFORM_
 |---|---|---|
 | PRICING_MODULE | Servicer-owned reusable priced components | Each module has `label`, `defaultPrice` (Decimal), `taxable` (bool, default true — subject to SST), `serviceChargeable` (bool, default true — subject to service charge), `categoryId` (string? — optional scope). `active` (bool, default true). Modules are composed into listings via `ServicerService.moduleRefs`. Line items are snapshotted from modules at proposal time — see money/listing epic spec §2.2 and §2.4. |
 
+### Business contacts (SP-5 — new, §6)
+
+| Table | What it stores | Key notes |
+|---|---|---|
+| SERVICER_CONTACT | Multi-contact per servicer | `contactPerson` (required), `number?` (phone), `email?`. At least one of number or email required. ≥1 and ≤10 contacts per servicer. Exactly one `isPrimary` — setting a new primary clears the old. The primary is the customer-facing fallback and cannot be deleted while primary (reassign first). `visibleToCustomer` replaces the deprecated `showEmailPublic`/`showPhonePublic` toggles. Seeded from existing servicer name/phone on migration. |
+
 ---
 
 ## Block 3 — Penalty
@@ -282,7 +288,7 @@ There is no `DepositTopup` model — top-up requests are tracked as a `PLATFORM_
 
 | Table | What it stores | Key notes |
 |---|---|---|
-| SERVICER_IDENTITY_CHANGE_REQUEST | Admin review queue for legal-identity changes | Mirrors `CategoryRequest` pattern. Stores `servicerId`, `status` (IdentityRequestStatus: pending/approved/rejected), `proposed` (Json — `{ entityType?, businessRegistrationNumber?, taxNumber?, sstNumber? }`), `reviewedBy` (string? — admin who acted), `reviewedAt` (DateTime?), `createdAt`. Approve → applies proposed values to `Servicer`; reject → discards. Servicer may resubmit. |
+| SERVICER_IDENTITY_CHANGE_REQUEST | Admin review queue for legal-identity changes | Mirrors `CategoryRequest` pattern. Stores `servicerId`, `status` (IdentityRequestStatus: pending/approved/rejected), `proposed` (Json — `{ entityType?, businessRegistrationNumber?, taxNumber?, sstNumber?, categoryId? }`), `reviewedBy` (string? — admin who acted), `reviewedAt` (DateTime?), `createdAt`. Approve → applies proposed values to `Servicer`; reject → discards. Servicer may resubmit. |
 
 ## Block 11 — Promotions
 

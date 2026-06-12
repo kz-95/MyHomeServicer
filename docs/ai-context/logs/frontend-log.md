@@ -2,6 +2,28 @@
 
 > Single-writer log — only the **Frontend** agent writes here.
 
+## Session 2026-06-12 — SP-5 Servicer Business Profile restructure
+
+**`/servicer/account` rewrite:**
+- Complete rewrite of `account.component.ts` (~1770→~812 lines) as single Business Profile page (no personal tab).
+- Page title: "Business Profile Settings".
+- 7 sections: 1. Business Identity (businessName, logo, bio + Business Contacts CRUD), 2. Type of Services (category view/change-request, serviceAreas Google-autodetect+chips, operatingHours weekly editor), 3. Status (kycStatus + identity change requests), 4. Business & Tax (entityType, regNo, taxNo, isCompany read-only derived, tax config+calculator, invoice settings+preview), 5. Action PIN, 6. Money (fee breakdown + penalties), 7. Danger Zone.
+- Removed: Personal Details section (moved to customer), Bank Account section (moved to deposit), showEmailPublic/showPhonePublic toggles (replaced by per-contact visibility).
+- New: Business Contacts CRUD with add/edit modal, primary contact assignment, visibility toggle, delete with guard.
+
+**`/servicer/deposit` changes:**
+- Added Bank Account editor section (bankName, bankAccount inputs + save).
+- Retargeted "Go to Account Settings" link → "Set bank account above" (scrolls to bank editor).
+- Bank account displayed masked in withdrawal section.
+
+**`/customer/account` changes:**
+- Added `backupEmail` input to Profile section.
+- Updated saveProfile to include backupEmail.
+- Updated Profile interface to include backupEmail and avatarUrl.
+
+**Nav cleanup:**
+- Removed redundant dashboard/stats block (earnings chart, stat-row, chart) from jobs component history tab. History view now shows only the jobs list.
+
 ## Session 2026-06-04 — LLM API Keys admin page UX overhaul
 
 **Scope:** Full UX rebuild of `/admin/settings/api-keys` — model dropdowns, validation, fetch, delete guards, CSS fixes.

@@ -38,6 +38,12 @@ servicersRouter.get(
   asyncHandler(async (req, res) => {
     const m = await prisma.servicer.findFirst({
       where: { id: req.params.id, deletedAt: null },
+      include: {
+        contacts: {
+          where: { visibleToCustomer: true },
+          orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+        },
+      },
     });
     if (!m) throw notFound('Servicer not found');
     res.json({
@@ -48,6 +54,13 @@ servicersRouter.get(
       rating: m.rating,
       serviceAreas: m.serviceAreas,
       isCompany: m.isCompany,
+      contacts: m.contacts.map((c) => ({
+        id: c.id,
+        contactPerson: c.contactPerson,
+        number: c.number,
+        email: c.email,
+        isPrimary: c.isPrimary,
+      })),
     });
   }),
 );

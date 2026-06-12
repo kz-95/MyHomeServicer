@@ -516,8 +516,10 @@ model Servicer {
   invoices                  Invoice[]
   notifications             Notification[]
   pricingModules            PricingModule[]
+  modules                   ServicerModule[]
   identityChangeRequests    ServicerIdentityChangeRequest[]
   chatSessions              ChatSession[]
+  contacts                  ServicerContact[]
 
   @@index([email])
   @@index([isOnline, isBanned])
@@ -569,12 +571,35 @@ model MerchantSchedule {
   @@map("merchant_schedules")
 }
 
+// ── Business contacts (multi-contact per servicer, ≤10, §6) ───────────────────
+
+model ServicerContact {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  servicerId       String   @map("servicer_id") @db.Uuid
+  contactPerson    String   @map("contact_person")
+  number           String?
+  email            String?
+  isPrimary        Boolean  @default(false) @map("is_primary")
+  visibleToCustomer Boolean @default(false) @map("visible_to_customer")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  servicer Servicer @relation(fields: [servicerId], references: [id])
+
+  @@index([servicerId])
+  @@map("business_contacts")
+}
+
 model MerchantService {
   id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   merchantId               String    @map("merchant_id") @db.Uuid
   categoryId               String    @map("category_id") @db.Uuid
   title                    String
   description              String?
+  // Optional listing photo (S3 file URL). Falls back to the category image on cards.
+  imageUrl                 String?   @map("image_url")
+  // SP-3: listing visibility. true = Active (customer-visible), false = Draft.
+  published                Boolean   @default(true)
   merchantSku              String?   @map("merchant_sku")
   basePrice                Decimal   @map("base_price") @db.Decimal(10, 2)
   priceType                PriceType @default(fixed) @map("price_type")
@@ -630,6 +655,30 @@ model PricingModule {
 
   @@index([merchantId])
   @@map("pricing_modules")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 2.6 — Servicer modules (SP-3 first-class reusable priced item library)
+// First-class replacement for the ad-hoc PricingModule/moduleRefs UX. PricingModule
+// is kept for now; reconciliation/migration is Phase 2.
+// ──────────────────────────────────────────────────────────────────────────────
+
+model ServicerModule {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  servicerId        String   @map("servicer_id") @db.Uuid
+  name              String
+  price             Decimal  @db.Decimal(10, 2)
+  sku               String?
+  taxable           Boolean  @default(true)
+  serviceChargeable Boolean  @default(true) @map("service_chargeable")
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  servicer Servicer @relation(fields: [servicerId], references: [id])
+
+  @@index([servicerId])
+  @@map("business_modules")
 }
 
 model Category {
@@ -1465,4 +1514,4 @@ model Postcode {
   @@map("postcodes")
 }
 
-// End of schema — 49 models (48 domain + IdempotencyFallback infrastructure).
+// End of schema — 50 models (49 domain + IdempotencyFallback infrastructure).
