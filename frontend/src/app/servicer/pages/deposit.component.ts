@@ -198,7 +198,7 @@ interface VoucherInfo {
       @if (profile(); as p) {
         @if (p.bankName && p.bankAccount) {
           <p class="bank-info">
-            Withdraw to: <strong>{{ p.bankName }}</strong> · {{ p.bankAccount }}
+            Withdraw to: <strong>{{ p.bankName }}</strong> · {{ maskAccount(p.bankAccount) }}
           </p>
         } @else {
           <p class="warn">No bank account set. <a routerLink="/servicer/account">Go to Account Settings</a></p>
@@ -469,6 +469,14 @@ export class ServicerDepositComponent implements OnInit {
     }
     return b.creditBalance;
   });
+
+  /** Mask a bank account, revealing only the last 4 digits: "**** **** 0067". */
+  maskAccount(account: string | null | undefined): string {
+    const digits = (account ?? '').replace(/\s+/g, '');
+    if (digits.length <= 4) return account ?? '';
+    const masked = '*'.repeat(digits.length - 4) + digits.slice(-4);
+    return masked.replace(/(.{4})/g, '$1 ').trim();
+  }
 
   // Top-up
   topupAmount = signal<number | null>(null);
