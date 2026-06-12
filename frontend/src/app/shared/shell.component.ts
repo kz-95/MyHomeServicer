@@ -1,5 +1,6 @@
 import {
   Component,
+  ElementRef,
   HostListener,
   Input,
   OnInit,
@@ -207,7 +208,7 @@ interface PromoValidationResult {
 
       <div class="body">
         <app-shell-nav [navItems]="navItems" />
-        <main class="content" appPullToRefresh>
+        <main class="content" appPullToRefresh #contentEl>
           <div class="content-main">
             <router-outlet />
           </div>
@@ -891,13 +892,13 @@ interface PromoValidationResult {
       }
 
       @media (max-width: 760px) {
-        .shell { height: auto; min-height: 100vh; }
+        .shell { height: 100vh; }
         .topbar { flex-wrap: wrap; padding: 0.6rem 1rem; gap: 0.5rem; }
         .btn-pro, .page-title { display: none; }
         .account { align-items: flex-start; }
         .spacer { display: none; }
-        .body { flex-direction: column; overflow: visible; }
-        .content { padding: 1rem; overflow-y: visible; }
+        .body { flex-direction: column; overflow: hidden; }
+        .content { padding: 1rem; overflow-y: auto; }
       }
 
       /* DISP-11/§5.6: phone - keep the account name, swap the "Sign out" text button
@@ -1571,6 +1572,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   private toast = inject(ToastService);
   private dialog = inject(DialogService);
   protected stripePayment = inject(StripePaymentService);
+  @ViewChild('contentEl') private contentEl!: ElementRef<HTMLElement>;
 
   /** True while a sign-out is in flight (revoke request awaiting). */
   signingOut = signal(false);
@@ -1742,6 +1744,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     // Auto-send: detect `?q=` in the URL and open the chat with that question.
     // Check on initial load AND on every navigation.
     this.router.events.subscribe(() => {
+      this.contentEl?.nativeElement.scrollTo({ top: 0, behavior: 'instant' });
       const idx = this.router.url.indexOf('?q=');
       if (idx >= 0) {
         const q = decodeURIComponent(this.router.url.slice(idx + 3).split('&')[0]);

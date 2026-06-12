@@ -258,6 +258,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+  overflow: hidden;
   font-family: var(--font-body);
   font-weight: 400;
   background: var(--color-bg);
