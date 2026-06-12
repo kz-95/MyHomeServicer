@@ -54,6 +54,7 @@ interface ServicerProfile {
   bio?: string | null;
   logoUrl?: string | null;
   serviceAreas?: string[] | null;
+  serviceRadiusKm?: number | null;
   invoicePrefix?: string | null;
   invoiceYearFormat?: string | null;
   invoiceSeparator?: string | null;
@@ -302,22 +303,24 @@ interface Penalty {
                   <input
                     class="time-input"
                     type="text"
-                    [(ngModel)]="ohF[day].open"
+                    [ngModel]="ohF[day].open"
+                    (ngModelChange)="onTimeInput(day, 'open', $event)"
                     name="ohOpen{{day}}"
                     placeholder="09:00"
                     maxlength="5"
-                    (input)="onHoursChange()"
+                    (blur)="onHoursChange()"
                     [class.err-input]="ohF[day].open && !isValidTime(ohF[day].open)"
                   />
                   <span class="muted">to</span>
                   <input
                     class="time-input"
                     type="text"
-                    [(ngModel)]="ohF[day].close"
+                    [ngModel]="ohF[day].close"
+                    (ngModelChange)="onTimeInput(day, 'close', $event)"
                     name="ohClose{{day}}"
                     placeholder="17:00"
                     maxlength="5"
-                    (input)="onHoursChange()"
+                    (blur)="onHoursChange()"
                     [class.err-input]="ohF[day].close && !isValidTime(ohF[day].close)"
                   />
                   @if (!ohF[day].open && !ohF[day].close) {
@@ -840,6 +843,7 @@ export class ServicerAccountComponent implements OnInit {
     businessName: "",
     bio: "",
     serviceAreaList: [] as string[],
+    serviceRadiusKm: 10,
     invoicePrefix: "INV",
     invoiceContent: "",
     invoiceSuffix: "",
@@ -972,6 +976,7 @@ export class ServicerAccountComponent implements OnInit {
         this.f.businessName = p.businessName ?? "";
         this.f.bio = p.bio ?? "";
         this.f.serviceAreaList = p.serviceAreas ?? [];
+        this.f.serviceRadiusKm = p.serviceRadiusKm ?? 10;
         this.f.invoicePrefix = p.invoicePrefix ?? "INV";
         this.f.invoiceYearFormat = p.invoiceYearFormat ?? "YYYY";
         this.f.invoiceSeparator = p.invoiceSeparator ?? "-";
@@ -1073,6 +1078,7 @@ export class ServicerAccountComponent implements OnInit {
     }
     this.api.patch<ServicerProfile>("/servicer/me", {
       serviceAreas: serviceAreas.length ? serviceAreas : undefined,
+      serviceRadiusKm: this.f.serviceRadiusKm ?? undefined,
       operatingHours: Object.keys(oh).length > 0 ? oh : [],
     }).subscribe({
       next: (updated) => {
@@ -1190,8 +1196,31 @@ export class ServicerAccountComponent implements OnInit {
 
   onHoursChange(): void { /* no-op, just tracks changes */ }
 
+  /** Auto-format time input as the user types: "9"→"09:00", "1130"→"11:30", etc. */
+  onTimeInput(day: string, slot: 'open' | 'close', raw: string): void {
+    // Strip non-digits
+    const digits = raw.replace(/\D/g, '').slice(0, 4);
+    if (!digits) { this.ohF[day][slot] = ''; return; }
+
+    let formatted = '';
+    if (digits.length <= 2) {
+      // 1-2 digits: treat as hour, pad to HH:00
+      const h = parseInt(digits, 10);
+      if (h > 23) return; // reject invalid while typing
+      formatted = String(h).padStart(2, '0') + ':00';
+    } else {
+      // 3-4 digits: HHMM → HH:MM
+      const h = parseInt(digits.slice(0, 2), 10);
+      const m = parseInt(digits.slice(2, 4), 10);
+      if (h > 23) return;
+      const mm = Math.min(m, 59);
+      formatted = String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+    }
+    this.ohF[day][slot] = formatted;
+  }
+
   isValidTime(val: string): boolean {
-    if (!val) return true; // empty is ok (means closed)
+    if (!val) return true;
     return /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/.test(val.trim());
   }
 
