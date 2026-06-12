@@ -12,6 +12,13 @@ import { ModalComponent } from './modal.component';
     selector: 'app-pin-prompt',
     imports: [FormsModule, ModalComponent],
     template: `
+    <!-- Demo login-gate: opaque full-screen cover under the dialog. The account
+         switch already swapped auth.principal() BEFORE the gate, so the still-
+         mounted previous portal shell would otherwise render the NEW account's
+         name and credit/deposit balance behind the translucent backdrop. -->
+    @if (pin.open() && pin.gateMode()) {
+      <div class="gate-cover"></div>
+    }
     <app-modal [open]="pin.open()" title="Enter your PIN" (closed)="cancel()">
       @if (pin.gateMode()) {
         <p class="muted">Enter the demo PIN to continue.</p>
@@ -44,6 +51,12 @@ import { ModalComponent } from './modal.component';
   `,
     styles: [
         `
+      .gate-cover {
+        position: fixed;
+        inset: 0;
+        background: var(--color-bg);
+        z-index: 999; /* just below the modal backdrop (1000) */
+      }
       .pin-field {
         display: flex;
         gap: 0.5rem;

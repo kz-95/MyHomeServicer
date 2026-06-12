@@ -4,6 +4,28 @@
 
 ---
 
+## ✅ Demo gate PIN data leak — SESSION 2026-06-12
+
+### Bug — Account balance visible behind the demo login-gate PIN dialog
+- [x] Repro: log in as admin (or any portal), then demo-bar quick-login into a
+      servicer/customer → their name + credit/deposit balance showed in the
+      topbar BEFORE the gate PIN was entered.
+- [x] Root cause: the demo-bar switch swaps `auth.principal()` (which carries
+      `creditBalance`/`depositBalance`) **before** the gate, and the SPA
+      navigation is held pending by the route guard — so the still-mounted
+      previous portal shell reactively renders the NEW account's data behind
+      the translucent modal backdrop.
+- [x] Fix 1: `pin-prompt.component.ts` — opaque full-screen `.gate-cover`
+      (z-index 999, under the modal backdrop at 1000) rendered while the gate
+      PIN dialog is open, so nothing behind it is visible.
+- [x] Fix 2: `snackbar.component.ts` — backend notification toasts (z-index
+      2000, would float above the cover) are suppressed while the gate PIN is
+      pending; the new account's socket is already live pre-gate.
+- [x] Regression test: `frontend/e2e/specs/demo-gate-leak.spec.ts` — occlusion
+      assertion via `elementFromPoint` (verified: fails without fix, passes with).
+
+---
+
 ## ✅ Quote/proposal realtime + pending-card redesign — SESSION 2026-06-12
 
 Bugs in the quote→proposal→accept flow. All `tsc` (BE+FE) + `ng build` pass.

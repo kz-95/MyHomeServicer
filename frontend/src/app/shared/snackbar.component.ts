@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { NotificationService, Notif } from '../core/services/notification.service';
 import { ToastService, ActionToast } from '../core/services/toast.service';
+import { PinService } from '../core/services/pin.service';
 
 /**
  * Global notification snackbar - bottom-left toasts that pop up and fade away
@@ -18,7 +19,11 @@ import { ToastService, ActionToast } from '../core/services/toast.service';
   template: `
     <div class="snackbar" role="status" aria-live="polite">
       <!-- ── Backend notification toasts ─────────────────────────────────── -->
-      @for (t of notifications.toasts(); track t.id) {
+      <!-- Suppressed while the demo login-gate PIN is pending: the new account's
+           socket is already live (demo-bar starts it pre-gate), and the snackbar
+           (z-index 2000) floats ABOVE the gate cover (999), so its toasts would
+           leak the new account's data before the PIN is entered. -->
+      @for (t of gateBlocked() ? [] : notifications.toasts(); track t.id) {
         <div
           class="toast notif"
           [class.clickable]="!!notifications.routeFor(t)"
@@ -212,7 +217,13 @@ import { ToastService, ActionToast } from '../core/services/toast.service';
 export class SnackbarComponent {
   notifications = inject(NotificationService);
   toastSvc = inject(ToastService);
+  private pin = inject(PinService);
   private router = inject(Router);
+
+  /** True while the demo login-gate PIN dialog is open. */
+  gateBlocked(): boolean {
+    return this.pin.open() && this.pin.gateMode();
+  }
 
   private readonly labels: Record<string, string> = {
     orders: 'Order update',
