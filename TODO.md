@@ -16,9 +16,52 @@ full field audit + security note** recorded in
 - SP-3 service listings (radius, maxAutoAccepts, contact prefill) — deferred
 - SP-4 role switch toggle — deferred
 - **SP-5 Business Profile restructure — ✅ IMPLEMENTED 2026-06-12** — schema (`ServicerContact` model + migration with seed backfill), backend (contact CRUD, updated profile endpoints, `backupEmail` on customer update, auto-derived `isCompany`, public profile with `visibleToCustomer` contacts, categoryId change-request via identity pipeline), frontend (single Business Profile page with 7 sections, business contacts CRUD, tax config + calculator, operating hours editor, service areas, bank editor moved to deposit page, backupEmail on customer account, nav cleanup removing redundant dashboard from jobs history).
+- SP-3 service listings — **🟢 Phase 1 IMPLEMENTED 2026-06-12** (see section below); Phase 2 pending review
 - SP-6 KYC document upload UI — deferred
 - CAL calendar reroute → `/calendar/schedule` + `/calendar/workhours`
 - ⚠️ Security: `pin-prompt.component.ts:19` `false &&` disables gate-cover (uncommitted repro toggle) — restore before commit
+
+---
+
+## ✅ SP-3 Phase 1 — Service listings foundation (2026-06-12)
+
+Spec: `docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md`. Phase 1 =
+modules model + tabs + Modules CRUD + Simple listing (Advanced wizard stubbed).
+Phase 2 (pricing engine, auto-accept, customer proposal, migration) is **pending review**.
+
+### Done
+- [x] **Backend `ServicerModule`** (`business_modules`): `{ id, servicerId, name, price(Decimal),
+      sku?, active, timestamps }` — **no tax flags** (flat tax from business profile, spec §8).
+      Migrations `20260612120000_sp3_servicer_modules` + `20260612123000_sp3_module_drop_tax_flags`
+      (removed the over-built tax columns). `PricingModule` kept for the Phase-2 migration.
+- [x] **CRUD `/servicer/modules`** (`servicer-module.{service,routes}.ts`, mounted in `index.ts`) —
+      list (computed `usedInListings`) / create / patch / delete (soft-disable). Fields picked
+      explicitly; money = Decimal.
+- [x] **MerchantService** gains `image_url` + `published`; service CRUD + validators extended;
+      `file.service.ts` gains the `listing_photo` presign purpose.
+- [x] **Frontend `/servicer/services` → 2 tabs** (`services.component.ts` shell + router-outlet):
+      `listings` (`services-listings.component.ts`) and `module` (`services-modules.component.ts`).
+- [x] **Modules tab**: card (name · price · SKU/— · "used in N listings" · Edit) + add/edit modal
+      (name*, price*, SKU only); search · active filter · sort + reverse.
+- [x] **Listings tab**: 3-line collapsed card (photo · title · short desc · `RM · duration · N
+      modules · auto-accept ●` · Active/Draft toggle · ⋯ menu [Edit/Duplicate/Activate-Deactivate/
+      Delete]); expand → modules / jobs-offered / auto-accept summary; search · status filter ·
+      sort + reverse.
+- [x] **+ Add → Simple/Advanced chooser** (`listing-create.component.ts`). **Simple built fully**
+      (`listing-simple.component.ts`): photo (opt, presign) · title* · short desc · price type ·
+      base price* · est. duration · "What jobs do you want?" offered/N-A toggles → stored in
+      `modifiers` as `{price:null, notOffered}`; saves with no modules / no auto-accept.
+      **Advanced stubbed** (`listing-advanced-stub.component.ts`, route wired).
+- [x] Gates: backend `tsc` 0 · frontend `tsc` 0 · `ng build` AOT green · migration applied+committed.
+      Docs synced (schema-notes, api-doc, this file).
+
+### Phase 2 (pending review — do not start until Phase 1 approved)
+- [ ] Pricing engine (§8) · duration scaling (§9) · Advanced 3-step wizard (§10.2)
+- [ ] Auto-accept 4-gate engine (§11) replacing `quoteMatchesAutoAccept`
+- [ ] Customer proposal redesign (§12) · `MerchantService`/`PricingModule` → `ServicerModule`
+      migration (§15) · demo seeding (§13)
+
+> ⚠️ **Backend dev server was stopped** for the Prisma migration (DLL lock) and **needs a restart**.
 
 ---
 

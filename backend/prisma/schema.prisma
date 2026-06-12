@@ -464,6 +464,7 @@ model Servicer {
   serviceChargeRate          Decimal   @default(0) @db.Decimal(5, 4) @map("service_charge_rate")
   taxInclusive               Boolean   @default(false) @map("tax_inclusive")
   serviceAreas               String[]  @map("service_areas")
+  serviceRadiusKm            Int       @default(10) @map("service_radius_km")
   operatingHours             Json      @default("[]") @map("operating_hours")
   categoryId                 String    @map("category_id") @db.Uuid
   isOnline                   Boolean   @default(true) @map("is_online")
@@ -669,8 +670,6 @@ model ServicerModule {
   name              String
   price             Decimal  @db.Decimal(10, 2)
   sku               String?
-  taxable           Boolean  @default(true)
-  serviceChargeable Boolean  @default(true) @map("service_chargeable")
   active            Boolean  @default(true)
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")

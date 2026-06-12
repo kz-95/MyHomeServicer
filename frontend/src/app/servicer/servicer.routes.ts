@@ -43,20 +43,54 @@ export const servicerRoutes: Routes = [
           },
         ],
       },
+      // SP-3: create flow — chooser → Simple (full) / Advanced (stub). Most
+      // specific paths first so the `services` tab shell doesn't swallow them.
       {
-        path: 'services',
+        path: 'services/new/simple',
         loadComponent: () =>
-          import('./pages/services.component').then((m) => m.ServicerServicesComponent),
+          import('./pages/listing-simple.component').then((m) => m.ListingSimpleComponent),
+      },
+      {
+        path: 'services/new/advanced',
+        loadComponent: () =>
+          import('./pages/listing-advanced-stub.component').then(
+            (m) => m.ListingAdvancedStubComponent,
+          ),
       },
       {
         path: 'services/new',
         loadComponent: () =>
-          import('./pages/listing-wizard.component').then((m) => m.ListingWizardComponent),
+          import('./pages/listing-create.component').then((m) => m.ListingCreateComponent),
       },
       {
+        // Existing 4-step wizard kept for editing legacy listings until the
+        // SP-3 Advanced wizard lands in Phase 2.
         path: 'services/:id/edit',
         loadComponent: () =>
           import('./pages/listing-wizard.component').then((m) => m.ListingWizardComponent),
+      },
+      {
+        // SP-3: /servicer/services → 2 tabs (listings · module), jobs-tabs style.
+        path: 'services',
+        loadComponent: () =>
+          import('./pages/services.component').then((m) => m.ServicerServicesComponent),
+        children: [
+          { path: '', redirectTo: 'listings', pathMatch: 'full' },
+          {
+            path: 'listings',
+            loadComponent: () =>
+              import('./pages/services-listings.component').then(
+                (m) => m.ServicerListingsComponent,
+              ),
+          },
+          {
+            path: 'module',
+            loadComponent: () =>
+              import('./pages/services-modules.component').then(
+                (m) => m.ServicerModulesComponent,
+              ),
+          },
+        ],
       },
       {
         path: 'promotions',

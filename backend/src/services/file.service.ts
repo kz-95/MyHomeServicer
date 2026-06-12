@@ -4,10 +4,23 @@ import { badRequest, notFound } from '../lib/errors';
 import { presignUpload, publicUrl, isS3Configured } from '../lib/s3';
 import { logger } from '../lib/logger';
 
-type Purpose = 'arrive_photo' | 'done_photo' | 'merchant_logo' | 'kyc_document' | 'banner_image';
+type Purpose =
+  | 'arrive_photo'
+  | 'done_photo'
+  | 'merchant_logo'
+  | 'kyc_document'
+  | 'banner_image'
+  | 'listing_photo';
 
 const PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const PURPOSES: Purpose[] = ['arrive_photo', 'done_photo', 'merchant_logo', 'kyc_document', 'banner_image'];
+const PURPOSES: Purpose[] = [
+  'arrive_photo',
+  'done_photo',
+  'merchant_logo',
+  'kyc_document',
+  'banner_image',
+  'listing_photo',
+];
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_KYC_BYTES = 10 * 1024 * 1024; // 10 MB

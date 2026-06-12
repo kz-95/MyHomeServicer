@@ -26,6 +26,8 @@ export interface ServiceInput {
   autoAccept?: boolean;
   modifiers?: unknown;
   fieldRequirements?: unknown;
+  imageUrl?: string | null;
+  published?: boolean;
 }
 
 // ── Servicer services CRUD ───────────────────────────────────────────────────
@@ -128,6 +130,8 @@ export async function createService(merchantId: string, input: ServiceInput) {
       categoryId,
       title: input.title,
       description: input.description ?? null,
+      imageUrl: input.imageUrl ?? null,
+      published: input.published ?? true,
       merchantSku: input.merchantSku ?? null,
       basePrice: input.basePrice,
       priceType: input.priceType,
@@ -166,6 +170,8 @@ export async function updateService(
 
   if (input.title !== undefined) data.title = input.title;
   if (input.description !== undefined) data.description = input.description;
+  if (input.imageUrl !== undefined) data.imageUrl = input.imageUrl;
+  if (input.published !== undefined) data.published = input.published;
   if (input.basePrice !== undefined) data.basePrice = input.basePrice;
   if (input.priceType !== undefined) data.priceType = input.priceType;
   if (input.taxMode !== undefined) data.taxMode = input.taxMode;

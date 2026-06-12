@@ -592,7 +592,7 @@ paired `USER` on first call.
 ```
 
 ### `PATCH /servicer/me`
-Update profile fields. All optional. Non-legal fields (`bio`, `serviceAreas`, `invoicePrefix`, `invoiceYearFormat`, `invoiceSeparator`, `invoicePadding`, `businessName`, `serviceChargeRate`, `taxInclusive`, `sstRegistered`, `sstNumber`, `logoUrl`, `bankName`, `bankAccount`, `operatingHours`) save directly. Legal-identity fields (`entityType`, `businessRegistrationNumber`, `taxNumber`) create a `ServicerIdentityChangeRequest` for admin review before being applied. Entity type updates auto-derive `isCompany` (sole_proprietorship → false, others → true).
+Update profile fields. All optional. Non-legal fields (`bio`, `serviceAreas`, `serviceRadiusKm`, `invoicePrefix`, `invoiceYearFormat`, `invoiceSeparator`, `invoicePadding`, `businessName`, `serviceChargeRate`, `taxInclusive`, `sstRegistered`, `sstNumber`, `logoUrl`, `bankName`, `bankAccount`, `operatingHours`) save directly. `serviceRadiusKm` (int, 1–500, default 10) is the account-level coverage radius used by SP-3 auto-accept matching. Legal-identity fields (`entityType`, `businessRegistrationNumber`, `taxNumber`) create a `ServicerIdentityChangeRequest` for admin review before being applied. Entity type updates auto-derive `isCompany` (sole_proprietorship → false, others → true).
 
 **Auth:** Bearer (servicer)
 **Request:**
@@ -601,6 +601,7 @@ Update profile fields. All optional. Non-legal fields (`bio`, `serviceAreas`, `i
   "bio": "...",
   "businessName": "Ahmad Plumbing Sdn Bhd",
   "serviceAreas": ["Petaling Jaya", "Subang"],
+  "serviceRadiusKm": 15,
   "invoicePrefix": "INV",
   "invoiceYearFormat": "YYYY",
   "invoiceSeparator": "-",
@@ -673,6 +674,52 @@ Update a pricing module. All fields optional.
 
 ### `DELETE /servicer/pricing-modules/:id`
 Soft-delete a pricing module (sets `active=false`). The module is preserved for historical invoice line-item references.
+**Auth:** Bearer (servicer)
+**Response 204:** Empty
+
+### Servicer modules (SP-3)
+
+First-class reusable priced-item library (`ServicerModule` / `business_modules`) — the SP-3 replacement for the ad-hoc `PricingModule`/`moduleRefs` UX. **No per-item tax flags** (tax is applied flat from the business profile). `PricingModule` is kept until the Phase-2 migration. Surfaced in the servicer Services → **Modules** tab.
+
+#### `GET /servicer/modules`
+List the authenticated servicer's modules. Each row includes `usedInListings` (count of the servicer's listings whose `moduleRefs` reference it).
+**Query:** `?active=true` — active only (optional, default shows all)
+**Auth:** Bearer (servicer)
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "servicerId": "uuid",
+      "name": "Chemical Wash",
+      "price": 30.00,
+      "sku": "CHEM-WASH",
+      "active": true,
+      "createdAt": "2026-06-12T00:00:00Z",
+      "updatedAt": "2026-06-12T00:00:00Z",
+      "usedInListings": 0
+    }
+  ]
+}
+```
+
+#### `POST /servicer/modules`
+Create a module. `name` and `price` required; `sku` optional (3–30 alphanumeric/hyphen/underscore); `active` defaults to `true`.
+**Auth:** Bearer (servicer)
+**Request:**
+```json
+{ "name": "Gas Top-up", "price": 25.00, "sku": "GAS-TOPUP" }
+```
+**Response 201:** The created module.
+
+#### `PATCH /servicer/modules/:id`
+Update a module (`name`, `price`, `sku`, `active` — all optional).
+**Auth:** Bearer (servicer)
+**Response 200:** Updated module.
+
+#### `DELETE /servicer/modules/:id`
+Soft-disable a module (sets `active=false`) so existing listing references stay valid.
 **Auth:** Bearer (servicer)
 **Response 204:** Empty
 
@@ -845,9 +892,10 @@ Top up servicer deposit balance. Used when balance drops below `minimumRequired`
 ### Services
 
 ### `GET /servicer/me/services`
-List all services with SKUs.
+List all services with SKUs. Each row also carries SP-3 fields `imageUrl` (optional listing photo, falls back to the category image on cards) and `published` (`true` = Active / customer-visible, `false` = Draft).
 
 ### `POST /servicer/me/services`
+**SP-3 fields (optional):** `imageUrl` (S3 file URL from the `listing_photo` presign flow) and `published` (defaults `true`). The Simple-listing flow sends `modifiers` with `price: null` per option to record offered/N-A job preferences (no per-option pricing), `taxMode: "none"`, `autoAccept: false`, and no modules.
 ```json
 {
   "subcategoryId": "uuid",

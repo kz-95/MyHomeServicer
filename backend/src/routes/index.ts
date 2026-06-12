@@ -26,6 +26,7 @@ import { notificationsRouter } from './notifications.routes';
 import { stripeRouter } from './stripe.routes';
 import { rewardsRouter, customerRewardsRouter, adminRewardsRouter } from './rewards.routes';
 import { pricingModuleRouter } from './pricing-module.routes';
+import { servicerModuleRouter } from './servicer-module.routes';
 
 /**
  * API v1 router. Domain routers are mounted here as each build phase lands.
@@ -202,6 +203,9 @@ apiRouter.use('/servicer', servicerRouter);
 
 // ── Pricing modules (servicer-owned catalog) ─────────────────────────────────
 apiRouter.use('/servicer/pricing-modules', pricingModuleRouter);
+
+// ── Servicer modules (SP-3 reusable priced item library) ─────────────────────
+apiRouter.use('/servicer/modules', servicerModuleRouter);
 
 // ── Phase 3 — Booking ────────────────────────────────────────────────────────
 apiRouter.use('/bookings', bookingsRouter);
