@@ -4,6 +4,24 @@
 
 ---
 
+## 🟡 BRAINSTORM — Servicer Profile & Dispatch initiative (2026-06-12)
+
+Started from two small requests (job-card pay method, proposal popout); uncovered a
+wider servicer-profile / availability / dispatch restructure. **Findings + SP roadmap +
+full field audit + security note** recorded in
+`docs/superpowers/specs/2026-06-12-servicer-profile-initiative-findings.md`.
+
+- SP-1 popout firing gate (online + category + radius) — designed, blocked on SP-5/SP-3
+- SP-2 `isOnline` manual toggle — deferred
+- SP-3 service listings (radius, maxAutoAccepts, contact prefill) — deferred
+- SP-4 role switch toggle — deferred
+- **SP-5 Business Profile restructure — brainstorm active** (single page, new `ServicerContact` multi-contact model, tax calculator + invoice preview, operating-hours→calendar one-way sync)
+- SP-6 KYC document upload UI — deferred
+- CAL calendar reroute → `/calendar/schedule` + `/calendar/workhours`
+- ⚠️ Security: `pin-prompt.component.ts:19` `false &&` disables gate-cover (uncommitted repro toggle) — restore before commit
+
+---
+
 ## ✅ Demo gate PIN data leak — SESSION 2026-06-12
 
 ### Bug — Account balance visible behind the demo login-gate PIN dialog
