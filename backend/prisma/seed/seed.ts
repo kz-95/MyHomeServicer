@@ -9,7 +9,7 @@
  * Production-safe: refuses to run when NODE_ENV=production, and aborts if
  * data has already been seeded (seeded-ids.json present).
  */
-import { writeFileSync } from 'fs';
+import { writeFileSync, readdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { clearAll } from './clear';
 import { createHash } from 'crypto';
@@ -462,6 +462,17 @@ async function main(): Promise<void> {
   }
 
   // ── Merchants, deposits, services, presets ──
+  // Map each merchant ref → its local demo profile picture (M#_ShortName.png).
+  // Files live in backend/uploads/profiles/demo and are served at /api/files/local.
+  const demoLogoDir = join(__dirname, '../../uploads/profiles/demo');
+  const demoLogoByRef: Record<string, string> = {};
+  if (existsSync(demoLogoDir)) {
+    for (const f of readdirSync(demoLogoDir)) {
+      const match = f.match(/^(M\d+)_.*\.png$/);
+      if (match) demoLogoByRef[match[1]] = `/api/files/local/profiles/demo/${f}`;
+    }
+  }
+
   const merchantByRef: Record<string, string> = {};
   const serviceBySku: Record<string, string> = {};
   for (const m of merchants) {
@@ -475,7 +486,7 @@ async function main(): Promise<void> {
         pinHash,
         businessName: m.businessName,
         bio: `${m.businessName} - based in ${m.area}.`,
-        logoUrl: `https://picsum.photos/seed/merchant${m.ref}/200/200`,
+        logoUrl: demoLogoByRef[m.ref] ?? `https://picsum.photos/seed/merchant${m.ref}/200/200`,
         categoryId: categoryBySlug[m.categorySlug],
         isCompany: m.isCompany,
         entityType: m.entityType,
