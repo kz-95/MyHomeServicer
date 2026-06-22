@@ -15,13 +15,13 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
     template: `
     <div class="wrap">
       <div class="card box">
-        <a routerLink="/" class="brand">
+        <div class="brand">
           <span class="logo-wrap" [class.loaded]="logoLoaded()">
             <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" (load)="logoLoaded.set(true)" />
             <span class="logo-shimmer"></span>
           </span>
           My Home Servicer
-        </a>
+        </div>
         <h1>Sign in</h1>
 
         <label>Email<input [(ngModel)]="email" name="email" type="email" autocomplete="username" /></label>
@@ -198,12 +198,15 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
       }
       .brand {
         display: inline-flex;
+        justify-content: center;
         align-items: center;
         gap: 0.4rem;
+        border: none;
+        padding: 0;
+        cursor: pointer;
         font-family: var(--font-display);
         font-weight: 400;
-        font-size: 1.25rem;
-        background: var(--color-primary);
+        font-size: 1.5rem;
         background: var(--gradient-primary);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -212,6 +215,7 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
         flex-shrink: 0;
         margin-bottom: 0.5rem;
       }
+      h1 { font-size: 1.05rem; margin-top: 0.25rem; }
       /* Admin rescue CSS - DISABLED 2026-06-03 */
       /* .admin-rescue-section { text-align: center; margin-top: 1rem; } */
       /* .rescue-link { color: var(--color-muted, #666); cursor: pointer; font-size: 0.85rem; text-decoration: underline; } */
@@ -235,6 +239,7 @@ export class LoginComponent implements OnInit {
   busy = signal(false);
   error = signal('');
   showSkip = signal(false);
+  logoLoaded = signal(false);
   showGoogle = Boolean(this.config.googleClientId);
   googleUrl = googleOAuthUrl;
   private intent = '';

@@ -1501,7 +1501,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       const t0 = performance.now();
       img.src = url;
       img.decode().then(() => {
-      const wait = Math.max(0, 550 - (performance.now() - t0));
+      const wait = Math.max(0, 50 - (performance.now() - t0));
         setTimeout(() => this.heroImageLoading.set(false), wait);
       }).catch(() => this.heroImageLoading.set(false));
     });
@@ -1543,7 +1543,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     img.src = this.thumbUrl(cat);
     img.decode().then(() => {
       if (this.destroyed) return;
-      const wait = Math.max(0, 550 - (performance.now() - t0));
+      const wait = Math.max(0, 50 - (performance.now() - t0));
       setTimeout(() => {
         if (this.destroyed) return;
         this.loadedIds.update((s) => {
@@ -1558,7 +1558,7 @@ export class HomeComponent implements OnInit, OnDestroy {
             return n;
           });
         }, 200);
-        setTimeout(() => this.drainPreload(), 200);
+        setTimeout(() => this.drainPreload(), 100);
       }, wait);
     }).catch(() => {
       if (this.destroyed) return;
@@ -1567,7 +1567,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         n.add(cat.id);
         return n;
       });
-      setTimeout(() => this.drainPreload(), 200);
+      setTimeout(() => this.drainPreload(), 100);
     });
   }
   error = signal(false);

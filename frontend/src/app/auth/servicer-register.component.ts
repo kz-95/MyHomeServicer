@@ -24,13 +24,13 @@ interface Category {
     template: `
     <div class="wrap">
       <div class="card box">
-        <a routerLink="/" class="brand">
+        <div class="brand">
           <span class="logo-wrap" [class.loaded]="logoLoaded()">
             <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" (load)="logoLoaded.set(true)" />
             <span class="logo-shimmer"></span>
           </span>
           My Home Servicer
-        </a>
+        </div>
         <h1>Join as a Servicer</h1>
         <p class="muted">Register your business and start receiving quote requests.</p>
 
@@ -315,12 +315,15 @@ interface Category {
       }
       .brand {
         display: inline-flex;
+        justify-content: center;
         align-items: center;
         gap: 0.4rem;
+        border: none;
+        padding: 0;
+        cursor: pointer;
         font-family: var(--font-display);
         font-weight: 400;
-        font-size: 1.25rem;
-        background: var(--color-primary);
+        font-size: 1.5rem;
         background: var(--gradient-primary);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -329,6 +332,7 @@ interface Category {
         flex-shrink: 0;
         margin-bottom: 0.5rem;
       }
+      h1 { font-size: 1.05rem; margin-top: 0.25rem; }
       .logo-wrap {
         position: relative;
         display: inline-flex;

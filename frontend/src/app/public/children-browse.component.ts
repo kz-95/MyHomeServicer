@@ -329,13 +329,13 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
       img.src = url;
       img.decode().then(() => {
         if (this.destroyed) return;
-        const wait = Math.max(0, 550 - (performance.now() - t0));
+        const wait = Math.max(0, 50 - (performance.now() - t0));
         setTimeout(() => {
           this.loadedIds.update((s) => { const n = new Set(s); n.add(cat.id); return n; });
           setTimeout(() => {
             this.barsRemovedIds.update(s => { const n = new Set(s); n.add(cat.id); return n; });
           }, 200);
-          setTimeout(next, 200);
+          setTimeout(next, 100);
         }, wait);
       }).catch(() => {
         if (this.destroyed) return;
@@ -343,7 +343,7 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
         setTimeout(() => {
           this.barsRemovedIds.update(s => { const n = new Set(s); n.add(cat.id); return n; });
         }, 200);
-        setTimeout(next, 200);
+        setTimeout(next, 100);
       });
     };
     next();
