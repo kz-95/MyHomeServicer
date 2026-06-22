@@ -9,7 +9,7 @@ import { ChildrenBrowseComponent } from './public/children-browse.component';
 
 /**
  * Root routes. Each portal is lazy-loaded and protected by a role guard so
- * the admin bundle is never shipped to customer or merchant sessions
+ * the admin bundle is never shipped to customer or servicer sessions
  * (tech-stack.md §Frontend).
  */
 export const routes: Routes = [
@@ -33,7 +33,7 @@ export const routes: Routes = [
   {
     path: 'register/servicer',
     loadComponent: () =>
-      import('./auth/merchant-register.component').then((m) => m.MerchantRegisterComponent),
+      import('./auth/servicer-register.component').then((m) => m.ServicerRegisterComponent),
   },
   {
     path: 'guest/quote/new',

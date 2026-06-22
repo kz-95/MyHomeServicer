@@ -2,29 +2,29 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const merchants = await prisma.servicer.findMany({ select: { id: true, businessName: true } });
-  for (const m of merchants) {
+  const servicers = await prisma.servicer.findMany({ select: { id: true, businessName: true } });
+  for (const m of servicers) {
     const stats = await prisma.booking.groupBy({
       by: ['status'],
-      where: { merchantId: m.id },
+      where: { servicerId: m.id },
       _count: true,
     });
     const total = stats.reduce((s, r) => s + r._count, 0);
     const statuses = stats.map(r => `${r.status}: ${r._count}`).join(', ');
 
     const escrow = await prisma.transaction.aggregate({
-      where: { merchantId: m.id, type: 'escrow_release' },
+      where: { servicerId: m.id, type: 'escrow_release' },
       _sum: { amount: true },
       _count: true,
     });
 
     const firstTxn = await prisma.transaction.findFirst({
-      where: { merchantId: m.id, type: 'escrow_release' },
+      where: { servicerId: m.id, type: 'escrow_release' },
       orderBy: { createdAt: 'asc' },
       select: { createdAt: true },
     });
     const lastTxn = await prisma.transaction.findFirst({
-      where: { merchantId: m.id, type: 'escrow_release' },
+      where: { servicerId: m.id, type: 'escrow_release' },
       orderBy: { createdAt: 'desc' },
       select: { createdAt: true },
     });

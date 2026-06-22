@@ -26,7 +26,7 @@ filesRouter.post(
       mimeType: req.body.mimeType,
       sizeBytes: req.body.sizeBytes,
       uploaderUserId: req.user!.kind === 'user' ? req.user!.id : undefined,
-      uploaderMerchantId: req.user!.kind === 'servicer' ? req.user!.id : undefined,
+      uploaderServicerId: req.user!.kind === 'servicer' ? req.user!.id : undefined,
     });
     res.status(201).json(result);
   }),

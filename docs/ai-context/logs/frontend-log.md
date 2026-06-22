@@ -1636,3 +1636,68 @@ Gates: frontend tsc 0 / ng build 0
 |------|--------|
 | `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
 | `npx ng build` | ✅ 0 errors |
+
+---
+
+## 2026-06-17 — Agent E: WhatsApp preset manager + reusable wa-button (SP-3 dispatch, branch `feat/sp3-wa-preset`)
+
+### New: `shared/wa-button.component.ts` (`<app-wa-button>`) — KEY DELIVERABLE for Agent D
+Standalone, no service/router deps (pure presentation + `window.open`). Public contract:
+- `[phone]: string` — customer phone, any local/intl format.
+- `[preset]: WaPreset | null` — `{ label, body }`; its `body` wins over `[body]`.
+- `[body]: string` — raw message if no preset.
+- `[vars]: WaVars | null` — `{ name?, orderId?, eta? }`; interpolated into `{name}`/`{orderId}`/`{eta}`.
+- `[label]: string` — button text (default `'Message on WhatsApp'`).
+- `[disabled]: boolean`.
+- Behaviour: interpolates placeholders (missing → ''), normalizes phone to intl digits (MY: strip
+  spaces/dashes/`+`; leading `0` → `60`; bare local → `60`-prefixed; explicit `+cc`/`60…` pass through),
+  opens `https://wa.me/<intl>?text=<encodeURIComponent(msg)>` in a new tab. Auto-disabled (muted) when
+  no usable phone. Agent D drops `<app-wa-button [phone] [preset] [vars]>` onto the won-job card.
+
+### New: `servicer/pages/wa-preset-manager.component.ts` (`<app-wa-preset-manager>`)
+List + create + edit + soft-delete CRUD against `/servicer/wa-presets`. Mirrors `services-modules.component.ts`
+patterns (inline prompt-guard modal §7.0, `<app-list-toolbar>` search + active/inactive chip filters,
+signals, `DialogService.confirm` for disable, `ToastService` feedback). Body textarea documents the
+`{name}`/`{orderId}`/`{eta}` placeholders. STYLE-RULES tokens throughout (no raw hex except the
+brand-fixed WhatsApp green on the button).
+
+### Edited: `servicer/pages/account.component.ts` (Business Profile)
+Added `WaPresetManagerComponent` import + to `imports[]`; inserted a new `<section class="card page-child">`
+hosting `<app-wa-preset-manager>` after the Business Contacts section.
+
+Did **NOT** touch `jobs.component.ts` (Agent D wires `<app-wa-button>` there).
+
+**Gates:**
+| Gate | Result |
+|------|--------|
+| `npx ng build` (AOT) | ✅ 0 errors — bundle generation complete, 11.97s |
+
+---
+
+## Agent D — SP-3 dispatch + booking-flow + cards (2026-06-17, branch `feat/sp3-dispatch-cards`)
+
+Owner of `jobs.component.ts`. (Left Agent C's photo-picker block untouched.)
+
+**No re-confirm (task 1):** removed the "Awaiting confirmation" `pending_confirm` section and
+the `pending_confirm` Confirm branch in the Active tab; dropped the now-unused `confirm()` method.
+
+**Online/offline branch (task 2):** `dispatch-prompt-guard.component.ts` now injects `AuthService`
+— shows the center guard only when `auth.principal().isOnline`; offline servicers get a corner
+toast (`New dispatch: <cat>. Open Jobs to respond.`) instead of the interrupt overlay.
+
+**Accept Job one-tap (task 3):** pending OPEN-quote card + `incoming-quotes.component.ts` both
+gained a one-tap "Accept Job" button → `POST /servicer/quotes/:id/accept-listing` (no manual form;
+the manual propose form stays as the advanced path on expand). "Taken" conflict → friendly message.
+
+**Post-accept collapse (task 4):** once a proposal is sent the pending card collapses to 3 lines —
+`[RM price][duration]` row + `[message]` paragraph.
+
+**Cards + WhatsApp (task 6):** Active card shows the same detail (price · duration · payment) and
+imports `<app-wa-button>` (from Agent E) wired with `[phone]`/`[vars]={name,orderId,eta}` for the
+won/active job (rendered only when `customerPhone` is present).
+
+**Gates:**
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `npx ng build` (AOT) | ✅ 0 errors — bundle generation complete |

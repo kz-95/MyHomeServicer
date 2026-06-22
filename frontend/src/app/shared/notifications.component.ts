@@ -13,7 +13,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 /**
- * Notifications list - shared by the customer and merchant portals. Reads the
+ * Notifications list - shared by the customer and servicer portals. Reads the
  * polled list from NotificationService, supports a type filter, mark-read, and
  * click-to-open (routes by the notification's link).
  */

@@ -13,13 +13,13 @@ export interface ServicerModuleInput {
 
 /**
  * Counts how many of the servicer's listings reference each module id via the
- * MerchantService.moduleRefs JSON array. Phase 1 listings carry no module refs
+ * ServicerService.moduleRefs JSON array. Phase 1 listings carry no module refs
  * yet, so this is typically 0 — it stays correct once Advanced (Phase 2) wires
  * modules into listings.
  */
 async function usageByModuleId(servicerId: string): Promise<Record<string, number>> {
-  const services = await prisma.merchantService.findMany({
-    where: { merchantId: servicerId, deletedAt: null },
+  const services = await prisma.servicerService.findMany({
+    where: { servicerId: servicerId, deletedAt: null },
     select: { moduleRefs: true },
   });
   const counts: Record<string, number> = {};

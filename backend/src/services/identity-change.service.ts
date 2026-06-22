@@ -3,11 +3,11 @@ import { prisma } from '../lib/prisma';
 
 /** Create a new identity change request from a servicer. */
 export async function createIdentityChangeRequest(
-  merchantId: string,
+  servicerId: string,
   proposed: Record<string, unknown>,
 ) {
   return prisma.servicerIdentityChangeRequest.create({
-    data: { merchantId, proposed: proposed as Prisma.InputJsonValue, status: 'pending' },
+    data: { servicerId, proposed: proposed as Prisma.InputJsonValue, status: 'pending' },
   });
 }
 
@@ -16,7 +16,7 @@ export async function listIdentityChangeRequests(status?: string) {
   return prisma.servicerIdentityChangeRequest.findMany({
     where: status ? { status: status as 'pending' | 'approved' | 'rejected' } : {},
     include: {
-      merchant: {
+      servicer: {
         select: {
           id: true,
           businessName: true,
@@ -57,7 +57,7 @@ export async function updateIdentityChangeRequest(
     }
     if (Object.keys(updateData).length > 0) {
       await prisma.servicer.update({
-        where: { id: request.merchantId },
+        where: { id: request.servicerId },
         data: updateData,
       });
     }

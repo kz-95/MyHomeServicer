@@ -270,7 +270,7 @@ Loaded in `index.html`:
 | ------------- | ------------- | ---------------- | ------------------- |
 | Sidebar width | 220px         | 180px            | Full-width, scroll  |
 | Topbar layout | Row all items | Row, some hidden | Wrapped, essentials |
-| Demo bar      | Visible       | Visible          | Hidden              |
+| Demo bar      | Visible       | Visible          | Visible (wraps)     |
 | Content pad   | 1.5rem 2rem   | 1.25rem 1.5rem   | 1rem                |
 
 **Topbar behaviour:** The topbar / home topnav is a **normal element at the top of the page — no `position: sticky`, no animation.** It sits at the top of the layout and **scrolls away with the page** on scroll-down; it does not stay glued to the viewport, collapse, or fade. In the portal shell it stays at the top simply because it is the top flex row while `.body` scrolls internally (§15.4) — not via `sticky`. The earlier auto-hide / idle-fade via `appAutoHide` is **deprecated** (§7.16). The demo bar is the one exception — pinned at the very top via `position: sticky; top: 0` (§5.5).
@@ -307,7 +307,7 @@ Rendered only when `config.hasDemoData` is true. Pins at the top of the page via
 | --------------- | ---------------------------- |
 | Desktop ≥761    | Visible                      |
 | Tablet 761–1023 | Visible                      |
-| Mobile ≤760     | **Hidden** (`display: none`) |
+| Mobile ≤760     | Visible — `flex-wrap: wrap`, auto height, `overflow: visible` so dropdown menus escape (§7.15); dropdown `z-index: 9000` (rev. 2026-06-19; previously hidden) |
 
 **Theme-aware tokens — no raw hex or hardcoded rgba:**
 
@@ -538,7 +538,7 @@ Use `<span class="badge badge-{status}">Label</span>` — global in `styles.css`
 - **What it is:** a country-code prefix `<select>` (default **🇲🇾 +60**, dropdown of common codes) + the local-number input. It is a `ControlValueAccessor`, so it drops into any form exactly like an input via `[(ngModel)]` / `formControlName` and reads/writes a single full E.164-style string (e.g. `+60123456789`).
 - **Validation rule:** a phone is valid when it matches `^\+\d{7,15}$` after stripping spaces/dashes/parentheses (E.164 range). Use the exported `isValidPhone()` helper — do **not** re-implement a per-form or Malaysia-specific regex.
 - **Default prefix:** `+60`. Users from other countries pick their own code from the dropdown.
-- **Already wired:** customer + servicer account (settings), customer + guest quote forms, customer + merchant registration, admin users, and the in-chat quote assistant's combined contact card. New phone fields must use it too.
+- **Already wired:** customer + servicer account (settings), customer + guest quote forms, customer + servicer registration, admin users, and the in-chat quote assistant's combined contact card. New phone fields must use it too.
 - Country-code list lives once in `PHONE_PREFIXES` (same file) — add codes there, never duplicate the list per form.
 
 ### 7.5 Form subtitle row (`.sub-row`)

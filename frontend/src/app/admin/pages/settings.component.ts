@@ -81,10 +81,10 @@ interface NumSetting {
 
 const NUM_SETTINGS: NumSetting[] = [
   // ── Servicer ──
-  { key: 'minimum_merchant_charge', label: 'Minimum servicer charge', hint: 'Smallest total a servicer may charge for a job.', tab: 'servicer', prop: 'amount', kind: 'money' },
-  { key: 'merchant_deposit_minimum', label: 'Deposit minimum', hint: 'Minimum deposit a servicer must hold to take jobs.', tab: 'servicer', prop: 'amount', kind: 'money' },
-  { key: 'merchant_credit_withdrawal_minimum', label: 'Withdrawal minimum', hint: 'Smallest credit withdrawal a servicer can request.', tab: 'servicer', prop: 'amount', kind: 'money' },
-  { key: 'merchant_proposal_preset_limit', label: 'Proposal preset limit', hint: 'Max saved proposal presets per servicer.', tab: 'servicer', prop: 'limit', kind: 'count' },
+  { key: 'minimum_servicer_charge', label: 'Minimum servicer charge', hint: 'Smallest total a servicer may charge for a job.', tab: 'servicer', prop: 'amount', kind: 'money' },
+  { key: 'servicer_deposit_minimum', label: 'Deposit minimum', hint: 'Minimum deposit a servicer must hold to take jobs.', tab: 'servicer', prop: 'amount', kind: 'money' },
+  { key: 'servicer_credit_withdrawal_minimum', label: 'Withdrawal minimum', hint: 'Smallest credit withdrawal a servicer can request.', tab: 'servicer', prop: 'amount', kind: 'money' },
+  { key: 'servicer_proposal_preset_limit', label: 'Proposal preset limit', hint: 'Max saved proposal presets per servicer.', tab: 'servicer', prop: 'limit', kind: 'count' },
   { key: 'no_show_consecutive_threshold', label: 'No-show consecutive threshold', hint: 'Consecutive no-shows before the servicer is flagged.', tab: 'servicer', prop: 'count', kind: 'count' },
   { key: 'no_show_weekly_threshold', label: 'No-show weekly threshold', hint: 'No-shows within a week before the servicer is flagged.', tab: 'servicer', prop: 'count', kind: 'count' },
   { key: 'noshow_grace_minutes', label: 'No-show grace period', hint: 'Minutes a servicer can be late before it counts as a no-show.', tab: 'servicer', prop: 'minutes', kind: 'minutes' },
@@ -484,7 +484,8 @@ const POSTCODES_PER_PAGE = 20;
                 <div class="thumb-info">
                   <strong class="thumb-name">{{ cat.name }}</strong>
                   <div class="thumb-acts">
-                    <label class="thumb-upload-btn">
+                    <label class="btn-ghost btn-xs thumb-upload-btn" [class.disabled]="uploading().has(cat.id)">
+                      {{ uploading().has(cat.id) ? 'Uploading…' : 'Upload' }}
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
@@ -492,9 +493,6 @@ const POSTCODES_PER_PAGE = 20;
                         (change)="uploadThumbnail(cat, $event)"
                         hidden
                       />
-                      <span class="btn-ghost btn-xs" [class.disabled]="uploading().has(cat.id)">
-                        {{ uploading().has(cat.id) ? 'Uploading…' : 'Upload' }}
-                      </span>
                     </label>
                     @if (cat.imageUrl) {
                       <button type="button" class="btn-ghost btn-xs" (click)="clearThumbnail(cat)" [disabled]="uploading().has(cat.id)">

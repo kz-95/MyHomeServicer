@@ -400,9 +400,9 @@ interface QForm {
                 <span class="label-text">Category Thumbnail</span>
                 <div class="thumb-upload-row">
                   <input [(ngModel)]="imagery.imageUrl" name="ithumburl" placeholder="https://… or upload below" />
-                  <label class="thumb-file-label">
-                    <input type="file" accept="image/jpeg,image/png,image/webp" class="file-hidden" (change)="onThumbnailFile($event)" />
-                    <span class="btn-ghost btn-xs">Upload</span>
+                  <label class="btn-ghost btn-xs thumb-file-label">
+                    Upload
+                    <input type="file" accept="image/jpeg,image/png,image/webp" (change)="onThumbnailFile($event)" hidden />
                   </label>
                 </div>
                 @if (thumbnailUploading()) {
@@ -690,7 +690,6 @@ interface QForm {
     .thumb-upload-row { display: flex; gap: 0.4rem; align-items: center; }
     .thumb-upload-row input { flex: 1; }
     .thumb-file-label { cursor: pointer; }
-    .file-hidden { display: none; }
     .copy-details { border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.5rem 0.7rem; font-size: 0.85rem; }
     .copy-details summary { cursor: pointer; font-weight: 600; color: var(--color-muted); }
     .tips-list, .faq-list { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.4rem; }

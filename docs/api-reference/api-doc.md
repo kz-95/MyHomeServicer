@@ -477,9 +477,18 @@ Submit a new quote request.
   "serviceDetails": {
     "aircon_service": ["wall_chemical", "wall_general"],
     "property_type": "condo"
-  }
+  },
+  "targetServicerId": "uuid"
 }
 ```
+`targetServicerId` (optional) is the **locked-rebook / direct-quote** target. When
+present the quote is **not** broadcast to all matching servicers — it goes only to
+this one servicer (sent via the "Rebook same servicer" action on order history,
+which also locks the category). The target must exist, not be banned, and offer the
+quote's category; online status and service-area matching are ignored so the chosen
+servicer is always reached. Threaded in-memory through `broadcastQuote` (not
+persisted), so it is unaffected by the deferred guest-gateway path.
+
 `serviceDetails` (optional) carries the customer's answers to the category's
 custom questions — keyed by question `key`, value is a string (radio/text) or
 string array (checkbox). The 3-step quote wizard sends this; budget is picked
@@ -497,6 +506,20 @@ free text; it is not a question key, so `computePrefill` ignores it for pricing.
   "servicersNotified": 5
 }
 ```
+
+**Payment gate before broadcast.** No quote reaches servicers until its payment
+is settled. Ordering inside `createQuote`:
+1. `pay_later` / `cash` — `requireNoUnpaidInvoice` is enforced first.
+2. `pay_now` (credit) — the budget hold is deducted **before** any broadcast,
+   socket emit, servicer notification, or dispatch rotation fires. If the
+   deduction fails the quote is created but never broadcast.
+3. `pay_now` (guest / gateway) — the quote is created with `status:
+   "pending_payment"`, `servicersNotified: 0`, and is **not** broadcast. The
+   public `POST /quotes/guest` endpoint then opens a Stripe Checkout session;
+   the `checkout.session.completed` webhook funds the wallet, takes the hold,
+   flips the quote to `open`, and broadcasts it. If the Stripe session cannot be
+   created the quote is left `pending_payment` (response carries no `stripeUrl`)
+   and never reaches servicers.
 
 ### `GET /quotes`
 List my quotes.
@@ -539,6 +562,12 @@ Pick a proposal.
 ```
 `settlementMethod` is required when the quote's `paymentMode` is `pay_later` (must be `credit` or `cash`). Omit or send `null` for `pay_now` quotes.
 **Response 201:** `{ "bookingId": "uuid" }`
+
+> **No servicer re-confirm (SP-3 dispatch wave).** Selecting a proposal now creates the
+> booking directly in `confirmed` (was `pending_confirm`) and schedules no-show detection
+> immediately — the customer's selection IS the confirmation, so there is no separate
+> servicer "Confirm job" step. `POST /servicer/jobs/:id/confirm` is retained but no longer
+> part of the normal flow (no booking reaches `pending_confirm`).
 
 ### `POST /quotes/:id/cancel`
 Cancel an open quote before a proposal is selected. Only allowed when `status = open`. Once a proposal is selected and a booking is created, use `POST /bookings/:id/cancel` instead.
@@ -723,6 +752,50 @@ Soft-disable a module (sets `active=false`) so existing listing references stay 
 **Auth:** Bearer (servicer)
 **Response 204:** Empty
 
+### Servicer WhatsApp presets (SP-3 dispatch)
+
+Reusable WhatsApp message templates (`ServicerWaPreset` / `servicer_wa_presets`). A servicer fires one at a customer from a won job card via the shared `<app-wa-button>`, which interpolates `{name}`/`{orderId}`/`{eta}` placeholders in the `body` and opens a `wa.me` link. All endpoints are scoped to the authenticated servicer; fields are picked explicitly. Surfaced in the servicer **Business Profile** → *WhatsApp message presets* section.
+
+#### `GET /servicer/wa-presets`
+List the authenticated servicer's presets, active first then newest.
+**Query:** `?active=true` — active only (optional, default shows all)
+**Auth:** Bearer (servicer)
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "servicerId": "uuid",
+      "label": "On my way",
+      "body": "Hi {name}, I'm on my way for order {orderId}. ETA {eta}.",
+      "active": true,
+      "createdAt": "2026-06-17T00:00:00Z",
+      "updatedAt": "2026-06-17T00:00:00Z"
+    }
+  ]
+}
+```
+
+#### `POST /servicer/wa-presets`
+Create a preset. `label` (≤80 chars) and `body` (≤2000 chars) required; `active` defaults to `true`.
+**Auth:** Bearer (servicer)
+**Request:**
+```json
+{ "label": "On my way", "body": "Hi {name}, ETA {eta}." }
+```
+**Response 201:** The created preset.
+
+#### `PATCH /servicer/wa-presets/:id`
+Update a preset (`label`, `body`, `active` — all optional). 404 if not owned by the caller.
+**Auth:** Bearer (servicer)
+**Response 200:** Updated preset.
+
+#### `DELETE /servicer/wa-presets/:id`
+Soft-disable a preset (sets `active=false`). 404 if not owned by the caller.
+**Auth:** Bearer (servicer)
+**Response 204:** Empty
+
 ### `PATCH /servicer/me/online`
 V1: always-on, but endpoint exists for post-V1.
 ```json
@@ -896,6 +969,7 @@ List all services with SKUs. Each row also carries SP-3 fields `imageUrl` (optio
 
 ### `POST /servicer/me/services`
 **SP-3 fields (optional):** `imageUrl` (S3 file URL from the `listing_photo` presign flow) and `published` (defaults `true`). The Simple-listing flow sends `modifiers` with `price: null` per option to record offered/N-A job preferences (no per-option pricing), `taxMode: "none"`, `autoAccept: false`, and no modules.
+**SP-3 Advanced-wizard fields (optional):** `listingMode` (`"simple"` | `"advanced"`, defaults `"simple"`), `moduleRefs` (array of `{ moduleId, kind: "included"|"addon", overridePrice?, durationDeltaMin? }` — validated by `moduleRefsSchema`), `autoAccept` (bool), and `autoAcceptMessage` (≤200 chars, shown to the customer on auto-accept). Advanced listings also send `modifiers` with per-option `price`/`durationMin`. All accepted on `PATCH` too.
 ```json
 {
   "subcategoryId": "uuid",
@@ -1029,7 +1103,7 @@ Only quotes still `status: open` are returned (matched/expired/cancelled drop ou
   "status": "open",
   "derivedStatus": "open",
   "openedAt": null,
-  "merchantDeadline": "...",
+  "servicerDeadline": "...",
   "myProposalId": null,
   "myProposalIsAuto": false,
   "customerAvatarUrl": "https://...",
@@ -1057,6 +1131,29 @@ Submit a proposal.
   "presetId": "uuid"
 }
 ```
+
+### `POST /servicer/quotes/:id/accept-listing`
+**One-tap accept (SP-3 dispatch wave).** Submits a proposal at the servicer's
+listing-computed `{ proposedPrice, etaMinutes, message }` — no manual form. Price
++ duration are derived from the servicer's best-fit listing for the quote's
+category (option-priced total via `computePrefill`), falling back to the listing's
+`basePrice` + `estimatedDurationMinutes` when no priced options match. The customer
+still selects among submitted proposals (this does not create a booking).
+
+**Auth:** Bearer (servicer). **Response 201:** the created/updated `QuoteProposal`.
+Returns `400` when the servicer has no priced listing for the category; surfaces
+the onboarding gate (`{ missing, redirectUrl }`) if profile incomplete.
+
+### `POST /servicer/dispatch/:broadcastId/accept`
+Servicer accepts a live dispatch prompt → creates a `confirmed` booking directly.
+Price/duration/message are listing-computed (same engine as `accept-listing`).
+**Taken guard (SP-3 dispatch wave):** the quote is claimed with an atomic
+conditional update (`updateMany WHERE status='open'`) inside the booking
+transaction — if another servicer already matched it, the update affects 0 rows
+and the call returns `409 Conflict` with `"Sorry, this job was taken by another
+servicer."` (closes the prior findFirst-then-create race). On success, emits
+`quote.matched` to every other broadcast servicer and `booking.confirmed` to the
+customer. **Response 200:** `{ "bookingId": "uuid" }`.
 
 ### `POST /servicer/quotes/:id/open`
 Mark a broadcast quote as opened and return a proposal price pre-fill.
@@ -1688,7 +1785,7 @@ the category), plus `parentCategoryId`, `imageUrl`, `allowedTimeSlots`,
 
 **Added 2026-06-01:** read-only average-price analytics fields:
 - `averagePrice` (number | null) — mean `basePrice` of active (`deletedAt` null)
-  `MerchantService` rows, rounded 2dp. For parent (top-level) categories, the
+  `ServicerService` rows, rounded 2dp. For parent (top-level) categories, the
   average is the weighted aggregate of all children's listings.
 - `priceStatListingCount` (number) — count of listings in the same scope (own
   services for sub-categories; aggregated children for parents).
@@ -1754,13 +1851,13 @@ tab uses this). Created with empty `questionSchema`, all 5 default time slots, a
 
 ### `DELETE /admin/categories/:id`
 **PIN required.** Soft-deletes (sets `deletedAt`). **Blocked (400)** when an
-active `MerchantService` (`deletedAt IS NULL`) or an open `QuoteRequest`
+active `ServicerService` (`deletedAt IS NULL`) or an open `QuoteRequest`
 (status in `open`/`matched`/`reposted`) exists for the category. Returns
 `{ "ok": true }` on success. Audited.
 
 ### `GET /admin/categories/:id/question-impact?key=<questionKey>`
 Returns `{ "key": "...", "count": <n> }` — number of non-deleted
-`MerchantService` rows whose `modifiers` JSONB references the given question key
+`ServicerService` rows whose `modifiers` JSONB references the given question key
 (via the Postgres `?` hasKey operator). Powers the editor's warning before
 deactivating a question or flipping its `priced` flag.
 
@@ -2219,6 +2316,6 @@ Current version: `v1`. Future breaking changes will introduce `v2` while `v1` re
 ## Update 2026-05-31 — Category endpoints
 - `GET /categories` — published top-level parents (with `activeListingCount`, `published`, `bannerUrl`, `cardColor`, `description`).
 - `GET /categories?parent=<slug>` — that parent's published children (quotable services). NEW (drill-down).
-- `GET /categories/:slug`, `GET /categories/:slug/merchants` — unchanged.
+- `GET /categories/:slug`, `GET /categories/:slug/servicers` — unchanged.
 - Admin (PIN-gated, audited): `POST /admin/categories` (create), `PATCH /admin/categories/:id` (name/icon/defaults/published/questionSchema, immutability-checked), `DELETE /admin/categories/:id` (soft-delete, guarded), `GET /admin/categories/:id/question-impact?key=`.
 - Frontend: new public route `GET /services/:parentSlug` → `ChildrenBrowseComponent`. Home parent cards drill down here; child cards route to `/customer/quote/new` or `/guest/quote/new` with `categoryId`.

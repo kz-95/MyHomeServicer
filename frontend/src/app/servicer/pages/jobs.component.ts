@@ -23,6 +23,7 @@ import { IconComponent } from '../../shared/icon.component';
 import { DispatchOverlayComponent } from '../../shared/dispatch-overlay.component';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
 import { MapViewComponent } from '../../shared/map-view.component';
+import { WaButtonComponent } from '../../shared/wa-button.component';
 import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
 
@@ -36,9 +37,12 @@ interface IncomingQuote {
   budgetMax?: number;
   paymentMode?: string;
   derivedStatus: string;
-  merchantDeadline: string;
+  servicerDeadline: string;
   myProposalId?: string | null;
   myProposalIsAuto?: boolean;
+  myProposalPrice?: number | null;
+  myProposalEta?: number | null;
+  myProposalMessage?: string | null;
   customerAvatarUrl?: string | null;
   customerName?: string;
   address?: string | null;
@@ -61,6 +65,10 @@ interface Job {
   doneAt: string | null;
   cashConfirmedAt: string | null;
   cashConfirmed: boolean;
+  etaMinutes?: number | null;
+  orderId?: string;
+  customerName?: string | null;
+  customerPhone?: string | null;
   quoteRequest: { category: { name: string } };
 }
 interface JobDetail {
@@ -105,7 +113,7 @@ interface ProposalPrefill {
   breakdown: { optionLabel: string; price: number }[];
 }
 
-const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
+const ACTIVE = ['confirmed', 'in_progress'];
 
 /**
  * Servicer jobs board - three columns side by side:
@@ -120,11 +128,11 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
 @Component({
     selector: 'app-servicer-jobs',
     host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, RouterLink, IconComponent, CountdownComponent, ModalComponent, DispatchOverlayComponent, ListToolbarComponent, MapViewComponent],
+    imports: [CommonModule, FormsModule, RouterLink, IconComponent, CountdownComponent, ModalComponent, DispatchOverlayComponent, ListToolbarComponent, MapViewComponent, WaButtonComponent],
     template: `
     <div class="tabs">
       <button class="tab" [class.active]="tab() === 'pending'" [routerLink]="['/servicer/jobs', 'pending']">
-        Pending <span class="n">{{ quotes().length }}</span>
+        Pending <span class="n">{{ quotes().length + pendingJobs().length }}</span>
       </button>
       <button class="tab" [class.active]="tab() === 'active'" [routerLink]="['/servicer/jobs', 'active']">
         Active <span class="n">{{ activeJobs().length }}</span>
@@ -149,7 +157,6 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
         }
         @if (tab() === 'active') {
           <button class="chip" [class.on]="activeFilter() === 'all'" (click)="activeFilter.set('all')">All</button>
-          <button class="chip" [class.on]="activeFilter() === 'pending_confirm'" (click)="activeFilter.set('pending_confirm')">Pending</button>
           <button class="chip" [class.on]="activeFilter() === 'confirmed'" (click)="activeFilter.set('confirmed')">Confirmed</button>
           <button class="chip" [class.on]="activeFilter() === 'in_progress'" (click)="activeFilter.set('in_progress')">In Progress</button>
         }
@@ -227,8 +234,30 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
                       <span class="muted small">No extra details</span>
                     }
                   </div>
-                  <app-countdown [deadline]="q.merchantDeadline" />
+                  <app-countdown [deadline]="q.servicerDeadline" />
                 </div>
+
+                <!-- Post-accept collapse: 3 lines once a proposal has been sent. -->
+                @if (q.myProposalId && !q.myProposalIsAuto) {
+                  <div class="pq-accepted">
+                    <div class="pq-accepted-row">
+                      <span class="pq-price">RM {{ (q.myProposalPrice ?? 0) | number: '1.2-2' }}</span>
+                      @if (q.myProposalEta != null) {
+                        <span class="pq-dur">{{ q.myProposalEta }} min</span>
+                      }
+                    </div>
+                    @if (q.myProposalMessage) {
+                      <p class="pq-msg">{{ q.myProposalMessage }}</p>
+                    }
+                  </div>
+                } @else {
+                  <!-- One-tap accept: submit a proposal at the listing's computed price. -->
+                  <div class="actions">
+                    <button class="btn-primary" (click)="acceptListing(q, $event)" [disabled]="busy()">
+                      Accept Job
+                    </button>
+                  </div>
+                }
                 @if (expanded() === q.quoteId && (!q.myProposalId || q.myProposalIsAuto)) {
                   <!-- Customer identity in accept view (Phase 6 §16.2) -->
                   @if (expandedCustomerName()) {
@@ -302,16 +331,18 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
               <div class="card item">
                 <strong>{{ j.quoteRequest.category.name }}</strong>
                 <span class="badge">{{ j.status }}</span>
-                <div class="muted small">
-                  RM {{ j.price | number: '1.2-2' }} · {{ j.paymentMode }}
+                <!-- Same detail as the pending card: price · duration · message. -->
+                <div class="pq-accepted-row">
+                  <span class="pq-price">RM {{ j.price | number: '1.2-2' }}</span>
+                  @if (j.etaMinutes != null) {
+                    <span class="pq-dur">{{ j.etaMinutes }} min</span>
+                  }
+                  <span class="muted small">{{ j.paymentMode }}</span>
                 </div>
                 <div class="muted small">
                   {{ j.scheduledDate | date: 'mediumDate' }} {{ j.timeSlot }}
                 </div>
                 <div class="actions">
-                  @if (j.status === 'pending_confirm') {
-                    <button class="btn-primary" (click)="confirm(j)">Confirm job</button>
-                  }
                   @if (j.status === 'confirmed') {
                     <button class="btn-primary" (click)="openPhotoModal(j, 'arrive_photo')">
                       Mark arrived
@@ -321,6 +352,14 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
                     <button class="btn-primary" (click)="openPhotoModal(j, 'done_photo')">
                       Mark done
                     </button>
+                  }
+                  @if (j.customerPhone) {
+                    <app-wa-button
+                      [phone]="j.customerPhone"
+                      [body]="'Hi {name}, this is regarding your booking ' + (j.orderId || '') + '. '"
+                      [vars]="{ name: j.customerName || '', orderId: j.orderId || '', eta: j.etaMinutes ? (j.etaMinutes + ' min') : '' }"
+                      label="WhatsApp"
+                    ></app-wa-button>
                   }
                   <button class="btn-ghost" (click)="cancel(j)">Cancel</button>
                 </div>
@@ -391,15 +430,15 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
         </p>
 
         <!-- File picker trigger -->
-        <label class="file-label">
+        <label class="btn-ghost file-btn">
+          <app-icon name="camera" sizeToken="sm" /> Choose photo…
           <input
             #fileInput
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            class="file-hidden"
             (change)="onFileChange($event)"
+            hidden
           />
-          <span class="btn-ghost file-btn"><app-icon name="camera" sizeToken="sm" /> Choose photo…</span>
         </label>
 
         <!-- Preview -->
@@ -576,7 +615,7 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
         overflow: hidden;
       }
       .toolbar.is-collapsed .search { height: 1.6rem; font-size: 0.75rem; padding: 0.2rem 0.5rem; }
-      .toolbar.is-collapsed .chip { font-size: 0.7rem; padding: 0.15rem 0.5rem; }
+      .toolbar.is-collapsed .chip { font-size: 0.7rem; padding: 0.625rem 0.625rem; }
       .toolbar.is-idle {
         pointer-events: none;
         padding: 0;
@@ -622,7 +661,7 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
         flex-wrap: wrap;
       }
       .chip {
-        padding: 0.3rem 0.7rem;
+        padding: 0.625rem 0.7rem;
         border-radius: 999px;
         border: 1px solid var(--color-border);
         background: transparent;
@@ -736,6 +775,32 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
         padding: 0.12rem 0.5rem;
       }
       .pq-chip.note { font-style: italic; color: var(--color-muted); }
+      /* ── Post-accept collapse (3 lines: price · duration + message) ─────── */
+      .pq-accepted {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        margin-top: 0.6rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--color-border);
+      }
+      .pq-accepted-row {
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .pq-price { font-weight: 700; color: var(--color-primary); font-size: 1rem; }
+      .pq-dur {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--color-muted);
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        padding: 0.1rem 0.55rem;
+      }
+      .pq-msg { margin: 0; font-size: 0.85rem; color: var(--color-text); line-height: 1.35; }
       .small {
         font-size: 0.8rem;
       }
@@ -853,13 +918,6 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
         display: flex;
         flex-direction: column;
         gap: 0.9rem;
-      }
-      .file-hidden {
-        display: none;
-      }
-      .file-label {
-        display: inline-flex;
-        align-items: center;
       }
       .file-btn {
         cursor: pointer;
@@ -1025,6 +1083,16 @@ const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress'];
       .modal ul { margin: 0; padding-left: 1.2rem; }
       .modal ul li { margin-bottom: 0.3rem; font-size: 0.9rem; }
       .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+      .section-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--color-muted);
+        margin: 1.25rem 0 0.5rem;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid var(--color-border);
+      }
     `,
     ]
 })
@@ -1049,7 +1117,7 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   search = signal('');
   sortBy = signal<'date' | 'price_high' | 'price_low'>('date');
   pendingFilter = signal<'all' | 'new' | 'responded'>('all');
-  activeFilter = signal<'all' | 'pending_confirm' | 'confirmed' | 'in_progress'>('all');
+  activeFilter = signal<'all' | 'confirmed' | 'in_progress'>('all');
 
   filteredQuotes = computed(() => {
     const q = this.quotes();
@@ -1065,7 +1133,7 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     list = [...list].sort((a, b) => {
       if (sb === 'price_high') return (b.budgetMax ?? 0) - (a.budgetMax ?? 0);
       if (sb === 'price_low') return (a.budgetMin ?? 0) - (b.budgetMin ?? 0);
-      return b.merchantDeadline.localeCompare(a.merchantDeadline);
+      return b.servicerDeadline.localeCompare(a.servicerDeadline);
     });
     return list;
   });
@@ -1173,6 +1241,7 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   }
 
   activeJobs = computed(() => this.jobs().filter((j) => ACTIVE.includes(j.status)));
+  pendingJobs = computed(() => this.jobs().filter((j) => j.status === 'pending_confirm'));
 
   // ── Photo upload modal state ────────────────────────────────────────────
   photoModalOpen = signal(false);
@@ -1299,7 +1368,7 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
       this.pendingFilter.set(filter);
     } else if (
       t === 'active' &&
-      (filter === 'pending_confirm' || filter === 'confirmed' || filter === 'in_progress')
+      (filter === 'confirmed' || filter === 'in_progress')
     ) {
       this.activeFilter.set(filter);
     } else if (t === 'history' && (filter === 'completed' || filter === 'cancelled')) {
@@ -1326,8 +1395,8 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     this.loadEarnings();
     this.loadPricingModules();
     this.sub = this.socket.on<{ quoteId: string }>('quote.new').subscribe(() => this.loadQuotes());
-    // A customer accepted a proposal: the winning merchant gets a new active job;
-    // every merchant's pending list must drop the now-matched quote. Refresh both.
+    // A customer accepted a proposal: the winning servicer gets a new active job;
+    // every servicer's pending list must drop the now-matched quote. Refresh both.
     this.subs.push(
       this.socket.on<{ bookingId: string }>('job.new').subscribe(() => {
         this.loadJobs();
@@ -1473,7 +1542,7 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
               next.set(q.quoteId, res.proposalPrefill!);
               return next;
             });
-            // Pre-fill the price input so the merchant sees the computed total.
+            // Pre-fill the price input so the servicer sees the computed total.
             this.price = res.proposalPrefill.defaultTotal;
           }
         },
@@ -1510,6 +1579,33 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
         r.moduleId === moduleId ? { ...r, priceOverride: val } : r,
       ),
     );
+  }
+
+  /** One-tap accept: submit a proposal at the listing's computed price/duration/message. */
+  acceptListing(q: IncomingQuote, event: Event): void {
+    event.stopPropagation();
+    if (this.busy()) return;
+    this.busy.set(true);
+    this.api.post(`/servicer/quotes/${q.quoteId}/accept-listing`, {}).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.success('Job accepted — proposal sent.');
+        this.loadQuotes();
+      },
+      error: (e) => {
+        this.busy.set(false);
+        if (e.error?.message?.includes('taken')) {
+          this.toast.error('Sorry, this job was taken by another servicer.');
+          this.loadQuotes();
+        } else if (e.error?.missing && Array.isArray(e.error.missing)) {
+          this.missingItems.set(e.error.missing.map((m: string) => m.replace(/_/g, ' ')));
+          this.redirectUrl.set(e.error.redirectUrl ?? '/servicer/account');
+          this.onboardingRequired.set(true);
+        } else {
+          this.toast.error(e.error?.message ?? e.message ?? 'Could not accept the job.');
+        }
+      },
+    });
   }
 
   propose(q: IncomingQuote): void {
@@ -1577,10 +1673,6 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
       },
       error: (e) => this.toast.error(e.message ?? 'Action failed'),
     });
-  }
-
-  confirm(j: Job): void {
-    this.act(`/servicer/jobs/${j.id}/confirm`, { confirm: true }, 'Job confirmed.');
   }
 
   cashConfirm(j: Job): void {

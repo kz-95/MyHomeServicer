@@ -5,6 +5,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { badRequest, notFound } from '../lib/errors';
 import { allowDemo, env } from '../config/env';
 import { requireAuth } from '../middleware/auth';
+import { checkPinCooldown, recordPinFailure, recordPinSuccess } from '../middleware/pin-cooldown';
 import { runReseed, runClear, runClearContent } from '../services/admin.service';
 import { seedDemoQuote, seedDemoProposal } from '../services/quote.service';
 import { adjustCredit } from '../services/credit.service';
@@ -27,6 +28,7 @@ import { stripeRouter } from './stripe.routes';
 import { rewardsRouter, customerRewardsRouter, adminRewardsRouter } from './rewards.routes';
 import { pricingModuleRouter } from './pricing-module.routes';
 import { servicerModuleRouter } from './servicer-module.routes';
+import { servicerWaPresetRouter } from './servicer-wa-preset.routes';
 
 /**
  * API v1 router. Domain routers are mounted here as each build phase lands.
@@ -107,8 +109,8 @@ apiRouter.get(
   asyncHandler(async (_req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     const demoUserCount = await prisma.user.count({ where: { isDemo: true, role: { not: 'admin' } } });
-    const demoMerchantCount = await prisma.servicer.count();
-    res.json({ hasDemoData: demoUserCount > 0 || demoMerchantCount > 0 });
+    const demoServicerCount = await prisma.servicer.count();
+    res.json({ hasDemoData: demoUserCount > 0 || demoServicerCount > 0 });
   }),
 );
 
@@ -128,8 +130,14 @@ apiRouter.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     if (!req.user?.isDemo) throw badRequest('The demo gate is only for demo accounts');
+    await checkPinCooldown(req.user.id);
+
     const pin = String((req.body ?? {}).pin ?? '');
-    if (pin !== DEMO_GATE_PIN) throw badRequest('Incorrect PIN');
+    if (pin !== DEMO_GATE_PIN) {
+      await recordPinFailure(req.user.id);
+      throw badRequest('Incorrect PIN');
+    }
+    await recordPinSuccess(req.user.id);
     res.json({ ok: true });
   }),
 );
@@ -207,6 +215,9 @@ apiRouter.use('/servicer/pricing-modules', pricingModuleRouter);
 // ── Servicer modules (SP-3 reusable priced item library) ─────────────────────
 apiRouter.use('/servicer/modules', servicerModuleRouter);
 
+// ── Servicer WhatsApp message presets (SP-3 dispatch) ─────────────────────────
+apiRouter.use('/servicer/wa-presets', servicerWaPresetRouter);
+
 // ── Phase 3 — Booking ────────────────────────────────────────────────────────
 apiRouter.use('/bookings', bookingsRouter);
 apiRouter.use('/files', filesRouter);
@@ -283,7 +294,7 @@ apiRouter.post(
 
 /**
  * POST /dev/seed-quote — generates one demo open quote request (from a random
- * demo customer) so the merchant incoming-quotes feed can be shown live.
+ * demo customer) so the servicer incoming-quotes feed can be shown live.
  * Development only.
  */
 apiRouter.post(
@@ -293,7 +304,7 @@ apiRouter.post(
 );
 
 /**
- * POST /dev/seed-proposal — generates one demo merchant proposal for an open
+ * POST /dev/seed-proposal — generates one demo servicer proposal for an open
  * quote request, so the customer's proposals feed can be shown filling up
  * live. When a customer triggers it, it targets one of their own open quotes.
  * Development only.
@@ -310,7 +321,7 @@ apiRouter.post(
 /**
  * POST /dev/topup — instantly credits the signed-in account's balance. A
  * demo convenience behind the topbar "Top-Up" panel; works for customer and
- * merchant accounts (not admin) and is hard-blocked in production.
+ * servicer accounts (not admin) and is hard-blocked in production.
  */
 apiRouter.post(
   '/dev/topup',
@@ -376,17 +387,17 @@ apiRouter.get(
 
     if (role === 'servicer') {
       const [services, jobs, invoices] = await Promise.all([
-        prisma.merchantService.findMany({
-          where: { merchantId: userId, title: { contains: q, mode: 'insensitive' } },
+        prisma.servicerService.findMany({
+          where: { servicerId: userId, title: { contains: q, mode: 'insensitive' } },
           take: 10,
         }),
         prisma.booking.findMany({
-          where: { merchantId: userId },
+          where: { servicerId: userId },
           include: { quoteRequest: { include: { category: true } } },
           take: 10,
         }),
         prisma.invoice.findMany({
-          where: { merchantId: userId, invoiceNumber: { contains: q, mode: 'insensitive' } },
+          where: { servicerId: userId, invoiceNumber: { contains: q, mode: 'insensitive' } },
           take: 5,
         }),
       ]);
@@ -430,14 +441,14 @@ apiRouter.get(
         }
       }
     } else if (role === 'admin') {
-      const [merchants] = await Promise.all([
+      const [servicers] = await Promise.all([
         prisma.servicer.findMany({
           where: { businessName: { contains: q, mode: 'insensitive' } },
           take: 10,
         }),
       ]);
-      for (const m of merchants) {
-        results.push({ id: m.id, label: m.businessName ?? m.name, type: 'Merchant', icon: '🏪', route: `/admin/merchants` });
+      for (const m of servicers) {
+        results.push({ id: m.id, label: m.businessName ?? m.name, type: 'Servicer', icon: '🏪', route: `/admin/servicers` });
       }
     }
 

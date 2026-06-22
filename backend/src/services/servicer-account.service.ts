@@ -6,9 +6,9 @@ import { getSetting } from './settings.service';
 import { notifyWithdrawalSubmitted } from './admin.service';
 
 /** Servicer profile with deposit + credit + contacts + tax config. */
-export async function getMerchantProfile(merchantId: string) {
+export async function getServicerProfile(servicerId: string) {
   const m = await prisma.servicer.findUnique({
-    where: { id: merchantId },
+    where: { id: servicerId },
     include: {
       deposit: true,
       category: true,
@@ -50,7 +50,7 @@ export async function getMerchantProfile(merchantId: string) {
     invoiceYearFormat: m.invoiceYearFormat,
     invoiceSeparator: m.invoiceSeparator,
     invoicePadding: m.invoicePadding,
-    // The fixed platform "big category" this merchant operates under.
+    // The fixed platform "big category" this servicer operates under.
     category: { id: m.category.id, name: m.category.name, slug: m.category.slug, imageUrl: m.category.imageUrl },
     categoryId: m.categoryId,
     deposit: m.deposit,
@@ -60,29 +60,29 @@ export async function getMerchantProfile(merchantId: string) {
   };
 }
 
-/** Today's earnings snapshot for the merchant dashboard. */
-export async function getEarningsToday(merchantId: string) {
+/** Today's earnings snapshot for the servicer dashboard. */
+export async function getEarningsToday(servicerId: string) {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
 
   const [completedToday, activeJobs, pendingProposals, releaseRows, cashToday, cashFeesToday] = await Promise.all([
     prisma.booking.count({
-      where: { merchantId, status: 'completed', doneAt: { gte: start } },
+      where: { servicerId, status: 'completed', doneAt: { gte: start } },
     }),
-    prisma.booking.count({ where: { merchantId, status: { in: ['confirmed', 'in_progress'] } } }),
-    prisma.quoteProposal.count({ where: { merchantId, status: 'submitted' } }),
+    prisma.booking.count({ where: { servicerId, status: { in: ['confirmed', 'in_progress'] } } }),
+    prisma.quoteProposal.count({ where: { servicerId, status: 'submitted' } }),
     prisma.transaction.aggregate({
-      where: { merchantId, type: 'escrow_release', createdAt: { gte: start } },
+      where: { servicerId, type: 'escrow_release', createdAt: { gte: start } },
       _sum: { amount: true },
     }),
     // Cash jobs have no escrow_release — count separately
     prisma.booking.findMany({
-      where: { merchantId, status: 'completed', paymentMode: 'cash', cashConfirmed: true, cashConfirmedAt: { gte: start } },
+      where: { servicerId, status: 'completed', paymentMode: 'cash', cashConfirmed: true, cashConfirmedAt: { gte: start } },
       select: { id: true, price: true },
     }),
     // Use actual recorded platform_fee to avoid fee-base mismatch (promo discounts change the base)
     prisma.transaction.findMany({
-      where: { merchantId, type: 'platform_fee', reference: 'Platform fee (cash)', createdAt: { gte: start } },
+      where: { servicerId, type: 'platform_fee', reference: 'Platform fee (cash)', createdAt: { gte: start } },
       select: { bookingId: true, amount: true },
     }),
   ]);
@@ -102,22 +102,22 @@ export async function getEarningsToday(merchantId: string) {
 }
 
 /** Daily earnings breakdown over the last N days. */
-export async function getEarningsDaily(merchantId: string, days: number) {
+export async function getEarningsDaily(servicerId: string, days: number) {
   const since = new Date(Date.now() - days * 86_400_000);
   // pay_later settled via credit creates escrow_release — counting it separately double-counts.
   // Cash has no escrow_release; query bookings + actual recorded platform_fee for accurate net.
   const [txns, bookings, cashBookings, cashFees] = await Promise.all([
     prisma.transaction.findMany({
-      where: { merchantId, type: 'escrow_release', createdAt: { gte: since }, bookingId: { not: null } },
+      where: { servicerId, type: 'escrow_release', createdAt: { gte: since }, bookingId: { not: null } },
       select: { amount: true, createdAt: true },
     }),
     prisma.booking.findMany({
-      where: { merchantId, status: 'completed', doneAt: { gte: since } },
+      where: { servicerId, status: 'completed', doneAt: { gte: since } },
       select: { doneAt: true },
     }),
     prisma.booking.findMany({
       where: {
-        merchantId,
+        servicerId,
         status: 'completed',
         paymentMode: 'cash',
         cashConfirmed: true,
@@ -126,7 +126,7 @@ export async function getEarningsDaily(merchantId: string, days: number) {
       select: { id: true, cashConfirmedAt: true, price: true },
     }),
     prisma.transaction.findMany({
-      where: { merchantId, type: 'platform_fee', reference: 'Platform fee (cash)', createdAt: { gte: since } },
+      where: { servicerId, type: 'platform_fee', reference: 'Platform fee (cash)', createdAt: { gte: since } },
       select: { bookingId: true, amount: true },
     }),
   ]);
@@ -167,13 +167,13 @@ export async function getEarningsDaily(merchantId: string, days: number) {
 
 // ── Servicer promotions ──────────────────────────────────────────────────────
 
-export async function listMerchantPromotions(_merchantId: string) {
-  // Merchant-owned promo codes removed — promotions are now platform-level engine rules
+export async function listServicerPromotions(_servicerId: string) {
+  // Servicer-owned promo codes removed — promotions are now platform-level engine rules
   return [];
 }
 
-export async function createMerchantPromotion(
-  _merchantId: string,
+export async function createServicerPromotion(
+  _servicerId: string,
   _input: {
     code: string;
     discountType: 'percent' | 'fixed';
@@ -184,21 +184,21 @@ export async function createMerchantPromotion(
     expiresAt?: string;
   },
 ) {
-  throw forbidden('Merchant promotions are managed through the platform promotion engine');
+  throw forbidden('Servicer promotions are managed through the platform promotion engine');
 }
 
-async function ownedPromotion(_merchantId: string, promotionId: string) {
+async function ownedPromotion(_servicerId: string, promotionId: string) {
   const promo = await prisma.promotion.findFirst({ where: { id: promotionId } });
   if (!promo) throw notFound('Promotion not found');
   return promo;
 }
 
-export async function updateMerchantPromotion(
-  merchantId: string,
+export async function updateServicerPromotion(
+  servicerId: string,
   promotionId: string,
   data: { isActive?: boolean; maxUses?: number; expiresAt?: string },
 ) {
-  await ownedPromotion(merchantId, promotionId);
+  await ownedPromotion(servicerId, promotionId);
   return prisma.promotion.update({
     where: { id: promotionId },
     data: {
@@ -209,56 +209,56 @@ export async function updateMerchantPromotion(
   });
 }
 
-export async function deactivateMerchantPromotion(merchantId: string, promotionId: string) {
-  await ownedPromotion(merchantId, promotionId);
+export async function deactivateServicerPromotion(servicerId: string, promotionId: string) {
+  await ownedPromotion(servicerId, promotionId);
   return prisma.promotion.update({ where: { id: promotionId }, data: { active: false } });
 }
 
 // ── Withdrawals & deposit top-up ─────────────────────────────────────────────
 
 export async function requestWithdrawal(
-  merchantId: string,
+  servicerId: string,
   input: { amount: number; bankName: string; bankAccount: string },
 ) {
-  const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
-  if (!merchant) throw notFound('Servicer not found');
+  const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
+  if (!servicer) throw notFound('Servicer not found');
 
-  const minimum = await getSetting<{ amount: number }>('merchant_credit_withdrawal_minimum');
+  const minimum = await getSetting<{ amount: number }>('servicer_credit_withdrawal_minimum');
   if (input.amount < (minimum.amount ?? 50)) {
     throw badRequest(`Minimum withdrawal is RM ${minimum.amount ?? 50}`);
   }
 
   // Reserve check — subtract in-flight (pending or approved) withdrawals so a
-  // merchant cannot submit multiple requests that together exceed their balance.
+  // servicer cannot submit multiple requests that together exceed their balance.
   // creditBalance is only decremented by markWithdrawalPaid, so we must account
   // for any amounts already earmarked here (BE-001 double-spend fix).
-  const inFlight = await prisma.merchantWithdrawal.aggregate({
-    where: { merchantId, status: { in: ['pending', 'approved'] } },
+  const inFlight = await prisma.servicerWithdrawal.aggregate({
+    where: { servicerId, status: { in: ['pending', 'approved'] } },
     _sum: { amount: true },
   });
   const reserved = Number(inFlight._sum.amount ?? 0);
-  const available = Number(merchant.creditBalance) - reserved;
+  const available = Number(servicer.creditBalance) - reserved;
   if (input.amount > available) {
     throw badRequest(
       `Withdrawal exceeds available credit balance (RM ${available.toFixed(2)} available after in-flight requests)`,
     );
   }
 
-  const withdrawal = await prisma.merchantWithdrawal.create({
+  const withdrawal = await prisma.servicerWithdrawal.create({
     data: {
-      merchantId,
+      servicerId,
       amount: input.amount,
       bankName: input.bankName,
       bankAccount: input.bankAccount,
     },
   });
-  await notifyWithdrawalSubmitted(withdrawal.id, merchantId);
+  await notifyWithdrawalSubmitted(withdrawal.id, servicerId);
   return { id: withdrawal.id, status: withdrawal.status };
 }
 
-export async function listMerchantWithdrawals(merchantId: string) {
-  return prisma.merchantWithdrawal.findMany({
-    where: { merchantId },
+export async function listServicerWithdrawals(servicerId: string) {
+  return prisma.servicerWithdrawal.findMany({
+    where: { servicerId },
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -266,15 +266,15 @@ export async function listMerchantWithdrawals(merchantId: string) {
 // ── Earnings PDF export ──────────────────────────────────────────────────────
 
 /**
- * Generates a weekly earnings summary PDF for the merchant and returns the
+ * Generates a weekly earnings summary PDF for the servicer and returns the
  * raw bytes. Caller streams these bytes back as application/pdf.
  *
- * @param merchantId  The merchant whose bookings are summarised.
+ * @param servicerId  The servicer whose bookings are summarised.
  * @param weekStart   ISO date string for the Monday of the target week
  *                    (e.g. "2026-05-18").  Defaults to the current week.
  */
 export async function exportEarningsPdf(
-  merchantId: string,
+  servicerId: string,
   weekStart?: string,
 ): Promise<Buffer> {
   // Resolve the Monday of the requested week.
@@ -282,13 +282,13 @@ export async function exportEarningsPdf(
   monday.setUTCHours(0, 0, 0, 0);
   const sunday = new Date(monday.getTime() + 7 * 86_400_000);
 
-  const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
-  if (!merchant) throw notFound('Servicer not found');
+  const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
+  if (!servicer) throw notFound('Servicer not found');
 
   // Fetch completed bookings with their invoices for the week.
   const bookings = await prisma.booking.findMany({
     where: {
-      merchantId,
+      servicerId,
       status: 'completed',
       doneAt: { gte: monday, lt: sunday },
     },
@@ -326,7 +326,7 @@ export async function exportEarningsPdf(
   // Header
   text('Weekly Earnings Summary', { size: 20, bold: true });
   y -= 24;
-  text(merchant.businessName, { size: 13, bold: true });
+  text(servicer.businessName, { size: 13, bold: true });
   y -= 18;
   text(
     `Week of ${monday.toISOString().slice(0, 10)} – ${new Date(sunday.getTime() - 86_400_000).toISOString().slice(0, 10)}`,
@@ -394,8 +394,8 @@ function getMondayOfCurrentWeek(): Date {
 }
 
 /** Update editable profile fields (bio, serviceAreas, logo, invoice settings, visibility, invoice content, bank, tax config, business details). */
-export async function updateMerchantProfile(
-  merchantId: string,
+export async function updateServicerProfile(
+  servicerId: string,
   data: {
     bio?: string;
     logoUrl?: string;
@@ -424,11 +424,11 @@ export async function updateMerchantProfile(
     categoryId?: string;
   },
 ) {
-  const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
-  if (!merchant) throw notFound('Servicer not found');
+  const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
+  if (!servicer) throw notFound('Servicer not found');
 
   // Auto-derive isCompany from entityType
-  const effectiveEntityType = data.entityType !== undefined ? data.entityType : merchant.entityType;
+  const effectiveEntityType = data.entityType !== undefined ? data.entityType : servicer.entityType;
   const isCompany = effectiveEntityType && effectiveEntityType !== 'sole_proprietorship';
 
   const updateData: Record<string, unknown> = {};
@@ -462,32 +462,32 @@ export async function updateMerchantProfile(
   if (data.categoryId !== undefined) updateData['categoryId'] = data.categoryId;
 
   return prisma.servicer.update({
-    where: { id: merchantId },
+    where: { id: servicerId },
     data: updateData,
   });
 }
 
-/** Toggle the merchant's online status (V1: always-on, but endpoint preserved for post-V1). */
-export async function setMerchantOnline(merchantId: string, isOnline: boolean) {
-  return prisma.servicer.update({ where: { id: merchantId }, data: { isOnline } });
+/** Toggle the servicer's online status (V1: always-on, but endpoint preserved for post-V1). */
+export async function setServicerOnline(servicerId: string, isOnline: boolean) {
+  return prisma.servicer.update({ where: { id: servicerId }, data: { isOnline } });
 }
 
 // ── Credit log ───────────────────────────────────────────────────────────────
 
-/** History of credit balance movements for the merchant (promo paybacks, withdrawals, etc.). */
-export async function listCreditLog(merchantId: string) {
-  return prisma.merchantCreditLog.findMany({
-    where: { merchantId },
+/** History of credit balance movements for the servicer (promo paybacks, withdrawals, etc.). */
+export async function listCreditLog(servicerId: string) {
+  return prisma.servicerCreditLog.findMany({
+    where: { servicerId },
     orderBy: { createdAt: 'desc' },
   });
 }
 
 // ── Penalties & appeals ──────────────────────────────────────────────────────
 
-/** List penalty logs for this merchant, including appeal status if one was filed. */
-export async function listPenalties(merchantId: string) {
+/** List penalty logs for this servicer, including appeal status if one was filed. */
+export async function listPenalties(servicerId: string) {
   const logs = await prisma.penaltyLog.findMany({
-    where: { merchantId },
+    where: { servicerId },
     include: { appeal: true },
     orderBy: { createdAt: 'desc' },
   });
@@ -506,21 +506,21 @@ export async function listPenalties(merchantId: string) {
  * File a penalty appeal for the given penalty log row.
  * Throws 409 if an appeal already exists.
  */
-export async function fileAppeal(merchantId: string, penaltyLogId: string, reason: string) {
-  const log = await prisma.penaltyLog.findFirst({ where: { id: penaltyLogId, merchantId } });
+export async function fileAppeal(servicerId: string, penaltyLogId: string, reason: string) {
+  const log = await prisma.penaltyLog.findFirst({ where: { id: penaltyLogId, servicerId } });
   if (!log) throw notFound('Penalty not found');
 
   const existing = await prisma.penaltyAppeal.findUnique({ where: { penaltyLogId } });
   if (existing) throw conflict('An appeal has already been filed for this penalty');
 
   return prisma.penaltyAppeal.create({
-    data: { penaltyLogId, merchantId, reason },
+    data: { penaltyLogId, servicerId, reason },
   });
 }
 
-/** Get the appeal record for a specific penalty log (merchant view). */
-export async function getPenaltyAppeal(merchantId: string, penaltyLogId: string) {
-  const log = await prisma.penaltyLog.findFirst({ where: { id: penaltyLogId, merchantId } });
+/** Get the appeal record for a specific penalty log (servicer view). */
+export async function getPenaltyAppeal(servicerId: string, penaltyLogId: string) {
+  const log = await prisma.penaltyLog.findFirst({ where: { id: penaltyLogId, servicerId } });
   if (!log) throw notFound('Penalty not found');
 
   const appeal = await prisma.penaltyAppeal.findUnique({ where: { penaltyLogId } });
@@ -532,12 +532,12 @@ export async function getPenaltyAppeal(merchantId: string, penaltyLogId: string)
 
 /** Submit a KYC document (post-upload via presign flow). V1: kyc bypassed but endpoint live. */
 export async function submitKycDocument(
-  merchantId: string,
+  servicerId: string,
   input: { docType: string; fileId: string },
 ) {
-  return prisma.merchantDocument.create({
+  return prisma.servicerDocument.create({
     data: {
-      merchantId,
+      servicerId,
       docType: input.docType as any,
       fileId: input.fileId,
     },
@@ -545,10 +545,10 @@ export async function submitKycDocument(
   });
 }
 
-/** List submitted KYC documents for the merchant. */
-export async function listKycDocuments(merchantId: string) {
-  return prisma.merchantDocument.findMany({
-    where: { merchantId },
+/** List submitted KYC documents for the servicer. */
+export async function listKycDocuments(servicerId: string) {
+  return prisma.servicerDocument.findMany({
+    where: { servicerId },
     select: { id: true, docType: true, status: true, verifiedAt: true },
     orderBy: { createdAt: 'desc' },
   });
@@ -558,12 +558,12 @@ export async function listKycDocuments(merchantId: string) {
 
 /** Submit a request for a new platform category. */
 export async function submitCategoryRequest(
-  merchantId: string,
+  servicerId: string,
   input: { name: string; parentCategoryId?: string | null; description?: string },
 ) {
   return prisma.categoryRequest.create({
     data: {
-      merchantId,
+      servicerId,
       name: input.name.trim(),
       parentCategoryId: input.parentCategoryId ?? null,
       description: input.description ?? null,
@@ -571,10 +571,10 @@ export async function submitCategoryRequest(
   });
 }
 
-/** List this merchant's own category requests with current status. */
-export async function listCategoryRequests(merchantId: string) {
+/** List this servicer's own category requests with current status. */
+export async function listCategoryRequests(servicerId: string) {
   return prisma.categoryRequest.findMany({
-    where: { merchantId },
+    where: { servicerId },
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -585,14 +585,14 @@ export async function listCategoryRequests(merchantId: string) {
  * (schema-notes.md §Servicer deposit top-up).
  */
 export async function requestDepositTopup(
-  merchantId: string,
+  servicerId: string,
   input: { amount: number; paymentReference: string },
 ) {
   const txId = await recordTransaction({
     type: 'deposit',
     status: 'pending',
     amount: input.amount,
-    merchantId,
+    servicerId,
     reference: input.paymentReference,
   });
   return {
@@ -610,21 +610,21 @@ export async function requestDepositTopup(
  * Servicer and User share the same email. If no User record exists yet,
  * one is auto-created (lazy provisioning) using the servicer's details.
  */
-export async function getPersonalProfile(merchantEmail: string) {
-  let user = await prisma.user.findUnique({ where: { email: merchantEmail } });
+export async function getPersonalProfile(servicerEmail: string) {
+  let user = await prisma.user.findUnique({ where: { email: servicerEmail } });
   if (!user) {
     // Lazy-create the User record from the Servicer record.
-    const merchant = await prisma.servicer.findUnique({ where: { email: merchantEmail } });
-    if (!merchant) throw notFound('Servicer not found');
+    const servicer = await prisma.servicer.findUnique({ where: { email: servicerEmail } });
+    if (!servicer) throw notFound('Servicer not found');
     user = await prisma.user.create({
       data: {
-        id: merchant.id,
+        id: servicer.id,
         role: 'customer',
-        name: merchant.name,
-        email: merchant.email,
-        phone: merchant.phone,
+        name: servicer.name,
+        email: servicer.email,
+        phone: servicer.phone,
         bio: null,
-        isDemo: merchant.isDemo,
+        isDemo: servicer.isDemo,
       },
     });
   }
@@ -647,7 +647,7 @@ export async function getPersonalProfile(merchantEmail: string) {
  * Lazy-creates the User record if it doesn't exist yet.
  */
 export async function updatePersonalProfile(
-  merchantEmail: string,
+  servicerEmail: string,
   data: {
     name?: string;
     phone?: string;
@@ -657,20 +657,20 @@ export async function updatePersonalProfile(
     contactNumber?: string | null;
   },
 ) {
-  let user = await prisma.user.findUnique({ where: { email: merchantEmail } });
+  let user = await prisma.user.findUnique({ where: { email: servicerEmail } });
   if (!user) {
     // Lazy-create: first-time personal profile save creates the User record.
-    const merchant = await prisma.servicer.findUnique({ where: { email: merchantEmail } });
-    if (!merchant) throw notFound('Servicer not found');
+    const servicer = await prisma.servicer.findUnique({ where: { email: servicerEmail } });
+    if (!servicer) throw notFound('Servicer not found');
     user = await prisma.user.create({
       data: {
-        id: merchant.id,
+        id: servicer.id,
         role: 'customer',
-        name: merchant.name,
-        email: merchant.email,
-        phone: merchant.phone,
+        name: servicer.name,
+        email: servicer.email,
+        phone: servicer.phone,
         bio: null,
-        isDemo: merchant.isDemo,
+        isDemo: servicer.isDemo,
       },
     });
   }

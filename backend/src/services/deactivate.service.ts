@@ -57,7 +57,7 @@ export async function deactivateServicer(servicer: { id: string; email: string }
 
   await prisma.$transaction(async (tx) => {
     const activeBookings = await tx.booking.findMany({
-      where: { merchantId: servicer.id, status: { in: ['confirmed', 'pending_confirm', 'in_progress'] } },
+      where: { servicerId: servicer.id, status: { in: ['confirmed', 'pending_confirm', 'in_progress'] } },
       select: { id: true },
     });
     for (const b of activeBookings) {
@@ -78,7 +78,7 @@ export async function deactivateServicer(servicer: { id: string; email: string }
       },
     });
 
-    await tx.refreshToken.deleteMany({ where: { merchantId: servicer.id } });
+    await tx.refreshToken.deleteMany({ where: { servicerId: servicer.id } });
 
     if (newCount >= 10) {
       await tx.bannedEmail.upsert({

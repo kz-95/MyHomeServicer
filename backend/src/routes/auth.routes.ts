@@ -7,7 +7,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { validate } from '../middleware/validate';
 import { loginLimiter, registerLimiter } from '../middleware/rate-limit';
 import { prisma } from '../lib/prisma';
-import { register, registerMerchant, login, refresh, logout } from '../services/auth.service';
+import { register, registerServicer, login, refresh, logout } from '../services/auth.service';
 import { isGoogleConfigured } from '../services/google-auth.service';
 import { env } from '../config/env';
 import { sendEmail } from '../lib/email';
@@ -41,9 +41,9 @@ authRouter.post(
   }),
 );
 
-/** POST /auth/register-merchant — create a new merchant ("servicer") account. */
+/** POST /auth/register-servicer — create a new servicer ("servicer") account. */
 authRouter.post(
-  '/register-merchant',
+  '/register-servicer',
   registerLimiter,
   validate([
     body('name').isString().trim().notEmpty().isLength({ min: 2, max: 100 }),
@@ -65,7 +65,7 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const banned = await prisma.bannedEmail.findUnique({ where: { email: req.body.email.toLowerCase().trim() } });
     if (banned) throw badRequest('This email has been banned and cannot register.');
-    const { user, tokens } = await registerMerchant(req.body);
+    const { user, tokens } = await registerServicer(req.body);
     if (req.body.pin) {
       const pinHash = await bcrypt.hash(req.body.pin, 12);
       await prisma.servicer.update({ where: { id: user.id }, data: { pinHash } });

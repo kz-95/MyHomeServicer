@@ -20,7 +20,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 /**
- * Notification settings - shared by the customer and merchant portals. Lets a
+ * Notification settings - shared by the customer and servicer portals. Lets a
  * user switch each notification type on/off and follow specific service
  * categories (only followed categories produce category-tagged notifications).
  */

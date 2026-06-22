@@ -11,7 +11,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { StripePaymentService } from '../../core/services/stripe-payment.service';
 import { ModalComponent } from '../../shared/modal.component';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
-import { IconComponent } from '../../shared/icon.component';
+import { ServicerDetailPopupComponent } from '../../shared/servicer-detail-popup.component';
 
 interface Booking {
   id: string;
@@ -22,7 +22,7 @@ interface Booking {
   scheduledDate: string;
   timeSlot: string;
   tipStatus?: string;
-  merchant: { businessName: string; logoUrl?: string; rating: number };
+  servicer: { id: string; businessName: string; logoUrl?: string; rating: number };
   quoteRequest: { category: { name: string; icon?: string } };
 }
 
@@ -54,7 +54,7 @@ const STAGGER_MS = 70;
 @Component({
     selector: 'app-my-bookings',
     host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, ModalComponent, RouterLink, ListToolbarComponent, IconComponent],
+    imports: [CommonModule, FormsModule, ModalComponent, RouterLink, ListToolbarComponent, ServicerDetailPopupComponent],
     template: `
     <h1>My bookings</h1>
     @if (loading()) {
@@ -74,34 +74,49 @@ const STAGGER_MS = 70;
         <a routerLink="/customer" class="btn-primary">Find a service →</a>
       </div>
     } @else {
-        <app-list-toolbar>
-          <input
-            class="search"
-            type="text"
-            placeholder="Search by servicer or category…"
-            [(ngModel)]="search"
-            name="bs"
-            toolbar-search
-          />
-          <select [(ngModel)]="sortBy" name="mbsort" toolbar-sort>
-            <option value="date">Most recent</option>
-            <option value="price">Highest price</option>
-          </select>
-          <div class="chips" toolbar-filters>
-          <button class="chip" [class.on]="statusFilter() === 'all'" (click)="statusFilter.set('all')">All</button>
-          <button class="chip" [class.on]="statusFilter() === 'pending_confirm'" (click)="statusFilter.set('pending_confirm')">Pending</button>
-          <button class="chip" [class.on]="statusFilter() === 'confirmed'" (click)="statusFilter.set('confirmed')">Confirmed</button>
-          <button class="chip" [class.on]="statusFilter() === 'in_progress'" (click)="statusFilter.set('in_progress')">In progress</button>
-          <button class="chip" [class.on]="statusFilter() === 'completed'" (click)="statusFilter.set('completed')">Completed</button>
-        </div>
+      <div class="tabs">
+        <button class="tab" [class.active]="tab() === 'pending'" (click)="tab.set('pending')">
+          Pending <span class="n">{{ pendingCount() }}</span>
+        </button>
+        <button class="tab" [class.active]="tab() === 'in_progress'" (click)="tab.set('in_progress')">
+          In progress <span class="n">{{ progressCount() }}</span>
+        </button>
+        <button class="tab" [class.active]="tab() === 'history'" (click)="tab.set('history')">
+          History <span class="n">{{ historyCount() }}</span>
+        </button>
+      </div>
+      <app-list-toolbar>
+        <input
+          class="search"
+          type="text"
+          placeholder="Search by servicer or category…"
+          [(ngModel)]="search"
+          name="bs"
+          toolbar-search
+        />
+        <select [(ngModel)]="sortBy" name="mbsort" toolbar-sort>
+          <option value="date">Most recent</option>
+          <option value="price">Highest price</option>
+        </select>
       </app-list-toolbar>
+      @if (filteredBookings().length === 0) {
+        <div class="card empty-card">
+          <p>No {{ tab() === 'in_progress' ? 'in-progress' : tab() }} bookings.</p>
+        </div>
+      }
       @for (b of filteredBookings(); track b.id; let idx = $index) {
         @if (idx < revealCount()) {
         <div class="card booking bk-revealed">
           <div>
-            <span class="merchant-head">
-              <span class="svc-avatar"><app-icon [name]="(b.quoteRequest.category.icon || 'home')" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
-              <strong>{{ b.merchant.businessName }}</strong>
+            <span class="servicer-head">
+              <span class="svc-avatar">
+                @if (b.servicer.logoUrl) {
+                  <img [src]="b.servicer.logoUrl" [alt]="b.servicer.businessName" class="svc-logo" />
+                } @else {
+                  <span class="svc-initials">{{ initials(b.servicer.businessName) }}</span>
+                }
+              </span>
+              <button type="button" class="svc-name-btn" (click)="detailServicerId.set(b.servicer.id)">{{ b.servicer.businessName }}</button>
             </span>
             <span class="muted">· {{ b.quoteRequest.category.name }}</span>
             <div class="muted">
@@ -249,6 +264,9 @@ const STAGGER_MS = 70;
         }
       }
     </app-modal>
+
+    <!-- ── Servicer detail popup ──────────────────────────────────────── -->
+    <app-servicer-detail-popup [servicerId]="detailServicerId()" (closed)="detailServicerId.set(null)" />
   `,
     styles: [
         `
@@ -273,10 +291,25 @@ const STAGGER_MS = 70;
         margin-top: 0.15rem;
         letter-spacing: 0.03em;
       }
-      .merchant-head {
+      .servicer-head {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
+      }
+      .svc-name-btn {
+        background: transparent;
+        border: none;
+        padding: 0;
+        font: inherit;
+        font-weight: 700;
+        color: var(--color-text);
+        cursor: pointer;
+        text-align: left;
+        transition: color var(--transition);
+      }
+      .svc-name-btn:hover {
+        color: var(--color-primary);
+        text-decoration: underline;
       }
       .svc-avatar {
         display: inline-flex;
@@ -287,6 +320,17 @@ const STAGGER_MS = 70;
         border-radius: 999px;
         background: var(--color-primary);
         flex-shrink: 0;
+        overflow: hidden;
+      }
+      .svc-logo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .svc-initials {
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 600;
       }
       .right {
         display: flex;
@@ -347,6 +391,46 @@ const STAGGER_MS = 70;
         transition: border-color var(--transition);
       }
       .search:focus { border-color: var(--color-primary); }
+      .tabs {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+      .tab {
+        background: transparent;
+        border: none;
+        border-radius: 999px;
+        padding: 0.6rem 1.2rem;
+        color: var(--color-muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .tab:hover:not(.active) {
+        color: var(--color-text);
+        background: var(--color-bg);
+      }
+      .tab.active {
+        background: var(--color-primary);
+        background: var(--gradient-sidebar);
+        color: #fff;
+        font-weight: 600;
+        box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2);
+      }
+      .tab .n {
+        border-radius: 999px;
+        padding: 0.05rem 0.5rem;
+        font-size: 0.78rem;
+        background: var(--color-bg);
+        color: var(--color-muted);
+      }
+      .tab.active .n {
+        background: rgba(255, 255, 255, 0.25);
+        color: #fff;
+      }
       .chips {
         display: flex;
         flex-wrap: wrap;
@@ -509,27 +593,45 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   private staggerTimer: ReturnType<typeof setInterval> | null = null;
 
   bookings = signal<Booking[]>([]);
+  /** Servicer id whose detail popup is open, or null. */
+  detailServicerId = signal<string | null>(null);
   loading = signal(true);
   loadFailed = signal(false);
   /** Holds the booking id currently being opened as a support chat, or null. */
   reporting = signal<string | null>(null);
 
   search = signal('');
-  statusFilter = signal<string>('all');
+  /** Active booking tab. Pending = awaiting/confirmed, History = completed + cancelled. */
+  tab = signal<'pending' | 'in_progress' | 'history'>('pending');
   sortBy = signal<'date' | 'price'>('date');
+
+  /** Booking statuses grouped under each tab. */
+  private readonly tabStatuses: Record<'pending' | 'in_progress' | 'history', string[]> = {
+    pending: ['pending_confirm', 'confirmed'],
+    in_progress: ['in_progress'],
+    history: ['completed', 'cancelled'],
+  };
+
+  pendingCount = computed(
+    () => this.bookings().filter((b) => this.tabStatuses.pending.includes(b.status)).length,
+  );
+  progressCount = computed(
+    () => this.bookings().filter((b) => this.tabStatuses.in_progress.includes(b.status)).length,
+  );
+  historyCount = computed(
+    () => this.bookings().filter((b) => this.tabStatuses.history.includes(b.status)).length,
+  );
+
   filteredBookings = computed(() => {
-    let list = this.bookings().filter((b) => b.status !== 'cancelled');
+    const statuses = this.tabStatuses[this.tab()];
+    let list = this.bookings().filter((b) => statuses.includes(b.status));
     const q = this.search().toLowerCase();
     if (q) {
       list = list.filter(
         (b) =>
-          b.merchant.businessName.toLowerCase().includes(q) ||
+          b.servicer.businessName.toLowerCase().includes(q) ||
           b.quoteRequest.category.name.toLowerCase().includes(q),
       );
-    }
-    const sf = this.statusFilter();
-    if (sf !== 'all') {
-      list = list.filter((b) => b.status === sf);
     }
     const sb = this.sortBy();
     list = [...list].sort((a, b) => {

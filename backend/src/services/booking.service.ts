@@ -2,7 +2,7 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { badRequest, businessRule, conflict, forbidden, notFound, paymentRequired } from '../lib/errors';
-import { emitToUser, emitToMerchant, emitToMerchants } from '../socket';
+import { emitToUser, emitToServicer, emitToServicers } from '../socket';
 import { requireOnboarded } from './servicer-quote.service';
 import { enqueue, JOB_NAMES } from '../lib/queue';
 import { recordTransaction } from './ledger.service';
@@ -72,8 +72,9 @@ interface SelectProposalOptions {
 }
 
 /**
- * Customer selects a proposal. Creates a booking in `pending_confirm`, marks
- * the chosen proposal `selected` and the rest `rejected`, flips the quote to
+ * Customer selects a proposal. Creates a booking in `confirmed` (no servicer
+ * re-confirm step — the customer's selection IS the confirmation), marks the
+ * chosen proposal `selected` and the rest `rejected`, flips the quote to
  * `matched`.
  *
  * Two timing paths (spec §4):
@@ -98,10 +99,10 @@ export async function selectProposal(
   if (quote.status !== 'open') throw conflict('Quote is no longer open for selection');
 
   // Minimum 5s waiting period so all auto proposals arrive before selection
-  // (spec §operating-hours — fair bidding window for manual merchants).
+  // (spec §operating-hours — fair bidding window for manual servicers).
   const msSinceCreated = Date.now() - quote.createdAt.getTime();
   if (msSinceCreated < 5000) {
-    throw businessRule('Please wait a moment before selecting a proposal — other merchants may still be responding.');
+    throw businessRule('Please wait a moment before selecting a proposal — other servicers may still be responding.');
   }
 
   // Block if customer has any unpaid invoice (soft enforcement — BE-1).
@@ -142,8 +143,8 @@ export async function selectProposal(
   const booking = await prisma.$transaction(async (tx) => {
     // Snapshot the servicer's travel fee + inspection flag onto the booking at
     // creation time so cancellation/refund logic uses the rate at booking time.
-    const service = await tx.merchantService.findFirst({
-      where: { merchantId: proposal.merchantId, categoryId: quote.categoryId },
+    const service = await tx.servicerService.findFirst({
+      where: { servicerId: proposal.servicerId, categoryId: quote.categoryId },
       select: { travelFee: true, requiresInspection: true },
     });
     const isInspection =
@@ -154,8 +155,10 @@ export async function selectProposal(
         quoteRequestId: quoteId,
         proposalId: proposal.id,
         userId,
-        merchantId: proposal.merchantId,
-        status: 'pending_confirm',
+        servicerId: proposal.servicerId,
+        // Customer-select auto-confirms — no servicer re-confirm step.
+        status: 'confirmed',
+        confirmedAt: new Date(),
         price: proposal.proposedPrice,
         paymentMode: quote.paymentMode,
         paymentTiming,
@@ -181,14 +184,14 @@ export async function selectProposal(
     if (isPayNow) {
       const tip = Number(quote.tipAmount ?? 0);
 
-      // Resolve merchant tax config for the canonical total.
-      const merchant = await tx.servicer.findUnique({ where: { id: proposal.merchantId } });
+      // Resolve servicer tax config for the canonical total.
+      const servicer = await tx.servicer.findUnique({ where: { id: proposal.servicerId } });
       const [sstRate, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
       const config: ServicerTaxConfig = {
-        serviceChargeRate: Number(merchant?.serviceChargeRate ?? 0),
-        sstRegistered: merchant?.sstRegistered ?? false,
+        serviceChargeRate: Number(servicer?.serviceChargeRate ?? 0),
+        sstRegistered: servicer?.sstRegistered ?? false,
         sstRate,
-        taxInclusive: merchant?.taxInclusive ?? false,
+        taxInclusive: servicer?.taxInclusive ?? false,
       };
 
       // Resolve promo discount.
@@ -237,7 +240,7 @@ export async function selectProposal(
             type: 'escrow_hold',
             amount: escrowTotal,
             bookingId: created.id,
-            merchantId: proposal.merchantId,
+            servicerId: proposal.servicerId,
             userId,
             escrowId: escrow.id,
             reference: 'Escrow hold on proposal selection',
@@ -252,7 +255,7 @@ export async function selectProposal(
           type: 'platform_fee',
           amount: platformFee,
           bookingId: created.id,
-          merchantId: proposal.merchantId,
+          servicerId: proposal.servicerId,
           escrowId: escrow.id,
           reference: `Platform fee reserve (pay_now, ${(feeRate * 100).toFixed(1)}%)`,
         },
@@ -263,24 +266,39 @@ export async function selectProposal(
     return created;
   });
 
-  emitToMerchant(proposal.merchantId, 'job.new', { bookingId: booking.id, quoteId });
+  emitToServicer(proposal.servicerId, 'job.new', { bookingId: booking.id, quoteId });
   await notify({
-    merchantId: proposal.merchantId,
+    servicerId: proposal.servicerId,
     type: 'jobs',
-    message: `You've been selected for a new job! Review the details and confirm.`,
+    message: `You've been selected for a new job — it's confirmed and ready.`,
     linkUrl: '/servicer/jobs',
     category: quote.categoryId,
   });
 
-  // Tell every other merchant who got this quote that it's now matched, so their
+  // Booking is confirmed at selection (no servicer re-confirm). Schedule the
+  // no-show detection job 30 min after the service window ends — this used to
+  // run from confirmJob(), which the new flow no longer calls.
+  await enqueue(
+    JOB_NAMES.NOSHOW_DETECT,
+    { bookingId: booking.id, servicerId: proposal.servicerId },
+    {
+      delay: Math.max(
+        0,
+        slotEndTime(quote.preferredDate, quote.timeSlot).getTime() + 30 * 60_000 - Date.now(),
+      ),
+      jobId: `noshow:${booking.id}`,
+    },
+  );
+
+  // Tell every other servicer who got this quote that it's now matched, so their
   // pending list drops it live instead of showing a quote they can no longer win.
   const broadcasts = await prisma.quoteBroadcast.findMany({
-    where: { quoteRequestId: quoteId, merchantId: { not: proposal.merchantId } },
-    select: { merchantId: true },
+    where: { quoteRequestId: quoteId, servicerId: { not: proposal.servicerId } },
+    select: { servicerId: true },
   });
   if (broadcasts.length > 0) {
-    emitToMerchants(
-      broadcasts.map((b) => b.merchantId),
+    emitToServicers(
+      broadcasts.map((b) => b.servicerId),
       'quote.matched',
       { quoteId },
     );
@@ -296,16 +314,16 @@ export async function selectProposal(
 
 // ── Servicer lifecycle transitions ───────────────────────────────────────────
 
-async function loadMerchantBooking(merchantId: string, bookingId: string) {
-  const booking = await prisma.booking.findFirst({ where: { id: bookingId, merchantId } });
+async function loadServicerBooking(servicerId: string, bookingId: string) {
+  const booking = await prisma.booking.findFirst({ where: { id: bookingId, servicerId } });
   if (!booking) throw notFound('Booking not found');
   return booking;
 }
 
 /** Servicer two-step confirm: pending_confirm → confirmed. */
-export async function confirmJob(merchantId: string, bookingId: string) {
-  await requireOnboarded(merchantId);
-  const booking = await loadMerchantBooking(merchantId, bookingId);
+export async function confirmJob(servicerId: string, bookingId: string) {
+  await requireOnboarded(servicerId);
+  const booking = await loadServicerBooking(servicerId, bookingId);
   if (booking.status !== 'pending_confirm') {
     throw conflict(`Cannot confirm a booking in status "${booking.status}"`);
   }
@@ -314,21 +332,21 @@ export async function confirmJob(merchantId: string, bookingId: string) {
     data: { status: 'confirmed', confirmedAt: new Date() },
   });
 
-  const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
+  const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
   emitToUser(booking.userId, 'booking.confirmed', {
     bookingId,
-    merchantName: merchant?.businessName,
+    servicerName: servicer?.businessName,
   });
   await notify({
     userId: booking.userId,
     type: 'orders',
-    message: `${merchant?.businessName ?? 'The merchant'} confirmed your booking.`,
+    message: `${servicer?.businessName ?? 'The servicer'} confirmed your booking.`,
   });
 
   // Schedule no-show detection 30 min after the service window ends.
   await enqueue(
     JOB_NAMES.NOSHOW_DETECT,
-    { bookingId, merchantId },
+    { bookingId, servicerId },
     {
       delay: Math.max(
         0,
@@ -341,8 +359,8 @@ export async function confirmJob(merchantId: string, bookingId: string) {
 }
 
 /** Servicer marks arrived (with photo): confirmed → in_progress. */
-export async function arriveJob(merchantId: string, bookingId: string, photoUrl: string | null) {
-  const booking = await loadMerchantBooking(merchantId, bookingId);
+export async function arriveJob(servicerId: string, bookingId: string, photoUrl: string | null) {
+  const booking = await loadServicerBooking(servicerId, bookingId);
   if (booking.status !== 'confirmed') {
     throw conflict(`Cannot mark arrived from status "${booking.status}"`);
   }
@@ -361,8 +379,8 @@ export async function arriveJob(merchantId: string, bookingId: string, photoUrl:
 }
 
 /** Servicer marks done (with photo): in_progress → completed. */
-export async function doneJob(merchantId: string, bookingId: string, photoUrl: string | null) {
-  const booking = await loadMerchantBooking(merchantId, bookingId);
+export async function doneJob(servicerId: string, bookingId: string, photoUrl: string | null) {
+  const booking = await loadServicerBooking(servicerId, bookingId);
   if (booking.status !== 'in_progress') {
     throw conflict(`Cannot mark done from status "${booking.status}"`);
   }
@@ -376,16 +394,16 @@ export async function doneJob(merchantId: string, bookingId: string, photoUrl: s
     // Pay-later: deduct platform fee from servicer credit at done time.
     // Fee is on afterPromo only (spec: computePlatformFee base).
     if (booking.paymentMode === 'pay_later') {
-      const afterPromo = await computeAfterPromo(merchantId, booking.id, Number(booking.price), booking.lineItems);
+      const afterPromo = await computeAfterPromo(servicerId, booking.id, Number(booking.price), booking.lineItems);
       const platformFee = await computeFee(afterPromo);
       if (platformFee > 0) {
-        await adjustCredit('servicer', merchantId, -platformFee, tx);
+        await adjustCredit('servicer', servicerId, -platformFee, tx);
         await recordTransaction(
           {
             type: 'platform_fee',
             amount: platformFee,
             bookingId,
-            merchantId,
+            servicerId,
             reference: `Platform fee (pay_later)`,
           },
           tx,
@@ -399,7 +417,7 @@ export async function doneJob(merchantId: string, bookingId: string, photoUrl: s
   // Generate the invoice row (includes PDF, idempotent). Called directly
   // from doneJob per spec: the invoice is created when the booking is marked
   // complete. Escrow invariant asserted inside generateInvoice.
-  generateInvoice(merchantId, bookingId).catch((err) =>
+  generateInvoice(servicerId, bookingId).catch((err) =>
     logger.error('Invoice generation failed in doneJob', { bookingId, error: String(err) }),
   );
 
@@ -445,7 +463,7 @@ export async function doneJob(merchantId: string, bookingId: string, photoUrl: s
       message: 'Inspection complete! Your servicer will now provide a final quote for the work.',
       linkUrl: `/customer/bookings`,
     });
-    emitToMerchant(booking.merchantId, 'inspection.done', {
+    emitToServicer(booking.servicerId, 'inspection.done', {
       bookingId,
       quoteRequestId: booking.quoteRequestId,
     });
@@ -458,8 +476,8 @@ export async function doneJob(merchantId: string, bookingId: string, photoUrl: s
 }
 
 /** Servicer confirms cash received (cash bookings only). */
-export async function cashConfirm(merchantId: string, bookingId: string) {
-  const booking = await loadMerchantBooking(merchantId, bookingId);
+export async function cashConfirm(servicerId: string, bookingId: string) {
+  const booking = await loadServicerBooking(servicerId, bookingId);
   if (booking.paymentMode !== 'cash') {
     throw businessRule('Cash confirmation only applies to cash bookings');
   }
@@ -469,7 +487,7 @@ export async function cashConfirm(merchantId: string, bookingId: string) {
   if (booking.cashConfirmed) return booking;
 
   // Fee on afterPromo only (spec: computePlatformFee base).
-  const afterPromo = await computeAfterPromo(merchantId, booking.id, Number(booking.price), booking.lineItems);
+  const afterPromo = await computeAfterPromo(servicerId, booking.id, Number(booking.price), booking.lineItems);
   const platformFee = await computeFee(afterPromo);
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -478,14 +496,14 @@ export async function cashConfirm(merchantId: string, bookingId: string) {
       data: { cashConfirmed: true, cashConfirmedAt: new Date() },
     });
     if (platformFee > 0) {
-      await adjustCredit('servicer', merchantId, -platformFee, tx);
+      await adjustCredit('servicer', servicerId, -platformFee, tx);
     }
     await recordTransaction(
       {
         type: 'platform_fee',
         amount: platformFee,
         bookingId,
-        merchantId,
+        servicerId,
         reference: `Platform fee (cash)`,
       },
       tx,
@@ -499,8 +517,8 @@ export async function cashConfirm(merchantId: string, bookingId: string) {
 }
 
 /** Servicer cancels after taking the job — triggers a penalty. */
-export async function merchantCancelJob(merchantId: string, bookingId: string, reason: string) {
-  const booking = await loadMerchantBooking(merchantId, bookingId);
+export async function servicerCancelJob(servicerId: string, bookingId: string, reason: string) {
+  const booking = await loadServicerBooking(servicerId, bookingId);
   if (['completed', 'cancelled'].includes(booking.status)) {
     throw businessRule('This booking can no longer be cancelled');
   }
@@ -508,7 +526,7 @@ export async function merchantCancelJob(merchantId: string, bookingId: string, r
     where: { id: bookingId },
     data: {
       status: 'cancelled',
-      cancelledBy: 'merchant',
+      cancelledBy: 'servicer',
       cancelReason: reason,
       cancelConfirmedAt: new Date(),
     },
@@ -516,22 +534,22 @@ export async function merchantCancelJob(merchantId: string, bookingId: string, r
 
   await enqueue(
     JOB_NAMES.PENALTY_DEDUCT,
-    { bookingId, merchantId, penaltyType: 'cancel' },
+    { bookingId, servicerId, penaltyType: 'cancel' },
     { jobId: `penalty:${bookingId}` },
   );
-  emitToUser(booking.userId, 'booking.cancelled', { bookingId, cancelledBy: 'merchant', reason });
+  emitToUser(booking.userId, 'booking.cancelled', { bookingId, cancelledBy: 'servicer', reason });
   await notify({
     userId: booking.userId,
     type: 'orders',
-    message: 'The merchant cancelled your booking. You can pick another or repost your quote.',
+    message: 'The servicer cancelled your booking. You can pick another or repost your quote.',
     linkReorder: `/customer/quote/new?from=${booking.quoteRequestId}`,
   });
   return updated;
 }
 
 /** Servicer asks the customer to cancel instead — avoids a penalty. */
-export async function requestMutualCancel(merchantId: string, bookingId: string, reason: string) {
-  const booking = await loadMerchantBooking(merchantId, bookingId);
+export async function requestMutualCancel(servicerId: string, bookingId: string, reason: string) {
+  const booking = await loadServicerBooking(servicerId, bookingId);
   if (['completed', 'cancelled'].includes(booking.status)) {
     throw businessRule('This booking can no longer be cancelled');
   }
@@ -544,17 +562,17 @@ export async function requestMutualCancel(merchantId: string, bookingId: string,
       cancelRequestedAt: new Date(),
     },
   });
-  const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
+  const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
   emitToUser(booking.userId, 'booking.mutual_cancel_requested', {
     bookingId,
-    merchantName: merchant?.businessName,
+    servicerName: servicer?.businessName,
     reason,
   });
   return updated;
 }
 
-/** List this merchant's jobs, optionally filtered by status. */
-export async function listMerchantJobs(merchantId: string, status?: string) {
+/** List this servicer's jobs, optionally filtered by status. */
+export async function listServicerJobs(servicerId: string, status?: string) {
   const valid = new Set([
     'pending_confirm',
     'confirmed',
@@ -564,27 +582,41 @@ export async function listMerchantJobs(merchantId: string, status?: string) {
   ]);
   const filter = status && valid.has(status) ? (status as BookingStatus) : undefined;
   const jobs = await prisma.booking.findMany({
-    where: { merchantId, ...(filter ? { status: filter } : {}) },
+    where: { servicerId, ...(filter ? { status: filter } : {}) },
     orderBy: { createdAt: 'desc' },
-    include: { quoteRequest: { select: { category: { select: { name: true } } } } },
+    include: {
+      quoteRequest: { select: { category: { select: { name: true } } } },
+      proposal: { select: { etaMinutes: true } },
+      // Customer contact for the active-job WhatsApp button. Only surfaced for
+      // confirmed/in-progress/completed jobs below (not pending_confirm).
+      user: { select: { name: true, phone: true, contactName: true, contactNumber: true } },
+    },
   });
+  const { formatOrderId } = await import('../lib/order-id');
 
   return Promise.all(
     jobs.map(async (j) => {
-      const afterPromo = j.status === 'completed' ? await computeAfterPromo(merchantId, j.id, Number(j.price), j.lineItems as any) : Number(j.price);
+      const afterPromo = j.status === 'completed' ? await computeAfterPromo(servicerId, j.id, Number(j.price), j.lineItems as any) : Number(j.price);
       const fee = j.status === 'completed' ? await computeFee(afterPromo) : 0;
+      // Expose contact only once the job is no longer awaiting confirmation.
+      const showContact = j.status !== 'pending_confirm';
+      const { user, ...rest } = j;
       return {
-        ...j,
+        ...rest,
         netPrice: Math.max(0, afterPromo - fee),
+        orderId: formatOrderId(j.orderNumber, j.createdAt),
+        etaMinutes: j.proposal?.etaMinutes ?? null,
+        customerName: showContact ? (user?.contactName ?? user?.name ?? null) : null,
+        customerPhone: showContact ? (user?.contactNumber ?? user?.phone ?? null) : null,
       };
     }),
   );
 }
 
-/** Full job detail for a merchant — customer contact is included only once confirmed. */
-export async function getMerchantJob(merchantId: string, bookingId: string) {
+/** Full job detail for a servicer — customer contact is included only once confirmed. */
+export async function getServicerJob(servicerId: string, bookingId: string) {
   const booking = await prisma.booking.findFirst({
-    where: { id: bookingId, merchantId },
+    where: { id: bookingId, servicerId },
     include: {
       quoteRequest: { include: { category: true, address: true } },
       proposal: true,
@@ -623,7 +655,7 @@ export async function listBookings(userId: string, status?: string) {
     where: { userId, ...(filter ? { status: filter } : {}) },
     orderBy: { createdAt: 'desc' },
     include: {
-      merchant: { select: { id: true, businessName: true, logoUrl: true, rating: true } },
+      servicer: { select: { id: true, businessName: true, logoUrl: true, rating: true } },
       quoteRequest: { select: { category: { select: { name: true, icon: true } } } },
     },
   });
@@ -636,7 +668,7 @@ export async function getBooking(userId: string, bookingId: string) {
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, userId },
     include: {
-      merchant: { select: { id: true, businessName: true, logoUrl: true, rating: true, phone: true } },
+      servicer: { select: { id: true, businessName: true, logoUrl: true, rating: true, phone: true } },
       proposal: true,
       quoteRequest: { include: { category: true, address: true } },
       escrow: true,
@@ -670,7 +702,7 @@ export async function addTip(userId: string, bookingId: string, tipAmount: numbe
         type: 'tip',
         amount: tipAmount,
         bookingId,
-        merchantId: booking.merchantId,
+        servicerId: booking.servicerId,
         userId,
         reference: 'Pay-later tip',
       },
@@ -697,14 +729,14 @@ export async function customerCancelBooking(userId: string, bookingId: string, r
     },
   });
   // Refund any escrow held (less non-refundable travel/inspection fees).
-  await refundEscrowIfHeld(bookingId, booking.merchantId, userId, booking);
-  emitToMerchant(booking.merchantId, 'booking.cancelled', {
+  await refundEscrowIfHeld(bookingId, booking.servicerId, userId, booking);
+  emitToServicer(booking.servicerId, 'booking.cancelled', {
     bookingId,
     cancelledBy: 'customer',
     reason,
   });
   await notify({
-    merchantId: booking.merchantId,
+    servicerId: booking.servicerId,
     type: 'jobs',
     message: 'The customer cancelled the scheduled job.',
     linkUrl: '/servicer/jobs',
@@ -712,7 +744,7 @@ export async function customerCancelBooking(userId: string, bookingId: string, r
   return updated;
 }
 
-/** Customer responds to a merchant's mutual-cancel request. */
+/** Customer responds to a servicer's mutual-cancel request. */
 export async function respondMutualCancel(userId: string, bookingId: string, accept: boolean) {
   const booking = await prisma.booking.findFirst({ where: { id: bookingId, userId } });
   if (!booking) throw notFound('Booking not found');
@@ -730,14 +762,14 @@ export async function respondMutualCancel(userId: string, bookingId: string, acc
         cancelConfirmedAt: new Date(),
       },
     });
-    await refundEscrowIfHeld(bookingId, booking.merchantId, userId, booking);
-    emitToMerchant(booking.merchantId, 'booking.cancelled', {
+    await refundEscrowIfHeld(bookingId, booking.servicerId, userId, booking);
+    emitToServicer(booking.servicerId, 'booking.cancelled', {
       bookingId,
       cancelledBy: 'customer',
       reason: 'mutual cancel accepted',
     });
     await notify({
-      merchantId: booking.merchantId,
+      servicerId: booking.servicerId,
       type: 'jobs',
       message: 'The customer accepted the mutual cancellation request.',
       linkUrl: '/servicer/jobs',
@@ -767,26 +799,26 @@ export async function reportBookingProblem(
 
 /**
  * Recompute the canonical settlement amounts for a booking from its line-item
- * snapshot + the merchant's current tax config + platform rates. Single source of
+ * snapshot + the servicer's current tax config + platform rates. Single source of
  * truth shared by settleBooking (credit/cash) and completeGatewaySettlement (card)
  * so the fee/payout math can never drift between settlement methods.
  */
 async function computeSettlementAmounts(
   tx: Prisma.TransactionClient,
   booking: {
-    merchantId: string;
+    servicerId: string;
     lineItems: Prisma.JsonValue;
     price: Prisma.Decimal | number | string;
     tipAmount: Prisma.Decimal | number | string | null;
   },
 ): Promise<{ total: number; afterPromo: number; platformFee: number; feeRate: number }> {
   const [sstRate, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
-  const merchant = await tx.servicer.findUnique({ where: { id: booking.merchantId } });
+  const servicer = await tx.servicer.findUnique({ where: { id: booking.servicerId } });
   const config: ServicerTaxConfig = {
-    serviceChargeRate: Number(merchant?.serviceChargeRate ?? 0),
-    sstRegistered: merchant?.sstRegistered ?? false,
+    serviceChargeRate: Number(servicer?.serviceChargeRate ?? 0),
+    sstRegistered: servicer?.sstRegistered ?? false,
     sstRate,
-    taxInclusive: merchant?.taxInclusive ?? false,
+    taxInclusive: servicer?.taxInclusive ?? false,
   };
 
   // Recompute total from the line-items snapshot (fall back to price).
@@ -872,7 +904,7 @@ export async function settleBooking(
             type: 'escrow_hold',
             amount: total,
             bookingId,
-            merchantId: booking.merchantId,
+            servicerId: booking.servicerId,
             userId,
             reference: 'Pay-later settlement via credit',
           },
@@ -880,13 +912,13 @@ export async function settleBooking(
         );
         // Platform fee: deduct from servicer credit.
         if (platformFee > 0) {
-          await adjustCredit('servicer', booking.merchantId, -platformFee, tx);
+          await adjustCredit('servicer', booking.servicerId, -platformFee, tx);
           await recordTransaction(
             {
               type: 'platform_fee',
               amount: platformFee,
               bookingId,
-              merchantId: booking.merchantId,
+              servicerId: booking.servicerId,
               reference: `Platform fee (pay_later credit settlement, ${(feeRate * 100).toFixed(1)}%)`,
             },
             tx,
@@ -895,13 +927,13 @@ export async function settleBooking(
         // Release the total minus fee to the servicer.
         const payout = total - platformFee;
         if (payout > 0) {
-          await adjustCredit('servicer', booking.merchantId, payout, tx);
+          await adjustCredit('servicer', booking.servicerId, payout, tx);
           await recordTransaction(
             {
               type: 'escrow_release',
               amount: payout,
               bookingId,
-              merchantId: booking.merchantId,
+              servicerId: booking.servicerId,
               reference: 'Pay-later payout to servicer',
             },
             tx,
@@ -914,13 +946,13 @@ export async function settleBooking(
         // Cash settlement: servicer already collected cash.
         // Deduct platform fee from servicer deposit/credit.
         if (platformFee > 0) {
-          await adjustCredit('servicer', booking.merchantId, -platformFee, tx);
+          await adjustCredit('servicer', booking.servicerId, -platformFee, tx);
           await recordTransaction(
             {
               type: 'platform_fee',
               amount: platformFee,
               bookingId,
-              merchantId: booking.merchantId,
+              servicerId: booking.servicerId,
               reference: `Platform fee (pay_later cash settlement, ${(feeRate * 100).toFixed(1)}%)`,
             },
             tx,
@@ -1003,7 +1035,7 @@ export async function completeGatewaySettlement(params: {
         type: 'gateway_payment',
         amount: total,
         bookingId,
-        merchantId: booking.merchantId,
+        servicerId: booking.servicerId,
         userId: booking.userId,
         reference: `Pay-later settlement via card (Stripe ${sessionId})`,
         stripeSessionId: sessionId,
@@ -1013,13 +1045,13 @@ export async function completeGatewaySettlement(params: {
 
     // Platform fee: deduct from servicer credit.
     if (platformFee > 0) {
-      await adjustCredit('servicer', booking.merchantId, -platformFee, tx);
+      await adjustCredit('servicer', booking.servicerId, -platformFee, tx);
       await recordTransaction(
         {
           type: 'platform_fee',
           amount: platformFee,
           bookingId,
-          merchantId: booking.merchantId,
+          servicerId: booking.servicerId,
           reference: `Platform fee (pay_later gateway settlement, ${(feeRate * 100).toFixed(1)}%)`,
         },
         tx,
@@ -1029,13 +1061,13 @@ export async function completeGatewaySettlement(params: {
     // Release the remainder to the servicer.
     const payout = total - platformFee;
     if (payout > 0) {
-      await adjustCredit('servicer', booking.merchantId, payout, tx);
+      await adjustCredit('servicer', booking.servicerId, payout, tx);
       await recordTransaction(
         {
           type: 'escrow_release',
           amount: payout,
           bookingId,
-          merchantId: booking.merchantId,
+          servicerId: booking.servicerId,
           reference: 'Pay-later payout to servicer (card)',
         },
         tx,
@@ -1066,7 +1098,7 @@ export async function listUnpaidInvoices(userId: string) {
     orderBy: { issuedAt: 'desc' },
     include: {
       booking: { select: { id: true, status: true, price: true } },
-      merchant: { select: { businessName: true } },
+      servicer: { select: { businessName: true } },
     },
   });
 
@@ -1083,7 +1115,7 @@ export async function listUnpaidInvoices(userId: string) {
       ? new Date(inv.dueDate) < new Date()
       : (Date.now() - new Date(inv.issuedAt).getTime()) > 14 * 24 * 60 * 60 * 1000,
     booking: inv.booking,
-    merchant: inv.merchant,
+    servicer: inv.servicer,
   }));
 }
 
@@ -1162,10 +1194,10 @@ export function computeNonRefundableAmount(booking: {
   return nonRefundable;
 }
 
-/** Refund a held escrow back to the customer (merchant/mutual cancel). */
+/** Refund a held escrow back to the customer (servicer/mutual cancel). */
 async function refundEscrowIfHeld(
   bookingId: string,
-  merchantId: string,
+  servicerId: string,
   userId: string,
   booking?: {
     arrivedAt: Date | null;
@@ -1196,7 +1228,7 @@ async function refundEscrowIfHeld(
         type: 'refund',
         amount: refundAmount,
         bookingId,
-        merchantId,
+        servicerId,
         userId,
         escrowId: escrow.id,
         reference: 'Escrow refunded on cancellation',
@@ -1237,7 +1269,7 @@ export async function reorderBooking(userId: string, bookingId: string) {
       userId,
       type: 'service',
       bookingId,
-      merchantId: booking.merchantId,
+      servicerId: booking.servicerId,
       categoryId: q.categoryId,
       snapshot,
     },
@@ -1258,23 +1290,23 @@ async function resolveProposalPromo(code: string | null, _subtotal: number): Pro
 
 /**
  * Compute the `afterPromo` value for an existing booking.
- * Used by doneJob, cashConfirm, and listMerchantJobs to compute the
+ * Used by doneJob, cashConfirm, and listServicerJobs to compute the
  * platform fee on the correct base (afterPromo only, per spec).
  *
- * Fetches the merchant, resolves line items and promo, and runs
+ * Fetches the servicer, resolves line items and promo, and runs
  * computeTotal to extract afterPromo.
  */
-async function computeAfterPromo(merchantId: string, bookingId: string, price: number, lineItems: any): Promise<number> {
-  const [merchant, sstRate] = await Promise.all([
-    prisma.servicer.findUnique({ where: { id: merchantId } }),
+async function computeAfterPromo(servicerId: string, bookingId: string, price: number, lineItems: any): Promise<number> {
+  const [servicer, sstRate] = await Promise.all([
+    prisma.servicer.findUnique({ where: { id: servicerId } }),
     getSstRate(),
   ]);
 
   const config: ServicerTaxConfig = {
-    serviceChargeRate: Number(merchant?.serviceChargeRate ?? 0),
-    sstRegistered: merchant?.sstRegistered ?? false,
+    serviceChargeRate: Number(servicer?.serviceChargeRate ?? 0),
+    sstRegistered: servicer?.sstRegistered ?? false,
     sstRate,
-    taxInclusive: merchant?.taxInclusive ?? false,
+    taxInclusive: servicer?.taxInclusive ?? false,
   };
 
   const rawItems = lineItems as any;

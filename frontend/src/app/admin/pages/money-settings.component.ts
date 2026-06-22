@@ -55,10 +55,10 @@ interface NumSetting {
 }
 
 const SERVICER_SETTINGS: NumSetting[] = [
-  { key: 'minimum_merchant_charge', label: 'Minimum servicer charge', hint: 'Smallest total a servicer may charge.', prop: 'amount' },
-  { key: 'merchant_deposit_minimum', label: 'Deposit minimum', hint: 'Minimum deposit to take jobs.', prop: 'amount' },
-  { key: 'merchant_credit_withdrawal_minimum', label: 'Withdrawal minimum', hint: 'Smallest withdrawal.', prop: 'amount' },
-  { key: 'merchant_proposal_preset_limit', label: 'Proposal preset limit', hint: 'Max saved presets.', prop: 'limit' },
+  { key: 'minimum_servicer_charge', label: 'Minimum servicer charge', hint: 'Smallest total a servicer may charge.', prop: 'amount' },
+  { key: 'servicer_deposit_minimum', label: 'Deposit minimum', hint: 'Minimum deposit to take jobs.', prop: 'amount' },
+  { key: 'servicer_credit_withdrawal_minimum', label: 'Withdrawal minimum', hint: 'Smallest withdrawal.', prop: 'amount' },
+  { key: 'servicer_proposal_preset_limit', label: 'Proposal preset limit', hint: 'Max saved presets.', prop: 'limit' },
   { key: 'no_show_consecutive_threshold', label: 'No-show consecutive', hint: 'Consecutive no-shows before flagged.', prop: 'count' },
   { key: 'no_show_weekly_threshold', label: 'No-show weekly', hint: 'Weekly no-shows before flagged.', prop: 'count' },
   { key: 'noshow_grace_minutes', label: 'No-show grace period', hint: 'Minutes late before no-show.', prop: 'minutes' },

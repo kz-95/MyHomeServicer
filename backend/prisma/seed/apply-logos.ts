@@ -10,7 +10,7 @@
 import { readdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { PrismaClient } from '@prisma/client';
-import { merchants } from './data/accounts';
+import { servicers } from './data/accounts';
 
 const prisma = new PrismaClient();
 
@@ -26,7 +26,7 @@ async function main() {
 
   let updated = 0;
   const missing: string[] = [];
-  for (const m of merchants) {
+  for (const m of servicers) {
     const url = logoByRef[m.ref];
     if (!url) { missing.push(m.ref); continue; }
     const res = await prisma.servicer.updateMany({
@@ -37,7 +37,7 @@ async function main() {
     else missing.push(`${m.ref}(no servicer row)`);
   }
 
-  console.log(`updated ${updated}/${merchants.length} servicer logos`);
+  console.log(`updated ${updated}/${servicers.length} servicer logos`);
   if (missing.length) console.log('skipped:', missing.join(', '));
 }
 

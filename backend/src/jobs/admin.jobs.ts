@@ -9,12 +9,12 @@ import { notify } from '../services/notification.service';
 
 const invoicePayload = z.object({
   bookingId: z.string().uuid(),
-  merchantId: z.string().uuid(),
+  servicerId: z.string().uuid(),
 });
 const promoPayload = z.object({ bookingId: z.string().uuid() });
 const withdrawalPayload = z.object({
   withdrawalId: z.string().uuid(),
-  merchantId: z.string().uuid(),
+  servicerId: z.string().uuid(),
 });
 const pushPayload = z.object({
   userId: z.string().uuid(),
@@ -26,13 +26,13 @@ const pushPayload = z.object({
 
 /** invoice.generate — builds the INVOICE row + PDF for a completed booking. */
 async function handleInvoiceGenerate(job: Job): Promise<void> {
-  const { bookingId, merchantId } = invoicePayload.parse(job.data);
-  await generateInvoice(bookingId, merchantId);
+  const { bookingId, servicerId } = invoicePayload.parse(job.data);
+  await generateInvoice(bookingId, servicerId);
 }
 
 /**
  * promo.credit_payback — for a platform promo used on a booking, reimburses
- * the merchant via credit balance once the job is done + payment confirmed.
+ * the servicer via credit balance once the job is done + payment confirmed.
  * Idempotent: skips if a redemption is already recorded for the booking.
  */
 async function handlePromoCreditPayback(job: Job): Promise<void> {
@@ -45,7 +45,7 @@ async function handlePromoCreditPayback(job: Job): Promise<void> {
 
   // Look up an unpaid redemption for this booking created by the promotion engine
   const redemption = await prisma.promotionRedemption.findFirst({
-    where: { bookingId, paidToMerchantViaCredit: false },
+    where: { bookingId, paidToServicerViaCredit: false },
   });
   if (!redemption) return;
 
@@ -54,22 +54,22 @@ async function handlePromoCreditPayback(job: Job): Promise<void> {
   await prisma.$transaction(async (tx) => {
     await tx.promotionRedemption.update({
       where: { id: redemption.id },
-      data: { paidToMerchantViaCredit: true, paidAt: new Date() },
+      data: { paidToServicerViaCredit: true, paidAt: new Date() },
     });
     await tx.promotion.update({
       where: { id: redemption.promotionId },
       data: { usedCount: { increment: 1 } },
     });
-    const merchant = await tx.servicer.update({
-      where: { id: booking.merchantId },
+    const servicer = await tx.servicer.update({
+      where: { id: booking.servicerId },
       data: { creditBalance: { increment: discount } },
     });
-    await tx.merchantCreditLog.create({
+    await tx.servicerCreditLog.create({
       data: {
-        merchantId: booking.merchantId,
+        servicerId: booking.servicerId,
         type: 'promo_payback',
         amount: discount,
-        balanceAfter: merchant.creditBalance,
+        balanceAfter: servicer.creditBalance,
         referenceId: bookingId,
         note: `Platform promo reimbursed`,
       },
@@ -86,19 +86,19 @@ async function handlePromoCreditPayback(job: Job): Promise<void> {
       });
     }
   });
-  logger.info('promo.credit_payback — merchant reimbursed', { bookingId, discount });
+  logger.info('promo.credit_payback — servicer reimbursed', { bookingId, discount });
 }
 
 /** withdrawal.notify — alerts all admins of a pending withdrawal request. */
 async function handleWithdrawalNotify(job: Job): Promise<void> {
-  const { withdrawalId, merchantId } = withdrawalPayload.parse(job.data);
-  const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
+  const { withdrawalId, servicerId } = withdrawalPayload.parse(job.data);
+  const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
   const admins = await prisma.user.findMany({ where: { role: 'admin', deletedAt: null } });
   for (const admin of admins) {
     await notify({
       userId: admin.id,
       type: 'withdrawal_pending',
-      message: `${merchant?.businessName ?? 'A merchant'} submitted a withdrawal request for review.`,
+      message: `${servicer?.businessName ?? 'A servicer'} submitted a withdrawal request for review.`,
     });
   }
   logger.info('withdrawal.notify — admins alerted', { withdrawalId });

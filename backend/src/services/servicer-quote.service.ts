@@ -6,6 +6,7 @@ import { pairedCustomerEmail } from '../lib/paired-account';
 import { notify } from './notification.service';
 import { emitToUser } from '../socket';
 import { optionPriceMapSchema, OptionPriceMap, lineItemsSchema, moduleRefsSchema } from '../lib/json-schemas';
+import { resolveListingAccept } from './listing-accept.service';
 
 /**
  * Require that a servicer has completed onboarding before they can take jobs.
@@ -36,7 +37,7 @@ export async function requireOnboarded(servicerId: string): Promise<void> {
 }
 
 /**
- * Quote-side merchant operations: viewing broadcast quotes, marking a quote
+ * Quote-side servicer operations: viewing broadcast quotes, marking a quote
  * opened, and submitting a proposal.
  */
 
@@ -53,7 +54,7 @@ export interface PrefillBreakdownItem {
 /**
  * Pre-computed default price for the proposal form.
  *
- * `defaultTotal` = merchant's base price + sum of per-option prices for the
+ * `defaultTotal` = servicer's base price + sum of per-option prices for the
  * customer's selected priced options.
  *
  * `breakdown` lists each contributing option so the frontend can show a
@@ -107,10 +108,10 @@ function isQuestionVisible(
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Given a quote request and the merchant's best-fit service for the quote's
+ * Given a quote request and the servicer's best-fit service for the quote's
  * category, compute the pre-fill total and breakdown.
  *
- * Returns null when no priced questions exist or when the merchant has no
+ * Returns null when no priced questions exist or when the servicer has no
  * option-price map on any service.
  */
 /** @internal Exported for unit testing (modifier-pricing.test.ts). */
@@ -197,7 +198,7 @@ export function computePrefill(
   }
 
   // defaultTotal: sum of all matched option prices (not additive on top of
-  // base — the option prices are the per-item prices, and the merchant sets
+  // base — the option prices are the per-item prices, and the servicer sets
   // them to already include their base margin).  For multi-select jobs
   // (e.g. "wall chemical + wall general") the total is the sum across units.
   // Base price serves as the fallback / minimum.
@@ -213,7 +214,7 @@ export function computePrefill(
 
 // ── Service functions ────────────────────────────────────────────────────────
 
-/** List quotes this merchant was broadcast to, optionally filtered by status. */
+/** List quotes this servicer was broadcast to, optionally filtered by status. */
 /**
  * Resolves a quote's serviceDetails answers into human-readable lines using the
  * category's question schema, e.g. ["AC type: Wall unit", "Units: 2"]. Unknown
@@ -239,19 +240,19 @@ export function formatServiceDetails(
   return lines;
 }
 
-export async function listIncomingQuotes(merchantId: string, status?: string) {
+export async function listIncomingQuotes(servicerId: string, status?: string) {
   const broadcasts = await prisma.quoteBroadcast.findMany({
     // BE-045: defence-in-depth — never surface a quote created by this
-    // merchant's own paired customer account ("customer mode") in their feed.
+    // servicer's own paired customer account ("customer mode") in their feed.
     where: {
-      merchantId,
-      quoteRequest: { user: { email: { not: pairedCustomerEmail(merchantId) } } },
+      servicerId,
+      quoteRequest: { user: { email: { not: pairedCustomerEmail(servicerId) } } },
     },
     include: {
       quoteRequest: {
         include: {
           category: { select: { name: true, slug: true, questionSchema: true } },
-          proposals: { where: { merchantId }, select: { id: true, status: true, isAuto: true } },
+          proposals: { where: { servicerId }, select: { id: true, status: true, isAuto: true, proposedPrice: true, etaMinutes: true, message: true } },
           user: { select: { name: true, avatarUrl: true } },
           address: { select: { address: true, postcode: true, district: true, state: true } },
         },
@@ -277,9 +278,12 @@ export async function listIncomingQuotes(merchantId: string, status?: string) {
         status: q.status,
         derivedStatus: derived,
         openedAt: b.openedAt,
-        merchantDeadline: q.merchantDeadline,
+        servicerDeadline: q.servicerDeadline,
         myProposalId: myProposal?.id ?? null,
         myProposalIsAuto: myProposal?.isAuto ?? false,
+        myProposalPrice: myProposal ? Number(myProposal.proposedPrice) : null,
+        myProposalEta: myProposal?.etaMinutes ?? null,
+        myProposalMessage: myProposal?.message ?? null,
         customerAvatarUrl: q.user.avatarUrl,
         customerName: q.user.name,
         // Address (for the card row + map button).
@@ -327,14 +331,14 @@ export async function listIncomingQuotes(merchantId: string, status?: string) {
  *  as documented in COORDINATION.md §API contracts.)
  */
 export async function openQuote(
-  merchantId: string,
+  servicerId: string,
   quoteId: string,
 ): Promise<{ proposalPrefill: ProposalPrefill | null; customerAvatarUrl: string | null; customerName: string; lat: number | null; lng: number | null }> {
   // 1. Verify the broadcast exists.
   const broadcast = await prisma.quoteBroadcast.findUnique({
-    where: { quoteRequestId_merchantId: { quoteRequestId: quoteId, merchantId } },
+    where: { quoteRequestId_servicerId: { quoteRequestId: quoteId, servicerId } },
   });
-  if (!broadcast) throw notFound('Quote was not broadcast to this merchant');
+  if (!broadcast) throw notFound('Quote was not broadcast to this servicer');
 
   // 2. Mark opened (idempotent).
   if (!broadcast.openedAt) {
@@ -345,7 +349,7 @@ export async function openQuote(
   }
 
   // 3. Load quote (serviceDetails + category questionSchema) and the
-  //    merchant's best-fit service (first one with modifiers for this
+  //    servicer's best-fit service (first one with modifiers for this
   //    category, falling back to the first service in the category).
   const quote = await prisma.quoteRequest.findUnique({
     where: { id: quoteId },
@@ -360,15 +364,15 @@ export async function openQuote(
   });
   if (!quote) throw notFound('Quote not found');
 
-  // BE-046: a merchant cannot open a quote created by their own paired
+  // BE-046: a servicer cannot open a quote created by their own paired
   // customer account ("customer mode" — the same person).
-  if (quote.user.email === pairedCustomerEmail(merchantId)) {
+  if (quote.user.email === pairedCustomerEmail(servicerId)) {
     throw forbidden('You cannot act on a quote request from your own customer account');
   }
 
-  // Find merchant's service for this category — prefer one with modifiers.
-  const services = await prisma.merchantService.findMany({
-    where: { merchantId, categoryId: quote.categoryId, deletedAt: null },
+  // Find servicer's service for this category — prefer one with modifiers.
+  const services = await prisma.servicerService.findMany({
+    where: { servicerId, categoryId: quote.categoryId, deletedAt: null },
     select: { basePrice: true, modifiers: true },
     orderBy: { createdAt: 'asc' },
   });
@@ -381,7 +385,7 @@ export async function openQuote(
     serviceWithModifiers,
   );
 
-  logger.info('Quote opened', { quoteId, merchantId, hasPrefill: proposalPrefill !== null });
+  logger.info('Quote opened', { quoteId, servicerId, hasPrefill: proposalPrefill !== null });
   return { proposalPrefill, customerAvatarUrl: quote.user.avatarUrl, customerName: quote.user.name, lat: quote.lat, lng: quote.lng };
 }
 
@@ -394,32 +398,32 @@ export interface ProposeInput {
   moduleRefs?: { moduleId: string; overridePrice?: number | null }[];
 }
 
-/** Submit (or replace) this merchant's proposal for a broadcast quote. */
-export async function submitProposal(merchantId: string, quoteId: string, input: ProposeInput) {
-  await requireOnboarded(merchantId);
+/** Submit (or replace) this servicer's proposal for a broadcast quote. */
+export async function submitProposal(servicerId: string, quoteId: string, input: ProposeInput) {
+  await requireOnboarded(servicerId);
 
   const broadcast = await prisma.quoteBroadcast.findUnique({
-    where: { quoteRequestId_merchantId: { quoteRequestId: quoteId, merchantId } },
+    where: { quoteRequestId_servicerId: { quoteRequestId: quoteId, servicerId } },
   });
-  if (!broadcast) throw notFound('Quote was not broadcast to this merchant');
+  if (!broadcast) throw notFound('Quote was not broadcast to this servicer');
 
   const quote = await prisma.quoteRequest.findUnique({
     where: { id: quoteId },
-    select: { id: true, userId: true, categoryId: true, status: true, merchantDeadline: true, user: { select: { email: true, name: true, avatarUrl: true } } },
+    select: { id: true, userId: true, categoryId: true, status: true, servicerDeadline: true, user: { select: { email: true, name: true, avatarUrl: true } } },
   });
   if (!quote) throw notFound('Quote not found');
 
-  // BE-047: a merchant must not submit a proposal on a quote created by their
+  // BE-047: a servicer must not submit a proposal on a quote created by their
   // own paired customer account ("customer mode" — the same person). This is
   // the authoritative server-side reject: it holds even when the request is
   // made directly, bypassing the (already self-filtered) incoming feed.
-  if (quote.user.email === pairedCustomerEmail(merchantId)) {
+  if (quote.user.email === pairedCustomerEmail(servicerId)) {
     throw forbidden('You cannot submit a proposal on a quote request from your own customer account');
   }
 
   if (quote.status !== 'open') throw conflict('Quote is no longer open for proposals');
-  if (quote.merchantDeadline < new Date()) {
-    throw conflict('The merchant proposal deadline has passed');
+  if (quote.servicerDeadline < new Date()) {
+    throw conflict('The servicer proposal deadline has passed');
   }
   if (input.proposedPrice <= 0) throw badRequest('proposedPrice must be greater than zero');
 
@@ -438,7 +442,7 @@ export async function submitProposal(merchantId: string, quoteId: string, input:
   }
 
   const existing = await prisma.quoteProposal.findUnique({
-    where: { quoteRequestId_merchantId: { quoteRequestId: quoteId, merchantId } },
+    where: { quoteRequestId_servicerId: { quoteRequestId: quoteId, servicerId } },
   });
 
   const data = {
@@ -459,14 +463,14 @@ export async function submitProposal(merchantId: string, quoteId: string, input:
     proposal = await prisma.quoteProposal.update({ where: { id: existing.id }, data });
   } else {
     proposal = await prisma.quoteProposal.create({
-      data: { quoteRequestId: quoteId, merchantId, ...data },
+      data: { quoteRequestId: quoteId, servicerId, ...data },
     });
   }
 
   await notify({
     userId: quote.userId,
     type: 'orders',
-    message: `A merchant has submitted a proposal for your quote.`,
+    message: `A servicer has submitted a proposal for your quote.`,
     linkUrl: `/customer/quotes/${quoteId}/proposals`,
     category: quote.categoryId,
   });
@@ -475,6 +479,35 @@ export async function submitProposal(merchantId: string, quoteId: string, input:
   // (the notification badge alone does not reload the proposals page).
   emitToUser(quote.userId, 'proposal.submitted', { quoteId, proposalId: proposal.id });
 
-  logger.info('Proposal submitted', { quoteId, merchantId, proposalId: proposal.id });
+  logger.info('Proposal submitted', { quoteId, servicerId, proposalId: proposal.id });
   return proposal;
+}
+
+/**
+ * One-tap accept: submit a proposal at the servicer's listing-computed
+ * `{ price, duration, message }` (SP-3 engine) — no manual form. The customer
+ * still selects among proposals; this just fills the proposal automatically.
+ */
+export async function acceptQuoteListing(servicerId: string, quoteId: string) {
+  const quote = await prisma.quoteRequest.findUnique({
+    where: { id: quoteId },
+    select: { categoryId: true, serviceDetails: true, budgetMax: true },
+  });
+  if (!quote) throw notFound('Quote not found');
+
+  const accept = await resolveListingAccept(servicerId, {
+    categoryId: quote.categoryId,
+    serviceDetails: quote.serviceDetails,
+    budgetMax: quote.budgetMax != null ? Number(quote.budgetMax) : null,
+  });
+
+  if (accept.price <= 0) {
+    throw badRequest('Set up a listing with a price for this category before accepting.');
+  }
+
+  return submitProposal(servicerId, quoteId, {
+    proposedPrice: accept.price,
+    etaMinutes: accept.durationMin,
+    message: accept.message ?? undefined,
+  });
 }

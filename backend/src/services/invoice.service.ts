@@ -10,8 +10,8 @@ import { notFound } from '../lib/errors';
 const money = (n: number): number => Math.round(n * 100) / 100;
 
 /**
- * Builds a merchant-formatted invoice number, e.g. INV-2026-0001, from the
- * merchant's own numbering rule (prefix / year format / separator / padding).
+ * Builds a servicer-formatted invoice number, e.g. INV-2026-0001, from the
+ * servicer's own numbering rule (prefix / year format / separator / padding).
  */
 function formatInvoiceNumber(
   prefix: string,
@@ -21,7 +21,7 @@ function formatInvoiceNumber(
   sequence: number,
 ): string {
   const seq = String(sequence).padStart(padding, '0');
-  // 'none' — the merchant opted out of a year segment entirely.
+  // 'none' — the servicer opted out of a year segment entirely.
   if (yearFormat === 'none') return [prefix, seq].join(separator);
   const year = yearFormat === 'YY' ? String(new Date().getFullYear()).slice(-2) : String(new Date().getFullYear());
   return [prefix, year, seq].join(separator);
@@ -46,16 +46,16 @@ function resolveLineItems(booking: { lineItems: any; price: any }): LineItem[] {
 }
 
 /**
- * Resolve servicer tax config from the booked merchant's account.
+ * Resolve servicer tax config from the booked servicer's account.
  * Tax config is ALWAYS resolved from the booked service + servicer,
  * not an arbitrary listing (spec §2.6).
  */
-function resolveTaxConfig(merchant: any, sstRate: number): ServicerTaxConfig {
+function resolveTaxConfig(servicer: any, sstRate: number): ServicerTaxConfig {
   return {
-    serviceChargeRate: Number(merchant.serviceChargeRate) || 0,
-    sstRegistered: merchant.sstRegistered ?? false,
+    serviceChargeRate: Number(servicer.serviceChargeRate) || 0,
+    sstRegistered: servicer.sstRegistered ?? false,
     sstRate,
-    taxInclusive: merchant.taxInclusive ?? false,
+    taxInclusive: servicer.taxInclusive ?? false,
   };
 }
 
@@ -69,22 +69,22 @@ function resolveTaxConfig(merchant: any, sstRate: number): ServicerTaxConfig {
  *
  * INVARIANT (tested): escrow.amount == invoice.total (for pay_now bookings).
  */
-export async function generateInvoice(merchantId: string, bookingId: string) {
+export async function generateInvoice(servicerId: string, bookingId: string) {
   const existing = await prisma.invoice.findUnique({ where: { bookingId } });
   if (existing) return existing;
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { quoteRequest: true, merchant: true, escrow: true },
+    include: { quoteRequest: true, servicer: true, escrow: true },
   });
   if (!booking) throw new Error(`Booking ${bookingId} not found`);
 
   const lineItems = resolveLineItems(booking);
 
   // Resolve servicer tax config from the booked service + servicer (spec §2.6).
-  const merchant = booking.merchant;
+  const servicer = booking.servicer;
   const [sstRateSetting, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
-  const servicerTaxConfig = resolveTaxConfig(merchant, sstRateSetting);
+  const servicerTaxConfig = resolveTaxConfig(servicer, sstRateSetting);
 
   const subtotal = money(lineItems.reduce((s, li) => s + li.amount, 0));
   const promoDiscount = await resolvePromoDiscount(booking.quoteRequest.promoCode, subtotal);
@@ -113,23 +113,23 @@ export async function generateInvoice(merchantId: string, bookingId: string) {
   // Due date: now + 14 days (standard Malaysian invoice terms).
   const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60_000);
 
-  // Reserve a sequence number from the merchant's counter.
-  const seqMerchant = await prisma.servicer.update({
-    where: { id: merchantId },
+  // Reserve a sequence number from the servicer's counter.
+  const seqServicer = await prisma.servicer.update({
+    where: { id: servicerId },
     data: { invoiceNextNumber: { increment: 1 } },
   });
-  const sequenceNumber = seqMerchant.invoiceNextNumber - 1;
+  const sequenceNumber = seqServicer.invoiceNextNumber - 1;
   const invoiceNumber = formatInvoiceNumber(
-    merchant.invoicePrefix,
-    merchant.invoiceYearFormat,
-    merchant.invoiceSeparator,
-    merchant.invoicePadding,
+    servicer.invoicePrefix,
+    servicer.invoiceYearFormat,
+    servicer.invoiceSeparator,
+    servicer.invoicePadding,
     sequenceNumber,
   );
 
   const pdfUrl: string = await renderPdf({
     invoiceNumber,
-    businessName: merchant.businessName,
+    businessName: servicer.businessName,
     subtotal: totalResult.subtotal,
     promoDiscount,
     taxRate: servicerTaxConfig.sstRate,
@@ -142,7 +142,7 @@ export async function generateInvoice(merchantId: string, bookingId: string) {
   const invoice = await prisma.invoice.create({
     data: {
       bookingId,
-      merchantId,
+      servicerId,
       invoiceNumber,
       sequenceNumber,
       lineItems: lineItems as any,
@@ -203,19 +203,19 @@ export interface InvoicePreview {
  * database row.  Calls computeTotal() with the actual line items so the
  * servicer can review the breakdown before marking the job as done.
  *
- * Throws 404 if the booking doesn't belong to the merchant or doesn't exist.
+ * Throws 404 if the booking doesn't belong to the servicer or doesn't exist.
  */
-export async function getInvoicePreview(merchantId: string, bookingId: string): Promise<InvoicePreview> {
+export async function getInvoicePreview(servicerId: string, bookingId: string): Promise<InvoicePreview> {
   const booking = await prisma.booking.findFirst({
-    where: { id: bookingId, merchantId },
-    include: { quoteRequest: true, merchant: true, escrow: true },
+    where: { id: bookingId, servicerId },
+    include: { quoteRequest: true, servicer: true, escrow: true },
   });
   if (!booking) throw notFound('Booking not found');
 
   const lineItems = resolveLineItems(booking);
-  const merchant = booking.merchant;
+  const servicer = booking.servicer;
   const [sstRateSetting, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
-  const taxConfig = resolveTaxConfig(merchant, sstRateSetting);
+  const taxConfig = resolveTaxConfig(servicer, sstRateSetting);
 
   const subtotal = money(lineItems.reduce((s, li) => s + li.amount, 0));
   const promoDiscount = await resolvePromoDiscount(booking.quoteRequest.promoCode, subtotal);
@@ -318,12 +318,12 @@ async function renderPdf(inv: PdfInput): Promise<string> {
 // ── Servicer-facing invoice queries ──────────────────────────────────────────
 
 /**
- * Lists all invoices for a merchant, newest first.
+ * Lists all invoices for a servicer, newest first.
  * Optionally filtered by `status` = 'paid' | 'unpaid'.
- * Returns the list-view shape documented in api-doc.md §GET /merchant/me/invoices.
+ * Returns the list-view shape documented in api-doc.md §GET /servicer/me/invoices.
  */
-export async function listMerchantInvoices(merchantId: string, status?: string) {
-  const where: { merchantId: string; paidAt?: object | null } = { merchantId };
+export async function listServicerInvoices(servicerId: string, status?: string) {
+  const where: { servicerId: string; paidAt?: object | null } = { servicerId };
   if (status === 'paid') where.paidAt = { not: null };
   if (status === 'unpaid') where.paidAt = null;
 
@@ -344,23 +344,23 @@ export async function listMerchantInvoices(merchantId: string, status?: string) 
 
 /**
  * Returns the full invoice breakdown for a single invoice owned by the
- * merchant. Throws 404 if the invoice does not belong to them.
+ * servicer. Throws 404 if the invoice does not belong to them.
  */
-export async function getMerchantInvoice(merchantId: string, invoiceId: string) {
+export async function getServicerInvoice(servicerId: string, invoiceId: string) {
   const invoice = await prisma.invoice.findFirst({
-    where: { id: invoiceId, merchantId },
+    where: { id: invoiceId, servicerId },
   });
   if (!invoice) throw notFound('Invoice not found');
   return invoice;
 }
 
 /**
- * Returns the invoice for a booking owned by the merchant.
+ * Returns the invoice for a booking owned by the servicer.
  * Throws 404 if the booking has no invoice or does not belong to them.
  */
-export async function getMerchantInvoiceByBooking(merchantId: string, bookingId: string) {
+export async function getServicerInvoiceByBooking(servicerId: string, bookingId: string) {
   const invoice = await prisma.invoice.findFirst({
-    where: { bookingId, merchantId },
+    where: { bookingId, servicerId },
   });
   if (!invoice) throw notFound('Invoice not found for this booking');
   return invoice;

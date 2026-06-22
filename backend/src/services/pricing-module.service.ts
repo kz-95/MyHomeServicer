@@ -11,17 +11,17 @@ export interface PricingModuleInput {
   active?: boolean;
 }
 
-export async function listPricingModules(merchantId: string, activeOnly = false) {
+export async function listPricingModules(servicerId: string, activeOnly = false) {
   return prisma.pricingModule.findMany({
-    where: { merchantId, ...(activeOnly ? { active: true } : {}) },
+    where: { servicerId, ...(activeOnly ? { active: true } : {}) },
     orderBy: { createdAt: 'asc' },
   });
 }
 
-export async function createPricingModule(merchantId: string, input: PricingModuleInput) {
+export async function createPricingModule(servicerId: string, input: PricingModuleInput) {
   return prisma.pricingModule.create({
     data: {
-      merchantId,
+      servicerId,
       label: input.label,
       defaultPrice: input.defaultPrice,
       taxable: input.taxable ?? true,
@@ -32,18 +32,18 @@ export async function createPricingModule(merchantId: string, input: PricingModu
   });
 }
 
-async function ownedModule(merchantId: string, moduleId: string) {
-  const mod = await prisma.pricingModule.findFirst({ where: { id: moduleId, merchantId } });
+async function ownedModule(servicerId: string, moduleId: string) {
+  const mod = await prisma.pricingModule.findFirst({ where: { id: moduleId, servicerId } });
   if (!mod) throw notFound('Pricing module not found');
   return mod;
 }
 
 export async function updatePricingModule(
-  merchantId: string,
+  servicerId: string,
   moduleId: string,
   input: Partial<PricingModuleInput>,
 ) {
-  await ownedModule(merchantId, moduleId);
+  await ownedModule(servicerId, moduleId);
   const data: Prisma.PricingModuleUpdateInput = {};
   if (input.label !== undefined) data.label = input.label;
   if (input.defaultPrice !== undefined) data.defaultPrice = input.defaultPrice;
@@ -54,11 +54,11 @@ export async function updatePricingModule(
   return prisma.pricingModule.update({ where: { id: moduleId }, data });
 }
 
-export async function getModule(merchantId: string, moduleId: string) {
-  return ownedModule(merchantId, moduleId);
+export async function getModule(servicerId: string, moduleId: string) {
+  return ownedModule(servicerId, moduleId);
 }
 
-export async function deletePricingModule(merchantId: string, moduleId: string) {
-  await ownedModule(merchantId, moduleId);
+export async function deletePricingModule(servicerId: string, moduleId: string) {
+  await ownedModule(servicerId, moduleId);
   await prisma.pricingModule.update({ where: { id: moduleId }, data: { active: false } });
 }

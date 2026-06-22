@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/services/api.service';
+import { AuthService } from '../core/services/auth.service';
 import { SocketService } from '../core/services/socket.service';
 import { ToastService } from '../core/services/toast.service';
 import { IconComponent } from './icon.component';
@@ -247,6 +248,7 @@ interface DispatchPrompt {
 })
 export class DispatchPromptGuardComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
+  private auth = inject(AuthService);
   private socket = inject(SocketService);
   private toast = inject(ToastService);
 
@@ -261,7 +263,13 @@ export class DispatchPromptGuardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.socketSub = this.socket.on<DispatchPrompt>('dispatch.prompt').subscribe((data) => {
-      this.showPrompt(data);
+      // Online servicers get the center guard (interrupt-to-accept); offline
+      // servicers keep the unobtrusive corner toast and act from the jobs board.
+      if (this.auth.principal()?.isOnline) {
+        this.showPrompt(data);
+      } else {
+        this.toast.info(`New dispatch: ${data.category.name}. Open Jobs to respond.`);
+      }
     });
   }
 

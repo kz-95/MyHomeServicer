@@ -6,14 +6,14 @@ import { prisma } from '../lib/prisma';
  * so the platform works before an admin has configured anything.
  */
 const DEFAULTS: Record<string, unknown> = {
-  // 5% platform fee per booking until 50 merchants (schema-notes.md).
+  // 5% platform fee per booking until 50 servicers (schema-notes.md).
   platform_fee_rate: { current_rate: 0.05, scheduled_changes: [] },
   // Malaysian SST.
   sst_rate: { rate: 0.06 },
   no_response_discount: { discount_type: 'fixed', value: 15, expires_in_days: 14 },
   noshow_grace_minutes: { minutes: 30 },
-  merchant_credit_withdrawal_minimum: { amount: 50 },
-  merchant_deposit_minimum: { amount: 100 },
+  servicer_credit_withdrawal_minimum: { amount: 50 },
+  servicer_deposit_minimum: { amount: 100 },
   // Budget brackets the customer picks from — admin-configurable.
   // Dispatch rotation prompt timer (seconds) per servicer in rotation.
   dispatch_prompt_timeout_seconds: { seconds: 10 },

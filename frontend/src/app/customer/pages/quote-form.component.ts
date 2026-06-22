@@ -5,6 +5,7 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ConfigService } from '../../core/services/config.service';
+import { DemoUnlockService } from '../../core/services/demo-unlock.service';
 import { QuoteAssistBridge, QuoteFormContext } from '../../core/services/quote-assist-bridge.service';
 import { StripePaymentService } from '../../core/services/stripe-payment.service';
 import { ModalComponent } from '../../shared/modal.component';
@@ -86,7 +87,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
     template: `
     <div class="page-head">
       <h1>Request a quote</h1>
-      @if (config.hasDemoData) {
+      @if (config.hasDemoData && unlock.unlocked()) {
         <button class="btn-autofill" type="button" (click)="demoAutoFill()">⚡ Demo: Auto-fill</button>
       }
     </div>
@@ -147,6 +148,16 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
     <!-- ── Step 1 - Choose service ──────────────────────────────────────────── -->
     @if (step() === 1) {
       <div class="card pane page-child">
+        @if (rebookServicerId()) {
+          <!-- Locked rebook: servicer + category are fixed; no category choice. -->
+          <div class="rebook-lock">
+            <span class="rebook-badge">Rebooking</span>
+            <div class="rebook-info">
+              <strong>{{ rebookServicerName() }}</strong>
+              <span class="muted">{{ categoryName() }} · this request goes to them only</span>
+            </div>
+          </div>
+        } @else {
         <!-- Quick search bar - find a service by name, auto-fills both dropdowns -->
         <div class="svc-search" [class.open]="searchFocused() && filteredChildren().length > 0">
           <span class="svc-search-ic"><app-icon name="search" sizeToken="sm" /></span>
@@ -197,6 +208,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
             }
           </label>
         </div>
+        }
 
         @if (categoryId()) {
           @for (q of questions(); track q.key) {
@@ -291,41 +303,6 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
     @if (step() === 2) {
       <div class="card pane page-child">
 
-        <!-- Name + Phone No -->
-        <div class="row">
-          <label [class.field-invalid]="hasError('contactName')">
-            <span class="label-text">Name<span class="req">*</span></span>
-            <input [(ngModel)]="f.contactName" name="contactName" maxlength="100" (ngModelChange)="clearError('contactName')" />
-            @if (hasError('contactName')) { <span class="field-msg">Name is required.</span> }
-          </label>
-          <label [class.field-invalid]="hasError('contactNumber')">
-            <span class="label-text">Phone No<span class="req">*</span></span>
-            <app-phone-input [(ngModel)]="f.contactNumber" name="contactNumber" (ngModelChange)="clearError('contactNumber')"></app-phone-input>
-            @if (hasError('contactNumber')) { <span class="field-msg">Phone number is required.</span> }
-          </label>
-        </div>
-
-        <!-- Address hint when auto-fill couldn't parse a house number -->
-        @if (stepHint()) { <p class="hint" style="margin-bottom:0.5rem">{{ stepHint() }}</p> }
-        <!-- Building/Premise instructions - moved above address -->
-        <label><span>Enter Building/Premise Instructions <span class="muted">(optional)</span></span>
-          <textarea rows="2" [(ngModel)]="f.notes" name="notes" maxlength="1000" placeholder="Register at guard house, park at visitor lot B, management office open 9am-5pm"></textarea>
-        </label>
-        <!-- Address No + Street Details + Google Maps / GPS -->
-        <app-address-fields
-          [(addressNo)]="f.addressNo"
-          [(streetDetails)]="f.streetDetails"
-          [(postcode)]="f.newAddressPostcode"
-          [(district)]="f.newAddressDistrict"
-          [(state)]="f.newAddressState"
-          [(propertyType)]="f.newAddressPropertyType"
-          [(lat)]="f.newAddressLat"
-          [(lng)]="f.newAddressLng"
-          [errors]="fieldErrors()"
-          (clearError)="clearError($event)"
-          (userEntered)="f.addressId = ''"
-        />
-
         <!-- Preset actions - save the current details, or auto-fill from a saved preset -->
         <div class="preset-row">
           <button type="button" class="btn-ghost btn-save-preset" (click)="openSavePreset()"
@@ -365,6 +342,41 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
           </div>
         </div>
 
+        <!-- Name + Phone No -->
+        <div class="row">
+          <label [class.field-invalid]="hasError('contactName')">
+            <span class="label-text">Name<span class="req">*</span></span>
+            <input [(ngModel)]="f.contactName" name="contactName" maxlength="100" (ngModelChange)="clearError('contactName')" />
+            @if (hasError('contactName')) { <span class="field-msg">Name is required.</span> }
+          </label>
+          <label [class.field-invalid]="hasError('contactNumber')">
+            <span class="label-text">Phone No<span class="req">*</span></span>
+            <app-phone-input [(ngModel)]="f.contactNumber" name="contactNumber" (ngModelChange)="clearError('contactNumber')"></app-phone-input>
+            @if (hasError('contactNumber')) { <span class="field-msg">Phone number is required.</span> }
+          </label>
+        </div>
+
+        <!-- Address hint when auto-fill couldn't parse a house number -->
+        @if (stepHint()) { <p class="hint" style="margin-bottom:0.5rem">{{ stepHint() }}</p> }
+        <!-- Building/Premise instructions - moved above address -->
+        <label><span>Enter Building/Premise Instructions <span class="muted">(optional)</span></span>
+          <textarea rows="2" [(ngModel)]="f.notes" name="notes" maxlength="1000" placeholder="Register at guard house, park at visitor lot B, management office open 9am-5pm"></textarea>
+        </label>
+        <!-- Address No + Street Details + Google Maps / GPS -->
+        <app-address-fields
+          [(addressNo)]="f.addressNo"
+          [(streetDetails)]="f.streetDetails"
+          [(postcode)]="f.newAddressPostcode"
+          [(district)]="f.newAddressDistrict"
+          [(state)]="f.newAddressState"
+          [(propertyType)]="f.newAddressPropertyType"
+          [(lat)]="f.newAddressLat"
+          [(lng)]="f.newAddressLng"
+          [errors]="fieldErrors()"
+          (clearError)="clearError($event)"
+          (userEntered)="f.addressId = ''"
+        />
+
         @if (isCondoAddress()) {
           <div class="condo-note">{{ condoEntryNote() }}</div>
         }
@@ -397,7 +409,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
           <dd>{{ timeSlotLabel(f.timeSlot) }} · {{ f.preferredDate || ' - ' }}</dd>
           <dt>Contact</dt>
           <dd>{{ f.contactName }} · {{ f.contactNumber }}</dd>
-          <dt>
+          <dt class="service-dt">
             <details class="service-details">
               <summary class="service-summary">Service: {{ categoryName() }} <span class="chevron">▸</span></summary>
               <div class="service-answers">
@@ -407,7 +419,6 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
               </div>
             </details>
           </dt>
-          <dd></dd>
           @if (f.extraNotes) { <dt>Extra Details</dt><dd>{{ f.extraNotes }}</dd> }
           @if (f.notes) { <dt>Address Instructions</dt><dd>{{ f.notes }}</dd> }
           <dt>Full Address</dt>
@@ -673,6 +684,27 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
       .cat-field .field-msg { flex-basis: auto; }
       .cat-field select { width: 100%; }
       @media (max-width: 560px) { .cat-row { flex-direction: column; } }
+      .rebook-lock {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid var(--color-primary-light);
+        border-radius: var(--radius);
+        background: var(--color-primary-light);
+      }
+      .rebook-badge {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #fff;
+        background: var(--color-primary);
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        flex-shrink: 0;
+      }
+      .rebook-info { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
       /* Quick service search bar */
       .svc-search { position: relative; display: flex; align-items: center; gap: 0.4rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.5rem 0.75rem; transition: border-color var(--transition); }
       .svc-search:focus-within, .svc-search.open { border-color: var(--color-primary); }
@@ -836,14 +868,15 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
         border: 1px solid var(--color-danger); border-radius: var(--radius);
         padding: 0.5rem 0.65rem; line-height: 1.35;
       }
-      .service-details { display: inline; }
+      .review dt.service-dt { grid-column: 1 / -1; font-weight: 400; }
+      .service-details { display: block; }
       .service-summary { cursor: pointer; list-style: none; font-weight: 600; color: var(--color-muted); user-select: none; }
       .service-summary::-webkit-details-marker { display: none; }
       .service-summary .chevron { display: inline-block; transition: transform 0.2s ease; font-size: 0.75rem; }
       .service-details[open] .chevron { transform: rotate(90deg); }
-      .service-answers { margin-top: 0.5rem; display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; }
+      .service-answers { margin-top: 0.5rem; display: grid; grid-template-columns: minmax(0, 14rem) minmax(0, 1fr); gap: 0.25rem 0.75rem; }
       .answer-row { display: contents; }
-      .answer-label { color: var(--color-muted); white-space: nowrap; }
+      .answer-label { color: var(--color-muted); }
       .answer-value { color: var(--color-text); }
       .addr-line2 { font-size: 0.85rem; color: var(--color-muted); margin-top: 0.1rem; }
       .pane { padding-bottom: 1rem; container-type: inline-size; }
@@ -853,10 +886,16 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
         .review dt { margin-top: 0.6rem; }
         .review dt:first-of-type { margin-top: 0; }
         .review dd { margin-bottom: 0.35rem; }
+        .service-answers { grid-template-columns: 1fr; gap: 0 0; }
+        .answer-row { display: block; margin-bottom: 0.35rem; }
+        .answer-label { display: block; }
       }
       @media (max-width: 560px) {
         .review { grid-template-columns: 1fr; gap: 0.15rem 0; }
         .review dd { margin-bottom: 0.35rem; }
+        .service-answers { grid-template-columns: 1fr; gap: 0 0; }
+        .answer-row { display: block; margin-bottom: 0.35rem; }
+        .answer-label { display: block; }
       }
       .actions { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; }
       .actions .btn-primary { margin-left: auto; }
@@ -872,6 +911,13 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
       /* Page header row: title left, demo autofill right */
       .page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
       .page-head h1 { margin: 0; }
+      .btn-autofill {
+        font-size: 0.78rem; font-weight: 500; padding: 0.25rem 0.7rem;
+        border-radius: 999px; border: 1px solid var(--color-border);
+        background: transparent; color: var(--color-muted); cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .btn-autofill:hover { background: var(--color-bg); color: var(--color-text); border-color: var(--color-muted); }
       /* Auto-fill preset */
       .af-section { position: relative; }
       .preset-row { display: flex; align-items: center; justify-content: center; gap: 0.6rem; flex-wrap: wrap; }
@@ -1141,8 +1187,13 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private assist = inject(QuoteAssistBridge);
   config = inject(ConfigService);
+  protected readonly unlock = inject(DemoUnlockService);
 
   private reorderPrefill: Record<string, unknown> | null = null;
+  /** Locked-rebook target: when set, the quote goes to this servicer only and
+   *  the category pickers are hidden/locked (entered from order history). */
+  rebookServicerId = signal<string | null>(null);
+  rebookServicerName = signal<string>('');
 
   readonly steps = [
     { n: 1, label: 'Choose service' },
@@ -1320,6 +1371,14 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.assist.register(() => this.buildFormContext(), (k, v) => this.applyFormField(k, v));
     this.reorderPrefill = history.state?.prefill ?? null;
+
+    // Locked rebook (from order history "Rebook same servicer"): pin the servicer
+    // so the quote goes to them only, and lock the category to the past job's.
+    const rebook = history.state?.rebookServicer as { id: string; name: string } | undefined;
+    if (rebook?.id) {
+      this.rebookServicerId.set(rebook.id);
+      this.rebookServicerName.set(rebook.name ?? 'this servicer');
+    }
 
     // AI Smart Assistant prefill: base64-encoded JSON from chat widget
     const prefillParam = this.route.snapshot.queryParamMap.get('prefill');
@@ -2222,6 +2281,11 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
       proposalDeadline: proposalDeadline.toISOString(),
       agreeTerms: true,
     };
+
+    // Locked rebook: direct the quote to the pinned servicer only.
+    if (this.rebookServicerId()) {
+      payload['targetServicerId'] = this.rebookServicerId();
+    }
 
     if (this.f.addressId) {
       payload['addressId'] = this.f.addressId;

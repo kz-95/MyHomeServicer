@@ -10,6 +10,7 @@ import { logger } from '../lib/logger';
 import { adjustCredit } from '../services/credit.service';
 import { notify } from '../services/notification.service';
 import { completeGatewaySettlement } from '../services/booking.service';
+import { settleAndBroadcastGuestQuote } from '../services/quote.service';
 import {
   createPaymentIntent,
   createTopUpSession,
@@ -270,7 +271,7 @@ stripeRouter.post(
           status: 'completed',
           amount: creditAmount,
           userId,
-          merchantId: isServicer ? userId : undefined,
+          servicerId: isServicer ? userId : undefined,
           stripeSessionId: sessionId,
           reference: `Stripe Checkout Session ${sessionId}`,
           metadata: {
@@ -299,7 +300,7 @@ stripeRouter.post(
     notify({
       type: 'payments',
       userId: isServicer ? undefined : userId,
-      merchantId: isServicer ? userId : undefined,
+      servicerId: isServicer ? userId : undefined,
       message: `Wallet top-up of RM ${amountMYR.toFixed(2)} confirmed.`,
       linkUrl: '/customer/transactions',
     });
@@ -517,7 +518,7 @@ async function handleCheckoutSessionCompleted(session: StripeWebhookCheckoutSess
           type: 'deposit_topup',
           status: 'completed',
           amount: amountMYR,
-          merchantId: userId,
+          servicerId: userId,
           stripeSessionId: session.id,
           reference: `Stripe Checkout Session ${session.id}`,
           metadata: { stripeSessionId: session.id, paymentStatus: session.payment_status, userType: 'servicer' },
@@ -528,13 +529,13 @@ async function handleCheckoutSessionCompleted(session: StripeWebhookCheckoutSess
           actorType: 'system',
           action: 'transaction.deposit_topup',
           entityType: 'Transaction',
-          newValue: { type: 'deposit_topup', amount: amountMYR, merchantId: userId, stripeSessionId: session.id, userType: 'servicer' },
+          newValue: { type: 'deposit_topup', amount: amountMYR, servicerId: userId, stripeSessionId: session.id, userType: 'servicer' },
         },
       });
     });
     notify({
       type: 'payments',
-      merchantId: userId,
+      servicerId: userId,
       message: `Wallet top-up of RM ${amountMYR.toFixed(2)} confirmed.`,
       linkUrl: '/servicer/deposit',
     });
@@ -588,6 +589,24 @@ async function handleCheckoutSessionCompleted(session: StripeWebhookCheckoutSess
       data: { stripeSessionId: session.id, status: 'completed' },
     });
   });
+
+  // Guest pay_now (gateway): the wallet is now funded, so the payment gate is
+  // satisfied. Take the budget hold, broadcast the quote, and flip it
+  // pending_payment → open. The pending top-up transaction carries the quoteId
+  // (set when the guest checkout session was created in quotes.routes.ts). The
+  // call is idempotent, so a webhook redelivery never double-broadcasts.
+  const guestMeta = (pendingTxn?.metadata ?? {}) as { quoteId?: string; guestPayment?: boolean };
+  if (guestMeta.guestPayment && guestMeta.quoteId) {
+    try {
+      await settleAndBroadcastGuestQuote(guestMeta.quoteId);
+    } catch (err) {
+      logger.error('Guest quote broadcast after payment failed', {
+        sessionId: session.id,
+        quoteId: guestMeta.quoteId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   notify({
     type: 'payments',

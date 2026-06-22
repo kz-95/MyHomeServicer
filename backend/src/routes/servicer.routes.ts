@@ -8,6 +8,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { requireAuth, requireServicer } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { verifyPin } from '../middleware/pin';
+import { checkPinCooldown, recordPinFailure, recordPinSuccess } from '../middleware/pin-cooldown';
 import { proposalLimiter } from '../middleware/rate-limit';
 import { idempotency } from '../middleware/idempotency';
 import { badRequest, notFound } from '../lib/errors';
@@ -15,23 +16,24 @@ import {
   listIncomingQuotes,
   openQuote,
   submitProposal,
+  acceptQuoteListing,
 } from '../services/servicer-quote.service';
 import {
-  listMerchantJobs,
-  getMerchantJob,
+  listServicerJobs,
+  getServicerJob,
   confirmJob,
   arriveJob,
   doneJob,
   cashConfirm,
-  merchantCancelJob,
+  servicerCancelJob,
   requestMutualCancel,
 } from '../services/booking.service';
 import {
-  getMerchantProfile,
-  updateMerchantProfile,
+  getServicerProfile,
+  updateServicerProfile,
   getPersonalProfile,
   updatePersonalProfile,
-  setMerchantOnline,
+  setServicerOnline,
   getEarningsToday,
   getEarningsDaily,
   exportEarningsPdf,
@@ -43,17 +45,17 @@ import {
   listKycDocuments,
   submitCategoryRequest,
   listCategoryRequests,
-  listMerchantPromotions,
-  createMerchantPromotion,
-  updateMerchantPromotion,
-  deactivateMerchantPromotion,
-  listMerchantWithdrawals,
+  listServicerPromotions,
+  createServicerPromotion,
+  updateServicerPromotion,
+  deactivateServicerPromotion,
+  listServicerWithdrawals,
   requestDepositTopup,
 } from '../services/servicer-account.service';
 import {
-  listMerchantInvoices,
-  getMerchantInvoice,
-  getMerchantInvoiceByBooking,
+  listServicerInvoices,
+  getServicerInvoice,
+  getServicerInvoiceByBooking,
   getInvoicePreview,
 } from '../services/invoice.service';
 import {
@@ -87,7 +89,7 @@ import {
 } from '../services/servicer-contact.service';
 
 /**
- * Servicer self-service router (`/merchant/*`). Quote endpoints land in
+ * Servicer self-service router (`/servicer/*`). Quote endpoints land in
  * Phase 2; job, service, earnings and promotion endpoints are added in
  * Phases 3-4.
  */
@@ -95,10 +97,10 @@ export const servicerRouter = Router();
 servicerRouter.use(requireAuth, requireServicer);
 
 /**
- * POST /merchant/customer-session — enter "customer mode".
+ * POST /servicer/customer-session — enter "customer mode".
  * Returns (creating on first use) the servicer's paired customer-account session so
- * a merchant can operate the platform as a customer. The frontend stashes the
- * merchant session and swaps in these tokens. Mounted at /api/v1/servicer.
+ * a servicer can operate the platform as a customer. The frontend stashes the
+ * servicer session and swaps in these tokens. Mounted at /api/v1/servicer.
  */
 servicerRouter.post(
   '/customer-session',
@@ -110,19 +112,19 @@ servicerRouter.post(
 
 // ── Profile, earnings, deposit ───────────────────────────────────────────────
 
-/** GET /merchant/me — merchant profile with settings. */
+/** GET /servicer/me — servicer profile with settings. */
 servicerRouter.get(
   '/me',
-  asyncHandler(async (req, res) => res.json(await getMerchantProfile(req.user!.id))),
+  asyncHandler(async (req, res) => res.json(await getServicerProfile(req.user!.id))),
 );
 
-/** GET /merchant/me/personal — personal profile (User record linked by shared email). */
+/** GET /servicer/me/personal — personal profile (User record linked by shared email). */
 servicerRouter.get(
   '/me/personal',
   asyncHandler(async (req, res) => res.json(await getPersonalProfile(req.user!.email))),
 );
 
-/** PATCH /merchant/me/personal — update personal profile fields on the linked User record. */
+/** PATCH /servicer/me/personal — update personal profile fields on the linked User record. */
 servicerRouter.patch(
   '/me/personal',
   validate([
@@ -138,7 +140,7 @@ servicerRouter.patch(
   }),
 );
 
-/** POST /merchant/me/identity-change-request — request admin review of identity fields. */
+/** POST /servicer/me/identity-change-request — request admin review of identity fields. */
 servicerRouter.post(
   '/me/identity-change-request',
   validate([body('proposed').isObject()]),
@@ -149,11 +151,11 @@ servicerRouter.post(
 );
 
 
-/** GET /merchant/me/deposit — deposit balances. */
+/** GET /servicer/me/deposit — deposit balances. */
 servicerRouter.get(
   '/me/deposit',
   asyncHandler(async (req, res) => {
-    const profile = await getMerchantProfile(req.user!.id);
+    const profile = await getServicerProfile(req.user!.id);
     res.json({
       totalDeposited: profile.deposit?.totalDeposited ?? 0,
       currentBalance: profile.deposit?.currentBalance ?? 0,
@@ -163,7 +165,7 @@ servicerRouter.get(
   }),
 );
 
-/** POST /merchant/me/deposit — record a deposit top-up request. */
+/** POST /servicer/me/deposit — record a deposit top-up request. */
 servicerRouter.post(
   '/me/deposit',
   idempotency,
@@ -176,7 +178,7 @@ servicerRouter.post(
   }),
 );
 
-/** PATCH /merchant/me — update editable profile fields. */
+/** PATCH /servicer/me — update editable profile fields. */
 servicerRouter.patch(
   '/me',
   validate([
@@ -208,27 +210,27 @@ servicerRouter.patch(
     body('operatingHours').optional(),
   ]),
   asyncHandler(async (req, res) => {
-    res.json(await updateMerchantProfile(req.user!.id, req.body));
+    res.json(await updateServicerProfile(req.user!.id, req.body));
   }),
 );
 
-/** PATCH /merchant/me/online — toggle online status (V1: no-op, endpoint for post-V1). */
+/** PATCH /servicer/me/online — toggle online status (V1: no-op, endpoint for post-V1). */
 servicerRouter.patch(
   '/me/online',
   validate([body('isOnline').isBoolean()]),
   asyncHandler(async (req, res) => {
-    await setMerchantOnline(req.user!.id, req.body.isOnline);
+    await setServicerOnline(req.user!.id, req.body.isOnline);
     res.status(204).send();
   }),
 );
 
-/** GET /merchant/me/earnings/today */
+/** GET /servicer/me/earnings/today */
 servicerRouter.get(
   '/me/earnings/today',
   asyncHandler(async (req, res) => res.json(await getEarningsToday(req.user!.id))),
 );
 
-/** GET /merchant/me/earnings/daily?days=30 */
+/** GET /servicer/me/earnings/daily?days=30 */
 servicerRouter.get(
   '/me/earnings/daily',
   asyncHandler(async (req, res) => {
@@ -238,7 +240,7 @@ servicerRouter.get(
 );
 
 /**
- * GET /merchant/me/earnings/export?week=2026-05-18
+ * GET /servicer/me/earnings/export?week=2026-05-18
  * Streams a PDF earnings summary for the requested week (defaults to current week).
  * The `week` param must be a Monday ISO date (YYYY-MM-DD) or is ignored.
  */
@@ -254,7 +256,7 @@ servicerRouter.get(
   }),
 );
 
-/** GET /merchant/me/credit-log — credit balance movement history. */
+/** GET /servicer/me/credit-log — credit balance movement history. */
 servicerRouter.get(
   '/me/credit-log',
   asyncHandler(async (req, res) => {
@@ -264,33 +266,33 @@ servicerRouter.get(
 
 // ── Invoices ─────────────────────────────────────────────────────────────────
 
-/** GET /merchant/me/invoices?status=paid|unpaid */
+/** GET /servicer/me/invoices?status=paid|unpaid */
 servicerRouter.get(
   '/me/invoices',
   asyncHandler(async (req, res) => {
-    res.json({ data: await listMerchantInvoices(req.user!.id, req.query.status as string | undefined) });
+    res.json({ data: await listServicerInvoices(req.user!.id, req.query.status as string | undefined) });
   }),
 );
 
-/** GET /merchant/me/invoices/by-booking/:bookingId — invoice for a specific booking. */
+/** GET /servicer/me/invoices/by-booking/:bookingId — invoice for a specific booking. */
 servicerRouter.get(
   '/me/invoices/by-booking/:bookingId',
   asyncHandler(async (req, res) => {
-    res.json(await getMerchantInvoiceByBooking(req.user!.id, req.params.bookingId));
+    res.json(await getServicerInvoiceByBooking(req.user!.id, req.params.bookingId));
   }),
 );
 
-/** GET /merchant/me/invoices/:id — full invoice breakdown. */
+/** GET /servicer/me/invoices/:id — full invoice breakdown. */
 servicerRouter.get(
   '/me/invoices/:id',
   asyncHandler(async (req, res) => {
-    res.json(await getMerchantInvoice(req.user!.id, req.params.id));
+    res.json(await getServicerInvoice(req.user!.id, req.params.id));
   }),
 );
 
 // ── Penalties & appeals ──────────────────────────────────────────────────────
 
-/** GET /merchant/me/penalties — list penalties with appeal status. */
+/** GET /servicer/me/penalties — list penalties with appeal status. */
 servicerRouter.get(
   '/me/penalties',
   asyncHandler(async (req, res) => {
@@ -298,7 +300,7 @@ servicerRouter.get(
   }),
 );
 
-/** POST /merchant/me/penalties/:id/appeal — file an appeal for a penalty. */
+/** POST /servicer/me/penalties/:id/appeal — file an appeal for a penalty. */
 servicerRouter.post(
   '/me/penalties/:id/appeal',
   validate([body('reason').isString().trim().notEmpty()]),
@@ -307,7 +309,7 @@ servicerRouter.post(
   }),
 );
 
-/** GET /merchant/me/penalties/:id/appeal — get appeal status. */
+/** GET /servicer/me/penalties/:id/appeal — get appeal status. */
 servicerRouter.get(
   '/me/penalties/:id/appeal',
   asyncHandler(async (req, res) => {
@@ -317,7 +319,7 @@ servicerRouter.get(
 
 // ── KYC documents ────────────────────────────────────────────────────────────
 
-/** POST /merchant/me/documents — submit a KYC document (upload via presign first). */
+/** POST /servicer/me/documents — submit a KYC document (upload via presign first). */
 servicerRouter.post(
   '/me/documents',
   validate([
@@ -329,7 +331,7 @@ servicerRouter.post(
   }),
 );
 
-/** GET /merchant/me/documents — list submitted KYC documents and approval status. */
+/** GET /servicer/me/documents — list submitted KYC documents and approval status. */
 servicerRouter.get(
   '/me/documents',
   asyncHandler(async (req, res) => {
@@ -339,7 +341,7 @@ servicerRouter.get(
 
 // ── Category requests ────────────────────────────────────────────────────────
 
-/** POST /merchant/me/category-requests — request a new platform category. */
+/** POST /servicer/me/category-requests — request a new platform category. */
 servicerRouter.post(
   '/me/category-requests',
   validate([
@@ -352,7 +354,7 @@ servicerRouter.post(
   }),
 );
 
-/** GET /merchant/me/category-requests — list own requests with status. */
+/** GET /servicer/me/category-requests — list own requests with status. */
 servicerRouter.get(
   '/me/category-requests',
   asyncHandler(async (req, res) => {
@@ -360,15 +362,15 @@ servicerRouter.get(
   }),
 );
 
-/** GET /merchant/me/withdrawals */
+/** GET /servicer/me/withdrawals */
 servicerRouter.get(
   '/me/withdrawals',
   asyncHandler(async (req, res) => {
-    res.json({ data: await listMerchantWithdrawals(req.user!.id) });
+    res.json({ data: await listServicerWithdrawals(req.user!.id) });
   }),
 );
 
-/** POST /merchant/me/transfer — transfer between deposit and credit balances. */
+/** POST /servicer/me/transfer — transfer between deposit and credit balances. */
 servicerRouter.post(
   '/me/transfer',
   idempotency,
@@ -382,7 +384,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /merchant/me/topup — create a Stripe Checkout session for credit top-up. */
+/** POST /servicer/me/topup — create a Stripe Checkout session for credit top-up. */
 servicerRouter.post(
   '/me/topup',
   idempotency,
@@ -416,7 +418,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /merchant/me/withdrawal — request a withdrawal of credit (PIN-gated, uses stored bank details). */
+/** POST /servicer/me/withdrawal — request a withdrawal of credit (PIN-gated, uses stored bank details). */
 servicerRouter.post(
   '/me/withdrawal',
   idempotency,
@@ -431,15 +433,15 @@ servicerRouter.post(
 
 // ── Promotions ───────────────────────────────────────────────────────────────
 
-/** GET /merchant/me/promotions */
+/** GET /servicer/me/promotions */
 servicerRouter.get(
   '/me/promotions',
   asyncHandler(async (req, res) => {
-    res.json({ data: await listMerchantPromotions(req.user!.id) });
+    res.json({ data: await listServicerPromotions(req.user!.id) });
   }),
 );
 
-/** POST /merchant/me/promotions */
+/** POST /servicer/me/promotions */
 servicerRouter.post(
   '/me/promotions',
   validate([
@@ -448,11 +450,11 @@ servicerRouter.post(
     body('value').isFloat({ gt: 0 }),
   ]),
   asyncHandler(async (req, res) => {
-    res.status(201).json(await createMerchantPromotion(req.user!.id, req.body));
+    res.status(201).json(await createServicerPromotion(req.user!.id, req.body));
   }),
 );
 
-/** PATCH /merchant/me/promotions/:id */
+/** PATCH /servicer/me/promotions/:id */
 servicerRouter.patch(
   '/me/promotions/:id',
   validate([
@@ -461,22 +463,22 @@ servicerRouter.patch(
     body('expiresAt').optional({ nullable: true }).isISO8601(),
   ]),
   asyncHandler(async (req, res) => {
-    res.json(await updateMerchantPromotion(req.user!.id, req.params.id, req.body));
+    res.json(await updateServicerPromotion(req.user!.id, req.params.id, req.body));
   }),
 );
 
-/** DELETE /merchant/me/promotions/:id — deactivate. */
+/** DELETE /servicer/me/promotions/:id — deactivate. */
 servicerRouter.delete(
   '/me/promotions/:id',
   asyncHandler(async (req, res) => {
-    await deactivateMerchantPromotion(req.user!.id, req.params.id);
+    await deactivateServicerPromotion(req.user!.id, req.params.id);
     res.status(204).send();
   }),
 );
 
 // ── Services ─────────────────────────────────────────────────────────────────
 
-/** GET /merchant/me/services */
+/** GET /servicer/me/services */
 servicerRouter.get(
   '/me/services',
   asyncHandler(async (req, res) => {
@@ -484,7 +486,7 @@ servicerRouter.get(
   }),
 );
 
-/** GET /merchant/me/subcategories — big category + its sub-categories. */
+/** GET /servicer/me/subcategories — big category + its sub-categories. */
 servicerRouter.get(
   '/me/subcategories',
   asyncHandler(async (req, res) => {
@@ -504,6 +506,11 @@ const serviceValidators = [
   body('taxRate').optional({ values: 'null' }).isFloat({ min: 0, max: 100 }),
   // Phase 6: modifiers is now an OptionPriceMap object, not an array.
   body('modifiers').optional({ values: 'null' }).isObject(),
+  // SP-3 §10.2: advanced-wizard fields (Zod-validated in the service layer).
+  body('listingMode').optional().isIn(['simple', 'advanced']),
+  body('moduleRefs').optional({ values: 'null' }).isArray(),
+  body('autoAccept').optional().isBoolean(),
+  body('autoAcceptMessage').optional({ values: 'null' }).isString().trim().isLength({ max: 200 }),
   body('imageUrl').optional({ values: 'null' }).isString().trim(),
   body('published').optional().isBoolean(),
 ];
@@ -520,11 +527,15 @@ const servicePatchValidators = [
   body('taxName').optional({ values: 'null' }).isString().trim(),
   body('taxRate').optional({ values: 'null' }).isFloat({ min: 0, max: 100 }),
   body('modifiers').optional({ values: 'null' }).isObject(),
+  body('listingMode').optional().isIn(['simple', 'advanced']),
+  body('moduleRefs').optional({ values: 'null' }).isArray(),
+  body('autoAccept').optional().isBoolean(),
+  body('autoAcceptMessage').optional({ values: 'null' }).isString().trim().isLength({ max: 200 }),
   body('imageUrl').optional({ values: 'null' }).isString().trim(),
   body('published').optional().isBoolean(),
 ];
 
-/** POST /merchant/me/services */
+/** POST /servicer/me/services */
 servicerRouter.post(
   '/me/services',
   validate(serviceValidators),
@@ -533,7 +544,7 @@ servicerRouter.post(
   }),
 );
 
-/** PATCH /merchant/me/services/:id */
+/** PATCH /servicer/me/services/:id */
 servicerRouter.patch(
   '/me/services/:id',
   validate(servicePatchValidators),
@@ -542,7 +553,7 @@ servicerRouter.patch(
   }),
 );
 
-/** DELETE /merchant/me/services/:id — soft delete. */
+/** DELETE /servicer/me/services/:id — soft delete. */
 servicerRouter.delete(
   '/me/services/:id',
   asyncHandler(async (req, res) => {
@@ -551,7 +562,7 @@ servicerRouter.delete(
   }),
 );
 
-/** PATCH /merchant/me/services/:id/auto-accept */
+/** PATCH /servicer/me/services/:id/auto-accept */
 servicerRouter.patch(
   '/me/services/:id/auto-accept',
   validate([body('autoAccept').isBoolean()]),
@@ -562,7 +573,7 @@ servicerRouter.patch(
 
 // ── Proposal presets ─────────────────────────────────────────────────────────
 
-/** GET /merchant/me/proposal-presets */
+/** GET /servicer/me/proposal-presets */
 servicerRouter.get(
   '/me/proposal-presets',
   asyncHandler(async (req, res) => {
@@ -570,7 +581,7 @@ servicerRouter.get(
   }),
 );
 
-/** POST /merchant/me/proposal-presets */
+/** POST /servicer/me/proposal-presets */
 servicerRouter.post(
   '/me/proposal-presets',
   validate([
@@ -583,7 +594,7 @@ servicerRouter.post(
   }),
 );
 
-/** PATCH /merchant/me/proposal-presets/:id */
+/** PATCH /servicer/me/proposal-presets/:id */
 servicerRouter.patch(
   '/me/proposal-presets/:id',
   validate([
@@ -598,7 +609,7 @@ servicerRouter.patch(
   }),
 );
 
-/** DELETE /merchant/me/proposal-presets/:id */
+/** DELETE /servicer/me/proposal-presets/:id */
 servicerRouter.delete(
   '/me/proposal-presets/:id',
   asyncHandler(async (req, res) => {
@@ -609,7 +620,7 @@ servicerRouter.delete(
 
 // ── Incoming quotes ──────────────────────────────────────────────────────────
 
-/** GET /merchant/quotes — quotes broadcast to this merchant. */
+/** GET /servicer/quotes — quotes broadcast to this servicer. */
 servicerRouter.get(
   '/quotes',
   asyncHandler(async (req, res) => {
@@ -619,7 +630,7 @@ servicerRouter.get(
 );
 
 /**
- * POST /merchant/quotes/:id/open — mark a broadcast quote as opened.
+ * POST /servicer/quotes/:id/open — mark a broadcast quote as opened.
  *
  * Phase 6: now returns 200 JSON with `proposalPrefill` (was 204 No Content).
  * `proposalPrefill` is null when the category has no priced questions.
@@ -635,7 +646,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /merchant/quotes/:id/propose — submit a proposal. */
+/** POST /servicer/quotes/:id/propose — submit a proposal. */
 servicerRouter.post(
   '/quotes/:id/propose',
   proposalLimiter,
@@ -659,25 +670,39 @@ servicerRouter.post(
   }),
 );
 
+/**
+ * POST /servicer/quotes/:id/accept-listing — one-tap accept.
+ * Submits a proposal at the servicer's listing-computed price/duration/message
+ * (SP-3 engine) with no manual form. The customer still picks among proposals.
+ */
+servicerRouter.post(
+  '/quotes/:id/accept-listing',
+  proposalLimiter,
+  asyncHandler(async (req, res) => {
+    const proposal = await acceptQuoteListing(req.user!.id, req.params.id);
+    res.status(201).json(proposal);
+  }),
+);
+
 // ── Jobs (bookings) ──────────────────────────────────────────────────────────
 
-/** GET /merchant/jobs — this merchant's jobs. */
+/** GET /servicer/jobs — this servicer's jobs. */
 servicerRouter.get(
   '/jobs',
   asyncHandler(async (req, res) => {
-    res.json({ data: await listMerchantJobs(req.user!.id, req.query.status as string | undefined) });
+    res.json({ data: await listServicerJobs(req.user!.id, req.query.status as string | undefined) });
   }),
 );
 
 /**
- * GET /merchant/bookings/:id/location — return customer lat/lng + address
+ * GET /servicer/bookings/:id/location — return customer lat/lng + address
  * for map display. Only servicers assigned to the booking can see this.
  */
 servicerRouter.get(
   '/bookings/:id/location',
   asyncHandler(async (req, res) => {
     const booking = await prisma.booking.findFirst({
-      where: { id: req.params.id, merchantId: req.user!.id },
+      where: { id: req.params.id, servicerId: req.user!.id },
       select: {
         id: true,
         quoteRequest: {
@@ -698,7 +723,7 @@ servicerRouter.get(
 );
 
 /**
- * GET /merchant/bookings/:id/invoice-preview — returns a preview of what the
+ * GET /servicer/bookings/:id/invoice-preview — returns a preview of what the
  * invoice WILL look like for a booking (for servicer review before marking done).
  * Calls computeTotal() with the actual line items but creates no database row.
  */
@@ -709,15 +734,15 @@ servicerRouter.get(
   }),
 );
 
-/** GET /merchant/jobs/:id — full booking detail. */
+/** GET /servicer/jobs/:id — full booking detail. */
 servicerRouter.get(
   '/jobs/:id',
   asyncHandler(async (req, res) => {
-    res.json(await getMerchantJob(req.user!.id, req.params.id));
+    res.json(await getServicerJob(req.user!.id, req.params.id));
   }),
 );
 
-/** POST /merchant/jobs/:id/confirm — confirm a pending job. */
+/** POST /servicer/jobs/:id/confirm — confirm a pending job. */
 servicerRouter.post(
   '/jobs/:id/confirm',
   validate([body('confirm').isBoolean().toBoolean()]),
@@ -726,7 +751,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /merchant/jobs/:id/arrive — mark arrived with an optional arrival photo. */
+/** POST /servicer/jobs/:id/arrive — mark arrived with an optional arrival photo. */
 servicerRouter.post(
   '/jobs/:id/arrive',
   asyncHandler(async (req, res) => {
@@ -734,7 +759,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /merchant/jobs/:id/done — mark job done with an optional completion photo. */
+/** POST /servicer/jobs/:id/done — mark job done with an optional completion photo. */
 servicerRouter.post(
   '/jobs/:id/done',
   asyncHandler(async (req, res) => {
@@ -742,7 +767,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /merchant/jobs/:id/cash-confirm — confirm cash received (cash jobs only). */
+/** POST /servicer/jobs/:id/cash-confirm — confirm cash received (cash jobs only). */
 servicerRouter.post(
   '/jobs/:id/cash-confirm',
   idempotency,
@@ -751,16 +776,16 @@ servicerRouter.post(
   }),
 );
 
-/** POST /merchant/jobs/:id/cancel — cancel after taking (triggers penalty). */
+/** POST /servicer/jobs/:id/cancel — cancel after taking (triggers penalty). */
 servicerRouter.post(
   '/jobs/:id/cancel',
   validate([body('reason').isString().trim().notEmpty()]),
   asyncHandler(async (req, res) => {
-    res.json(await merchantCancelJob(req.user!.id, req.params.id, req.body.reason));
+    res.json(await servicerCancelJob(req.user!.id, req.params.id, req.body.reason));
   }),
 );
 
-/** POST /merchant/jobs/:id/mutual-cancel — ask customer to cancel instead (no penalty). */
+/** POST /servicer/jobs/:id/mutual-cancel — ask customer to cancel instead (no penalty). */
 servicerRouter.post(
   '/jobs/:id/mutual-cancel',
   validate([body('reason').isString().trim().notEmpty()]),
@@ -772,7 +797,7 @@ servicerRouter.post(
 // ── Calendar ─────────────────────────────────────────────────────────────────
 
 /**
- * GET /merchant/calendar?month=2026-05
+ * GET /servicer/calendar?month=2026-05
  * Returns all bookings for the servicer in the given month, grouped by date.
  * Each booking includes: id, timeSlot, status, price, paymentMode, paid flag,
  * category, contactName, contactNumber, address fields, notes, serviceDetails.
@@ -780,7 +805,7 @@ servicerRouter.post(
 servicerRouter.get(
   '/calendar',
   asyncHandler(async (req, res) => {
-    const merchantId = req.user!.id;
+    const servicerId = req.user!.id;
     const month = (req.query.month as string) || new Date().toISOString().slice(0, 7); // "2026-05"
     const [yearStr, monthStr] = month.split('-');
     const year = parseInt(yearStr, 10);
@@ -790,7 +815,7 @@ servicerRouter.get(
 
     const bookings = await prisma.booking.findMany({
       where: {
-        merchantId,
+        servicerId,
         scheduledDate: { gte: start, lte: end },
       },
       select: {
@@ -850,7 +875,7 @@ servicerRouter.get(
 // ── Dispatch (SP4) ──────────────────────────────────────────────────────────
 
 /**
- * POST /merchant/dispatch/:broadcastId/accept — servicer accepts a dispatch prompt.
+ * POST /servicer/dispatch/:broadcastId/accept — servicer accepts a dispatch prompt.
  * Atomic "first accept wins": on success, creates booking + notifies customer.
  */
 servicerRouter.post(
@@ -863,8 +888,8 @@ servicerRouter.post(
 );
 
 /**
- * POST /merchant/dispatch/:broadcastId/decline — servicer declines a dispatch prompt.
- * Marks declined, rotates to next eligible merchant.
+ * POST /servicer/dispatch/:broadcastId/decline — servicer declines a dispatch prompt.
+ * Marks declined, rotates to next eligible servicer.
  */
 servicerRouter.post(
   '/dispatch/:broadcastId/decline',
@@ -876,7 +901,7 @@ servicerRouter.post(
 
 // ── PIN management ────────────────────────────────────────────────────────────
 
-/** GET /merchant/account/pin-status — check whether a PIN has been set. */
+/** GET /servicer/account/pin-status — check whether a PIN has been set. */
 servicerRouter.get(
   '/account/pin-status',
   asyncHandler(async (req, res) => {
@@ -885,7 +910,7 @@ servicerRouter.get(
   }),
 );
 
-/** PUT /merchant/account/pin — set or change the servicer PIN. Current PIN is
+/** PUT /servicer/account/pin — set or change the servicer PIN. Current PIN is
  *  required only when one is already set (first-time setup needs none). */
 servicerRouter.put(
   '/account/pin',
@@ -894,37 +919,48 @@ servicerRouter.put(
     body('newPin').isString().isLength({ min: 6, max: 6 }),
   ]),
   asyncHandler(async (req, res) => {
-    const servicer = await prisma.servicer.findUnique({ where: { id: req.user!.id } });
+    const userId = req.user!.id;
+    const servicer = await prisma.servicer.findUnique({ where: { id: userId } });
     if (!servicer) throw notFound('Servicer not found');
-    // First-time setup (no PIN yet) doesn't require a current PIN; once one is
-    // set, the current PIN must match before it can be changed.
     if (servicer.pinHash) {
+      await checkPinCooldown(userId);
       const ok = await verifyPin(servicer, req.body.currentPin ?? '');
-      if (!ok) throw badRequest('Current PIN is incorrect');
+      if (!ok) {
+        await recordPinFailure(userId);
+        throw badRequest('Current PIN is incorrect');
+      }
+      await recordPinSuccess(userId);
     }
     const pinHash = await bcrypt.hash(req.body.newPin, 12);
-    await prisma.servicer.update({ where: { id: req.user!.id }, data: { pinHash } });
+    await prisma.servicer.update({ where: { id: userId }, data: { pinHash } });
     res.json({ message: servicer.pinHash ? 'PIN updated' : 'PIN set' });
   }),
 );
 
-/** POST /merchant/account/verify-pin — verify a PIN, returns { ok: boolean }. */
+/** POST /servicer/account/verify-pin — verify a PIN, returns { ok: boolean }. */
 servicerRouter.post(
   '/account/verify-pin',
   validate([
     body('pin').isString().isLength({ min: 6, max: 6 }),
   ]),
   asyncHandler(async (req, res) => {
-    const servicer = await prisma.servicer.findUnique({ where: { id: req.user!.id } });
+    const userId = req.user!.id;
+    await checkPinCooldown(userId);
+    const servicer = await prisma.servicer.findUnique({ where: { id: userId } });
     if (!servicer) throw notFound('Servicer not found');
     const ok = await verifyPin(servicer, req.body.pin);
+    if (!ok) {
+      await recordPinFailure(userId);
+    } else {
+      await recordPinSuccess(userId);
+    }
     res.json({ ok });
   }),
 );
 
 // ── Business Contacts CRUD ─────────────────────────────────────────────────
 
-/** GET /merchant/contacts — list all business contacts for the authenticated servicer. */
+/** GET /servicer/contacts — list all business contacts for the authenticated servicer. */
 servicerRouter.get(
   '/contacts',
   asyncHandler(async (req, res) => {
@@ -932,7 +968,7 @@ servicerRouter.get(
   }),
 );
 
-/** POST /merchant/contacts — create a new business contact. */
+/** POST /servicer/contacts — create a new business contact. */
 servicerRouter.post(
   '/contacts',
   validate([
@@ -947,7 +983,7 @@ servicerRouter.post(
   }),
 );
 
-/** PATCH /merchant/contacts/:id — update a business contact. */
+/** PATCH /servicer/contacts/:id — update a business contact. */
 servicerRouter.patch(
   '/contacts/:id',
   validate([
@@ -962,7 +998,7 @@ servicerRouter.patch(
   }),
 );
 
-/** DELETE /merchant/contacts/:id — delete a business contact. */
+/** DELETE /servicer/contacts/:id — delete a business contact. */
 servicerRouter.delete(
   '/contacts/:id',
   asyncHandler(async (req, res) => {
@@ -973,7 +1009,7 @@ servicerRouter.delete(
 
 // ── Deactivate account ───────────────────────────────────────────────────────
 
-/** POST /merchant/me/deactivate — permanently deactivate servicer account. */
+/** POST /servicer/me/deactivate — permanently deactivate servicer account. */
 servicerRouter.post(
   '/me/deactivate',
   requireAuth,
@@ -983,11 +1019,17 @@ servicerRouter.post(
     body('pin').isString().isLength({ min: 6, max: 6 }),
   ]),
   asyncHandler(async (req, res) => {
-    const servicer = await prisma.servicer.findUnique({ where: { id: req.user!.id } });
+    const userId = req.user!.id;
+    await checkPinCooldown(userId);
+    const servicer = await prisma.servicer.findUnique({ where: { id: userId } });
     if (!servicer) throw notFound('Servicer not found');
 
     const ok = await verifyPin(servicer, req.body.pin);
-    if (!ok) throw badRequest('Incorrect PIN.');
+    if (!ok) {
+      await recordPinFailure(userId);
+      throw badRequest('Incorrect PIN.');
+    }
+    await recordPinSuccess(userId);
 
     await deactivateServicer(servicer, req.body.reason);
     res.json({ message: 'Account deactivated.' });
@@ -996,7 +1038,7 @@ servicerRouter.post(
 
 // ── Fee breakdown ─────────────────────────────────────────────────────────────
 
-/** GET /merchant/me/fee-breakdown — platform fee transparency breakdown. */
+/** GET /servicer/me/fee-breakdown — platform fee transparency breakdown. */
 servicerRouter.get(
   '/me/fee-breakdown',
   asyncHandler(async (req, res) => {
@@ -1027,21 +1069,21 @@ servicerRouter.get(
 
 // ── Working-hours schedule ────────────────────────────────────────────────────
 
-/** GET /merchant/me/schedule — all schedule slots for the authenticated servicer. */
+/** GET /servicer/me/schedule — all schedule slots for the authenticated servicer. */
 servicerRouter.get(
   '/me/schedule',
   requireAuth,
   requireServicer,
   asyncHandler(async (req, res) => {
-    const rows = await prisma.merchantSchedule.findMany({
-      where: { merchantId: req.user!.id },
+    const rows = await prisma.servicerSchedule.findMany({
+      where: { servicerId: req.user!.id },
       orderBy: [{ weekday: 'asc' }, { timeSlot: 'asc' }],
     });
     res.json({ data: rows });
   }),
 );
 
-/** PATCH /merchant/me/schedule — upsert schedule slots.
+/** PATCH /servicer/me/schedule — upsert schedule slots.
  *  Body: { slots: Array<{ weekday, timeSlot, available }> }
  */
 servicerRouter.patch(
@@ -1056,21 +1098,21 @@ servicerRouter.patch(
   ]),
   asyncHandler(async (req, res) => {
     const slots: { weekday: Weekday; timeSlot: TimeSlot; available: boolean }[] = req.body.slots;
-    const merchantId = req.user!.id;
+    const servicerId = req.user!.id;
 
     await Promise.all(
       slots.map((slot) =>
-        prisma.merchantSchedule.upsert({
+        prisma.servicerSchedule.upsert({
           where: {
-            merchantId_weekday_timeSlot: {
-              merchantId,
+            servicerId_weekday_timeSlot: {
+              servicerId,
               weekday: slot.weekday,
               timeSlot: slot.timeSlot,
             },
           },
           update: { isAvailable: slot.available },
           create: {
-            merchantId,
+            servicerId,
             weekday: slot.weekday,
             timeSlot: slot.timeSlot,
             isAvailable: slot.available,
@@ -1079,8 +1121,8 @@ servicerRouter.patch(
       ),
     );
 
-    const updated = await prisma.merchantSchedule.findMany({
-      where: { merchantId },
+    const updated = await prisma.servicerSchedule.findMany({
+      where: { servicerId },
       orderBy: [{ weekday: 'asc' }, { timeSlot: 'asc' }],
     });
     res.json({ data: updated });

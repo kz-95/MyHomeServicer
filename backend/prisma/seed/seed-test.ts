@@ -1,7 +1,7 @@
 ﻿/**
  * Test Seed - lean, repeatable test data for dev iteration.
  *
- * 36-merchant structure (1 per child category, 6x 3D Modeling) with 9 lifecycle
+ * 36-servicer structure (1 per child category, 6x 3D Modeling) with 9 lifecycle
  * test scenarios covering all booking statuses and payment modes.
  *
  * Usage: npm run seed:test
@@ -126,17 +126,17 @@ const childCategoryDefs: {
 ];
 
 const platformSettings: { key: string; value: unknown }[] = [
-  { key: 'minimum_merchant_charge', value: { amount: 30.0 } },
+  { key: 'minimum_servicer_charge', value: { amount: 30.0 } },
   { key: 'no_show_consecutive_threshold', value: { count: 3 } },
   { key: 'no_show_weekly_threshold', value: { count: 5 } },
-  { key: 'merchant_deposit_minimum', value: { amount: 100.0 } },
-  { key: 'merchant_credit_withdrawal_minimum', value: { amount: 50.0 } },
+  { key: 'servicer_deposit_minimum', value: { amount: 100.0 } },
+  { key: 'servicer_credit_withdrawal_minimum', value: { amount: 50.0 } },
   { key: 'quote_buffer_minutes', value: { minutes: 15 } },
   { key: 'sst_rate', value: { rate: 0.06 } },
   { key: 'noshow_grace_minutes', value: { minutes: 30 } },
   { key: 'no_response_discount', value: { discount_type: 'fixed', value: 10.0, expires_in_days: 14 } },
   { key: 'platform_fee_rate', value: { current_rate: 0.05 } },
-  { key: 'merchant_proposal_preset_limit', value: { limit: 3 } },
+  { key: 'servicer_proposal_preset_limit', value: { limit: 3 } },
 ];
 
 const penaltyRules: { type: 'noshow' | 'cancel'; amount: number }[] = [
@@ -149,8 +149,8 @@ const featureFlags = [
   { key: 'ai_chatbot', name: 'AI chatbot', enabled: true },
   { key: 'payment_gateway', name: 'Payment gateway', enabled: false },
   { key: 'reviews', name: 'Customer reviews', enabled: false },
-  { key: 'merchant_kyc', name: 'Servicer KYC', enabled: false },
-  { key: 'merchant_schedule', name: 'Servicer schedule', enabled: false },
+  { key: 'servicer_kyc', name: 'Servicer KYC', enabled: false },
+  { key: 'servicer_schedule', name: 'Servicer schedule', enabled: false },
 ];
 
 const faqs: { category: string; question: string; answer: string; sortOrder: number; tier?: string }[] = [
@@ -186,16 +186,16 @@ const faqs: { category: string; question: string; answer: string; sortOrder: num
   },
 ];
 
-// ── Merchant definitions ─────────────────────────────────────────────────────
+// ── Servicer definitions ─────────────────────────────────────────────────────
 
-interface TestMerchantData {
+interface TestServicerData {
   ref: string; email: string; name: string; businessName: string;
   phone: string; categorySlug: string; area: string; serviceAreas: string[];
   rating: number; isCompany: boolean;
   services: { sku: string | null; title: string; basePrice: number; priceType: string; duration: number }[];
 }
 
-const testMerchants: TestMerchantData[] = [
+const testServicers: TestServicerData[] = [
   {
     ref: 'M1', email: 'ahmad.bin.ismail@demo.local',
     name: 'Ahmad Bin Ismail', businessName: 'Ahmad Plumbing Services',
@@ -399,42 +399,42 @@ async function main() {
   });
   console.log('  ✓ admin + customer (david.tan@demo.local / Demo@2026)');
 
-  // ── Create all 8 merchants ──
-  const merchantIds: Record<string, string> = {};
-  for (const m of testMerchants) {
+  // ── Create all 8 servicers ──
+  const servicerIds: Record<string, string> = {};
+  for (const m of testServicers) {
     const id = fixedUuid(m.email);
-    merchantIds[m.ref] = id;
+    servicerIds[m.ref] = id;
     await prisma.servicer.create({
       data: {
         id, name: m.name, email: m.email, phone: m.phone, passwordHash, pinHash,
         businessName: m.businessName, bio: `${m.businessName} - based in ${m.area}.`,
-        logoUrl: `https://picsum.photos/seed/merchant${m.ref}/200/200`,
+        logoUrl: `https://picsum.photos/seed/servicer${m.ref}/200/200`,
         categoryId: childIdBySlug[m.categorySlug], isCompany: m.isCompany,
         serviceAreas: m.serviceAreas, rating: m.rating, isDemo: true,
       },
     });
-    await prisma.merchantDeposit.create({
-      data: { merchantId: id, totalDeposited: 500, currentBalance: 500, minimumRequired: 100 },
+    await prisma.servicerDeposit.create({
+      data: { servicerId: id, totalDeposited: 500, currentBalance: 500, minimumRequired: 100 },
     });
-    await prisma.merchantProposalPreset.create({
+    await prisma.servicerProposalPreset.create({
       data: {
-        merchantId: id, name: 'Standard quote',
+        servicerId: id, name: 'Standard quote',
         message: `Thanks for considering ${m.businessName}. Happy to help with your job.`,
         priceOffset: 0, isDefault: true,
       },
     });
     for (const s of m.services) {
-      await prisma.merchantService.create({
+      await prisma.servicerService.create({
         data: {
-          merchantId: id, categoryId: childIdBySlug[m.categorySlug],
-          title: s.title, description: s.title, merchantSku: s.sku,
+          servicerId: id, categoryId: childIdBySlug[m.categorySlug],
+          title: s.title, description: s.title, servicerSku: s.sku,
           basePrice: s.basePrice, priceType: s.priceType as 'fixed' | 'hourly' | 'quote',
           taxMode: 'none', estimatedDurationMinutes: s.duration,
         },
       });
     }
   }
-  console.log(`  ✓ ${testMerchants.length} merchants with services + deposits`);
+  console.log(`  ✓ ${testServicers.length} servicers with services + deposits`);
 
   // ════════════════════════════════════════════════════════════════════════════
   //  9 Lifecycle Test Scenarios
@@ -452,13 +452,13 @@ async function main() {
         timeSlot: 'morning', preferredDate: days(1),
         propertyType: 'condo', budgetMin: 80, budgetMax: 200,
         paymentMode: 'pay_later', deadlineMode: 'fixed_time',
-        proposalDeadline: minutes(120), merchantDeadline: minutes(105), status: 'open',
+        proposalDeadline: minutes(120), servicerDeadline: minutes(105), status: 'open',
       },
     });
-    await prisma.quoteBroadcast.create({ data: { quoteRequestId: quoteId, merchantId: merchantIds.M1 } });
+    await prisma.quoteBroadcast.create({ data: { quoteRequestId: quoteId, servicerId: servicerIds.M1 } });
     await prisma.quoteProposal.create({
       data: {
-        quoteRequestId: quoteId, merchantId: merchantIds.M1,
+        quoteRequestId: quoteId, servicerId: servicerIds.M1,
         proposedPrice: 100, message: 'Ahmad Plumbing can handle this - fast response guaranteed.', etaMinutes: 60,
       },
     });
@@ -475,13 +475,13 @@ async function main() {
         timeSlot: 'afternoon', preferredDate: days(2),
         propertyType: 'condo', budgetMin: 100, budgetMax: 300,
         paymentMode: 'pay_now', deadlineMode: 'fixed_time',
-        proposalDeadline: minutes(120), merchantDeadline: minutes(105), status: 'open',
+        proposalDeadline: minutes(120), servicerDeadline: minutes(105), status: 'open',
       },
     });
-    await prisma.quoteBroadcast.create({ data: { quoteRequestId: quoteId, merchantId: merchantIds.M2 } });
+    await prisma.quoteBroadcast.create({ data: { quoteRequestId: quoteId, servicerId: servicerIds.M2 } });
     await prisma.quoteProposal.create({
       data: {
-        quoteRequestId: quoteId, merchantId: merchantIds.M2,
+        quoteRequestId: quoteId, servicerId: servicerIds.M2,
         proposedPrice: 150, message: 'CoolBreeze - best AC chemical wash in Cheras.', etaMinutes: 90, isAuto: true,
       },
     });
@@ -498,13 +498,13 @@ async function main() {
         timeSlot: 'morning', preferredDate: days(1),
         propertyType: 'condo', budgetMin: 60, budgetMax: 150,
         paymentMode: 'pay_later', deadlineMode: 'fixed_time',
-        proposalDeadline: minutes(120), merchantDeadline: minutes(105), status: 'matched',
+        proposalDeadline: minutes(120), servicerDeadline: minutes(105), status: 'matched',
       },
     });
     const proposalId = fixedUuid('scenario:3-pending-cleaning-proposal');
     await prisma.quoteProposal.create({
       data: {
-        id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M4,
+        id: proposalId, quoteRequestId: quoteId, servicerId: servicerIds.M4,
         proposedPrice: 90, message: 'Sparkle Home Cleaning at your service.', etaMinutes: 120, status: 'selected',
       },
     });
@@ -513,7 +513,7 @@ async function main() {
       data: {
         id: fixedUuid('scenario:3-pending-cleaning-booking'),
         quoteRequestId: quoteId, proposalId,
-        userId: customerId, merchantId: merchantIds.M4,
+        userId: customerId, servicerId: servicerIds.M4,
         status: 'pending_confirm', price: 90, paymentMode: 'pay_later',
         scheduledDate: days(1), timeSlot: 'morning',
       },
@@ -531,22 +531,22 @@ async function main() {
         timeSlot: 'afternoon', preferredDate: days(2),
         propertyType: 'condo', budgetMin: 60, budgetMax: 200,
         paymentMode: 'pay_now', deadlineMode: 'fixed_time',
-        proposalDeadline: minutes(120), merchantDeadline: minutes(105), status: 'matched',
+        proposalDeadline: minutes(120), servicerDeadline: minutes(105), status: 'matched',
       },
     });
     const proposalId = fixedUuid('scenario:4-confirmed-electrical-proposal');
     await prisma.quoteProposal.create({
       data: {
-        id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M3,
+        id: proposalId, quoteRequestId: quoteId, servicerId: servicerIds.M3,
         proposedPrice: 80, message: 'Volt Masters - safe and reliable.', etaMinutes: 60, status: 'selected',
       },
     });
-    // confirmed booking - merchant confirmed but not yet arrived
+    // confirmed booking - servicer confirmed but not yet arrived
     await prisma.booking.create({
       data: {
         id: fixedUuid('scenario:4-confirmed-electrical-booking'),
         quoteRequestId: quoteId, proposalId,
-        userId: customerId, merchantId: merchantIds.M3,
+        userId: customerId, servicerId: servicerIds.M3,
         status: 'confirmed', price: 80, paymentMode: 'pay_now',
         scheduledDate: days(2), timeSlot: 'afternoon',
         confirmedAt: days(-1),
@@ -566,14 +566,14 @@ async function main() {
         propertyType: 'condo', budgetMin: 80, budgetMax: 250,
         paymentMode: 'cash', deadlineMode: 'fixed_time',
         proposalDeadline: new Date(Date.now() - 2 * 86_400_000),
-        merchantDeadline: new Date(Date.now() - 2 * 86_400_000 - 15 * 60_000),
+        servicerDeadline: new Date(Date.now() - 2 * 86_400_000 - 15 * 60_000),
         status: 'matched',
       },
     });
     const proposalId = fixedUuid('scenario:5-inprogress-plumber-proposal');
     await prisma.quoteProposal.create({
       data: {
-        id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M1,
+        id: proposalId, quoteRequestId: quoteId, servicerId: servicerIds.M1,
         proposedPrice: 120, message: 'Ahmad Plumbing - on the way!', etaMinutes: 60, status: 'selected',
       },
     });
@@ -581,7 +581,7 @@ async function main() {
       data: {
         id: fixedUuid('scenario:5-inprogress-plumber-booking'),
         quoteRequestId: quoteId, proposalId,
-        userId: customerId, merchantId: merchantIds.M1,
+        userId: customerId, servicerId: servicerIds.M1,
         status: 'in_progress', price: 120, paymentMode: 'cash',
         scheduledDate: days(-1), timeSlot: 'morning',
         confirmedAt: days(-2), arrivedAt: days(-1),
@@ -602,14 +602,14 @@ async function main() {
         propertyType: 'condo', budgetMin: 100, budgetMax: 400,
         paymentMode: 'pay_later', deadlineMode: 'fixed_time',
         proposalDeadline: new Date(Date.now() - 5 * 86_400_000),
-        merchantDeadline: new Date(Date.now() - 5 * 86_400_000 - 15 * 60_000),
+        servicerDeadline: new Date(Date.now() - 5 * 86_400_000 - 15 * 60_000),
         status: 'matched',
       },
     });
     const proposalId = fixedUuid('scenario:6-completed-catering-proposal');
     await prisma.quoteProposal.create({
       data: {
-        id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M9,
+        id: proposalId, quoteRequestId: quoteId, servicerId: servicerIds.M9,
         proposedPrice: 200, message: 'Auntie Mei Catering - homestyle goodness.', etaMinutes: 180, status: 'selected',
       },
     });
@@ -617,7 +617,7 @@ async function main() {
     await prisma.booking.create({
       data: {
         id: bookingId, quoteRequestId: quoteId, proposalId,
-        userId: customerId, merchantId: merchantIds.M9,
+        userId: customerId, servicerId: servicerIds.M9,
         status: 'completed', price: 200, paymentMode: 'pay_later',
         scheduledDate: days(-3), timeSlot: 'noon',
         confirmedAt: days(-4), arrivedAt: days(-3),
@@ -629,7 +629,7 @@ async function main() {
     await prisma.invoice.create({
       data: {
         id: fixedUuid('scenario:6-completed-catering-invoice'),
-        bookingId, merchantId: merchantIds.M9,
+        bookingId, servicerId: servicerIds.M9,
         invoiceNumber: 'INV-TEST-0001', sequenceNumber: seqCounter++,
         subtotal: 200, promoDiscount: 0, taxRate: 0, taxAmount: 0, tipAmount: 0,
         platformFee: platFee1, total: 200,
@@ -639,7 +639,7 @@ async function main() {
     await prisma.transaction.create({
       data: {
         type: 'escrow_release', amount: 200,
-        merchantId: merchantIds.M9, bookingId,
+        servicerId: servicerIds.M9, bookingId,
         reference: 'Scenario 6 - completed catering (pay_later)',
         createdAt: days(-3),
       },
@@ -658,14 +658,14 @@ async function main() {
         propertyType: 'condo', budgetMin: 60, budgetMax: 150,
         paymentMode: 'pay_now', deadlineMode: 'fixed_time',
         proposalDeadline: new Date(Date.now() - 6 * 86_400_000),
-        merchantDeadline: new Date(Date.now() - 6 * 86_400_000 - 15 * 60_000),
+        servicerDeadline: new Date(Date.now() - 6 * 86_400_000 - 15 * 60_000),
         status: 'matched',
       },
     });
     const proposalId = fixedUuid('scenario:7-completed-tutoring-proposal');
     await prisma.quoteProposal.create({
       data: {
-        id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M27,
+        id: proposalId, quoteRequestId: quoteId, servicerId: servicerIds.M27,
         proposedPrice: 80, message: 'BrightMinds - making learning fun!', etaMinutes: 60, status: 'selected',
       },
     });
@@ -673,7 +673,7 @@ async function main() {
     await prisma.booking.create({
       data: {
         id: bookingId, quoteRequestId: quoteId, proposalId,
-        userId: customerId, merchantId: merchantIds.M27,
+        userId: customerId, servicerId: servicerIds.M27,
         status: 'completed', price: 80, paymentMode: 'pay_now',
         scheduledDate: days(-4), timeSlot: 'evening',
         confirmedAt: days(-5), arrivedAt: days(-4),
@@ -689,7 +689,7 @@ async function main() {
     await prisma.invoice.create({
       data: {
         id: fixedUuid('scenario:7-completed-tutoring-invoice'),
-        bookingId, merchantId: merchantIds.M27,
+        bookingId, servicerId: servicerIds.M27,
         invoiceNumber: 'INV-TEST-0002', sequenceNumber: seqCounter++,
         subtotal: 80, promoDiscount: 0, taxRate: 0, taxAmount: 0, tipAmount: 0,
         platformFee: platFee2, total: 80,
@@ -699,7 +699,7 @@ async function main() {
     await prisma.transaction.create({
       data: {
         type: 'escrow_release', amount: 80,
-        merchantId: merchantIds.M27, bookingId,
+        servicerId: servicerIds.M27, bookingId,
         reference: 'Scenario 7 - completed tutoring (pay_now, escrow)',
         createdAt: days(-4),
       },
@@ -718,14 +718,14 @@ async function main() {
         propertyType: 'condo', budgetMin: 100, budgetMax: 300,
         paymentMode: 'pay_later', deadlineMode: 'fixed_time',
         proposalDeadline: new Date(Date.now() - 4 * 86_400_000),
-        merchantDeadline: new Date(Date.now() - 4 * 86_400_000 - 15 * 60_000),
+        servicerDeadline: new Date(Date.now() - 4 * 86_400_000 - 15 * 60_000),
         status: 'matched',
       },
     });
     const proposalId = fixedUuid('scenario:8-cancelled-3d-proposal');
     await prisma.quoteProposal.create({
       data: {
-        id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M30,
+        id: proposalId, quoteRequestId: quoteId, servicerId: servicerIds.M30,
         proposedPrice: 150, message: 'FusionCraft - learn 3D modeling.', etaMinutes: 90, status: 'selected',
       },
     });
@@ -733,7 +733,7 @@ async function main() {
       data: {
         id: fixedUuid('scenario:8-cancelled-3d-booking'),
         quoteRequestId: quoteId, proposalId,
-        userId: customerId, merchantId: merchantIds.M30,
+        userId: customerId, servicerId: servicerIds.M30,
         status: 'cancelled', price: 150, paymentMode: 'pay_later',
         scheduledDate: days(-2), timeSlot: 'morning',
         confirmedAt: days(-3),
@@ -754,14 +754,14 @@ async function main() {
         propertyType: 'condo', budgetMin: 60, budgetMax: 200,
         paymentMode: 'cash', deadlineMode: 'fixed_time',
         proposalDeadline: new Date(Date.now() - 7 * 86_400_000),
-        merchantDeadline: new Date(Date.now() - 7 * 86_400_000 - 15 * 60_000),
+        servicerDeadline: new Date(Date.now() - 7 * 86_400_000 - 15 * 60_000),
         status: 'matched',
       },
     });
     const proposalId = fixedUuid('scenario:9-cash-completed-cleaning-proposal');
     await prisma.quoteProposal.create({
       data: {
-        id: proposalId, quoteRequestId: quoteId, merchantId: merchantIds.M4,
+        id: proposalId, quoteRequestId: quoteId, servicerId: servicerIds.M4,
         proposedPrice: 140, message: 'Sparkle - deep cleaning expert.', etaMinutes: 240, status: 'selected',
       },
     });
@@ -769,7 +769,7 @@ async function main() {
     await prisma.booking.create({
       data: {
         id: bookingId, quoteRequestId: quoteId, proposalId,
-        userId: customerId, merchantId: merchantIds.M4,
+        userId: customerId, servicerId: servicerIds.M4,
         status: 'completed', price: 140, paymentMode: 'cash',
         scheduledDate: days(-5), timeSlot: 'morning',
         confirmedAt: days(-6), arrivedAt: days(-5),
@@ -782,7 +782,7 @@ async function main() {
     await prisma.invoice.create({
       data: {
         id: fixedUuid('scenario:9-cash-completed-cleaning-invoice'),
-        bookingId, merchantId: merchantIds.M4,
+        bookingId, servicerId: servicerIds.M4,
         invoiceNumber: 'INV-TEST-0003', sequenceNumber: seqCounter++,
         subtotal: 140, promoDiscount: 0, taxRate: 0, taxAmount: 0, tipAmount: 0,
         platformFee: platFee3, total: 140,
@@ -792,7 +792,7 @@ async function main() {
     await prisma.transaction.create({
       data: {
         type: 'escrow_release', amount: 140,
-        merchantId: merchantIds.M4, bookingId,
+        servicerId: servicerIds.M4, bookingId,
         reference: 'Scenario 9 - completed cash cleaning (cash_confirmed)',
         createdAt: days(-5),
       },

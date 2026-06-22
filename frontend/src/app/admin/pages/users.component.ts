@@ -44,7 +44,7 @@ interface ActivityData {
   };
 }
 
-interface Merchant {
+interface Servicer {
   id: string;
   businessName: string;
   email: string;
@@ -55,12 +55,12 @@ interface Merchant {
   creditBalance: number;
 }
 
-type MerchantStatus = '' | 'active' | 'banned';
-type MerchantKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
+type ServicerStatus = '' | 'active' | 'banned';
+type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
 
 /**
- * Admin account management - all users and merchants under one PIN-gated view.
- * Tabs: All Accounts (server-side search) | Merchant (client-side filter + sort).
+ * Admin account management - all users and servicers under one PIN-gated view.
+ * Tabs: All Accounts (server-side search) | Servicer (client-side filter + sort).
  */
 @Component({
     selector: 'app-admin-users',
@@ -104,19 +104,19 @@ type MerchantKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
             <div class="filter-group">
               <span class="filter-label">Status</span>
               <div class="chips">
-                <button class="chip" [class.active]="merchantStatus() === ''" (click)="setMerchantStatus('')">All</button>
-                <button class="chip" [class.active]="merchantStatus() === 'active'" (click)="setMerchantStatus('active')">Active</button>
-                <button class="chip" [class.active]="merchantStatus() === 'banned'" (click)="setMerchantStatus('banned')">Banned</button>
+                <button class="chip" [class.active]="servicerStatus() === ''" (click)="setServicerStatus('')">All</button>
+                <button class="chip" [class.active]="servicerStatus() === 'active'" (click)="setServicerStatus('active')">Active</button>
+                <button class="chip" [class.active]="servicerStatus() === 'banned'" (click)="setServicerStatus('banned')">Banned</button>
               </div>
             </div>
             <div class="filter-group">
               <span class="filter-label">KYC</span>
               <div class="chips">
-                <button class="chip" [class.active]="merchantKyc() === ''" (click)="setMerchantKyc('')">All</button>
-                <button class="chip" [class.active]="merchantKyc() === 'approved'" (click)="setMerchantKyc('approved')">Approved</button>
-                <button class="chip" [class.active]="merchantKyc() === 'pending'" (click)="setMerchantKyc('pending')">Pending</button>
-                <button class="chip" [class.active]="merchantKyc() === 'rejected'" (click)="setMerchantKyc('rejected')">Rejected</button>
-                <button class="chip" [class.active]="merchantKyc() === 'unsubmitted'" (click)="setMerchantKyc('unsubmitted')">Unsubmitted</button>
+                <button class="chip" [class.active]="servicerKyc() === ''" (click)="setServicerKyc('')">All</button>
+                <button class="chip" [class.active]="servicerKyc() === 'approved'" (click)="setServicerKyc('approved')">Approved</button>
+                <button class="chip" [class.active]="servicerKyc() === 'pending'" (click)="setServicerKyc('pending')">Pending</button>
+                <button class="chip" [class.active]="servicerKyc() === 'rejected'" (click)="setServicerKyc('rejected')">Rejected</button>
+                <button class="chip" [class.active]="servicerKyc() === 'unsubmitted'" (click)="setServicerKyc('unsubmitted')">Unsubmitted</button>
               </div>
             </div>
           </div>
@@ -172,36 +172,36 @@ type MerchantKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
         </table>
       }
 
-      <!-- Merchant table -->
+      <!-- Servicer table -->
       @if (tab() === 'servicer') {
-        @if (merchantLoading()) {
-          <p class="muted">Loading merchants…</p>
-        } @else if (merchantFailed()) {
-          <div class="card load-err">Could not load merchants. Please refresh the page.</div>
+        @if (servicerLoading()) {
+          <p class="muted">Loading servicers…</p>
+        } @else if (servicerFailed()) {
+          <div class="card load-err">Could not load servicers. Please refresh the page.</div>
         } @else {
           <table class="card page-child">
             <thead>
               <tr>
-                <th class="sortable" [class.sorted]="mSortCol() === 'businessName'" (click)="sortMerchants('businessName')">
+                <th class="sortable" [class.sorted]="mSortCol() === 'businessName'" (click)="sortServicers('businessName')">
                   Business <span class="sort-ic">{{ mSortIcon('businessName') }}</span>
                 </th>
-                <th class="sortable" [class.sorted]="mSortCol() === 'email'" (click)="sortMerchants('email')">
+                <th class="sortable" [class.sorted]="mSortCol() === 'email'" (click)="sortServicers('email')">
                   Email <span class="sort-ic">{{ mSortIcon('email') }}</span>
                 </th>
-                <th class="sortable" [class.sorted]="mSortCol() === 'rating'" (click)="sortMerchants('rating')">
+                <th class="sortable" [class.sorted]="mSortCol() === 'rating'" (click)="sortServicers('rating')">
                   Rating <span class="sort-ic">{{ mSortIcon('rating') }}</span>
                 </th>
-                <th class="sortable" [class.sorted]="mSortCol() === 'depositBalance'" (click)="sortMerchants('depositBalance')">
+                <th class="sortable" [class.sorted]="mSortCol() === 'depositBalance'" (click)="sortServicers('depositBalance')">
                   Deposit <span class="sort-ic">{{ mSortIcon('depositBalance') }}</span>
                 </th>
-                <th class="sortable" [class.sorted]="mSortCol() === 'isBanned'" (click)="sortMerchants('isBanned')">
+                <th class="sortable" [class.sorted]="mSortCol() === 'isBanned'" (click)="sortServicers('isBanned')">
                   Status <span class="sort-ic">{{ mSortIcon('isBanned') }}</span>
                 </th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              @for (m of sortedMerchants(); track m.id) {
+              @for (m of sortedServicers(); track m.id) {
                 <tr>
                   <td>{{ m.businessName }}</td>
                   <td class="muted">{{ m.email }}</td>
@@ -220,7 +220,7 @@ type MerchantKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6" class="muted">No merchants match the current filters.</td>
+                  <td colspan="6" class="muted">No servicers match the current filters.</td>
                 </tr>
               }
             </tbody>
@@ -379,7 +379,7 @@ type MerchantKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
         max-width: 620px;
       }
 
-      /* Merchant filters */
+      /* Servicer filters */
       .filter-row {
         display: flex;
         flex-wrap: wrap;
@@ -565,25 +565,25 @@ export class AdminUsersComponent implements OnInit {
     });
   });
 
-  // ── Merchants ─────────────────────────────────────────────────────────────
-  merchants = signal<Merchant[]>([]);
-  visibleMerchants = signal<Merchant[]>([]);
-  merchantLoading = signal(false);
-  merchantFailed = signal(false);
-  merchantStatus = signal<MerchantStatus>('');
-  merchantKyc = signal<MerchantKyc>('');
+  // ── Servicers ─────────────────────────────────────────────────────────────
+  servicers = signal<Servicer[]>([]);
+  visibleServicers = signal<Servicer[]>([]);
+  servicerLoading = signal(false);
+  servicerFailed = signal(false);
+  servicerStatus = signal<ServicerStatus>('');
+  servicerKyc = signal<ServicerKyc>('');
 
-  // Sort - Merchant
+  // Sort - Servicer
   mSortCol = signal('');
   mSortDir = signal<'asc' | 'desc'>('asc');
 
-  sortedMerchants = computed(() => {
+  sortedServicers = computed(() => {
     const col = this.mSortCol();
     const dir = this.mSortDir();
-    if (!col) return this.visibleMerchants();
-    return [...this.visibleMerchants()].sort((a, b) => {
-      const av = a[col as keyof Merchant];
-      const bv = b[col as keyof Merchant];
+    if (!col) return this.visibleServicers();
+    return [...this.visibleServicers()].sort((a, b) => {
+      const av = a[col as keyof Servicer];
+      const bv = b[col as keyof Servicer];
       if (typeof av === 'number' && typeof bv === 'number') {
         return dir === 'asc' ? av - bv : bv - av;
       }
@@ -600,7 +600,7 @@ export class AdminUsersComponent implements OnInit {
   ngOnInit(): void {
     if (this.route.snapshot.queryParamMap.get('tab') === 'servicer') {
       this.tab.set('servicer');
-      this.loadMerchants();
+      this.loadServicers();
     } else {
       this.loadUsers();
     }
@@ -611,19 +611,19 @@ export class AdminUsersComponent implements OnInit {
     this.tab.set(t);
     this.search = '';
     if (t === 'servicer') {
-      this.loadMerchants();
+      this.loadServicers();
     } else {
       this.loadUsers();
     }
   }
 
   onSearchInput(): void {
-    if (this.tab() === 'servicer') this.applyMerchantFilter();
+    if (this.tab() === 'servicer') this.applyServicerFilter();
   }
 
   load(): void {
     if (this.tab() === 'servicer') {
-      this.loadMerchants();
+      this.loadServicers();
     } else {
       this.loadUsers();
     }
@@ -662,42 +662,42 @@ export class AdminUsersComponent implements OnInit {
     });
   }
 
-  loadMerchants(): void {
-    this.merchantFailed.set(false);
-    this.merchantLoading.set(true);
-    this.api.get<{ data: Merchant[] }>('/admin/merchants').subscribe({
+  loadServicers(): void {
+    this.servicerFailed.set(false);
+    this.servicerLoading.set(true);
+    this.api.get<{ data: Servicer[] }>('/admin/servicers').subscribe({
       next: (r) => {
-        this.merchants.set(r.data);
-        this.applyMerchantFilter();
-        this.merchantLoading.set(false);
+        this.servicers.set(r.data);
+        this.applyServicerFilter();
+        this.servicerLoading.set(false);
       },
       error: () => {
-        this.merchantFailed.set(true);
-        this.merchantLoading.set(false);
+        this.servicerFailed.set(true);
+        this.servicerLoading.set(false);
       },
     });
   }
 
-  applyMerchantFilter(): void {
-    let list = this.merchants();
+  applyServicerFilter(): void {
+    let list = this.servicers();
     const q = this.search.toLowerCase();
     if (q) list = list.filter((m) => m.businessName.toLowerCase().includes(q) || m.email.toLowerCase().includes(q));
-    const status = this.merchantStatus();
+    const status = this.servicerStatus();
     if (status === 'active') list = list.filter((m) => !m.isBanned);
     if (status === 'banned') list = list.filter((m) => m.isBanned);
-    const kyc = this.merchantKyc();
+    const kyc = this.servicerKyc();
     if (kyc) list = list.filter((m) => m.kycStatus === kyc);
-    this.visibleMerchants.set(list);
+    this.visibleServicers.set(list);
   }
 
-  setMerchantStatus(s: MerchantStatus): void {
-    this.merchantStatus.set(s);
-    this.applyMerchantFilter();
+  setServicerStatus(s: ServicerStatus): void {
+    this.servicerStatus.set(s);
+    this.applyServicerFilter();
   }
 
-  setMerchantKyc(k: MerchantKyc): void {
-    this.merchantKyc.set(k);
-    this.applyMerchantFilter();
+  setServicerKyc(k: ServicerKyc): void {
+    this.servicerKyc.set(k);
+    this.applyServicerFilter();
   }
 
   unlock(): void {
@@ -715,7 +715,7 @@ export class AdminUsersComponent implements OnInit {
     }
   }
 
-  sortMerchants(col: string): void {
+  sortServicers(col: string): void {
     if (this.mSortCol() === col) {
       this.mSortDir.set(this.mSortDir() === 'asc' ? 'desc' : 'asc');
     } else {
@@ -808,36 +808,36 @@ export class AdminUsersComponent implements OnInit {
     return parts.length ? parts.join(', ') : 'No field changes recorded';
   }
 
-  // ── Merchant ban / unban ───────────────────────────────────────────────────
-  ban(m: Merchant): void {
+  // ── Servicer ban / unban ───────────────────────────────────────────────────
+  ban(m: Servicer): void {
     this.dialog
       .prompt(`Reason for banning ${m.businessName}?`, {
         placeholder: 'Enter ban reason…',
-        confirmLabel: 'Ban merchant',
+        confirmLabel: 'Ban servicer',
       })
       .subscribe((reason) => {
         if (!reason) return;
         this.pin.requirePin().subscribe((pin) => {
           if (!pin) return;
           this.api
-            .post(`/admin/merchants/${m.id}/ban`, { reason }, { 'x-action-pin': pin })
+            .post(`/admin/servicers/${m.id}/ban`, { reason }, { 'x-action-pin': pin })
             .subscribe({
               next: () => {
-                this.toast.success('Merchant banned.');
-                this.loadMerchants();
+                this.toast.success('Servicer banned.');
+                this.loadServicers();
               },
-              error: (e) => this.toast.error(e.message ?? 'Could not ban merchant'),
+              error: (e) => this.toast.error(e.message ?? 'Could not ban servicer'),
             });
         });
       });
   }
 
-  unban(m: Merchant): void {
+  unban(m: Servicer): void {
     this.dialog
       .prompt(`Note for unbanning ${m.businessName}?`, {
         placeholder: 'Optional note…',
         defaultValue: 'Ban lifted.',
-        confirmLabel: 'Unban merchant',
+        confirmLabel: 'Unban servicer',
       })
       .subscribe((note) => {
         if (note === null) return;
@@ -845,16 +845,16 @@ export class AdminUsersComponent implements OnInit {
           if (!pin) return;
           this.api
             .post(
-              `/admin/merchants/${m.id}/unban`,
+              `/admin/servicers/${m.id}/unban`,
               { adminNote: note || 'Ban lifted.' },
               { 'x-action-pin': pin },
             )
             .subscribe({
               next: () => {
-                this.toast.success('Merchant unbanned.');
-                this.loadMerchants();
+                this.toast.success('Servicer unbanned.');
+                this.loadServicers();
               },
-              error: (e) => this.toast.error(e.message ?? 'Could not unban merchant'),
+              error: (e) => this.toast.error(e.message ?? 'Could not unban servicer'),
             });
         });
       });

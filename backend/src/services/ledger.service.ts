@@ -11,7 +11,7 @@ export interface LedgerEntry {
   amount: number;
   status?: TransactionStatus;
   bookingId?: string;
-  merchantId?: string;
+  servicerId?: string;
   userId?: string;
   escrowId?: string;
   reference?: string;
@@ -35,7 +35,7 @@ export async function recordTransaction(
       status: entry.status ?? 'completed',
       amount: entry.amount,
       bookingId: entry.bookingId ?? null,
-      merchantId: entry.merchantId ?? null,
+      servicerId: entry.servicerId ?? null,
       userId: entry.userId ?? null,
       escrowId: entry.escrowId ?? null,
       reference: entry.reference ?? null,
@@ -56,7 +56,7 @@ export async function recordTransaction(
         type: entry.type,
         amount: entry.amount,
         bookingId: entry.bookingId ?? null,
-        merchantId: entry.merchantId ?? null,
+        servicerId: entry.servicerId ?? null,
       },
     },
   });

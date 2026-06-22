@@ -19,7 +19,7 @@ const noResponsePayload = z.object({
 });
 
 /**
- * quote.expiry — fires at merchant_deadline. Bundles all received proposals
+ * quote.expiry — fires at servicer_deadline. Bundles all received proposals
  * and notifies the customer that their proposals are ready to review.
  */
 async function handleQuoteExpiry(job: Job): Promise<void> {
@@ -51,7 +51,7 @@ async function handleQuoteExpiry(job: Job): Promise<void> {
  * proposals, expires it, issues a discount code and emits
  * quote.expired_no_response. If proposals WERE received, the quote is left
  * `open` so the customer can still select one and create a booking — the
- * proposal deadline closes the merchant submission window, it is not a
+ * proposal deadline closes the servicer submission window, it is not a
  * customer-selection deadline.
  * Idempotent: re-runs are no-ops once the quote leaves `open`.
  */
@@ -130,7 +130,7 @@ async function handleNoResponse(job: Job): Promise<void> {
   await notify({
     userId: quote.userId,
     type: 'orders',
-    message: `Sorry — no merchants responded. Here's a discount code: ${discount.code}`,
+    message: `Sorry — no servicers responded. Here's a discount code: ${discount.code}`,
     linkReorder: `/customer/quote/new?from=${quote.id}`,
   });
   logger.info('quote.no_response — discount issued', { quoteRequestId, code });

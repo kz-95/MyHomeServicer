@@ -4,7 +4,7 @@ import { adminActionPinGuard } from '../core/guards/auth.guards';
 
 /**
  * Admin portal routes. Lazy-loaded so the admin bundle never ships to
- * customer or merchant sessions. Phase 1 ships the shell + Dashboard;
+ * customer or servicer sessions. Phase 1 ships the shell + Dashboard;
  * Phase 4 adds the management pages.
  */
 export const adminRoutes: Routes = [
@@ -18,9 +18,9 @@ export const adminRoutes: Routes = [
           import('./pages/dashboard.component').then((m) => m.AdminDashboardComponent),
       },
       {
-        path: 'merchants',
+        path: 'servicers',
         loadComponent: () =>
-          import('./pages/merchants.component').then((m) => m.AdminMerchantsComponent),
+          import('./pages/servicers.component').then((m) => m.AdminServicersComponent),
       },
       {
         path: 'users',

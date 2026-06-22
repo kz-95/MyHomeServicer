@@ -7,6 +7,7 @@ import { autoTranslateQuestionSchema } from '../services/chat.service';
 import { asyncHandler } from '../lib/async-handler';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { requirePin } from '../middleware/pin';
+import { checkPinCooldown, recordPinFailure, recordPinSuccess } from '../middleware/pin-cooldown';
 import { pinLimiter } from '../middleware/rate-limit';
 import { idempotency } from '../middleware/idempotency';
 import { validate } from '../middleware/validate';
@@ -16,9 +17,9 @@ import { recordAudit } from '../services/ledger.service';
 import {
   getDashboard,
   getDashboardRevenue,
-  listMerchants,
-  getMerchantDetail,
-  setMerchantBan,
+  listServicers,
+  getServicerDetail,
+  setServicerBan,
   listUsers,
   getUserDetail,
   updateUserInfo,
@@ -72,30 +73,30 @@ adminRouter.post(
 
 // ── Servicer management ──────────────────────────────────────────────────────
 adminRouter.get(
-  '/merchants',
+  '/servicers',
   asyncHandler(async (req, res) => {
-    res.json({ data: await listMerchants(req.query.kycStatus as string | undefined) });
+    res.json({ data: await listServicers(req.query.kycStatus as string | undefined) });
   }),
 );
 adminRouter.get(
-  '/merchants/:id',
-  asyncHandler(async (req, res) => res.json(await getMerchantDetail(req.params.id))),
+  '/servicers/:id',
+  asyncHandler(async (req, res) => res.json(await getServicerDetail(req.params.id))),
 );
 adminRouter.post(
-  '/merchants/:id/ban',
+  '/servicers/:id/ban',
   requirePin,
   validate([body('reason').isString().trim().notEmpty()]),
   asyncHandler(async (req, res) => {
-    await setMerchantBan(req.user!.id, req.params.id, true, req.body.reason, ip(req));
+    await setServicerBan(req.user!.id, req.params.id, true, req.body.reason, ip(req));
     res.status(204).send();
   }),
 );
 adminRouter.post(
-  '/merchants/:id/unban',
+  '/servicers/:id/unban',
   requirePin,
   validate([body('adminNote').isString().trim().notEmpty()]),
   asyncHandler(async (req, res) => {
-    await setMerchantBan(req.user!.id, req.params.id, false, req.body.adminNote, ip(req));
+    await setServicerBan(req.user!.id, req.params.id, false, req.body.adminNote, ip(req));
     res.status(204).send();
   }),
 );
@@ -446,7 +447,7 @@ adminRouter.delete(
     if (!cat) throw notFound('Category not found');
     if (cat.deletedAt) throw badRequest('Category is already deleted.');
 
-    const activeService = await prisma.merchantService.findFirst({
+    const activeService = await prisma.servicerService.findFirst({
       where: { categoryId: req.params.id, deletedAt: null },
       select: { id: true },
     });
@@ -481,7 +482,7 @@ adminRouter.delete(
 );
 
 /** GET /admin/categories/:id/question-impact?key=<questionKey>
- *  Returns { key, count } — number of MerchantService rows whose modifiers JSONB
+ *  Returns { key, count } — number of ServicerService rows whose modifiers JSONB
  *  contains the given question key. Used by the editor to warn before deactivating
  *  a question or flipping its priced flag. */
 adminRouter.get(
@@ -498,7 +499,7 @@ adminRouter.get(
 
     const rows = await prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*)::bigint AS count
-      FROM merchant_services
+      FROM servicer_services
       WHERE category_id = ${req.params.id}::uuid
         AND deleted_at IS NULL
         AND modifiers ? ${key}
@@ -570,7 +571,7 @@ adminRouter.get(
       Array<{ category_id: string; avg_price: string | null; listing_count: bigint }>
     >`
       SELECT category_id, ROUND(AVG(base_price)::numeric, 2) AS avg_price, COUNT(*)::bigint AS listing_count
-      FROM merchant_services
+      FROM servicer_services
       WHERE deleted_at IS NULL
       GROUP BY category_id
     `;
@@ -1241,21 +1242,27 @@ adminRouter.post(
   pinLimiter,
   validate([body('pin').isString().isLength({ min: 4, max: 10 })]),
   asyncHandler(async (req, res) => {
-    const admin = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    const userId = req.user!.id;
+    await checkPinCooldown(userId);
+
+    const admin = await prisma.user.findUnique({ where: { id: userId } });
     if (!admin?.actionPinHash) {
       throw badRequest('No action PIN configured');
     }
     const bcrypt = await import('bcryptjs');
     const ok = await bcrypt.compare(req.body.pin, admin.actionPinHash);
-    if (!ok) throw badRequest('Incorrect PIN');
+    if (!ok) {
+      await recordPinFailure(userId);
+      throw badRequest('Incorrect PIN');
+    }
 
-    // Short-lived PIN token (5 min)
+    await recordPinSuccess(userId);
+
     const crypto = await import('crypto');
     const pinToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = Date.now() + 5 * 60_000;
 
-    // Store in memory (would use Redis in production)
-    pinTokenStore.set(pinToken, { userId: req.user!.id, expiresAt });
+    pinTokenStore.set(pinToken, { userId, expiresAt });
 
     res.json({ pinToken, expiresAt: new Date(expiresAt).toISOString() });
   }),

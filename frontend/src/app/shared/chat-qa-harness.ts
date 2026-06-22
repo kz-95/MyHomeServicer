@@ -1059,6 +1059,25 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
         issues.push(`looping: same card "${sig}" ${sameSigCount}x — flow not advancing`);
         break;
       }
+      // Card repeated — answer the bot's prose question in text with varied wording
+      // instead of re-tapping the card verbatim (which looks like a broken record).
+      let retryText: string;
+      if (b.type === "quote_question") {
+        retryText = naturalQuestionReply(b, scn);
+      } else if (b.type === "quote_field") {
+        const key = (b.data["key"] as string) ?? "";
+        retryText = freeTextForField(key, scn) ?? humanAnswerText(scn);
+      } else {
+        retryText = pick([
+          humanAnswerText(scn),
+          styleLine(scn.persona, scn.service.vague),
+          styleLine(scn.persona, scn.service.needs[scn.persona.language] ?? scn.service.needs.en),
+        ]);
+      }
+      host.sendText(retryText);
+      await waitIdle();
+      flush();
+      continue;
     } else {
       sameSigCount = 0;
       lastSig = sig;

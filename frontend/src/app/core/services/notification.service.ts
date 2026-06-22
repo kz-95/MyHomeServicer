@@ -158,7 +158,7 @@ export class NotificationService {
     if (notifType === 'payments')  return 'assets/sounds/Notification_Topup.wav';
     // Servicer accounts get a distinct chime so they can tell their job
     // notifications apart from customer ones by sound alone.
-    return this.auth.isMerchantAccount()
+    return this.auth.isServicerAccount()
       ? 'assets/sounds/Notification_Chat.wav'
       : 'assets/sounds/NotificationCard.wav';
   }

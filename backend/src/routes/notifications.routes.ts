@@ -10,14 +10,14 @@ import { readPrefs, NOTIFICATION_TYPES } from '../services/notification.service'
 
 /**
  * Notification endpoints — role-agnostic. Works for customers, admins
- * (USER rows) and merchants alike; the recipient is resolved from `req.user`.
+ * (USER rows) and servicers alike; the recipient is resolved from `req.user`.
  */
 export const notificationsRouter = Router();
 notificationsRouter.use(requireAuth);
 
 /** The where-clause matching the calling principal's notifications. */
 function ownWhere(u: { kind: string; id: string }) {
-  return u.kind === 'servicer' ? { merchantId: u.id } : { userId: u.id };
+  return u.kind === 'servicer' ? { servicerId: u.id } : { userId: u.id };
 }
 
 /** GET /notifications — the caller's notifications, newest first. */

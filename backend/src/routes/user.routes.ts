@@ -462,7 +462,7 @@ userRouter.get(
       where: { userId: req.user!.id, status: { in: ['completed', 'cancelled'] } },
       orderBy: { createdAt: 'desc' },
       include: {
-        merchant: { select: { id: true, businessName: true } },
+        servicer: { select: { id: true, businessName: true } },
         quoteRequest: { select: { category: { select: { name: true, icon: true } } } },
       },
     });
@@ -471,8 +471,8 @@ userRouter.get(
         type: b.status,
         bookingId: b.id,
         orderId: b.orderNumber ? formatOrderId(b.orderNumber, b.createdAt) : undefined,
-        merchantId: b.merchantId,
-        merchantName: b.merchant.businessName,
+        servicerId: b.servicerId,
+        servicerName: b.servicer.businessName,
         categoryName: b.quoteRequest.category.name,
         categoryIcon: b.quoteRequest.category.icon,
         completedAt: b.doneAt ?? b.updatedAt,

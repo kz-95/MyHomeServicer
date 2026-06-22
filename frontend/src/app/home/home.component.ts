@@ -112,7 +112,7 @@ interface Category {
         <div class="hero-inner page-child">
           <h1>Home service,<br />sorted.</h1>
           <p class="hero-sub">
-            Tell us what you need and get quotes from trusted local merchants -
+            Tell us what you need and get quotes from trusted local servicers -
             plumbing, cleaning, aircon and more.
           </p>
           <div class="hero-search-wrap">
@@ -354,7 +354,8 @@ interface Category {
         padding-bottom: 1.5rem;
       }
       .page {
-        min-height: 100vh;
+        height: 100vh;
+        overflow-y: auto;
         background: var(--color-bg);
         background: var(--gradient-hero);
       }

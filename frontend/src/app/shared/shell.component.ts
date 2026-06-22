@@ -76,7 +76,7 @@ interface PromoValidationResult {
 
 /**
  * Shared portal shell: top nav + sidebar + content outlet. Used by all three
- * portals (customer, merchant, admin) with portal-specific nav items.
+ * portals (customer, servicer, admin) with portal-specific nav items.
  */
 @Component({
     selector: "app-shell",
@@ -129,7 +129,7 @@ interface PromoValidationResult {
           </button>
         }
 
-        @if (auth.isMerchantAccount()) {
+        @if (auth.isServicerAccount()) {
           <!-- Online/offline toggle - Lalamove-style for servicer mode. -->
           @if (auth.mode() === 'servicer' && auth.principal(); as p) {
             <button
@@ -145,7 +145,7 @@ interface PromoValidationResult {
               <span class="ot-label">{{ p.isOnline ? 'Live' : 'Offline' }}</span>
             </button>
           }
-          <!-- Merchant accounts can operate the platform as a customer. -->
+          <!-- Servicer accounts can operate the platform as a customer. -->
           <span
             class="mode-toggle"
             role="group"
@@ -1853,7 +1853,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Whether this account has a credit balance (customers and merchants). */
+  /** Whether this account has a credit balance (customers and servicers). */
   showCredit(): boolean {
     const role = this.auth.principal()?.role;
     return role === "customer" || role === "servicer";
@@ -2029,7 +2029,7 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   /** Plain-language account type shown under the username. */
   accountType(): string {
-    if (this.auth.isMerchantAccount()) return "Servicer account";
+    if (this.auth.isServicerAccount()) return "Servicer account";
     return this.auth.principal()?.role === "admin"
       ? "Admin account"
       : "Customer account";
@@ -2055,8 +2055,8 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Switches a merchant account between merchant mode and customer mode.
-   * Customer mode fetches a customer-scoped session from the backend; merchant
+   * Switches a servicer account between servicer mode and customer mode.
+   * Customer mode fetches a customer-scoped session from the backend; servicer
    * mode just restores the stashed session, so no network call is needed.
    */
   setMode(target: "servicer" | "customer"): void {
@@ -2076,7 +2076,7 @@ export class ShellComponent implements OnInit, OnDestroy {
         },
       });
     } else {
-      this.auth.switchToMerchantMode();
+      this.auth.switchToServicerMode();
       this.router.navigate(["/servicer"]);
     }
   }

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
+import { DemoUnlockService } from '../../core/services/demo-unlock.service';
 import { environment } from '../../../environments/environment';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
 
@@ -87,7 +88,7 @@ interface VoucherWithApp extends Redemption {
           </span>
         </div>
       </div>
-      @if (!environment.production) {
+      @if (!environment.production && unlock.unlocked()) {
         <button class="btn-demo demo-points-btn" (click)="demoPoints()" [disabled]="demoPointing()">
           {{ demoPointing() ? 'Adding…' : '✨ Demo: +500 pts' }}
         </button>
@@ -271,7 +272,7 @@ interface VoucherWithApp extends Redemption {
         margin-left: auto; align-self: center;
         background: rgba(255,255,255,0.15); color: #fff;
         border: 1px solid rgba(255,255,255,0.3); border-radius: 999px;
-        padding: 0.45rem 1rem; font-size: 0.85rem; cursor: pointer;
+        padding: 0.625rem 1rem; font-size: 0.85rem; cursor: pointer;
         white-space: nowrap; transition: background 0.2s;
       }
       .demo-points-btn:hover { background: rgba(255,255,255,0.25); }
@@ -313,7 +314,7 @@ interface VoucherWithApp extends Redemption {
         background: transparent;
         border: 1px solid var(--color-border);
         border-radius: var(--radius);
-        padding: 0.3rem 0.5rem;
+        padding: 0.625rem 0.625rem;
         cursor: pointer;
         color: var(--color-muted);
         font-size: 0.85rem;
@@ -328,7 +329,7 @@ interface VoucherWithApp extends Redemption {
       }
       .chip {
         background: transparent; border: 1px solid var(--color-border); border-radius: 999px;
-        padding: 0.25rem 0.75rem; font-size: 0.82rem; cursor: pointer; color: var(--color-muted);
+        padding: 0.625rem 0.75rem; font-size: 0.82rem; cursor: pointer; color: var(--color-muted);
         transition: background var(--transition), color var(--transition), border-color var(--transition);
       }
       .chip.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
@@ -369,7 +370,7 @@ interface VoucherWithApp extends Redemption {
       .voucher-desc { font-size: 0.78rem; }
       .voucher-reason { font-size: 0.78rem; color: var(--color-danger); font-weight: 500; }
       .voucher-na { font-size: 0.8rem; font-style: italic; }
-      .voucher-use { font-size: 0.82rem; padding: 0.3rem 0.7rem; white-space: nowrap; }
+      .voucher-use { font-size: 0.82rem; padding: 0.625rem 0.7rem; white-space: nowrap; }
 
       /* History */
       .history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -393,6 +394,7 @@ export class RewardsComponent implements OnInit {
   protected environment = environment;
   private api = inject(ApiService);
   private router = inject(Router);
+  protected readonly unlock = inject(DemoUnlockService);
 
   pointsData = signal<PointsData | null>(null);
   demoPointing = signal(false);

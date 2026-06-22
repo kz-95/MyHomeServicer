@@ -74,7 +74,7 @@ export async function issueTokens(p: Principal): Promise<TokenPair> {
   await prisma.refreshToken.create({
     data: {
       userId: p.kind === 'user' ? p.id : null,
-      merchantId: p.kind === 'servicer' ? p.id : null,
+      servicerId: p.kind === 'servicer' ? p.id : null,
       tokenHash: sha256(refreshToken),
       expiresAt: new Date(Date.now() + 7 * 86_400_000),
     },
@@ -131,8 +131,8 @@ type Account =
 async function findAccountByEmail(email: string): Promise<Account | null> {
   const user = await prisma.user.findFirst({ where: { email, deletedAt: null } });
   if (user) return { kind: 'user', record: user };
-  const merchant = await prisma.servicer.findFirst({ where: { email, deletedAt: null } });
-  if (merchant) return { kind: 'servicer', record: merchant };
+  const servicer = await prisma.servicer.findFirst({ where: { email, deletedAt: null } });
+  if (servicer) return { kind: 'servicer', record: servicer };
   return null;
 }
 
@@ -170,8 +170,8 @@ export async function register(input: {
   return { user: principal, tokens: await issueTokens(principal) };
 }
 
-/** Register a merchant account (with deposit + a default proposal preset). */
-export async function registerMerchant(input: {
+/** Register a servicer account (with deposit + a default proposal preset). */
+export async function registerServicer(input: {
   name: string;
   email: string;
   phone: string;
@@ -187,14 +187,14 @@ export async function registerMerchant(input: {
   const existing = await findAccountByEmail(input.email);
   if (existing) throw new ApiError('CONFLICT', 'An account with that email already exists');
 
-  // The merchant's platform category is fixed at registration.
+  // The servicer's platform category is fixed at registration.
   const category = await prisma.category.findFirst({
     where: { id: input.categoryId, deletedAt: null, parentCategoryId: null },
   });
   if (!category) throw badRequest('A valid platform category is required');
 
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
-  const merchant = await prisma.servicer.create({
+  const servicer = await prisma.servicer.create({
     data: {
       name: input.name,
       email: input.email,
@@ -217,47 +217,47 @@ export async function registerMerchant(input: {
     },
   });
   const principal: Principal = {
-    id: merchant.id,
+    id: servicer.id,
     kind: 'servicer',
     role: 'servicer',
-    email: merchant.email,
-    name: merchant.name,
+    email: servicer.email,
+    name: servicer.name,
     isDemo: false,
-    creditBalance: Number(merchant.creditBalance),
+    creditBalance: Number(servicer.creditBalance),
     depositBalance: 0,
-    isOnline: merchant.isOnline,
+    isOnline: servicer.isOnline,
   };
   return { user: principal, tokens: await issueTokens(principal) };
 }
 
-// ── Customer mode (merchant operating as a customer) ─────────────────────────
+// ── Customer mode (servicer operating as a customer) ─────────────────────────
 
 /**
- * Provisions (or reuses) the customer-side account paired with a merchant so
- * the merchant can operate the platform as a customer ("customer mode").
+ * Provisions (or reuses) the customer-side account paired with a servicer so
+ * the servicer can operate the platform as a customer ("customer mode").
  *
  * The paired user gets a synthetic, non-deliverable email so it never shadows
- * the merchant in `findAccountByEmail` — a normal login with the merchant's
- * real email therefore still resolves to the merchant account. Customer mode
+ * the servicer in `findAccountByEmail` — a normal login with the servicer's
+ * real email therefore still resolves to the servicer account. Customer mode
  * is only ever reached through the in-app toggle, never a direct login.
  */
 export async function switchToCustomer(
-  merchantId: string,
+  servicerId: string,
 ): Promise<{ user: Principal; tokens: TokenPair }> {
-  const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
-  if (!merchant || merchant.deletedAt) throw unauthorized('Servicer account not found');
+  const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
+  if (!servicer || servicer.deletedAt) throw unauthorized('Servicer account not found');
 
-  const pairedEmail = pairedCustomerEmail(merchant.id);
+  const pairedEmail = pairedCustomerEmail(servicer.id);
   let user = await prisma.user.findFirst({ where: { email: pairedEmail } });
   if (!user) {
     user = await prisma.user.create({
       data: {
         role: 'customer',
-        name: merchant.name,
+        name: servicer.name,
         email: pairedEmail,
-        phone: merchant.phone,
-        passwordHash: merchant.passwordHash ?? '',
-        isDemo: merchant.isDemo,
+        phone: servicer.phone,
+        passwordHash: servicer.passwordHash ?? '',
+        isDemo: servicer.isDemo,
       },
     });
   }
@@ -314,8 +314,8 @@ export async function login(
 
   let depositBalance: number | undefined;
   if (account.kind === 'servicer') {
-    const dep = await prisma.merchantDeposit.findUnique({
-      where: { merchantId: record.id },
+    const dep = await prisma.servicerDeposit.findUnique({
+      where: { servicerId: record.id },
       select: { currentBalance: true },
     });
     depositBalance = dep ? Number(dep.currentBalance) : undefined;
@@ -374,22 +374,22 @@ export async function getCurrentPrincipal(
     }
     return principal;
   }
-  const merchant = await prisma.servicer.findUnique({ where: { id } });
-  if (!merchant) throw unauthorized('Account not found');
-  const dep = await prisma.merchantDeposit.findUnique({
-    where: { merchantId: merchant.id },
+  const servicer = await prisma.servicer.findUnique({ where: { id } });
+  if (!servicer) throw unauthorized('Account not found');
+  const dep = await prisma.servicerDeposit.findUnique({
+    where: { servicerId: servicer.id },
     select: { currentBalance: true },
   });
   return {
     id,
     kind,
     role: 'servicer',
-    email: merchant.email,
-    name: merchant.name,
-    isDemo: merchant.isDemo,
-    creditBalance: Number(merchant.creditBalance),
+    email: servicer.email,
+    name: servicer.name,
+    isDemo: servicer.isDemo,
+    creditBalance: Number(servicer.creditBalance),
     depositBalance: dep ? Number(dep.currentBalance) : undefined,
-    isOnline: merchant.isOnline,
+    isOnline: servicer.isOnline,
   };
 }
 
@@ -437,13 +437,13 @@ export async function refresh(refreshToken: string): Promise<TokenPair> {
       principal.setupRequired = true;
     }
   } else {
-    const merchant = await prisma.servicer.findUnique({ where: { id } });
-    if (!merchant) throw unauthorized('Account not found');
-    const dep = await prisma.merchantDeposit.findUnique({
-      where: { merchantId: merchant.id },
+    const servicer = await prisma.servicer.findUnique({ where: { id } });
+    if (!servicer) throw unauthorized('Account not found');
+    const dep = await prisma.servicerDeposit.findUnique({
+      where: { servicerId: servicer.id },
       select: { currentBalance: true },
     });
-    principal = { id, kind, role: 'servicer', email: merchant.email, name: merchant.name, isDemo: merchant.isDemo, creditBalance: Number(merchant.creditBalance), depositBalance: dep ? Number(dep.currentBalance) : undefined };
+    principal = { id, kind, role: 'servicer', email: servicer.email, name: servicer.name, isDemo: servicer.isDemo, creditBalance: Number(servicer.creditBalance), depositBalance: dep ? Number(dep.currentBalance) : undefined };
   }
 
   // Rotate: revoke the old refresh token, issue a fresh pair.

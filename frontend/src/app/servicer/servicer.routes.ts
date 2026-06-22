@@ -43,7 +43,7 @@ export const servicerRoutes: Routes = [
           },
         ],
       },
-      // SP-3: create flow — chooser → Simple (full) / Advanced (stub). Most
+      // SP-3: create flow — chooser → Simple (full) / Advanced (full). Most
       // specific paths first so the `services` tab shell doesn't swallow them.
       {
         path: 'services/new/simple',
@@ -53,9 +53,7 @@ export const servicerRoutes: Routes = [
       {
         path: 'services/new/advanced',
         loadComponent: () =>
-          import('./pages/listing-advanced-stub.component').then(
-            (m) => m.ListingAdvancedStubComponent,
-          ),
+          import('./pages/listing-advanced.component').then((m) => m.ListingAdvancedComponent),
       },
       {
         path: 'services/new',
@@ -63,11 +61,10 @@ export const servicerRoutes: Routes = [
           import('./pages/listing-create.component').then((m) => m.ListingCreateComponent),
       },
       {
-        // Existing 4-step wizard kept for editing legacy listings until the
-        // SP-3 Advanced wizard lands in Phase 2.
+        // SP-3 Phase 2: edit uses the new Advanced wizard (prefill + PATCH).
         path: 'services/:id/edit',
         loadComponent: () =>
-          import('./pages/listing-wizard.component').then((m) => m.ListingWizardComponent),
+          import('./pages/listing-advanced.component').then((m) => m.ListingAdvancedComponent),
       },
       {
         // SP-3: /servicer/services → 2 tabs (listings · module), jobs-tabs style.

@@ -47,7 +47,7 @@ site. It is intentionally NOT a hardened auth control. When the 2026-06 redesign
 
 **Client navigation is not an access boundary**
 New `:id` detail routes (`/servicer/jobs/:id`, `/customer/bookings/:id`, `/admin/users/:id`,
-`/admin/merchants/:id`) must enforce ownership/role on the **backing API**, not the route
+`/admin/servicers/:id`) must enforce ownership/role on the **backing API**, not the route
 param (IDOR). Notification `linkUrl` (→ `notification.service.routeFor()` →
 `navigateByUrl`) must stay backend-controlled and start with a single `/` (reject `//` —
 defense-in-depth against open-redirect); never build `linkUrl` from user input.
@@ -209,6 +209,9 @@ Three guards: `requireAuth`, `requireServicer`, `requireAdmin`. Applied at the r
 
 **Servicer sees customer details only after booking confirmed**
 During the quote broadcast, servicers receive only sanitised data — category, time slot, property type, budget range, general area. Full customer name, phone, address shared only via secure REST call after booking confirmation.
+
+**Payment gate before broadcast**
+A quote must not be broadcast to servicers (no `QUOTE_BROADCAST` rows, no `quote.new` socket emit, no servicer notifications, no dispatch rotation) until its payment is settled — otherwise servicers spend effort on, and auto-accept proposals against, quotes that were never funded. `createQuote` enforces ordering: `pay_later`/`cash` pass `requireNoUnpaidInvoice` first; `pay_now` (credit) deducts the budget hold **before** the broadcast (broadcast logic is split into `broadcastQuote()`); `pay_now` (guest/gateway) is parked in `status = pending_payment` and broadcast only when the Stripe `checkout.session.completed` webhook calls `settleAndBroadcastGuestQuote()` (idempotent — a redelivered webhook never double-broadcasts or double-holds). A failed gate leaves the quote unbroadcast and no money moved.
 
 **Admin cannot impersonate users**
 Admin routes manage platform data only. No route returns another user's JWT or allows actions as another user.

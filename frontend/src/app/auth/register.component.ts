@@ -64,6 +64,8 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
       .wrap {
         display: flex;
         justify-content: center;
+        height: 100vh;
+        overflow-y: auto;
         padding-top: 6vh;
         padding-inline: 1rem;
       }

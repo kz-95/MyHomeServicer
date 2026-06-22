@@ -20,6 +20,7 @@ import { PhoneInputComponent } from "../../shared/phone-input.component";
 import { ModalComponent } from "../../shared/modal.component";
 import { Router } from "@angular/router";
 import { ListToolbarComponent } from "../../shared/list-toolbar.component";
+import { WaPresetManagerComponent } from "./wa-preset-manager.component";
 
 interface FeeBreakdown {
   totalRate: number;
@@ -108,7 +109,7 @@ interface Penalty {
 @Component({
     selector: "app-servicer-account",
     host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, PlacesAutocompleteComponent, PhoneInputComponent, ModalComponent, ListToolbarComponent],
+    imports: [CommonModule, FormsModule, PlacesAutocompleteComponent, PhoneInputComponent, ModalComponent, ListToolbarComponent, WaPresetManagerComponent],
     template: `
     <h1>Business Profile Settings</h1>
 
@@ -250,6 +251,11 @@ interface Penalty {
             </form>
           </app-modal>
         }
+
+        <!-- ── WhatsApp message presets ────────────────────────────────────── -->
+        <section class="card page-child">
+          <app-wa-preset-manager></app-wa-preset-manager>
+        </section>
 
         <!-- ── 2. Type of Services ─────────────────────────────────────────── -->
         <section class="card page-child">
@@ -1269,7 +1275,7 @@ export class ServicerAccountComponent implements OnInit {
     this.logoUploading.set(true);
     this.logoUploadStatus.set("Uploading…");
     this.api.post<{ uploadUrl: string; fileId: string }>("/files/presign", {
-      purpose: "merchant_logo", mimeType: file.type || "image/jpeg", sizeBytes: file.size,
+      purpose: "servicer_logo", mimeType: file.type || "image/jpeg", sizeBytes: file.size,
     }).pipe(
       switchMap(({ uploadUrl, fileId }) =>
         this.http.put(uploadUrl, file, { headers: { "Content-Type": file.type || "image/jpeg" } })

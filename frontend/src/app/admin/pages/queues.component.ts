@@ -41,7 +41,7 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
           [ngModel]="wQuery()"
           (ngModelChange)="wQuery.set($event)"
           name="wq"
-          placeholder="Search by merchant or bank…"
+          placeholder="Search by servicer or bank…"
           toolbar-search
         />
         <div class="chips" toolbar-filters>
@@ -59,7 +59,7 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
       @for (w of filteredWithdrawals(); track w.id) {
         <div class="card row">
           <div>
-            <strong>{{ w.merchantName }}</strong> - RM {{ w.amount | number: '1.2-2' }}
+            <strong>{{ w.servicerName }}</strong> - RM {{ w.amount | number: '1.2-2' }}
             <div class="muted">{{ w.bankName }} · {{ w.bankAccount }}</div>
           </div>
           <div class="acts">
@@ -81,7 +81,7 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
         [ngModel]="aQuery()"
         (ngModelChange)="aQuery.set($event)"
         name="aq"
-        placeholder="Search by merchant, type or reason…"
+        placeholder="Search by servicer, type or reason…"
         toolbar-search
       />
       </app-list-toolbar>
@@ -89,7 +89,7 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
       @for (a of filteredAppeals(); track a.id) {
         <div class="card row">
           <div>
-            <strong>{{ a.merchant.businessName }}</strong>
+            <strong>{{ a.servicer.businessName }}</strong>
             <span class="muted">· {{ a.penaltyLog.type }} · RM {{ a.penaltyLog.amountDeducted }}</span>
             <p>{{ a.reason }}</p>
           </div>
@@ -111,7 +111,7 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
         [ngModel]="cQuery()"
         (ngModelChange)="cQuery.set($event)"
         name="cq"
-        placeholder="Search by category or merchant…"
+        placeholder="Search by category or servicer…"
         toolbar-search
       />
       </app-list-toolbar>
@@ -120,7 +120,7 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
         <div class="card row">
           <div>
             <strong>{{ c.name }}</strong>
-            <span class="muted">· requested by {{ c.merchant.businessName }}</span>
+            <span class="muted">· requested by {{ c.servicer.businessName }}</span>
             <p>{{ c.description }}</p>
           </div>
           <div class="acts">
@@ -149,7 +149,7 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
       @for (r of filteredIdentityRequests(); track r.id) {
         <div class="card row">
           <div>
-            <strong>{{ r.merchant?.businessName ?? 'Unknown servicer' }}</strong>
+            <strong>{{ r.servicer?.businessName ?? 'Unknown servicer' }}</strong>
             <div class="muted id-props">
               @if (r.proposed?.entityType) {
                 <span>{{ formatEntityType(r.proposed.entityType) }}</span>
@@ -194,7 +194,7 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
     >
       @if (approveTarget(); as t) {
         <p class="muted">
-          Requested by <strong>{{ t.merchant.businessName }}</strong>.
+          Requested by <strong>{{ t.servicer.businessName }}</strong>.
           Approving creates a new platform category.
         </p>
 
@@ -214,7 +214,7 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
         </label>
 
         <label>
-          Admin note <span class="muted">(shown to the merchant)</span>
+          Admin note <span class="muted">(shown to the servicer)</span>
           <textarea
             rows="2"
             [(ngModel)]="form.adminNote"
@@ -248,8 +248,8 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
     >
       @if (logTarget(); as w) {
         <dl class="log">
-          <dt>Merchant</dt>
-          <dd>{{ w.merchantName }}</dd>
+          <dt>Servicer</dt>
+          <dd>{{ w.servicerName }}</dd>
           <dt>Amount</dt>
           <dd>RM {{ w.amount | number: '1.2-2' }}</dd>
           <dt>Bank</dt>
@@ -448,7 +448,7 @@ export class AdminQueuesComponent implements OnInit {
 
   filteredWithdrawals = computed(() => {
     let list = this.withdrawals().filter((w) =>
-      this.match([w.merchantName, w.bankName, w.bankAccount], this.wQuery()),
+      this.match([w.servicerName, w.bankName, w.bankAccount], this.wQuery()),
     );
     const f = this.wFilter();
     if (f !== 'all') list = list.filter((w) => (w.status || 'pending') === f);
@@ -460,7 +460,7 @@ export class AdminQueuesComponent implements OnInit {
   filteredAppeals = computed(() => {
     let list = this.appeals().filter((a) =>
       this.match(
-        [a.merchant?.businessName, a.penaltyLog?.type, a.reason],
+        [a.servicer?.businessName, a.penaltyLog?.type, a.reason],
         this.aQuery(),
       ),
     );
@@ -473,7 +473,7 @@ export class AdminQueuesComponent implements OnInit {
   });
   filteredCategoryRequests = computed(() => {
     let list = this.categoryRequests().filter((c) =>
-      this.match([c.name, c.merchant?.businessName, c.description], this.cQuery()),
+      this.match([c.name, c.servicer?.businessName, c.description], this.cQuery()),
     );
     const f = this.cFilter();
     if (f !== 'all') list = list.filter((c) => (c.status || 'pending') === f);
@@ -486,7 +486,7 @@ export class AdminQueuesComponent implements OnInit {
     let list = this.identityRequests().filter((r) =>
       this.match(
         [
-          r.merchant?.businessName,
+          r.servicer?.businessName,
           r.proposed?.entityType,
           r.proposed?.businessRegistrationNumber,
           r.proposed?.taxNumber,
@@ -498,7 +498,7 @@ export class AdminQueuesComponent implements OnInit {
     const f = this.iFilter();
     if (f !== 'all') list = list.filter((r) => (r.status || 'pending') === f);
     const s = this.iSort();
-    if (s === 'name') list = [...list].sort((a, b) => (a.merchant?.businessName ?? '').localeCompare(b.merchant?.businessName ?? ''));
+    if (s === 'name') list = [...list].sort((a, b) => (a.servicer?.businessName ?? '').localeCompare(b.servicer?.businessName ?? ''));
     else list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return list;
   });
@@ -570,7 +570,7 @@ export class AdminQueuesComponent implements OnInit {
     });
   }
 
-  /** Opens the approval modal pre-filled with the merchant's suggested name. */
+  /** Opens the approval modal pre-filled with the servicer's suggested name. */
   openApprove(request: any): void {
     this.form = { name: request.name ?? '', price: null, duration: null, adminNote: '' };
     this.formError.set('');

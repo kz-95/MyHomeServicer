@@ -274,7 +274,7 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
       </nav>
       <span class="demo-bar-spacer"></span>
       @if (auth.mode() === 'customer' || auth.principal()?.role === 'customer') {
-        <button class="demo-action demo-action--proposal" (click)="seedProposal()" [disabled]="seedingProposal()" title="Generate a demo merchant proposal">
+        <button class="demo-action demo-action--proposal" (click)="seedProposal()" [disabled]="seedingProposal()" title="Generate a demo servicer proposal">
           {{ seedingProposal() ? 'Creating…' : '+ Proposal' }}
         </button>
       }
@@ -326,7 +326,7 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
         @if (unplugError()) { <p class="err">{{ unplugError() }}</p> }
         <div class="modal-actions">
           <button class="btn-ghost" (click)="closeUnplug()" [disabled]="unplugging()">Cancel</button>
-          <button class="demo-action demo-action--unplug" style="padding:0.4rem 0.9rem;font-size:0.85rem" (click)="runUnplug()" [disabled]="unplugging() || !unplugPin">{{ unplugging() ? 'Unplugging…' : '⏏ Unplug' }}</button>
+          <button class="demo-action demo-action--unplug" style="padding:0.625rem 0.9rem;font-size:0.85rem" (click)="runUnplug()" [disabled]="unplugging() || !unplugPin">{{ unplugging() ? 'Unplugging…' : '⏏ Unplug' }}</button>
         </div>
       }
     </app-modal>
@@ -435,7 +435,7 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
       background: transparent; border: none;
       color: var(--color-text);
       font-size: 0.75rem; font-family: inherit;
-      padding: 0.3rem 0.7rem; cursor: pointer;
+      padding: 0.625rem 0.7rem; cursor: pointer;
       transition: all 0.15s ease; white-space: nowrap;
     }
     .demo-dd-item:hover { background: var(--color-bg); color: var(--color-text); }
@@ -445,11 +445,11 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
       font-size: 0.68rem;
       font-weight: 600;
       font-family: inherit;
-      padding: 0.12rem 0.6rem;
+      padding: 0.15rem 0.55rem;
       border-radius: 3px;
       cursor: pointer;
       transition: all 0.2s ease;
-      line-height: 1.5;
+      line-height: 1.4;
     }
     .demo-action--proposal { background: var(--color-danger-bg); border: 1px solid var(--color-danger); color: var(--color-danger); }
     .demo-action--proposal:hover { background: var(--color-danger); color: #fff; }
@@ -469,15 +469,26 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
     .err { color: var(--color-danger); }
     .muted { color: var(--color-muted); }
     .small { font-size: 0.8rem; }
-    .btn-reseed { background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-text); font-size: 0.85rem; font-weight: 600; padding: 0.4rem 0.7rem; transition: background 0.15s ease; cursor: pointer; }
+    .btn-reseed { background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-text); font-size: 0.85rem; font-weight: 600; padding: 0.625rem 0.7rem; transition: background 0.15s ease; cursor: pointer; }
     .btn-reseed:hover { background: var(--color-warning); color: #fff; }
-    .btn-primary { background: var(--gradient-primary); border: none; color: #fff; padding: 0.45rem 1.1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-primary { background: var(--gradient-primary); border: none; color: #fff; padding: 0.625rem 1.1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; }
     .btn-primary:disabled { opacity: 0.5; cursor: default; }
-    .btn-ghost { background: none; border: 1px solid var(--color-border); color: var(--color-muted); padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.8rem; cursor: pointer; font-family: inherit; }
+    .btn-ghost { background: none; border: 1px solid var(--color-border); color: var(--color-muted); padding: 0.625rem 0.75rem; border-radius: 999px; font-size: 0.8rem; cursor: pointer; font-family: inherit; }
     .tu-field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; font-weight: 500; margin-top: 0.8rem; }
     .tu-field input { padding: 0.4rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; font-size: 0.9rem; }
     @media (max-width: 760px) {
-      .demo-bar { display: none; }
+      /* Demo bar stays visible on mobile. Wrap instead of scroll/clip — a
+         clipping context (overflow) on the bar would hide the absolute
+         dropdown menus (§7.15). Auto height + wrap keeps them escaping. */
+      .demo-bar {
+        flex-wrap: wrap;
+        height: auto;
+        row-gap: 0.25rem;
+        padding: 0.3rem 1rem;
+        overflow: visible;
+      }
+      /* Lift the dropdown above sibling page DOM on mobile. */
+      .demo-dd-menu { z-index: 9000; }
     }
   `],
 })
@@ -583,10 +594,10 @@ export class DemoBarComponent {
   seedProposal(): void {
     this.seedingProposal.set(true);
     this.demoMsg.set('');
-    this.api.post<{ category: string; merchant: string; proposedPrice: number }>('/dev/seed-proposal', {}).subscribe({
+    this.api.post<{ category: string; servicer: string; proposedPrice: number }>('/dev/seed-proposal', {}).subscribe({
       next: (r) => {
         this.seedingProposal.set(false);
-        this.demoMsg.set(`Demo proposal from ${r.merchant} - RM ${r.proposedPrice} for the ${r.category} quote.`);
+        this.demoMsg.set(`Demo proposal from ${r.servicer} - RM ${r.proposedPrice} for the ${r.category} quote.`);
         setTimeout(() => this.demoMsg.set(''), 6000);
       },
       error: (e) => {

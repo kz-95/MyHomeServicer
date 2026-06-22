@@ -1621,7 +1621,7 @@ interface PublicConfig {
       }
       .action-btn {
         font-size: 0.78rem;
-        padding: 0.25rem 0.5rem;
+        padding: 0.625rem 0.625rem;
         border-radius: 6px;
       }
 
@@ -1668,7 +1668,7 @@ interface PublicConfig {
       }
       .ac-actions button {
         font-size: 0.78rem;
-        padding: 0.3rem 0.6rem;
+        padding: 0.625rem 0.6rem;
       }
       .ac-quote-field label {
         font-size: 0.82rem;
@@ -1720,7 +1720,7 @@ interface PublicConfig {
       .ac-budget-confirm {
         align-self: flex-start;
         font-size: 0.8rem;
-        padding: 0.35rem 0.7rem;
+        padding: 0.625rem 0.7rem;
         margin-top: 0.2rem;
       }
       .ac-quote-field input:focus,
@@ -1813,7 +1813,7 @@ interface PublicConfig {
       }
       .time-btn {
         font-size: 0.78rem;
-        padding: 0.3rem 0.5rem;
+        padding: 0.625rem 0.625rem;
         border: 1px solid var(--color-border);
         border-radius: var(--radius);
         background: var(--color-surface);
@@ -1882,7 +1882,7 @@ interface PublicConfig {
       .ac-confirm {
         align-self: flex-start;
         font-size: 0.8rem;
-        padding: 0.4rem 0.8rem;
+        padding: 0.625rem 0.8rem;
         margin-top: 0.3rem;
       }
       .ac-confirm:disabled {

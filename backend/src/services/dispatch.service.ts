@@ -3,9 +3,10 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { badRequest, conflict, notFound } from '../lib/errors';
 import { enqueue, JOB_NAMES, jobQueue } from '../lib/queue';
-import { emitToMerchant } from '../socket';
+import { emitToServicer, emitToServicers, emitToUser } from '../socket';
 import { notify } from './notification.service';
 import { getSetting } from './settings.service';
+import { resolveListingAccept } from './listing-accept.service';
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
@@ -20,11 +21,11 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
   });
   if (existingBooking) return;
 
-  // Find broadcasts with merchant schedule data.
+  // Find broadcasts with servicer schedule data.
   const broadcasts = await prisma.quoteBroadcast.findMany({
     where: { quoteRequestId, declinedAt: null },
     include: {
-      merchant: {
+      servicer: {
         select: {
           id: true, isOnline: true, categoryId: true,
           schedules: {
@@ -40,9 +41,9 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
   const currentDay = WEEKDAYS[now.getUTCDay()];
   const currentHour = now.getUTCHours() + 8; // MYT (UTC+8)
 
-  const eligible: { merchantId: string }[] = [];
+  const eligible: { servicerId: string }[] = [];
   for (const bc of broadcasts) {
-    const m = bc.merchant;
+    const m = bc.servicer;
     if (!m.isOnline) continue;
 
     // Check working hours from ServicerSchedule.
@@ -55,17 +56,17 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
     });
     if (!inWorkingHours) continue;
 
-    eligible.push({ merchantId: m.id });
+    eligible.push({ servicerId: m.id });
   }
 
   if (eligible.length === 0) return;
 
   // Store rotation order as JSON in the first broadcast's metadata.
   const rotationOrder: Record<string, number> = {};
-  eligible.forEach((e, i) => { rotationOrder[e.merchantId] = i; });
+  eligible.forEach((e, i) => { rotationOrder[e.servicerId] = i; });
 
   const first = eligible[0];
-  const firstBc = broadcasts.find((b) => b.merchantId === first.merchantId);
+  const firstBc = broadcasts.find((b) => b.servicerId === first.servicerId);
   if (!firstBc) return;
 
   await prisma.quoteBroadcast.update({
@@ -91,7 +92,7 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
   });
   if (!quote) return;
 
-  await sendDispatchPrompt(firstBc.id, first.merchantId, quote);
+  await sendDispatchPrompt(firstBc.id, first.servicerId, quote);
 
   const timeoutSetting = await getSetting<{ seconds: number }>('dispatch_prompt_timeout_seconds');
   const timeout = timeoutSetting.seconds;
@@ -102,7 +103,7 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
   );
 
   logger.info('Dispatch rotation started', {
-    quoteRequestId, merchantId: first.merchantId, eligibleCount: eligible.length, timeoutSeconds: timeout,
+    quoteRequestId, servicerId: first.servicerId, eligibleCount: eligible.length, timeoutSeconds: timeout,
   });
 }
 
@@ -111,7 +112,7 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
  */
 async function sendDispatchPrompt(
   broadcastId: string,
-  merchantId: string,
+  servicerId: string,
   quote: {
     id: string;
     category: { name: string; icon: string | null };
@@ -125,7 +126,7 @@ async function sendDispatchPrompt(
     serviceDetails: unknown;
   },
 ): Promise<void> {
-  emitToMerchant(merchantId, 'dispatch.prompt', {
+  emitToServicer(servicerId, 'dispatch.prompt', {
     broadcastId,
     quoteId: quote.id,
     category: { name: quote.category.name, icon: quote.category.icon },
@@ -144,7 +145,7 @@ async function sendDispatchPrompt(
   });
 
   await notify({
-    merchantId,
+    servicerId,
     type: 'jobs',
     message: `New dispatch: ${quote.category.name} — review and accept`,
     linkUrl: '/servicer/jobs',
@@ -155,31 +156,23 @@ async function sendDispatchPrompt(
  * Handles a servicer accepting a dispatch prompt.
  */
 export async function handleDispatchAccept(
-  merchantId: string,
+  servicerId: string,
   broadcastId: string,
 ): Promise<{ bookingId: string }> {
   const broadcast = await prisma.quoteBroadcast.findUnique({
     where: { id: broadcastId },
     include: {
       quoteRequest: {
-        select: { id: true, categoryId: true, userId: true, budgetMax: true, paymentMode: true, preferredDate: true, timeSlot: true },
+        select: { id: true, categoryId: true, userId: true, budgetMax: true, paymentMode: true, preferredDate: true, timeSlot: true, serviceDetails: true, status: true },
       },
-      merchant: { select: { id: true, name: true } },
+      servicer: { select: { id: true, name: true } },
     },
   });
-  if (!broadcast || broadcast.merchantId !== merchantId) {
+  if (!broadcast || broadcast.servicerId !== servicerId) {
     throw notFound('Dispatch prompt not found');
   }
   if (broadcast.declinedAt) {
     throw badRequest('You have already declined this dispatch');
-  }
-
-  // Atomic "first accept wins".
-  const existingBooking = await prisma.booking.findFirst({
-    where: { quoteRequestId: broadcast.quoteRequestId, status: { not: 'cancelled' } },
-  });
-  if (existingBooking) {
-    throw conflict('This job has already been accepted by another servicer');
   }
 
   // Cancel the rotation timeout job.
@@ -187,32 +180,54 @@ export async function handleDispatchAccept(
 
   const qr = broadcast.quoteRequest;
 
-  // Create proposal as "selected" (accepted).
-  const proposal = await prisma.quoteProposal.create({
-    data: {
-      quoteRequestId: qr.id,
-      merchantId,
-      proposedPrice: typeof qr.budgetMax === 'object' && qr.budgetMax ? (qr.budgetMax as any).toNumber() : (qr.budgetMax ?? 0),
-      message: 'Accepted via dispatch prompt',
-      status: 'selected',
-      isAuto: false,
-    },
+  // Compute the proposal price + duration + message from the servicer's listing
+  // (SP-3 engine), falling back to budget/base when no listing exists.
+  const accept = await resolveListingAccept(servicerId, {
+    categoryId: qr.categoryId,
+    serviceDetails: qr.serviceDetails,
+    budgetMax: typeof qr.budgetMax === 'object' && qr.budgetMax ? (qr.budgetMax as any).toNumber() : (qr.budgetMax ?? null),
   });
 
-  // Create booking in confirmed status.
-  const booking = await prisma.booking.create({
-    data: {
-      quoteRequestId: qr.id,
-      merchantId,
-      userId: qr.userId,
-      proposalId: proposal.id,
-      status: 'confirmed',
-      price: typeof qr.budgetMax === 'object' && qr.budgetMax ? (qr.budgetMax as any).toNumber() : (qr.budgetMax ?? 0),
-      paymentMode: qr.paymentMode,
-      scheduledDate: qr.preferredDate,
-      timeSlot: qr.timeSlot,
-      confirmedAt: new Date(),
-    },
+  // Atomic "first accept wins": flip the quote open→matched in a single
+  // conditional update inside the booking transaction. If another servicer
+  // already matched it (or a customer selected a proposal), updateMany affects
+  // 0 rows and we abort before creating the booking — closing the findFirst
+  // race window (BUG: two servicers could both pass the old read check).
+  const booking = await prisma.$transaction(async (tx) => {
+    const claim = await tx.quoteRequest.updateMany({
+      where: { id: qr.id, status: 'open' },
+      data: { status: 'matched' },
+    });
+    if (claim.count === 0) {
+      throw conflict('Sorry, this job was taken by another servicer.');
+    }
+
+    const proposal = await tx.quoteProposal.create({
+      data: {
+        quoteRequestId: qr.id,
+        servicerId,
+        proposedPrice: accept.price,
+        etaMinutes: accept.durationMin,
+        message: accept.message ?? 'Accepted via dispatch prompt',
+        status: 'selected',
+        isAuto: false,
+      },
+    });
+
+    return tx.booking.create({
+      data: {
+        quoteRequestId: qr.id,
+        servicerId,
+        userId: qr.userId,
+        proposalId: proposal.id,
+        status: 'confirmed',
+        price: accept.price,
+        paymentMode: qr.paymentMode,
+        scheduledDate: qr.preferredDate,
+        timeSlot: qr.timeSlot,
+        confirmedAt: new Date(),
+      },
+    });
   });
 
   // Mark broadcast metadata.
@@ -226,15 +241,26 @@ export async function handleDispatchAccept(
     },
   });
 
-  // Notify customer.
+  // Notify customer + push a live booking event so their UI updates.
   await notify({
     userId: qr.userId,
     type: 'orders',
     message: `Your booking has been accepted!`,
     linkUrl: '/customer/bookings',
   });
+  emitToUser(qr.userId, 'booking.confirmed', { bookingId: booking.id, servicerName: broadcast.servicer.name });
 
-  logger.info('Dispatch accepted', { merchantId, broadcastId, bookingId: booking.id });
+  // Tell every other broadcast servicer the quote is now matched so their
+  // pending feeds drop it live (mirrors booking.service.selectProposal).
+  const others = await prisma.quoteBroadcast.findMany({
+    where: { quoteRequestId: qr.id, servicerId: { not: servicerId } },
+    select: { servicerId: true },
+  });
+  if (others.length > 0) {
+    emitToServicers(others.map((b) => b.servicerId), 'quote.matched', { quoteId: qr.id });
+  }
+
+  logger.info('Dispatch accepted', { servicerId, broadcastId, bookingId: booking.id });
   return { bookingId: booking.id };
 }
 
@@ -242,7 +268,7 @@ export async function handleDispatchAccept(
  * Handles a servicer declining a dispatch prompt.
  */
 export async function handleDispatchDecline(
-  merchantId: string,
+  servicerId: string,
   broadcastId: string,
 ): Promise<void> {
   const broadcast = await prisma.quoteBroadcast.findUnique({
@@ -252,13 +278,13 @@ export async function handleDispatchDecline(
         select: { id: true, categoryId: true },
         include: {
           broadcasts: {
-            include: { merchant: { select: { id: true, isOnline: true } } },
+            include: { servicer: { select: { id: true, isOnline: true } } },
           },
         },
       },
     },
   });
-  if (!broadcast || broadcast.merchantId !== merchantId) {
+  if (!broadcast || broadcast.servicerId !== servicerId) {
     throw notFound('Dispatch prompt not found');
   }
 
@@ -273,19 +299,19 @@ export async function handleDispatchDecline(
   const rotationOrder = (meta.rotationOrder as Record<string, number>) ?? {};
   const currentIndex = (meta.currentIndex as number) ?? 0;
 
-  // Find next eligible merchant from rotation order.
+  // Find next eligible servicer from rotation order.
   const eligibleIds = Object.entries(rotationOrder)
     .sort(([, a], [, b]) => a - b)
     .map(([id]) => id);
 
   const nextIndex = currentIndex + 1;
   if (nextIndex < eligibleIds.length) {
-    const nextMerchantId = eligibleIds[nextIndex];
+    const nextServicerId = eligibleIds[nextIndex];
 
     const nextBroadcast = broadcast.quoteRequest.broadcasts.find(
-      (b) => b.merchantId === nextMerchantId && b.declinedAt === null,
+      (b) => b.servicerId === nextServicerId && b.declinedAt === null,
     );
-    if (nextBroadcast && nextBroadcast.merchant.isOnline) {
+    if (nextBroadcast && nextBroadcast.servicer.isOnline) {
       await prisma.quoteBroadcast.update({
         where: { id: nextBroadcast.id },
         data: {
@@ -303,7 +329,7 @@ export async function handleDispatchDecline(
         },
       });
       if (quote) {
-        await sendDispatchPrompt(nextBroadcast.id, nextMerchantId, quote);
+        await sendDispatchPrompt(nextBroadcast.id, nextServicerId, quote);
 
         const timeoutSetting = await getSetting<{ seconds: number }>('dispatch_prompt_timeout_seconds');
         const timeout = timeoutSetting.seconds;
@@ -315,8 +341,8 @@ export async function handleDispatchDecline(
 
         logger.info('Dispatch rotated', {
           quoteRequestId: broadcast.quoteRequestId,
-          fromMerchant: merchantId,
-          toMerchant: nextMerchantId,
+          fromServicer: servicerId,
+          toServicer: nextServicerId,
         });
         return;
       }
@@ -339,7 +365,7 @@ export async function handleDispatchTimeout(payload: {
   const broadcast = await prisma.quoteBroadcast.findUnique({
     where: { id: broadcastId },
     include: {
-      merchant: { select: { id: true } },
+      servicer: { select: { id: true } },
       quoteRequest: { select: { id: true } },
     },
   });
@@ -355,7 +381,7 @@ export async function handleDispatchTimeout(payload: {
     where: { id: broadcastId },
     data: { declinedAt: new Date() },
   });
-  await handleDispatchDecline(broadcast.merchant.id, broadcastId);
+  await handleDispatchDecline(broadcast.servicer.id, broadcastId);
 }
 
 /** Map a timeSlot to an hour range [start, end). */

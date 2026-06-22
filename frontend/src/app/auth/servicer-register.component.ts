@@ -11,11 +11,11 @@ interface Category {
 }
 
 /**
- * Merchant ("servicer") registration page. The platform category is fixed at
- * registration - a merchant operates within one main category.
+ * Servicer ("servicer") registration page. The platform category is fixed at
+ * registration - a servicer operates within one main category.
  */
 @Component({
-    selector: 'app-merchant-register',
+    selector: 'app-servicer-register',
     imports: [FormsModule, RouterLink, PhoneInputComponent],
     template: `
     <div class="wrap">
@@ -141,6 +141,8 @@ interface Category {
       .wrap {
         display: flex;
         justify-content: center;
+        height: 100vh;
+        overflow-y: auto;
         padding: 6vh 1rem;
       }
       .box {
@@ -229,7 +231,7 @@ interface Category {
     `,
     ]
 })
-export class MerchantRegisterComponent implements OnInit {
+export class ServicerRegisterComponent implements OnInit {
   private auth = inject(AuthService);
   private api = inject(ApiService);
   private router = inject(Router);
@@ -297,7 +299,7 @@ export class MerchantRegisterComponent implements OnInit {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
     this.auth
-      .registerMerchant({
+      .registerServicer({
         name: this.name,
         email: this.email,
         phone: this.phone,

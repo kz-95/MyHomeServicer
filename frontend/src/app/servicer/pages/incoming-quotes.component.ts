@@ -16,13 +16,13 @@ interface IncomingQuote {
   budgetMin?: number;
   budgetMax?: number;
   derivedStatus: string;
-  merchantDeadline: string;
+  servicerDeadline: string;
   myProposalId?: string | null;
 }
 
 /**
  * Servicer incoming-quotes feed. New quotes arrive live over Socket.io;
- * the merchant expands one (which marks it opened) and submits a proposal.
+ * the servicer expands one (which marks it opened) and submits a proposal.
  */
 @Component({
   selector: 'app-incoming-quotes',
@@ -73,12 +73,18 @@ interface IncomingQuote {
             </div>
           </div>
           <div class="right">
-            <app-countdown [deadline]="q.merchantDeadline" />
+            <app-countdown [deadline]="q.servicerDeadline" />
             @if (q.myProposalId) {
               <span class="done">Proposal sent</span>
             }
           </div>
         </div>
+
+        @if (!q.myProposalId) {
+          <div class="accept-row">
+            <button class="btn-primary" (click)="acceptListing(q, $event)" [disabled]="busy()">Accept Job</button>
+          </div>
+        }
 
         @if (expanded() === q.quoteId && !q.myProposalId) {
           <form class="propose" (ngSubmit)="propose(q)">
@@ -153,6 +159,7 @@ interface IncomingQuote {
       .err {
         color: var(--color-danger);
       }
+      .accept-row { margin-top: 0.6rem; display: flex; }
     `,
   ],
 })
@@ -177,7 +184,7 @@ export class IncomingQuotesComponent implements OnInit, OnDestroy {
     if (rf === 'new') list = list.filter((qt) => !qt.myProposalId);
     else if (rf === 'responded') list = list.filter((qt) => !!qt.myProposalId);
     const s = this.sort();
-    if (s === 'recent') list.sort((a, b) => new Date(b.merchantDeadline).getTime() - new Date(a.merchantDeadline).getTime());
+    if (s === 'recent') list.sort((a, b) => new Date(b.servicerDeadline).getTime() - new Date(a.servicerDeadline).getTime());
     else if (s === 'budget_desc') list.sort((a, b) => (b.budgetMax ?? 0) - (a.budgetMax ?? 0));
     else if (s === 'budget_asc') list.sort((a, b) => (a.budgetMax ?? 0) - (b.budgetMax ?? 0));
     return list;
@@ -216,6 +223,29 @@ export class IncomingQuotesComponent implements OnInit, OnDestroy {
     if (next) {
       this.api.post(`/servicer/quotes/${q.quoteId}/open`, {}).subscribe({ error: () => {} });
     }
+  }
+
+  /** One-tap accept: submit a proposal at the listing's computed price. */
+  acceptListing(q: IncomingQuote, event: Event): void {
+    event.stopPropagation();
+    if (this.busy()) return;
+    this.busy.set(true);
+    this.error.set('');
+    this.api.post(`/servicer/quotes/${q.quoteId}/accept-listing`, {}).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.load();
+      },
+      error: (e) => {
+        this.busy.set(false);
+        if (e.error?.message?.includes('taken')) {
+          this.error.set('Sorry, this job was taken by another servicer.');
+          this.load();
+        } else {
+          this.error.set(e.error?.message ?? e.message ?? 'Could not accept the job.');
+        }
+      },
+    });
   }
 
   propose(q: IncomingQuote): void {

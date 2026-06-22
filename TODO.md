@@ -1,6 +1,190 @@
 # TODO — Current Project State
 
-> **State: 🟢 ACTIVE** — 2026-06-12 (quote/proposal realtime + servicer pending card redesign)
+> **State: 🟢 ACTIVE** — 2026-06-22 (autopilot backlog sweep — see SESSION-HANDOFF.md)
+
+---
+
+## 🟢 Autopilot backlog sweep — 2026-06-22 (branch `feat/sp3-dispatch-cards`)
+
+Full detail + next-agent actions in `docs/ai-context/logs/SESSION-HANDOFF.md`.
+
+- [x] Committed inherited dirty tree: 60s PIN cooldown (backend), demo-autofill
+      gated behind `DemoUnlockService.unlocked()` + review layout polish + favicon (frontend).
+- [x] `fix(sp3)` MYT weekday in `sp3-auto-accept availabilityOk` (shift +8h before
+      `getUTCDay`); coerce Decimal-as-string module price → Number on load (carry-fwd #2).
+- [x] **Discovery — SP-3 Work-stream A already DONE.** `ServicerService` already has
+      `listingMode`/`moduleRefs`/`autoAccept`/`estimatedDurationMinutes`/`priceType`/
+      `autoAcceptMessage` (rename + commits `0cc8984`/`23fdc47`). 3 engines compile clean.
+      No migration needed. (See "Work-stream A" section below — superseded.)
+- [x] **Discovery — painting/moving/gardening seed already correct** (M97–M105 =
+      9 servicers / 18 published listings). Browse shows 0 ONLY because live DB predates
+      the rows. **ACTION: `cd backend && npm run db:reset`** (blocked this session by the
+      guardian destructive-command gate; safe — DB confirmed in sync, no server running).
+- [x] **Discovery — routing restructure mostly moot.** linkUrl emitters / dead links /
+      IDOR all already correct (recon in handoff). Only cosmetic flat→nested nesting left
+      = low value, would break working links. Recommend skip.
+- [ ] **Deferred to next agent (LARGE/risky):** SP-3 B wire `evaluateAutoAcceptGates` into
+      live `quote.service.ts:503` flow; SP-3 C proposal-redesign breakdown/add-ons; SP-3 E/F
+      migration+tests; CI workflows push-checks/pr-gate/nightly (never created — keep `ci.yml`).
+- Gates this session: backend `tsc` 0, frontend `tsc` 0, `ng build` AOT 0.
+
+---
+
+## 🟡 Payment gate before broadcast — 2026-06-17 (branch `feat/questionSchema-in-chat`)
+
+Quotes were broadcast to servicers BEFORE payment settled: pay_now (credit) deducted
+the budget hold AFTER `quoteBroadcast.createMany` + `quote.new` emit + dispatch
+rotation; the guest pay_now path broadcast immediately and created the Stripe session
+afterwards. Fix gates ALL payment modes before any broadcast/dispatch/notify.
+
+- [x] **Schema:** `pending_payment` added to `QuoteStatus` enum (`schema.prisma`).
+- [x] **`quote.service.ts`:** broadcast/auto-accept/dispatch/job-scheduling extracted to
+      `broadcastQuote(quoteId)` (idempotent — skips an already-broadcast quote). `createQuote`
+      now deducts the pay_now credit hold **before** calling `broadcastQuote`; on a gate failure
+      the quote exists but never broadcasts. New `deferBroadcastUntilPayment` option →
+      guest pay_now is parked `pending_payment`, not broadcast. New `settleAndBroadcastGuestQuote(quoteId)`
+      takes the hold + broadcasts + flips to `open`.
+- [x] **`stripe.routes.ts`:** `handleCheckoutSessionCompleted` reads the pending top-up's
+      `metadata.{quoteId,guestPayment}` and calls `settleAndBroadcastGuestQuote` after funding the wallet.
+- [x] **`quotes.routes.ts`:** guest pay_now Stripe-session failure leaves the quote `pending_payment`
+      and un-broadcast (no `stripeUrl` in response); customer can retry.
+- [x] **Tests:** `tests/unit/payment-gate.test.ts` (hold amount the gate deducts, 5 cases, green);
+      `tests/e2e/quote-flow.test.ts` new RUN_E2E block — guest pay_now → `pending_payment` + 0 broadcast/0 proposals; `settleAndBroadcastGuestQuote` → `open` + idempotent.
+- [x] Docs synced: `schema-notes.md` (QuoteStatus), `api-doc.md` (POST /quotes payment-gate note),
+      `security-notes.md` (Payment gate before broadcast).
+- [x] Backend `tsc --noEmit` — 0 errors in changed files (only the 2 pre-existing tsconfig
+      TS5101/TS5107 deprecation warnings remain).
+- [x] **Migration applied + client regenerated.** DB `QuoteStatus` enum verified to include
+      `pending_payment` (`migrate status` = in sync). The `ALTER TYPE "QuoteStatus" ADD VALUE
+      'pending_payment'` lives in `prisma/migrations/20260617124345_/migration.sql` (created by the
+      parallel payment-wave agent). NOTE: my `20260617124809_sp_quote_pending_payment/` migration is
+      collateral — it captured an unrelated **invoices.due_date default** drift from another agent's
+      uncommitted schema edit (benign, applied). Whoever owns the invoices change should confirm the
+      migration name/attribution; functionally the DB is in sync.
+- [ ] Restart backend dev server (it was stopped for the migration DLL lock; the bat/auto-committer
+      normally restarts it).
+
+---
+
+## 🔴 Quote / Dispatch / Payment fix wave — 2026-06-17
+
+> From live testing. Design discussed + locked with user. Online accept = **submit
+> proposal** (no race); customer select = **auto-confirm booking, no servicer re-confirm**;
+> payment gated **all modes** before broadcast; demo → plumbing ×2 distinct identities.
+> Run as 5 agents in 2 waves by **file ownership** (jobs.component.ts owned by ONE agent).
+> Each agent updates its own docs (schema-notes / api-doc) in-session.
+
+### WAVE 1 — parallel (disjoint files)
+
+- [ ] **A — Payment gate (backend)** — broadcast + dispatch fire BEFORE payment settles
+      (`quote.service.ts` broadcast ~323-350 / dispatch ~412 vs hold deduct ~435; guest
+      `createGuestQuote` ~783-851 hardcodes `skipCreditCheck:true`, Stripe after broadcast
+      `quotes.routes.ts:169`). Gate ALL modes before broadcast: pay_now credit → deduct first;
+      guest gateway → quote `pending_payment`, broadcast only on Stripe `checkout.session.completed`
+      webhook; pay_later/cash → validate account + `requireNoUnpaidInvoice`. Wrap so a gate
+      failure leaves zero broadcast rows / no socket / no notify. Files: `quote.service.ts`,
+      `quotes.routes.ts`, `stripe.routes.ts`. Gate: BE `tsc` 0 + jest.
+- [ ] **B — Demo data (frontend forms)** — (1) ✅ DONE (2026-06-17): guest stale answers cleared via
+      `f.answers={}` in `guest-quote.component.ts onCategoryChange` (L898) + `onParentChange` (L887);
+      `ng build` AOT 0. (2) repoint both
+      demo autofills to plumbing, distinct: customer (`quote-form.component.ts demoAutoFill ~1798`)
+      = plumbing child A + Sarah Lim (keep `+60 12-345 6789`); guest (`guest-quote ~919`) = a
+      DIFFERENT plumbing child B + Zen `+60 11-3929 6559`. Pick children by slug, no shared sample.
+      Files: `guest-quote.component.ts`, `customer/pages/quote-form.component.ts`. Gate: `ng build` 0.
+- [x] **C — Photo picker (frontend)** — `jobs.component.ts:415-424` "Choose photo" opened no dialog.
+      Root cause: `.file-label{display:inline-flex}` label wrapping a `display:none` input + a nested
+      `<span class="btn-ghost file-btn">` visible button broke the implicit label→input click. Fixed to
+      the working pattern (`listing-simple.component.ts:52-61`): label carries the button classes,
+      visible text/icon is a direct child, input uses the `hidden` attr — no wrapper span. Audited all
+      file pickers: same nested-span-inside-label pattern also found + fixed in
+      `admin/pages/settings.component.ts` (category thumbnail "Upload") and
+      `admin/pages/category-settings.component.ts` (thumbnail "Upload"). Removed dead `.file-label`/
+      `.file-hidden` CSS. `servicer/account`, `customer/account` (text direct in label),
+      `listing-advanced` (already working pattern), `faq`/`ai-chat-settings` (explicit `fileInput.click()`),
+      `uiux-settings` (native visible input) verified OK — left unchanged. Gate: `ng build` AOT 0.
+
+### WAVE 2 — after C lands (jobs.component.ts owner = Agent D)
+
+- [x] **D — Dispatch + booking-flow + cards bundle** — ✅ DONE (2026-06-17, branch `feat/sp3-dispatch-cards`).
+      No-re-confirm (booking `confirmed` on select + dispatch accept; no-show scheduled at creation; `confirmJob`
+      dead-path); online→center guard / offline→corner toast; one-tap Accept Job → `POST /quotes/:id/accept-listing`
+      (listing-computed price/duration via the live `computePrefill` + base fallback — did NOT wire the still-broken
+      Phase-2 `listing-pricing.service`, whose `ModuleRef.kind`/`durationDeltaMin` usage mismatches the committed
+      schema, Work-stream A's scope); post-accept 3-line collapse; atomic "taken" guard (conditional `updateMany`
+      claim → 409 "taken by another servicer"); active card same detail + `<app-wa-button>`. Gates: BE `tsc` 0
+      (only tsconfig TS5101/TS5107 deprecations), `jest tests/unit` 259 pass (`listing-pricing.test.ts` pre-broken =
+      Work-stream A, my code doesn't import it), `ng build` AOT 0. — reuse untracked SP-3 `listing-pricing.service.ts`
+      (fallback `basePrice`+`estimatedDurationMinutes`). (1) **No re-confirm**: `booking.service.selectProposal`
+      → booking `confirmed` not `pending_confirm`; remove servicer Confirm step (`jobs.component.ts ~291-312`);
+      same in `dispatch.service` accept. (2) **Online/offline branch**: `dispatch-prompt-guard.component.ts`
+      (~263) show center guard only when `isOnline`, else corner toast; route `quote.new` through guard when
+      online. (3) **Accept Job button** on pending card → one-tap submit proposal at computed
+      `{price,duration,auto-msg}`. (4) **Post-accept collapse** to 3 lines `[Price][Duration]` + `[Message]`.
+      (5) **"Taken" guard**: tap on already-matched/closed quote → backend conflict → "taken by another
+      servicer"; harden `dispatch.service.ts:177` findFirst→create into atomic txn/conditional update.
+      (6) **Awaiting (proposal sent, awaiting customer pick) + Active (won/confirmed) cards** = same detail
+      as pending card. Imports `<app-wa-button>` from E. Files: `jobs.component.ts`, `incoming-quotes.component.ts`,
+      `dispatch-prompt-guard.component.ts`, `booking.service.ts`, `dispatch.service.ts`, routes. Gates: BE `tsc` 0 + jest, `ng build` 0.
+- [x] **E — Servicer WhatsApp preset CRUD + wa.me** — ✅ DONE (2026-06-17, branch `feat/sp3-wa-preset`).
+      `ServicerWaPreset` model + migration `20260617201521_sp3_servicer_wa_preset` (backend server stopped
+      for DLL lock; applied via `prisma db execute` + `migrate resolve --applied` so the unrelated in-DB
+      drift from other agents' WIP — `listing_mode`/`auto_accept_message`/`quote_proposals.listing_id`/
+      `QuoteStatus` — was NOT touched; client regenerated). Backend CRUD `/servicer/wa-presets`
+      (`servicer-wa-preset.{service,routes}.ts`, mounted in `index.ts`, servicerId-scoped, fields picked,
+      DELETE soft-disables). Frontend `<app-wa-preset-manager>` section in servicer Business Profile
+      (`account.component.ts`) + standalone reusable `<app-wa-button>` (`shared/wa-button.component.ts`).
+      Did NOT edit `jobs.component.ts` (D wires the button). Gates: BE `tsc` 0 in scope (3 untracked
+      Phase-2 engine files stay pre-broken pending Work-stream A schema columns — not my scope),
+      `ng build` AOT 0. wa-button contract for D: `[phone] [preset]({label,body}) [body] [vars]({name,orderId,eta}) [label] [disabled]`.
+      Original spec — new
+      `ServicerWaPreset` model `{id, servicerId, label, body(placeholders {name}{orderId}{eta}), active, ts}`
+      + migration (stop server, DLL lock). Backend CRUD `/servicer/wa-presets` (servicerId-scoped, fields
+      picked). Frontend presets manager (servicer settings) + standalone reusable `<app-wa-button>`
+      (phone + preset → `https://wa.me/<intlPhone>?text=<encoded>`). **Do NOT edit `jobs.component.ts`**
+      (D adds the button). Files: schema.prisma, migration, `servicer-wa-preset.{service,routes}.ts`,
+      `routes/index.ts`, settings component, `wa-button.component.ts`. Gates: BE `tsc` 0, `ng build` 0.
+
+### Seed (paused — record for when seeding resumes)
+- New customer **Zen** `+60 11-3929 6559` (guest demo identity); **Ahmad Bin Ismail** M1 plumber
+  `+60 18-286 2739`; **Sarah Lim** keeps `+60 12-345 6789`. Real numbers so wa.me demo links deliver.
+
+---
+
+## ✅ Seed servicers for Painting, Moving, Gardening — 2026-06-17
+
+- [x] Added M97–M105 to `backend/prisma/seed/data/accounts.ts` (3 merchants per new category)
+- [x] Added 9 entries to `merchantSlugs` in `backend/prisma/seed/seed.ts` (bulk completed bookings)
+- [x] Updated "105 merchants" comment in seed.ts; updated header in accounts.ts
+- [x] `npm run db:reset` — 1107 bulk completed bookings, all 105 merchants seeded
+
+---
+
+## ✅ QA harness — repeated-card answer variance — 2026-06-17
+
+### Fix — repeated card caused harness to re-send same answer verbatim
+- [x] Root cause: `driveScenario` incremented `sameSigCount` on a repeated card but
+      fell through to `actOnCard` — re-tapping the same card with identical data,
+      making the simulated customer look like a broken record.
+- [x] Fix: on `sig === lastSig` (card seen before), skip `actOnCard` entirely and
+      send a prose text reply instead — `naturalQuestionReply` for `quote_question`,
+      `freeTextForField`/`humanAnswerText` for `quote_field`, random-pick from 3
+      phrasings for other card types — then `waitIdle` + `flush` + `continue`.
+- [x] Gate: `npx tsc --noEmit` 0 errors.
+
+---
+
+## ✅ pending_confirm jobs moved to Pending tab — 2026-06-15
+
+### Bug — `pending_confirm` jobs showed in Active tab instead of Pending
+- [x] Root cause: `jobs.component.ts:108` `const ACTIVE = ['pending_confirm', 'confirmed', 'in_progress']`
+      classified `pending_confirm` jobs into the Active tab. They belong in Pending (awaiting servicer
+      confirmation, not yet started).
+- [x] Fix: removed `pending_confirm` from `ACTIVE`; added `pendingJobs` computed signal filtering
+      jobs by `status === 'pending_confirm'`; inserted "Awaiting confirmation" section in the
+      Pending tab body (below incoming quotes) with Confirm/Cancel/View details actions.
+- [x] Cleanup: removed `pending_confirm` chip from Active tab filter chips; updated `activeFilter`
+      type and `hydrateFromRoute` to drop the stale filter value.
+- [x] Gates: frontend `tsc --noEmit` 0 errors, `ng build` green.
 
 ---
 
@@ -16,10 +200,9 @@ full field audit + security note** recorded in
 - SP-3 service listings (radius, maxAutoAccepts, contact prefill) — deferred
 - SP-4 role switch toggle — deferred
 - **SP-5 Business Profile restructure — ✅ IMPLEMENTED 2026-06-12** — schema (`ServicerContact` model + migration with seed backfill), backend (contact CRUD, updated profile endpoints, `backupEmail` on customer update, auto-derived `isCompany`, public profile with `visibleToCustomer` contacts, categoryId change-request via identity pipeline), frontend (single Business Profile page with 7 sections, business contacts CRUD, tax config + calculator, operating hours editor, service areas, bank editor moved to deposit page, backupEmail on customer account, nav cleanup removing redundant dashboard from jobs history).
-- SP-3 service listings — **🟢 Phase 1 IMPLEMENTED 2026-06-12** (see section below); Phase 2 pending review
+- SP-3 service listings — **🟢 Phase 1 SIGNED OFF 2026-06-17** (review: 0 blockers); Phase 2 scoped + ready (see section below)
 - SP-6 KYC document upload UI — deferred
 - CAL calendar reroute → `/calendar/schedule` + `/calendar/workhours`
-- ⚠️ Security: `pin-prompt.component.ts:19` `false &&` disables gate-cover (uncommitted repro toggle) — restore before commit
 
 ---
 
@@ -55,13 +238,70 @@ Phase 2 (pricing engine, auto-accept, customer proposal, migration) is **pending
 - [x] Gates: backend `tsc` 0 · frontend `tsc` 0 · `ng build` AOT green · migration applied+committed.
       Docs synced (schema-notes, api-doc, this file).
 
-### Phase 2 (pending review — do not start until Phase 1 approved)
-- [ ] Pricing engine (§8) · duration scaling (§9) · Advanced 3-step wizard (§10.2)
-- [ ] Auto-accept 4-gate engine (§11) replacing `quoteMatchesAutoAccept`
-- [ ] Customer proposal redesign (§12) · `MerchantService`/`PricingModule` → `ServicerModule`
-      migration (§15) · demo seeding (§13)
+### Phase 2 — scoped plan (Phase 1 ✅ signed off 2026-06-17; review: 0 blockers)
 
-> ⚠️ **Backend dev server was stopped** for the Prisma migration (DLL lock) and **needs a restart**.
+**Already on disk (untracked, unwired) — pure engines, reviewed clean:**
+- `backend/src/services/listing-pricing.service.ts` — §8 stacking + flat tax, §9 duration. Pure fns.
+- `backend/src/services/sp3-auto-accept.service.ts` — §11 4-gate eval (pure).
+- `backend/src/services/proposal-view.service.ts` — §12/§14 enrichment + add-on recompute (pure).
+- `backend/tests/unit/listing-pricing.test.ts` — pricing unit tests.
+- `frontend/src/app/servicer/pages/listing-advanced.component.ts` — real Advanced 3-step wizard (replaces stub).
+
+**Work-stream A — schema rework (§14) [CRITICAL PATH — blocks everything below]**
+- [ ] Rework `MerchantService` for the new listing shape: `listingMode` (simple/advanced),
+      `moduleRefs` (Json: `ModuleRef[]` incl/addon + overridePrice + durationDeltaMin),
+      `autoAccept` (bool), `estimatedDurationMinutes` (int), confirm `priceType` exists.
+      The 3 engines already reference these fields — they won't wire until the columns exist.
+- [ ] Migration (stop server first — DLL lock). Additive; backfill `listingMode='simple'`,
+      `moduleRefs='[]'` for existing rows. Commit migration folder.
+- [ ] Update `schema-notes.md` same session.
+
+**Work-stream B — wire engines into the live flow (§11)**
+- [ ] Replace `quoteMatchesAutoAccept` + `MerchantProposalPreset` flow (`quote.service.ts:353`)
+      with `evaluateAutoAcceptGates`. Load servicer tax config + schedules + modulesById; enforce
+      per-account `maxAutoAccepts` cap around the call. On all-pass → create proposal at computed
+      total, `isAuto=true`.
+- [ ] ⚠️ **Review bug before wiring:** auto-accept `availabilityOk` uses `getUTCDay()` — MYT is
+      UTC+8, so a quote near midnight maps to the wrong weekday. Use the app TZ, not UTC.
+- [ ] Listing preview endpoint uses `computeListingPrice` for the servicer-side breakdown.
+
+**Work-stream C — customer proposal redesign (§12)**
+- [ ] Route `/customer/quotes/:id/proposals` — backend uses `proposal-view.service.ts` to enrich
+      each proposal (included modules, add-on options, breakdown, distance, availability window).
+- [ ] Add-on tick → `recomputeProposalPrice` live; selected add-ons captured into the booking.
+- [ ] Replace thin `proposals.component.ts` card (logo/rating/msg/eta/price) with collapsed+expanded
+      card per §12 (breakdown ▾, tickable add-ons, distance, ETA window, Choose).
+
+**Work-stream D — Advanced wizard (§10.2) + carry-forward from Phase 1 review**
+- [x] Wire `listing-advanced.component.ts` (3 steps: Basics / Pricing+options / Auto-accept;
+      Preview overlay; only Basics required). Replaced the stub route (`services/new/advanced`).
+      Backend: added `listing_mode` + `auto_accept_message` columns (migration
+      `20260619143732_sp3_listing_mode_and_auto_accept_message`); `createService`/`updateService`
+      + validators now pick `listingMode`/`moduleRefs`/`autoAccept`/`autoAcceptMessage`
+      (Zod `moduleRefsSchema`/`optionPriceMapSchema`). Stub `listing-advanced-stub.component.ts` now dead.
+- [x] **Carry-fwd #1:** `services/:id/edit` repointed to the new Advanced wizard; the component
+      reads `:id`, prefills basics/modules/per-option pricing from `GET /me/services`, and `PATCH`es on save.
+- [ ] **Carry-fwd #2:** Decimal-as-string typing — coerce `Number(m.price)` on load in
+      `services-modules.component.ts` (+ audit other listing money fields hitting number inputs).
+
+**Work-stream E — migration of old data (§15) + seeding (§13)**
+- [ ] Migrate `PricingModule` + old `MerchantService.modifiers`/`moduleRefs` → `ServicerModule`
+      library + listing module refs; preserve existing prices.
+- [ ] Seed a few modules/servicer + both a Simple and an Advanced listing/servicer (auto-accept on)
+      so matching + proposals + breakdown run end-to-end. (Painting/moving/gardening seed = covered by
+      the parallel clear-path task #2 — coordinate, don't double-seed.)
+
+**Work-stream F — tests + gates (§16)**
+- [ ] Unit: extend pricing tests (tax-inclusive extraction, duration scaling); add 4-gate eval tests
+      (budget/availability/coverage/Q-match edges).
+- [ ] E2E: create Simple+Advanced listing; module CRUD + "used in N"; proposal breakdown + add-on
+      recompute → booking captures add-ons; auto-accept fires only when all gates pass.
+- [ ] Gates: backend + frontend `tsc --noEmit` 0; `ng build` AOT; migration committed.
+
+**Suggested order:** A → B → (C ∥ D) → E → F. A is the hard dependency; the engines are done so
+B/C/D are mostly wiring once the columns exist.
+
+> ⚠️ **Backend dev server was stopped** for the Phase 1 migration (DLL lock) and **needs a restart**.
 
 ---
 
@@ -711,18 +951,19 @@ Rules to encode:
 - **A1 (conversational + mapping):** ask each question naturally with the options as hints ("no power? no sound? graphic lines?"); accept a free-text answer and the AI maps it to the matching option; the `quote_question` card still renders as an explicit fallback to tap.
 - **B2 (ask ALL questions):** ask every questionSchema question, required AND optional. Optional ones are asked briefly ("the input is there for a reason"), and the user can skip an optional one.
 - **"I don't know" option:** option-based questions (radio especially) for things a user may not be able to identify (e.g. TV screen type: LED / OLED / Plasma / **I don't know**) must include an "I'm not sure" / "I don't know" option. When chosen, the AI offers to help figure it out (A1), and it's recorded as unknown for the servicer rather than blocking the flow. (Content rule for the questionSchema editor + seed data.)
-- [ ] **After base fields, do NOT say "All information collected".** Say instead:
+- [x] **After base fields, do NOT say "All information collected".** Say instead:
   > Thank you for confirming your information! We've got all the information needed. Before we proceed, please bear with us, there are a few more questions to clarify.
-- [ ] **Then ask the category's questionSchema questions, one card at a time** (all of them), then a FINAL review (incl. budget bracket + question answers), then Review & submit.
-- [ ] **New `quote_question` action card**, rendered by type (5 types, value shapes per the quote form):
-  - `radio` → option buttons, single pick → string
-  - `checkbox` → multi-select chips → string[]
-  - `text` → text input → string
-  - `number` → number input (≥0) → number
-  - `quantity` → per-option steppers (− n +) → `{ [optionValue]: count }` (compact layout for the narrow panel)
-  - Required handling per type; answers accumulate into `prefillData.serviceDetails[key]` (same shape the quote form submits).
-  - Frontend needs the category's questionSchema (fetch like budget ranges, or carry it in the card). Backend `nextStepBlocks`/prompt gain a questionSchema step after contact, before `quote_prefill`.
-  - **Test each type for bugs** (radio/checkbox/number/quantity/text) before finalizing the card design.
+  — `CARD_TRANSITION_ACK` + `transitionToQuestionsAck()` in `chat.service.ts`; fires on card-confirm turn when entering questions for the first time (`answeredQuestions.length === 0` and next card is `quote_question`). Localized en/ms/zh/ta/rojak.
+- [x] **Then ask the category's questionSchema questions, one card at a time** (all of them), then a FINAL review (incl. budget bracket + question answers), then Review & submit.
+  — `computeNextCards` (card-confirm path) and `nextStepBlocks` safety-net (LLM path) both gate `quote_prefill` behind unanswered questions. `answeredQuestions` sent by frontend from `prefillData.serviceDetails`.
+- [x] **New `quote_question` action card**, rendered by type (5 types, value shapes per the quote form):
+  - `radio` → option buttons (`answerRadio`) → string
+  - `checkbox` → multi-select chips (`toggleQCheckbox` + `confirmQCheckbox`) → string[]
+  - `text` → text input (`confirmQText`) → string
+  - `number` → number input (`confirmQNumber`) → number
+  - `quantity` → per-option steppers (`incQ`/`decQ` + `confirmQQuantity`) → `{ [optionValue]: count }`
+  - Answers accumulate into `prefillData.serviceDetails[key]` via `setQuestionAnswer`. Backend `nextStepBlocks`/`computeNextCards` gate review until all done.
+  - Gates: backend tsc 0 (pre-existing TS5101/5107 deprecation warnings only), frontend ng build 0.
 
 ### Open question
 - (none — #8 decided: questionSchema in chat; #9 decided: budget brackets, show in review.)
@@ -975,19 +1216,7 @@ Switched the whole DB workflow from `db push` to **Prisma migrations** (reviewed
 > global (`styles.css`) so one edit fixes most surfaces; audit the listed elements
 > by eye after. Gates: `npx tsc --noEmit` 0 + `ng build` exit 0.
 
-- [~] **DISP-16 — Button text-padding floor ≥10px (BOTH axes, app-wide)** (`frontend/src/styles.css` + per-component) — BASE DONE: global `button` padding `0.6rem 1rem` → `0.625rem 1rem` (vertical 9.6→10px). REMAINING: per-component compact buttons that OVERRIDE padding below 0.625rem on either axis still need bumping (each grows taller, so eyeball toolbar/row heights after). §7.2 floor applies **horizontally AND vertically** (user-locked 2026-06-02). Offenders to sweep:
-  - **Base:** `styles.css` global `button` L287 `padding: 0.6rem 1rem` → `0.625rem 1rem` (vertical 9.6 → 10px; inline 16px already OK).
-  - **Audit + bump every** `.btn-sm`/`.btn-xs`/`.chip`/`.pill`/`.btn-cash`/`.btn-outline`/`.btn-today`/collapsed-toolbar chip etc. where **either** axis < 0.625rem. Both-axes offenders (page > tab > element):
-    - **Admin (`/admin`) > AI Chat tab > `.chip`** `0.12rem 0.55rem` — worst, both axes.
-    - **Admin > Categories tab > `.btn-xs`** & **Admin > Money tab > `.btn-xs`** `0.2rem 0.5rem`.
-    - **Admin > Settings tab > `.btn-xs` / `.btn-sm`** `0.2rem 0.55rem`.
-    - **Admin > API Keys tab > `.btn-sm`** `0.3rem 0.6rem`.
-    - **Servicer (`/servicer`) > Jobs tab > `.btn-cash` / `.btn-sm`** `0.25rem 0.6rem`; **Servicer > Jobs / Services tab > collapsed toolbar `.chip`** `0.15rem 0.5rem`.
-    - **Chat widget (floating, any page) > `.btn-outline`** `0.3rem 0.6rem`.
-  - **Vertical-only violators (passed inline, fail vertical <10px) — also bump:** `.btn-sm` `0.3rem 0.7rem` (**Customer > Rewards tab**, **Admin > Categories/Money tab**), `.btn-outline` `0.35rem 0.7rem` (**Admin > AI Chat tab**), `.btn-today` `0.25rem 0.7rem` (**Servicer > Calendar tab**), `.btn-reseed`/`.btn-ghost`/`.btn-primary` in **Demo bar** (`0.35–0.45rem` vertical — note §5.5 demo bar is special, confirm before bumping).
-  - **Customer > Quote form (`/quote`) > Step 2 > `.time-slot-row .pill`** (Morning/Noon/…/Night) — verify both axes.
-  - Icon-only (`.btn-icon`, e.g. **Quote form > Step 2 > address row > `.gps-btn` 📍**) exempt from the inline-text floor; keep ≥10px box padding around the glyph.
-  - **NOTE:** taller compact controls app-wide is intended. After bumping, re-gate `ng build` and eyeball toolbar/table-row heights (`.history-toolbar`, servicer jobs/services toolbars) for overflow or wrap.
+- [x] **DISP-16 — Button text-padding floor ≥10px (BOTH axes, app-wide)** — DONE 2026-06-17. Base `styles.css` `button` already at `0.625rem 1rem`. Per-component sweep bumped all remaining offenders: `jobs.component.ts` `.chip` (normal + collapsed toolbar), `rewards.component.ts` `.chip` / `.sort-dir` / `.demo-points-btn` / `.voucher-use`, `api-keys.component.ts` `.btn-demo` / `.btn-demo-confirm` / `.btn-demo-cancel` / `.btn-primary` / `.btn-outline` / `.btn-save` / `.btn-cancel` / `.btn-delete` / `.btn-fetch`, `chat-widget.component.ts` `.action-btn` / `.ac-actions button` / `.ac-budget-confirm` / `.time-btn` / `.ac-confirm`, `demo-bar.component.ts` `.demo-dd-item` / `.demo-action` / `.btn-reseed` / `.btn-primary` / `.btn-ghost` + inline unplug override, `calendar.component.ts` `.nav-btn` (≤560px). Gate: `ng build` green (10.7s). §7.2.
 - [x] **DISP-17 — Card bottom buffer 24px** — DONE: global `.card` padding `1.25rem` → `1.25rem 1.25rem 1.5rem` (24px bottom). Single global edit covers every `.card`/`.pane`. ng build 0. §7.1.2. Original audit notes:
   - **Quote form (`/quote`) > Step 2 (Contact & schedule) > `.card.pane` foot — `.actions` row** (← Back / Next: Summary →) — the reported case; buttons currently sit too close to the card bottom.
   - **Quote form (`/quote`) > Steps 1, 3, 4 > `.card.pane` > `.actions`** — same pattern, verify buffer.
@@ -1006,7 +1235,7 @@ Switched the whole DB workflow from `db push` to **Prisma migrations** (reviewed
 > 0 + `ng build` 0.
 
 - [x] **DISP-21a — Evidence previews already fixed** (commit `f97d024`, pushed): `.preview` (`servicer/pages/jobs.component.ts` — arrival/completion upload modals) + `.job-photo` (`shared/dispatch-overlay.component.ts` — incoming job photo) `cover`→`contain` + `background: var(--color-bg)`. Was the reported "photo cut off in the Upload arrival photo modal" — root cause was `cover` cropping, NOT modal overflow (`app-modal` body already scrolls). §9.6.1.
-- [ ] **DISP-21b — Sweep remaining evidence/preview images** (Frontend): find every OTHER image the user must read in full and convert `object-fit: cover`→`contain` + `var(--color-bg)` (or `background-size: cover`→`contain` for photo divs used as previews). **Keep `cover`** on avatars + fixed-frame thumbnails (8 classified correct: servicer/customer account avatars ×2, jobs + dispatch avatars, category-settings `.thumb-banner`/`.thumb-photo`, settings `.thumb-img`, uiux `.tb-preview img`, services `.lc-thumb`). Audit by surface:
+- [x] **DISP-21b — Sweep remaining evidence/preview images** (Frontend): find every OTHER image the user must read in full and convert `object-fit: cover`→`contain` + `var(--color-bg)` (or `background-size: cover`→`contain` for photo divs used as previews). **Keep `cover`** on avatars + fixed-frame thumbnails (8 classified correct: servicer/customer account avatars ×2, jobs + dispatch avatars, category-settings `.thumb-banner`/`.thumb-photo`, settings `.thumb-img`, uiux `.tb-preview img`, services `.lc-thumb`). Audit by surface:
   - **Customer (`/portal`) > My Bookings / booking detail > job photos + before/after** — full view, not crop.
   - **Customer / Servicer > chat (`app-chat`) > image attachments / lightbox** — show whole image.
   - **Servicer (`/servicer`) > profile / reviews > review photos** — full view.

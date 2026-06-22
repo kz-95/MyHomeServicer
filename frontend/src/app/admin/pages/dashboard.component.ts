@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 
 interface Dashboard {
-  merchants: number;
+  servicers: number;
   bookings: number;
   completedBookings: number;
   platformRevenue: number;
@@ -31,7 +31,7 @@ interface RevenueDay {
     @if (data(); as d) {
       <div class="grid page-child">
         <a class="card stat" routerLink="/admin/users" [queryParams]="{tab:'servicer'}" title="View all servicers">
-          <span class="n">{{ d.merchants }}</span>
+          <span class="n">{{ d.servicers }}</span>
           <span class="muted">Servicers</span>
         </a>
         <div class="card stat">

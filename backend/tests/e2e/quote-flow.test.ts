@@ -148,3 +148,94 @@ e2e('Quote → booking → done (end-to-end)', () => {
     expect(res.body.status).toBe('completed');
   });
 });
+
+// ── Payment gate before broadcast ─────────────────────────────────────────────
+// A guest pay_now quote must NOT be broadcast to servicers until the Stripe
+// payment settles. The quote is parked in pending_payment with zero broadcast
+// rows; the checkout.session.completed webhook (settleAndBroadcastGuestQuote)
+// flips it to open and broadcasts it only after the wallet is funded.
+e2e('Payment gate — guest pay_now is not broadcast before payment', () => {
+  let app: Application;
+  let categoryId = '';
+
+  const api = () => request(app);
+
+  beforeAll(async () => {
+    const { createApp } = await import('../../src/app');
+    app = createApp();
+  });
+
+  afterAll(async () => {
+    const { prisma } = await import('../../src/lib/prisma');
+    const { closeRedis } = await import('../../src/lib/redis');
+    const { closeQueue } = await import('../../src/lib/queue');
+    await Promise.allSettled([prisma.$disconnect(), closeQueue(), closeRedis()]);
+  });
+
+  it('resolves a category', async () => {
+    const res = await api().get('/api/v1/categories');
+    expect(res.status).toBe(200);
+    const plumbing = res.body.data.find((c: { slug: string }) => c.slug === 'plumbing');
+    expect(plumbing).toBeDefined();
+    categoryId = plumbing.id;
+  });
+
+  it('creates a guest pay_now quote that is pending_payment with NO broadcast rows', async () => {
+    const res = await api()
+      .post('/api/v1/quotes/guest')
+      .send({
+        categoryId,
+        contactName: 'Gate Tester',
+        contactNumber: '+60 12-111 1111',
+        address: '1 Gate Street, Kuala Lumpur',
+        timeSlot: 'morning',
+        preferredDate: new Date(Date.now() + 86_400_000).toISOString(),
+        paymentMode: 'pay_now',
+      });
+    expect(res.status).toBe(201);
+    const quoteId = res.body.id as string;
+    expect(quoteId).toBeTruthy();
+
+    const { prisma } = await import('../../src/lib/prisma');
+    const quote = await prisma.quoteRequest.findUnique({ where: { id: quoteId } });
+    // Gate: parked awaiting payment, never broadcast.
+    expect(quote?.status).toBe('pending_payment');
+    const broadcastCount = await prisma.quoteBroadcast.count({ where: { quoteRequestId: quoteId } });
+    expect(broadcastCount).toBe(0);
+    // No proposals (no auto-accept) and no dispatch booking until payment settles.
+    const proposalCount = await prisma.quoteProposal.count({ where: { quoteRequestId: quoteId } });
+    expect(proposalCount).toBe(0);
+  });
+
+  it('broadcasts the quote once payment settles (settleAndBroadcastGuestQuote)', async () => {
+    const { prisma } = await import('../../src/lib/prisma');
+    const { settleAndBroadcastGuestQuote } = await import('../../src/services/quote.service');
+
+    // Create another guest pay_now quote to settle.
+    const res = await api()
+      .post('/api/v1/quotes/guest')
+      .send({
+        categoryId,
+        contactName: 'Gate Settle',
+        contactNumber: '+60 12-222 2222',
+        address: '2 Gate Street, Kuala Lumpur',
+        timeSlot: 'morning',
+        preferredDate: new Date(Date.now() + 86_400_000).toISOString(),
+        paymentMode: 'pay_now',
+      });
+    const quoteId = res.body.id as string;
+    expect((await prisma.quoteRequest.findUnique({ where: { id: quoteId } }))?.status).toBe('pending_payment');
+
+    // Simulate the Stripe webhook settling the payment.
+    await settleAndBroadcastGuestQuote(quoteId);
+
+    const after = await prisma.quoteRequest.findUnique({ where: { id: quoteId } });
+    expect(after?.status).toBe('open');
+
+    // Idempotent — a redelivered webhook must not change anything.
+    const broadcastBefore = await prisma.quoteBroadcast.count({ where: { quoteRequestId: quoteId } });
+    await settleAndBroadcastGuestQuote(quoteId);
+    const broadcastAfter = await prisma.quoteBroadcast.count({ where: { quoteRequestId: quoteId } });
+    expect(broadcastAfter).toBe(broadcastBefore);
+  });
+});

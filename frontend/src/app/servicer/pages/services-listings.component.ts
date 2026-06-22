@@ -23,7 +23,7 @@ interface Service {
   description?: string | null;
   imageUrl?: string | null;
   published: boolean;
-  merchantSku?: string | null;
+  servicerSku?: string | null;
   basePrice: number;
   priceType: string;
   taxMode: string;
@@ -482,7 +482,7 @@ export class ServicerListingsComponent implements OnInit {
     let list = this.services().filter((s) => {
       if (flt === 'active' && !s.published) return false;
       if (flt === 'draft' && s.published) return false;
-      if (q && !s.title.toLowerCase().includes(q) && !(s.merchantSku ?? '').toLowerCase().includes(q)) {
+      if (q && !s.title.toLowerCase().includes(q) && !(s.servicerSku ?? '').toLowerCase().includes(q)) {
         return false;
       }
       return true;

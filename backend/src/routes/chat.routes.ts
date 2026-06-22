@@ -8,17 +8,17 @@ import { prisma } from '../lib/prisma';
 import { asyncHandler } from '../lib/async-handler';
 import { requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
+import { verifyPin } from '../middleware/pin';
+import { checkPinCooldown, recordPinFailure, recordPinSuccess } from '../middleware/pin-cooldown';
 import { chatLimiter, chatDailyLimiter } from '../middleware/rate-limit';
-import { notFound, forbidden } from '../lib/errors';
+import { badRequest, notFound, forbidden } from '../lib/errors';
 import { sendToAi, judgeConversation } from '../services/chat.service';
 import { checkInjection } from '../services/chatGuard';
-import { emitToUser, emitToMerchant } from '../socket';
+import { emitToUser, emitToServicer } from '../socket';
 import { recordAudit } from '../services/ledger.service';
 import { createBugReport } from '../services/booking.service';
 import { validateAddress, reverseGeocode } from '../lib/geocoding';
-import { verifyPin } from '../middleware/pin';
-import { badRequest } from '../lib/errors';
-import { updateMerchantProfile } from '../services/servicer-account.service';
+import { updateServicerProfile } from '../services/servicer-account.service';
 
 /** Client-detected conversation languages the chat can be pinned to. */
 const CHAT_LANGS = ['en', 'ms', 'zh', 'ta', 'rojak'] as const;
@@ -287,25 +287,30 @@ chatRouter.post(
   chatPinLimiter,
   validate([body('pin').isString().isLength({ min: 4, max: 10 })]),
   asyncHandler(async (req, res) => {
+    const userId = req.user!.id;
+    await checkPinCooldown(userId);
+
     const { pin } = req.body as { pin: string };
     let ok = false;
 
     if (req.user!.role === 'admin' || req.user!.role === 'customer') {
-      // Admin and customer are both User rows; the action PIN lives on
-      // User.actionPinHash. (Customer PIN gate is used for the demo.)
-      const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+      const user = await prisma.user.findUnique({ where: { id: userId } });
       if (user?.actionPinHash) {
         const bcrypt = await import('bcryptjs');
         ok = await bcrypt.compare(pin, user.actionPinHash);
       }
     } else if (req.user!.role === 'servicer') {
-      const servicer = await prisma.servicer.findUnique({ where: { id: req.user!.id } });
+      const servicer = await prisma.servicer.findUnique({ where: { id: userId } });
       if (servicer) {
         ok = await verifyPin(servicer, pin);
       }
     }
 
-    if (!ok) throw badRequest('Incorrect PIN');
+    if (!ok) {
+      await recordPinFailure(userId);
+      throw badRequest('Incorrect PIN');
+    }
+    await recordPinSuccess(userId);
     res.json({ ok: true });
   }),
 );
@@ -326,33 +331,43 @@ chatRouter.post(
   ]),
   asyncHandler(async (req, res) => {
     const { pin, field, value } = req.body as { pin: string; field: string; value: unknown };
+    const userId = req.user!.id;
+    await checkPinCooldown(userId);
 
     if (req.user!.role === 'servicer') {
-      const servicer = await prisma.servicer.findUnique({ where: { id: req.user!.id } });
+      const servicer = await prisma.servicer.findUnique({ where: { id: userId } });
       if (!servicer) throw notFound('Servicer not found');
       const ok = await verifyPin(servicer, pin);
-      if (!ok) throw badRequest('Incorrect PIN');
+      if (!ok) {
+        await recordPinFailure(userId);
+        throw badRequest('Incorrect PIN');
+      }
 
       if (field === 'serviceAreas' && !Array.isArray(value)) {
         throw badRequest('serviceAreas must be an array');
       }
 
-      await updateMerchantProfile(req.user!.id, { [field]: value });
+      await updateServicerProfile(userId, { [field]: value });
+      await recordPinSuccess(userId);
       res.json({ ok: true, message: `${field} updated` });
     } else if (req.user!.role === 'admin') {
-      const admin = await prisma.user.findUnique({ where: { id: req.user!.id } });
+      const admin = await prisma.user.findUnique({ where: { id: userId } });
       if (!admin?.actionPinHash) throw badRequest('No action PIN configured');
       const bcrypt = await import('bcryptjs');
       const ok = await bcrypt.compare(pin, admin.actionPinHash);
-      if (!ok) throw badRequest('Incorrect PIN');
+      if (!ok) {
+        await recordPinFailure(userId);
+        throw badRequest('Incorrect PIN');
+      }
 
-      if (!req.body.merchantId) throw badRequest('merchantId required for admin');
+      if (!req.body.servicerId) throw badRequest('servicerId required for admin');
 
       if (field === 'serviceAreas' && !Array.isArray(value)) {
         throw badRequest('serviceAreas must be an array');
       }
 
-      await updateMerchantProfile(req.body.merchantId, { [field]: value });
+      await updateServicerProfile(req.body.servicerId, { [field]: value });
+      await recordPinSuccess(userId);
       res.json({ ok: true, message: `${field} updated` });
     } else {
       throw forbidden('PIN-gated profile editing requires servicer or admin role');
@@ -744,11 +759,11 @@ async function recordStrike(ip: string, req?: import('express').Request): Promis
   }
 }
 
-/** Emit a socket event to the current session's owner (user or merchant). */
+/** Emit a socket event to the current session's owner (user or servicer). */
 function emitToSession(req: import('express').Request, event: string, payload: unknown): void {
   if (req.user!.kind === 'user') {
     emitToUser(req.user!.id, event, payload);
   } else {
-    emitToMerchant(req.user!.id, event, payload);
+    emitToServicer(req.user!.id, event, payload);
   }
 }

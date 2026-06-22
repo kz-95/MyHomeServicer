@@ -1,7 +1,7 @@
 // My Home Servicer — Prisma schema
 // Single source of truth for the database. 49 models (48 domain + 1 infrastructure) across 13 domain blocks.
 // UUID PKs (gen_random_uuid()) throughout. Decimal(10,2) for all money.
-// Soft deletes on User, Servicer, MerchantService, Category.
+// Soft deletes on User, Servicer, ServicerService, Category.
 
 generator client {
   provider = "prisma-client-js"
@@ -102,6 +102,7 @@ enum PaymentMode {
 
 enum QuoteStatus {
   open
+  pending_payment
   matched
   expired
   cancelled
@@ -209,7 +210,7 @@ enum CategoryRequestStatus {
 
 enum PromotionOwnerType {
   platform
-  merchant
+  servicer
 }
 
 enum PromotionScope {
@@ -381,7 +382,7 @@ model UserDevice {
 model RefreshToken {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId     String?   @map("user_id") @db.Uuid
-  merchantId String?   @map("merchant_id") @db.Uuid
+  servicerId String?   @map("servicer_id") @db.Uuid
   tokenHash  String    @unique @map("token_hash")
   deviceId   String?   @map("device_id")
   expiresAt  DateTime  @map("expires_at")
@@ -389,10 +390,10 @@ model RefreshToken {
   createdAt  DateTime  @default(now()) @map("created_at")
 
   user     User?     @relation(fields: [userId], references: [id])
-  merchant Servicer? @relation(fields: [merchantId], references: [id])
+  servicer Servicer? @relation(fields: [servicerId], references: [id])
 
   @@index([userId])
-  @@index([merchantId])
+  @@index([servicerId])
   @@map("refresh_tokens")
 }
 
@@ -413,10 +414,10 @@ model OtpCode {
 
 model Notification {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  // Exactly one of userId / merchantId is set — notifications now target
-  // customers, merchants and admins (admins are USER rows with role=admin).
+  // Exactly one of userId / servicerId is set — notifications now target
+  // customers, servicers and admins (admins are USER rows with role=admin).
   userId        String?  @map("user_id") @db.Uuid
-  merchantId    String?  @map("merchant_id") @db.Uuid
+  servicerId    String?  @map("servicer_id") @db.Uuid
   type          String
   message       String
   // Generic in-app redirect target for a click (e.g. /customer/quotes/<id>).
@@ -429,10 +430,10 @@ model Notification {
   createdAt     DateTime @default(now()) @map("created_at")
 
   user     User?     @relation(fields: [userId], references: [id])
-  merchant Servicer? @relation(fields: [merchantId], references: [id])
+  servicer Servicer? @relation(fields: [servicerId], references: [id])
 
   @@index([userId, isRead])
-  @@index([merchantId, isRead])
+  @@index([servicerId, isRead])
   @@map("notifications")
 }
 
@@ -499,51 +500,52 @@ model Servicer {
   createdAt                  DateTime  @default(now()) @map("created_at")
   updatedAt                  DateTime  @updatedAt @map("updated_at")
 
-  category         Category               @relation("MerchantCategory", fields: [categoryId], references: [id])
-  deposit          MerchantDeposit?
-  documents        MerchantDocument[]
-  schedules        MerchantSchedule[]
-  services         MerchantService[]
+  category         Category               @relation("ServicerCategory", fields: [categoryId], references: [id])
+  deposit          ServicerDeposit?
+  documents        ServicerDocument[]
+  schedules        ServicerSchedule[]
+  services         ServicerService[]
   refreshTokens    RefreshToken[]
   penaltyLogs      PenaltyLog[]
   penaltyAppeals   PenaltyAppeal[]
   broadcasts       QuoteBroadcast[]
   proposals        QuoteProposal[]
   bookings         Booking[]
-  proposalPresets  MerchantProposalPreset[]
-  creditLogs       MerchantCreditLog[]
-  withdrawals      MerchantWithdrawal[]
+  proposalPresets  ServicerProposalPreset[]
+  creditLogs       ServicerCreditLog[]
+  withdrawals      ServicerWithdrawal[]
   categoryRequests          CategoryRequest[]
   invoices                  Invoice[]
   notifications             Notification[]
   pricingModules            PricingModule[]
   modules                   ServicerModule[]
+  waPresets                 ServicerWaPreset[]
   identityChangeRequests    ServicerIdentityChangeRequest[]
   chatSessions              ChatSession[]
   contacts                  ServicerContact[]
 
   @@index([email])
   @@index([isOnline, isBanned])
-  @@map("merchants")
+  @@map("servicers")
 }
 
-model MerchantDeposit {
+model ServicerDeposit {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId      String   @unique @map("merchant_id") @db.Uuid
+  servicerId      String   @unique @map("servicer_id") @db.Uuid
   totalDeposited  Decimal  @default(0) @map("total_deposited") @db.Decimal(10, 2)
   currentBalance  Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
   minimumRequired Decimal  @default(100) @map("minimum_required") @db.Decimal(10, 2)
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
-  @@map("merchant_deposits")
+  @@map("servicer_deposits")
 }
 
-model MerchantDocument {
+model ServicerDocument {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId String    @map("merchant_id") @db.Uuid
+  servicerId String    @map("servicer_id") @db.Uuid
   docType    DocType   @map("doc_type")
   fileId     String    @map("file_id") @db.Uuid
   status     KycStatus @default(pending)
@@ -552,24 +554,24 @@ model MerchantDocument {
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
-  @@index([merchantId])
-  @@map("merchant_documents")
+  @@index([servicerId])
+  @@map("servicer_documents")
 }
 
-model MerchantSchedule {
+model ServicerSchedule {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId  String   @map("merchant_id") @db.Uuid
+  servicerId  String   @map("servicer_id") @db.Uuid
   weekday     Weekday
   timeSlot    TimeSlot @map("time_slot")
   isAvailable Boolean  @default(true) @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
-  @@unique([merchantId, weekday, timeSlot])
-  @@map("merchant_schedules")
+  @@unique([servicerId, weekday, timeSlot])
+  @@map("servicer_schedules")
 }
 
 // ── Business contacts (multi-contact per servicer, ≤10, §6) ───────────────────
@@ -591,9 +593,9 @@ model ServicerContact {
   @@map("business_contacts")
 }
 
-model MerchantService {
+model ServicerService {
   id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId               String    @map("merchant_id") @db.Uuid
+  servicerId               String    @map("servicer_id") @db.Uuid
   categoryId               String    @map("category_id") @db.Uuid
   title                    String
   description              String?
@@ -601,9 +603,11 @@ model MerchantService {
   imageUrl                 String?   @map("image_url")
   // SP-3: listing visibility. true = Active (customer-visible), false = Draft.
   published                Boolean   @default(true)
-  merchantSku              String?   @map("merchant_sku")
+  servicerSku              String?   @map("servicer_sku")
   basePrice                Decimal   @map("base_price") @db.Decimal(10, 2)
   priceType                PriceType @default(fixed) @map("price_type")
+  // SP-3 §10: listing creation path. 'simple' = one-screen flat listing; 'advanced' = 3-step wizard (modules + per-option pricing + auto-accept).
+  listingMode              String    @default("simple") @map("listing_mode")
   modifiers                Json?
   taxMode                  TaxMode   @default(none) @map("tax_mode")
   taxName                  String?   @map("tax_name")
@@ -618,6 +622,8 @@ model MerchantService {
   // Servicer's free-text procedure steps shown to the customer.
   procedure                String?
   autoAccept               Boolean   @default(false) @map("auto_accept")
+  // SP-3 §10.2 step 3: optional message shown to the customer when this listing auto-accepts.
+  autoAcceptMessage        String?   @map("auto_accept_message")
   autoAcceptConditions     Json?     @map("auto_accept_conditions")
   autoAcceptPresetId       String?   @map("auto_accept_preset_id") @db.Uuid
   fieldRequirements        Json?     @map("field_requirements")
@@ -629,12 +635,12 @@ model MerchantService {
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])
 
-  @@unique([merchantId, merchantSku])
+  @@unique([servicerId, servicerSku])
   @@index([categoryId])
-  @@map("merchant_services")
+  @@map("servicer_services")
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -643,7 +649,7 @@ model MerchantService {
 
 model PricingModule {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId        String   @map("merchant_id") @db.Uuid
+  servicerId        String   @map("servicer_id") @db.Uuid
   label             String
   defaultPrice      Decimal  @map("default_price") @db.Decimal(10, 2)
   taxable           Boolean  @default(true)
@@ -652,9 +658,9 @@ model PricingModule {
   active            Boolean  @default(true)
   createdAt         DateTime @default(now()) @map("created_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
-  @@index([merchantId])
+  @@index([servicerId])
   @@map("pricing_modules")
 }
 
@@ -678,6 +684,27 @@ model ServicerModule {
 
   @@index([servicerId])
   @@map("business_modules")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Block 2.7 — Servicer WhatsApp message presets (SP-3 dispatch)
+// Reusable wa.me message templates a servicer can fire at a customer from a won
+// job card. Body carries {name}/{orderId}/{eta} placeholders interpolated client-side.
+// ──────────────────────────────────────────────────────────────────────────────
+
+model ServicerWaPreset {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  servicerId        String   @map("servicer_id") @db.Uuid
+  label             String
+  body              String   @db.Text
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  servicer Servicer @relation(fields: [servicerId], references: [id])
+
+  @@index([servicerId])
+  @@map("servicer_wa_presets")
 }
 
 model Category {
@@ -714,9 +741,9 @@ model Category {
 
   parent        Category?         @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id])
   children      Category[]        @relation("CategoryHierarchy")
-  services      MerchantService[]
+  services      ServicerService[]
   quoteRequests QuoteRequest[]
-  merchants     Servicer[]        @relation("MerchantCategory")
+  servicers     Servicer[]        @relation("ServicerCategory")
 
   @@map("categories")
 }
@@ -742,7 +769,7 @@ model PenaltyRule {
 model PenaltyLog {
   id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   bookingId      String        @map("booking_id") @db.Uuid
-  merchantId     String        @map("merchant_id") @db.Uuid
+  servicerId     String        @map("servicer_id") @db.Uuid
   ruleId         String?       @map("rule_id") @db.Uuid
   type           PenaltyType
   amountDeducted Decimal       @map("amount_deducted") @db.Decimal(10, 2)
@@ -751,19 +778,19 @@ model PenaltyLog {
   status         PenaltyStatus @default(applied)
   createdAt      DateTime      @default(now()) @map("created_at")
 
-  merchant Servicer       @relation(fields: [merchantId], references: [id])
+  servicer Servicer       @relation(fields: [servicerId], references: [id])
   rule     PenaltyRule?   @relation(fields: [ruleId], references: [id])
   booking  Booking        @relation(fields: [bookingId], references: [id])
   appeal   PenaltyAppeal?
 
-  @@index([merchantId])
+  @@index([servicerId])
   @@map("penalty_logs")
 }
 
 model PenaltyAppeal {
   id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   penaltyLogId String       @unique @map("penalty_log_id") @db.Uuid
-  merchantId   String       @map("merchant_id") @db.Uuid
+  servicerId   String       @map("servicer_id") @db.Uuid
   reason       String
   status       AppealStatus @default(pending)
   adminNote    String?      @map("admin_note")
@@ -772,7 +799,7 @@ model PenaltyAppeal {
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
   penaltyLog PenaltyLog @relation(fields: [penaltyLogId], references: [id])
-  merchant   Servicer   @relation(fields: [merchantId], references: [id])
+  servicer   Servicer   @relation(fields: [servicerId], references: [id])
 
   @@index([status])
   @@map("penalty_appeals")
@@ -798,7 +825,7 @@ model QuoteRequest {
   tipAmount        Decimal?     @map("tip_amount") @db.Decimal(10, 2)
   deadlineMode     DeadlineMode @map("deadline_mode")
   proposalDeadline DateTime     @map("proposal_deadline")
-  merchantDeadline DateTime     @map("merchant_deadline")
+  servicerDeadline DateTime     @map("servicer_deadline")
   notes            String?
   promoCode        String?      @map("promo_code")
   // Answers to the category's custom questions — { [questionKey]: string | string[] }.
@@ -828,7 +855,7 @@ model QuoteRequest {
 model QuoteProposal {
   id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   quoteRequestId String         @map("quote_request_id") @db.Uuid
-  merchantId     String         @map("merchant_id") @db.Uuid
+  servicerId     String         @map("servicer_id") @db.Uuid
   proposedPrice  Decimal        @map("proposed_price") @db.Decimal(10, 2)
   lineItems      Json           @default("[]") @map("line_items")
   moduleRefs     Json           @default("[]") @map("module_refs")
@@ -841,18 +868,18 @@ model QuoteProposal {
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
   quoteRequest QuoteRequest @relation(fields: [quoteRequestId], references: [id])
-  merchant     Servicer     @relation(fields: [merchantId], references: [id])
+  servicer     Servicer     @relation(fields: [servicerId], references: [id])
   booking      Booking?
 
-  @@unique([quoteRequestId, merchantId])
-  @@index([merchantId])
+  @@unique([quoteRequestId, servicerId])
+  @@index([servicerId])
   @@map("quote_proposals")
 }
 
 model QuoteBroadcast {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   quoteRequestId String    @map("quote_request_id") @db.Uuid
-  merchantId     String    @map("merchant_id") @db.Uuid
+  servicerId     String    @map("servicer_id") @db.Uuid
   sentAt         DateTime  @default(now()) @map("sent_at")
   openedAt       DateTime? @map("opened_at")
   declinedAt     DateTime? @map("declined_at")
@@ -860,10 +887,10 @@ model QuoteBroadcast {
   createdAt      DateTime  @default(now()) @map("created_at")
 
   quoteRequest QuoteRequest @relation(fields: [quoteRequestId], references: [id])
-  merchant     Servicer     @relation(fields: [merchantId], references: [id])
+  servicer     Servicer     @relation(fields: [servicerId], references: [id])
 
-  @@unique([quoteRequestId, merchantId])
-  @@index([merchantId])
+  @@unique([quoteRequestId, servicerId])
+  @@index([servicerId])
   @@map("quote_broadcasts")
 }
 
@@ -877,7 +904,7 @@ model Booking {
   quoteRequestId        String              @unique @map("quote_request_id") @db.Uuid
   proposalId            String              @unique @map("proposal_id") @db.Uuid
   userId                String              @map("user_id") @db.Uuid
-  merchantId            String              @map("merchant_id") @db.Uuid
+  servicerId            String              @map("servicer_id") @db.Uuid
   status                BookingStatus       @default(pending_confirm)
   price                 Decimal             @db.Decimal(10, 2)
   paymentMode           PaymentMode         @map("payment_mode")
@@ -913,14 +940,14 @@ model Booking {
   quoteRequest QuoteRequest  @relation(fields: [quoteRequestId], references: [id])
   proposal     QuoteProposal @relation(fields: [proposalId], references: [id])
   user         User          @relation(fields: [userId], references: [id])
-  merchant     Servicer      @relation(fields: [merchantId], references: [id])
+  servicer     Servicer      @relation(fields: [servicerId], references: [id])
   escrow       Escrow?
   invoice      Invoice?
   reports      Report[]
   penaltyLogs  PenaltyLog[]
 
   @@index([userId, status])
-  @@index([merchantId, status])
+  @@index([servicerId, status])
   @@map("bookings")
 }
 
@@ -929,7 +956,7 @@ model OrderHistory {
   userId     String           @map("user_id") @db.Uuid
   type       OrderHistoryType
   bookingId  String?          @map("booking_id") @db.Uuid
-  merchantId String?          @map("merchant_id") @db.Uuid
+  servicerId String?          @map("servicer_id") @db.Uuid
   categoryId String?          @map("category_id") @db.Uuid
   snapshot   Json
   createdAt  DateTime         @default(now()) @map("created_at")
@@ -945,7 +972,7 @@ model File {
   ownerType          String     @map("owner_type")
   ownerId            String?    @map("owner_id") @db.Uuid
   uploaderUserId     String?    @map("uploader_user_id") @db.Uuid
-  uploaderMerchantId String?    @map("uploader_merchant_id") @db.Uuid
+  uploaderServicerId String?    @map("uploader_servicer_id") @db.Uuid
   purpose            String
   mimeType           String     @map("mime_type")
   sizeBytes          Int        @map("size_bytes")
@@ -987,7 +1014,7 @@ model Transaction {
   amount                Decimal           @db.Decimal(10, 2)
   currency              String            @default("MYR")
   bookingId             String?           @map("booking_id") @db.Uuid
-  merchantId            String?           @map("merchant_id") @db.Uuid
+  servicerId            String?           @map("servicer_id") @db.Uuid
   userId                String?           @map("user_id") @db.Uuid
   escrowId              String?           @map("escrow_id") @db.Uuid
   reference             String?
@@ -1000,7 +1027,7 @@ model Transaction {
   @@unique([stripePaymentIntentId])
   @@unique([stripeSessionId])
   @@index([bookingId])
-  @@index([merchantId])
+  @@index([servicerId])
   @@index([type])
   @@map("transactions")
 }
@@ -1163,9 +1190,9 @@ model Faq {
   question    String
   answer      String
   category    String?
-  /// Minimum audience tier: "guest" | "customer" | "merchant" | "admin"
-  /// Hierarchical: guest < customer < merchant < admin.
-  /// A user sees entries at or below their tier (e.g. merchant sees guest+customer+merchant).
+  /// Minimum audience tier: "guest" | "customer" | "servicer" | "admin"
+  /// Hierarchical: guest < customer < servicer < admin.
+  /// A user sees entries at or below their tier (e.g. servicer sees guest+customer+servicer).
   tier        String   @default("guest")
   sortOrder   Int      @default(0) @map("sort_order")
   isPublished Boolean  @default(true) @map("is_published")
@@ -1179,9 +1206,9 @@ model Faq {
 // Block 9 — Servicer dashboard extras
 // ──────────────────────────────────────────────────────────────────────────────
 
-model MerchantProposalPreset {
+model ServicerProposalPreset {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId  String   @map("merchant_id") @db.Uuid
+  servicerId  String   @map("servicer_id") @db.Uuid
   name        String
   message     String
   priceOffset Decimal? @map("price_offset") @db.Decimal(10, 2)
@@ -1190,15 +1217,15 @@ model MerchantProposalPreset {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
-  @@index([merchantId])
-  @@map("merchant_proposal_presets")
+  @@index([servicerId])
+  @@map("servicer_proposal_presets")
 }
 
-model MerchantCreditLog {
+model ServicerCreditLog {
   id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId   String        @map("merchant_id") @db.Uuid
+  servicerId   String        @map("servicer_id") @db.Uuid
   type         CreditLogType
   amount       Decimal       @db.Decimal(10, 2)
   balanceAfter Decimal       @map("balance_after") @db.Decimal(10, 2)
@@ -1206,15 +1233,15 @@ model MerchantCreditLog {
   note         String?
   createdAt    DateTime      @default(now()) @map("created_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
-  @@index([merchantId])
-  @@map("merchant_credit_logs")
+  @@index([servicerId])
+  @@map("servicer_credit_logs")
 }
 
-model MerchantWithdrawal {
+model ServicerWithdrawal {
   id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId     String           @map("merchant_id") @db.Uuid
+  servicerId     String           @map("servicer_id") @db.Uuid
   amount         Decimal          @db.Decimal(10, 2)
   bankName       String           @map("bank_name")
   bankAccount    String           @map("bank_account")
@@ -1226,10 +1253,10 @@ model MerchantWithdrawal {
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
-  @@index([merchantId, status])
-  @@map("merchant_withdrawals")
+  @@index([servicerId, status])
+  @@map("servicer_withdrawals")
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1238,7 +1265,7 @@ model MerchantWithdrawal {
 
 model CategoryRequest {
   id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId        String                @map("merchant_id") @db.Uuid
+  servicerId        String                @map("servicer_id") @db.Uuid
   name              String
   parentCategoryId  String?               @map("parent_category_id") @db.Uuid
   description       String?
@@ -1249,7 +1276,7 @@ model CategoryRequest {
   createdAt         DateTime              @default(now()) @map("created_at")
   updatedAt         DateTime              @updatedAt @map("updated_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
   @@index([status])
   @@map("category_requests")
@@ -1261,16 +1288,16 @@ model CategoryRequest {
 
 model ServicerIdentityChangeRequest {
   id         String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  merchantId String                @map("merchant_id") @db.Uuid
+  servicerId String                @map("servicer_id") @db.Uuid
   status     IdentityRequestStatus @default(pending)
   proposed   Json
   reviewedBy String?               @map("reviewed_by")
   reviewedAt DateTime?             @map("reviewed_at")
   createdAt  DateTime              @default(now()) @map("created_at")
 
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
-  @@index([merchantId, status])
+  @@index([servicerId, status])
   @@map("servicer_identity_change_requests")
 }
 
@@ -1312,7 +1339,7 @@ model PromotionRedemption {
   userId                  String   @map("user_id") @db.Uuid
   bookingId               String?  @map("booking_id") @db.Uuid
   amountDiscounted        Decimal  @map("amount_discounted") @db.Decimal(10, 2)
-  paidToMerchantViaCredit Boolean  @default(false) @map("paid_to_merchant_via_credit")
+  paidToServicerViaCredit Boolean  @default(false) @map("paid_to_servicer_via_credit")
   paidAt                  DateTime? @map("paid_at")
   createdAt               DateTime @default(now()) @map("created_at")
 
@@ -1424,7 +1451,7 @@ model Redemption {
 model Invoice {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   bookingId           String    @unique @map("booking_id") @db.Uuid
-  merchantId          String    @map("merchant_id") @db.Uuid
+  servicerId          String    @map("servicer_id") @db.Uuid
   invoiceNumber       String    @unique @map("invoice_number")
   sequenceNumber      Int       @map("sequence_number")
   lineItems           Json      @default("[]") @map("line_items")
@@ -1448,7 +1475,7 @@ model Invoice {
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   booking  Booking  @relation(fields: [bookingId], references: [id])
-  merchant Servicer @relation(fields: [merchantId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
 
   @@map("invoices")
 }

@@ -162,10 +162,12 @@ quotesRouter.post(
     let stripeUrl: string | undefined;
     let stripeSessionId: string | undefined;
 
-    // Guest pay_now: create a Stripe Checkout Session so the guest can
-    // fund their wallet with the budget max upfront.  The Stripe webhook
-    // (checkout.session.completed) credits the wallet; the existing
-    // escrow flow then works the same as for registered customers.
+    // Guest pay_now: the quote was created in pending_payment status and was
+    // NOT broadcast (payment gate before broadcast). Create a Stripe Checkout
+    // Session so the guest can fund their wallet with the budget max upfront.
+    // The Stripe webhook (checkout.session.completed) credits the wallet, takes
+    // the budget hold, and only THEN broadcasts the quote to servicers
+    // (settleAndBroadcastGuestQuote).
     if (req.body.paymentMode === 'pay_now') {
       const budgetMax = req.body.budgetMax != null ? Number(req.body.budgetMax) : null;
       const budgetMin = req.body.budgetMin != null ? Number(req.body.budgetMin) : 0;
@@ -197,7 +199,10 @@ quotesRouter.post(
             },
           });
         } catch (stripeErr) {
-          logger.warn('Failed to create Stripe session for guest pay_now — quote created without payment', {
+          // Leave the quote pending_payment and un-broadcast — no payment was
+          // taken, so it must not reach servicers. The guest can retry; the
+          // response carries no stripeUrl so the client knows checkout failed.
+          logger.warn('Failed to create Stripe session for guest pay_now — quote left pending_payment, not broadcast', {
             quoteId: result.id,
             error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr),
           });
@@ -248,6 +253,8 @@ const createValidators = [
   body('agreeTerms').isBoolean().custom((v) => v === true).withMessage('You must agree to the terms'),
   body('promoCode').optional({ values: 'null' }).isString().trim(),
   body('serviceDetails').optional({ values: 'null' }).isObject(),
+  // Locked rebook: when present, the quote goes only to this servicer.
+  body('targetServicerId').optional({ values: 'null' }).isUUID(),
 ];
 
 /** POST /quotes — submit a new quote request. */

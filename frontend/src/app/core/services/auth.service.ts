@@ -21,7 +21,7 @@ interface AuthResponse {
   refreshToken: string;
 }
 
-/** A stashed session - used to hold the merchant session during customer mode. */
+/** A stashed session - used to hold the servicer session during customer mode. */
 interface StashedSession {
   access: string;
   refresh: string;
@@ -31,7 +31,7 @@ interface StashedSession {
 const ACCESS_KEY = 'hs_access';
 const REFRESH_KEY = 'hs_refresh';
 const USER_KEY = 'hs_user';
-const STASH_KEY = 'hs_merchant_stash';
+const STASH_KEY = 'hs_servicer_stash';
 const GUEST_KEY = 'hs_guest';
 /**
  * Marks a session that was created via the demo-bar quick-login (passwordless
@@ -64,8 +64,8 @@ export interface GuestQuoteData {
  * live in localStorage so a session survives a refresh; no secrets are ever
  * embedded in the bundle (security-notes.md §3 Layer 1).
  *
- * Merchant accounts additionally support "customer mode": the merchant
- * session is stashed and a customer-scoped session takes over, so a merchant
+ * Servicer accounts additionally support "customer mode": the servicer
+ * session is stashed and a customer-scoped session takes over, so a servicer
  * can browse and request quotes as a customer. A topbar toggle swaps back.
  */
 @Injectable({ providedIn: 'root' })
@@ -86,11 +86,11 @@ export class AuthService {
   private authReadySig = signal(false);
   readonly authReady = this.authReadySig.asReadonly();
 
-  /** The merchant session held aside while the merchant is in customer mode. */
+  /** The servicer session held aside while the servicer is in customer mode. */
   private stashSig = signal<StashedSession | null>(this.readStash());
 
   /** True when the signed-in account is a servicer (in either mode). */
-  readonly isMerchantAccount = computed(
+  readonly isServicerAccount = computed(
     () => this.principalSig()?.role === 'servicer' || this.stashSig() !== null,
   );
 
@@ -105,8 +105,8 @@ export class AuthService {
   });
 
   /**
-   * The signed-in account's own email. While a merchant is in customer mode
-   * the active principal carries a synthetic email, so the stashed merchant
+   * The signed-in account's own email. While a servicer is in customer mode
+   * the active principal carries a synthetic email, so the stashed servicer
    * email is the one to show.
    */
   readonly accountEmail = computed(() => {
@@ -156,8 +156,8 @@ export class AuthService {
       .pipe(tap((res) => this.store(res)));
   }
 
-  /** Registers a merchant ("servicer") account and signs them straight in. */
-  registerMerchant(payload: {
+  /** Registers a servicer ("servicer") account and signs them straight in. */
+  registerServicer(payload: {
     name: string;
     email: string;
     phone: string;
@@ -172,12 +172,12 @@ export class AuthService {
     pin?: string;
   }): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${this.base}/auth/register-merchant`, payload)
+      .post<AuthResponse>(`${this.base}/auth/register-servicer`, payload)
       .pipe(tap((res) => this.store(res)));
   }
 
   /**
-   * Enters customer mode for a merchant account. Stashes the merchant session,
+   * Enters customer mode for a servicer account. Stashes the servicer session,
    * fetches a customer-scoped session from the backend and makes it active.
    */
   switchToCustomerMode(): Observable<void> {
@@ -197,8 +197,8 @@ export class AuthService {
     );
   }
 
-  /** Returns to merchant mode by restoring the stashed merchant session. */
-  switchToMerchantMode(): void {
+  /** Returns to servicer mode by restoring the stashed servicer session. */
+  switchToServicerMode(): void {
     const stash = this.stashSig();
     if (!stash) return;
     localStorage.setItem(ACCESS_KEY, stash.access);

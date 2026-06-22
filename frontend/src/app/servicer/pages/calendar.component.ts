@@ -679,7 +679,7 @@ interface CalendarData {
         flex: none;
         order: 0;
       }
-      .nav-btn { grid-area: auto; font-size: 0.82rem; padding: 0.4rem 0.55rem; }
+      .nav-btn { grid-area: auto; font-size: 0.82rem; padding: 0.625rem 0.625rem; }
       .btn-today { grid-area: today; margin-left: 0; }
 
       /* Status filters: full-width scroll row */

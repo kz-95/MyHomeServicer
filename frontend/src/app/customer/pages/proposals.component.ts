@@ -9,10 +9,11 @@ import { ModalComponent } from '../../shared/modal.component';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
 import { IconComponent } from '../../shared/icon.component';
 import { StripeCardFormComponent } from '../../shared/stripe-card-form.component';
+import { ServicerDetailPopupComponent } from '../../shared/servicer-detail-popup.component';
 
 interface Proposal {
   id: string;
-  merchant: { id: string; businessName: string; rating: number; logoUrl?: string };
+  servicer: { id: string; businessName: string; rating: number; logoUrl?: string };
   proposedPrice: number;
   message?: string;
   etaMinutes?: number;
@@ -29,10 +30,10 @@ const STAGGER_MS = 70;
 @Component({
     selector: 'app-proposals',
     host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, ModalComponent, ListToolbarComponent, IconComponent, StripeCardFormComponent],
+    imports: [CommonModule, FormsModule, ModalComponent, ListToolbarComponent, IconComponent, StripeCardFormComponent, ServicerDetailPopupComponent],
     template: `
     <h1>Proposals</h1>
-    <p class="muted">Compare merchant offers and pick one to create a booking.</p>
+    <p class="muted">Compare servicer offers and pick one to create a booking.</p>
 
     @if (loading()) {
       <div class="skeleton-list">
@@ -47,11 +48,11 @@ const STAGGER_MS = 70;
       <p class="err">{{ error() }}</p>
     } @else if (proposals().length === 0) {
       <div class="card">
-        No proposals in yet. They appear here live as merchants respond.
+        No proposals in yet. They appear here live as servicers respond.
       </div>
     } @else {
       <app-list-toolbar>
-        <input class="search" type="text" placeholder="Search by merchant…" [(ngModel)]="search" name="ps" toolbar-search />
+        <input class="search" type="text" placeholder="Search by servicer…" [(ngModel)]="search" name="ps" toolbar-search />
         <div class="chips" toolbar-filters>
           <button class="chip" [class.on]="filter() === 'all'" (click)="filter.set('all')">All</button>
           <button class="chip" [class.on]="filter() === 'auto'" (click)="filter.set('auto')">Auto</button>
@@ -68,11 +69,11 @@ const STAGGER_MS = 70;
         @if (idx < revealCount()) {
         <div class="card proposal pp-revealed">
           <div class="info">
-            <div class="merchant-head">
+            <div class="servicer-head">
               <span class="svc-avatar"><app-icon [name]="(p.categoryIcon || 'home')" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
-              <strong>{{ p.merchant.businessName }}</strong>
+              <button type="button" class="svc-name-btn" (click)="detailServicerId.set(p.servicer.id)">{{ p.servicer.businessName }}</button>
             </div>
-            <span class="muted">★ {{ p.merchant.rating | number: '1.1-1' }}</span>
+            <span class="muted">★ {{ p.servicer.rating | number: '1.1-1' }}</span>
             @if (p.isAuto) {
               <span class="auto">auto</span>
             }
@@ -100,10 +101,11 @@ const STAGGER_MS = 70;
     @if (pending(); as p) {
       <app-modal
         [open]="true"
-        title="Choose this merchant?"
+        title="Choose this servicer?"
         (closed)="cancelSelect()">
         <p>
-          You're about to book <strong>{{ p.merchant.businessName }}</strong>
+          You're about to book
+          <button type="button" class="svc-name-btn" (click)="detailServicerId.set(p.servicer.id)">{{ p.servicer.businessName }}</button>
           for <strong>RM {{ p.proposedPrice | number: '1.2-2' }}</strong>.
         </p>
         <p class="muted">This will create a booking and cannot be undone.</p>
@@ -156,12 +158,15 @@ const STAGGER_MS = 70;
           <button class="btn-ghost" (click)="cancelSelect()" [disabled]="selecting()">Cancel</button>
           @if (!(paymentMode() === 'pay_now' && selectedSettlementMethod() === 'gateway')) {
             <button class="btn-primary" (click)="select(p.id)" [disabled]="selecting()">
-              {{ selecting() ? 'Confirming…' : 'Confirm - book this merchant' }}
+              {{ selecting() ? 'Confirming…' : 'Confirm - book this servicer' }}
             </button>
           }
         </div>
       </app-modal>
     }
+
+    <!-- ── Servicer detail popup ──────────────────────────────────────── -->
+    <app-servicer-detail-popup [servicerId]="detailServicerId()" (closed)="detailServicerId.set(null)" />
   `,
     styles: [
         `
@@ -183,10 +188,25 @@ const STAGGER_MS = 70;
         box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
         transform: translateY(-1px);
       }
-      .merchant-head {
+      .servicer-head {
         display: flex;
         align-items: center;
         gap: 0.5rem;
+      }
+      .svc-name-btn {
+        background: transparent;
+        border: none;
+        padding: 0;
+        font: inherit;
+        font-weight: 700;
+        color: var(--color-text);
+        cursor: pointer;
+        text-align: left;
+        transition: color var(--transition);
+      }
+      .svc-name-btn:hover {
+        color: var(--color-primary);
+        text-decoration: underline;
       }
       .svc-avatar {
         display: inline-flex;
@@ -296,6 +316,8 @@ export class ProposalsComponent implements OnInit, OnDestroy {
   private staggerTimer: ReturnType<typeof setInterval> | null = null;
 
   proposals = signal<Proposal[]>([]);
+  /** Servicer id whose detail popup is open, or null. */
+  detailServicerId = signal<string | null>(null);
   loading = signal(true);
   selecting = signal(false);
   error = signal('');
@@ -309,7 +331,7 @@ export class ProposalsComponent implements OnInit, OnDestroy {
   displayProposals = computed(() => {
     let list = this.proposals();
     const q = this.search().toLowerCase();
-    if (q) list = list.filter((p) => p.merchant.businessName.toLowerCase().includes(q));
+    if (q) list = list.filter((p) => p.servicer.businessName.toLowerCase().includes(q));
     const f = this.filter();
     if (f === 'auto') list = list.filter((p) => p.isAuto);
     else if (f === 'manual') list = list.filter((p) => !p.isAuto);
@@ -317,7 +339,7 @@ export class ProposalsComponent implements OnInit, OnDestroy {
     if (s === 'price_asc') list.sort((a, b) => a.proposedPrice - b.proposedPrice);
     else if (s === 'price_desc') list.sort((a, b) => b.proposedPrice - a.proposedPrice);
     else if (s === 'recent') list.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
-    else if (s === 'rating') list.sort((a, b) => b.merchant.rating - a.merchant.rating);
+    else if (s === 'rating') list.sort((a, b) => b.servicer.rating - a.servicer.rating);
     return list;
   });
 

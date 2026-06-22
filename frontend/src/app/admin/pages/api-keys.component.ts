@@ -254,12 +254,12 @@ interface LlmKey {
 
     .demo-keys-area { margin-left: auto; display: flex; align-items: center; gap: 0.35rem; }
     .demo-pin-input { width: 90px; padding: 0.3rem 0.5rem; border: 1px solid var(--color-border, #ccc); border-radius: 6px; font-size: 0.78rem; font-family: monospace; }
-    .btn-demo { padding: 0.35rem 0.75rem; border: 1px solid var(--color-primary, #2563eb); border-radius: 6px; background: transparent; color: var(--color-primary, #2563eb); cursor: pointer; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+    .btn-demo { padding: 0.625rem 0.75rem; border: 1px solid var(--color-primary, #2563eb); border-radius: 6px; background: transparent; color: var(--color-primary, #2563eb); cursor: pointer; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
     .btn-demo:hover { background: #eff6ff; }
     .btn-demo:disabled { opacity: 0.5; cursor: default; }
-    .btn-demo-confirm { padding: 0.3rem 0.55rem; border: none; border-radius: 6px; background: #16a34a; color: #fff; cursor: pointer; font-size: 0.75rem; }
+    .btn-demo-confirm { padding: 0.625rem 0.625rem; border: none; border-radius: 6px; background: #16a34a; color: #fff; cursor: pointer; font-size: 0.75rem; }
     .btn-demo-confirm:disabled { opacity: 0.5; }
-    .btn-demo-cancel { background: none; border: none; cursor: pointer; color: var(--color-muted, #888); font-size: 0.85rem; padding: 0.2rem; }
+    .btn-demo-cancel { background: none; border: none; cursor: pointer; color: var(--color-muted, #888); font-size: 0.85rem; padding: 0.625rem; }
     .demo-error { color: #dc2626; font-size: 0.78rem; margin: 0.25rem 0 0; }
 
     .fallback-section { background: var(--color-surface-alt, #f8fafb); border: 1px solid var(--color-border, #e2e8f0); border-radius: 10px; padding: 1.25rem; }
@@ -302,12 +302,12 @@ interface LlmKey {
     .model-input { width: 150px; font-family: monospace; font-size: 0.78rem; }
     .key-input { flex: 1; font-family: monospace; min-width: 100px; }
 
-    .btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: var(--color-primary, #2563eb); color: #fff; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+    .btn-primary { padding: 0.625rem 1rem; border: none; border-radius: 8px; background: var(--color-primary, #2563eb); color: #fff; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
     .btn-primary:hover { opacity: 0.9; }
-    .btn-outline { padding: 0.3rem 0.7rem; border: 1px solid var(--color-border, #ccc); border-radius: 6px; background: transparent; cursor: pointer; font-size: 0.8rem; }
-    .btn-save { padding: 0.3rem 0.7rem; border: none; border-radius: 6px; background: #16a34a; color: #fff; cursor: pointer; font-size: 0.8rem; }
-    .btn-cancel { padding: 0.3rem 0.7rem; border: none; border-radius: 6px; background: transparent; cursor: pointer; font-size: 0.8rem; color: var(--color-muted, #666); }
-    .btn-delete { padding: 0.3rem 0.7rem; border: 1px solid #fca5a5; border-radius: 6px; background: transparent; color: #dc2626; cursor: pointer; font-size: 0.8rem; }
+    .btn-outline { padding: 0.625rem 0.7rem; border: 1px solid var(--color-border, #ccc); border-radius: 6px; background: transparent; cursor: pointer; font-size: 0.8rem; }
+    .btn-save { padding: 0.625rem 0.7rem; border: none; border-radius: 6px; background: #16a34a; color: #fff; cursor: pointer; font-size: 0.8rem; }
+    .btn-cancel { padding: 0.625rem 0.7rem; border: none; border-radius: 6px; background: transparent; cursor: pointer; font-size: 0.8rem; color: var(--color-muted, #666); }
+    .btn-delete { padding: 0.625rem 0.7rem; border: 1px solid #fca5a5; border-radius: 6px; background: transparent; color: #dc2626; cursor: pointer; font-size: 0.8rem; }
     .btn-delete:hover { background: #fef2f2; }
     .btn-icon-delete {
       display: inline-flex; align-items: center; justify-content: center;
@@ -320,7 +320,7 @@ interface LlmKey {
       flex-basis: 100%; color: #dc2626; font-size: 0.78rem; margin-top: 2px;
     }
     .input-error { border-color: #dc2626 !important; }
-    .btn-fetch { padding: 0.3rem 0.55rem; border: 1px solid var(--color-primary, #2563eb); border-radius: 6px; background: transparent; color: var(--color-primary, #2563eb); cursor: pointer; font-size: 0.75rem; font-weight: 600; }
+    .btn-fetch { padding: 0.625rem 0.625rem; border: 1px solid var(--color-primary, #2563eb); border-radius: 6px; background: transparent; color: var(--color-primary, #2563eb); cursor: pointer; font-size: 0.75rem; font-weight: 600; }
     .btn-fetch:disabled { opacity: 0.5; cursor: default; }
     .btn-fetch:hover:not(:disabled) { background: #eff6ff; }
     .btn-sm { white-space: nowrap; }

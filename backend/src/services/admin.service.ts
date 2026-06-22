@@ -15,20 +15,20 @@ const execAsync = promisify(exec);
 
 /** Aggregated platform stats for the admin dashboard. */
 export async function getDashboard() {
-  const [merchants, bookings, completed, openReports, pendingAppeals, pendingWithdrawals, pendingCatReqs, feeResult] =
+  const [servicers, bookings, completed, openReports, pendingAppeals, pendingWithdrawals, pendingCatReqs, feeResult] =
     await Promise.all([
       prisma.servicer.count({ where: { deletedAt: null } }),
       prisma.booking.count(),
       prisma.booking.count({ where: { status: 'completed' } }),
       prisma.report.count({ where: { status: 'open' } }),
       prisma.penaltyAppeal.count({ where: { status: 'pending' } }),
-      prisma.merchantWithdrawal.count({ where: { status: 'pending' } }),
+      prisma.servicerWithdrawal.count({ where: { status: 'pending' } }),
       prisma.categoryRequest.count({ where: { status: 'pending' } }),
       prisma.invoice.aggregate({ _sum: { platformFee: true } }),
     ]);
 
   return {
-    merchants,
+    servicers,
     bookings,
     completedBookings: completed,
     platformRevenue: feeResult._sum.platformFee ?? 0,
@@ -112,7 +112,7 @@ export async function runClear(): Promise<{ ok: boolean; durationMs: number }> {
   await prisma.auditLog.deleteMany();
   await prisma.transaction.deleteMany();
   await prisma.promotionRedemption.deleteMany();
-  await prisma.merchantCreditLog.deleteMany();
+  await prisma.servicerCreditLog.deleteMany();
   await prisma.penaltyAppeal.deleteMany();
   await prisma.penaltyLog.deleteMany();
   await prisma.invoice.deleteMany();
@@ -124,7 +124,7 @@ export async function runClear(): Promise<{ ok: boolean; durationMs: number }> {
   await prisma.quoteBroadcast.deleteMany();
   await prisma.discountCode.deleteMany();
   await prisma.quoteRequest.deleteMany();
-  await prisma.merchantWithdrawal.deleteMany();
+  await prisma.servicerWithdrawal.deleteMany();
   await prisma.categoryRequest.deleteMany();
   await prisma.promotion.deleteMany();
   await prisma.quotePreset.deleteMany();
@@ -140,7 +140,7 @@ export async function runClear(): Promise<{ ok: boolean; durationMs: number }> {
 
 /**
  * Clears all transactional content (bookings, quotes, chat, penalties, etc.)
- * while preserving demo account structure: users, merchants, services,
+ * while preserving demo account structure: users, servicers, services,
  * deposits, categories, settings, feature flags, FAQ, penalty rules.
  * Requires the admin action PIN for confirmation.
  */
@@ -161,7 +161,7 @@ export async function runClearContent(pin: string): Promise<{ ok: boolean; durat
   await prisma.llmApiKey.deleteMany({ where: { label: { startsWith: 'Demo ' } } });
   await prisma.transaction.deleteMany();
   await prisma.promotionRedemption.deleteMany();
-  await prisma.merchantCreditLog.deleteMany();
+  await prisma.servicerCreditLog.deleteMany();
   await prisma.penaltyAppeal.deleteMany();
   await prisma.penaltyLog.deleteMany();
   await prisma.invoice.deleteMany();
@@ -173,7 +173,7 @@ export async function runClearContent(pin: string): Promise<{ ok: boolean; durat
   await prisma.quoteBroadcast.deleteMany();
   await prisma.discountCode.deleteMany();
   await prisma.quoteRequest.deleteMany();
-  await prisma.merchantWithdrawal.deleteMany();
+  await prisma.servicerWithdrawal.deleteMany();
   await prisma.categoryRequest.deleteMany();
   await prisma.promotion.deleteMany();
   await prisma.quotePreset.deleteMany();
@@ -182,11 +182,11 @@ export async function runClearContent(pin: string): Promise<{ ok: boolean; durat
   await prisma.redemption.deleteMany();
   await prisma.reward.deleteMany();
   await prisma.loyaltyTier.deleteMany();
-  await prisma.merchantDeposit.deleteMany();
-  await prisma.merchantDocument.deleteMany();
-  await prisma.merchantSchedule.deleteMany();
-  await prisma.merchantProposalPreset.deleteMany();
-  await prisma.merchantService.deleteMany();
+  await prisma.servicerDeposit.deleteMany();
+  await prisma.servicerDocument.deleteMany();
+  await prisma.servicerSchedule.deleteMany();
+  await prisma.servicerProposalPreset.deleteMany();
+  await prisma.servicerService.deleteMany();
   await prisma.servicer.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.otpCode.deleteMany();
@@ -203,8 +203,8 @@ export async function runClearContent(pin: string): Promise<{ ok: boolean; durat
 
 // ── Servicer management ──────────────────────────────────────────────────────
 
-export async function listMerchants(kycStatus?: string) {
-  const merchants = await prisma.servicer.findMany({
+export async function listServicers(kycStatus?: string) {
+  const servicers = await prisma.servicer.findMany({
     where: {
       deletedAt: null,
       ...(kycStatus ? { kycStatus: kycStatus as 'pending' | 'approved' | 'rejected' } : {}),
@@ -212,7 +212,7 @@ export async function listMerchants(kycStatus?: string) {
     orderBy: { createdAt: 'desc' },
     include: { deposit: true },
   });
-  return merchants.map((m) => ({
+  return servicers.map((m) => ({
     id: m.id,
     businessName: m.businessName,
     email: m.email,
@@ -226,9 +226,9 @@ export async function listMerchants(kycStatus?: string) {
   }));
 }
 
-export async function getMerchantDetail(merchantId: string) {
+export async function getServicerDetail(servicerId: string) {
   const m = await prisma.servicer.findUnique({
-    where: { id: merchantId },
+    where: { id: servicerId },
     include: { deposit: true, documents: true, _count: { select: { penaltyLogs: true } } },
   });
   if (!m) throw notFound('Servicer not found');
@@ -247,34 +247,34 @@ export async function getMerchantDetail(merchantId: string) {
   };
 }
 
-export async function setMerchantBan(
+export async function setServicerBan(
   adminId: string,
-  merchantId: string,
+  servicerId: string,
   banned: boolean,
   note: string,
   ip?: string,
 ) {
-  const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
-  if (!merchant) throw notFound('Servicer not found');
-  await prisma.servicer.update({ where: { id: merchantId }, data: { isBanned: banned } });
+  const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
+  if (!servicer) throw notFound('Servicer not found');
+  await prisma.servicer.update({ where: { id: servicerId }, data: { isBanned: banned } });
   await recordAudit({
     actorUserId: adminId,
     actorType: 'admin',
-    action: banned ? 'merchant.ban' : 'merchant.unban',
+    action: banned ? 'servicer.ban' : 'servicer.unban',
     entityType: 'Servicer',
-    entityId: merchantId,
-    oldValue: { isBanned: merchant.isBanned },
+    entityId: servicerId,
+    oldValue: { isBanned: servicer.isBanned },
     newValue: { isBanned: banned, note },
     ipAddress: ip,
   });
-  logger.info('Servicer ban status changed', { merchantId, banned });
+  logger.info('Servicer ban status changed', { servicerId, banned });
 }
 
 // ── User management ──────────────────────────────────────────────────────────
 
 /**
- * Lists all platform accounts — customers, admins and merchants — in one
- * unified view. Merchants live in their own table, so the two sets are
+ * Lists all platform accounts — customers, admins and servicers — in one
+ * unified view. Servicers live in their own table, so the two sets are
  * fetched, normalised to a common shape (tagged with `kind`), merged and
  * paginated. The area is PIN-gated, so full contact details are returned.
  */
@@ -288,7 +288,7 @@ export async function listUsers(params: { search?: string; role?: string; skip: 
       : {}),
     ...(search ? { OR: [{ email: ci(search) }, { name: ci(search) }] } : {}),
   };
-  const merchantWhere = {
+  const servicerWhere = {
     deletedAt: null,
     ...(search
       ? { OR: [{ email: ci(search) }, { name: ci(search) }, { businessName: ci(search) }] }
@@ -299,9 +299,9 @@ export async function listUsers(params: { search?: string; role?: string; skip: 
     !params.role || params.role !== 'servicer'
       ? await prisma.user.findMany({ where: userWhere, orderBy: { createdAt: 'desc' } })
       : [];
-  const merchants =
+  const servicers =
     !params.role || params.role === 'servicer'
-      ? await prisma.servicer.findMany({ where: merchantWhere, orderBy: { createdAt: 'desc' } })
+      ? await prisma.servicer.findMany({ where: servicerWhere, orderBy: { createdAt: 'desc' } })
       : [];
 
   const combined = [
@@ -314,7 +314,7 @@ export async function listUsers(params: { search?: string; role?: string; skip: 
       role: u.role as string,
       createdAt: u.createdAt,
     })),
-    ...merchants.map((m) => ({
+    ...servicers.map((m) => ({
       id: m.id,
       kind: 'servicer' as const,
       name: m.businessName,
@@ -367,7 +367,7 @@ function diffFields(current: Record<string, unknown>, input: Record<string, unkn
 }
 
 /**
- * Edits a customer/admin OR merchant account. The account kind is detected by
+ * Edits a customer/admin OR servicer account. The account kind is detected by
  * ID lookup. Every edit is recorded to AUDIT_LOG with the editing admin and a
  * mandatory reason; only changed fields are logged.
  */
@@ -421,10 +421,10 @@ export async function updateUserInfo(
     };
   }
 
-  const merchant = await prisma.servicer.findUnique({ where: { id: accountId } });
-  if (merchant) {
+  const servicer = await prisma.servicer.findUnique({ where: { id: accountId } });
+  if (servicer) {
     const { before, after, data } = diffFields(
-      merchant as unknown as Record<string, unknown>,
+      servicer as unknown as Record<string, unknown>,
       input,
       ['name', 'email', 'phone', 'businessName'],
     );
@@ -443,7 +443,7 @@ export async function updateUserInfo(
       newValue: { changes: after, reason: reason.trim() },
       ipAddress: ip,
     });
-    logger.info('Admin edited a merchant', { adminId, accountId, fields: Object.keys(data) });
+    logger.info('Admin edited a servicer', { adminId, accountId, fields: Object.keys(data) });
     return {
       id: updated.id,
       kind: 'servicer',
@@ -486,7 +486,7 @@ async function buildInfoUpdates(entityType: 'User' | 'Servicer', entityId: strin
 }
 
 /**
- * Activity log for a single account (customer/admin or merchant): the
+ * Activity log for a single account (customer/admin or servicer): the
  * info-update history plus a feed of the account's own activity.
  */
 export async function getUserActivity(accountId: string) {
@@ -499,7 +499,7 @@ export async function getUserActivity(accountId: string) {
         orderBy: { createdAt: 'desc' },
         take: 15,
         include: {
-          merchant: { select: { businessName: true } },
+          servicer: { select: { businessName: true } },
           quoteRequest: { select: { category: { select: { name: true } } } },
         },
       }),
@@ -518,7 +518,7 @@ export async function getUserActivity(accountId: string) {
         bookings: bookings.map((b) => ({
           id: b.id,
           status: b.status,
-          label: `${b.quoteRequest.category.name} with ${b.merchant.businessName}`,
+          label: `${b.quoteRequest.category.name} with ${b.servicer.businessName}`,
           at: b.createdAt,
         })),
         quotes: quotes.map((q) => ({ id: q.id, status: q.status, label: q.category.name, at: q.createdAt })),
@@ -528,24 +528,24 @@ export async function getUserActivity(accountId: string) {
     };
   }
 
-  const merchant = await prisma.servicer.findUnique({ where: { id: accountId } });
-  if (merchant) {
+  const servicer = await prisma.servicer.findUnique({ where: { id: accountId } });
+  if (servicer) {
     const infoUpdates = await buildInfoUpdates('Servicer', accountId);
     const [jobs, withdrawals] = await Promise.all([
       prisma.booking.findMany({
-        where: { merchantId: accountId },
+        where: { servicerId: accountId },
         orderBy: { createdAt: 'desc' },
         take: 15,
         include: { quoteRequest: { select: { category: { select: { name: true } } } } },
       }),
-      prisma.merchantWithdrawal.findMany({
-        where: { merchantId: accountId },
+      prisma.servicerWithdrawal.findMany({
+        where: { servicerId: accountId },
         orderBy: { createdAt: 'desc' },
         take: 15,
       }),
     ]);
     return {
-      account: { id: merchant.id, kind: 'servicer', name: merchant.businessName, email: merchant.email },
+      account: { id: servicer.id, kind: 'servicer', name: servicer.businessName, email: servicer.email },
       infoUpdates,
       activity: {
         bookings: jobs.map((b) => ({
@@ -572,15 +572,15 @@ export async function getUserActivity(accountId: string) {
 // ── Withdrawals ──────────────────────────────────────────────────────────────
 
 export async function listWithdrawals(status?: string) {
-  const rows = await prisma.merchantWithdrawal.findMany({
+  const rows = await prisma.servicerWithdrawal.findMany({
     where: status ? { status: status as 'pending' | 'approved' | 'paid' | 'rejected' } : {},
     orderBy: { createdAt: 'desc' },
-    include: { merchant: { select: { businessName: true } } },
+    include: { servicer: { select: { businessName: true } } },
   });
   return rows.map((w) => ({
     id: w.id,
-    merchantId: w.merchantId,
-    merchantName: w.merchant.businessName,
+    servicerId: w.servicerId,
+    servicerName: w.servicer.businessName,
     amount: w.amount,
     bankName: w.bankName,
     bankAccount: maskBankAccount(w.bankAccount),
@@ -597,10 +597,10 @@ export async function reviewWithdrawal(
   note: string,
   ip?: string,
 ) {
-  const w = await prisma.merchantWithdrawal.findUnique({ where: { id: withdrawalId } });
+  const w = await prisma.servicerWithdrawal.findUnique({ where: { id: withdrawalId } });
   if (!w) throw notFound('Withdrawal not found');
   if (w.status !== 'pending') throw conflict('Withdrawal has already been reviewed');
-  const updated = await prisma.merchantWithdrawal.update({
+  const updated = await prisma.servicerWithdrawal.update({
     where: { id: withdrawalId },
     data: { status, adminNote: note, approvedAt: status === 'approved' ? new Date() : null },
   });
@@ -608,7 +608,7 @@ export async function reviewWithdrawal(
     actorUserId: adminId,
     actorType: 'admin',
     action: `withdrawal.${status}`,
-    entityType: 'MerchantWithdrawal',
+    entityType: 'ServicerWithdrawal',
     entityId: withdrawalId,
     newValue: { status, note },
     ipAddress: ip,
@@ -617,25 +617,25 @@ export async function reviewWithdrawal(
 }
 
 export async function markWithdrawalPaid(adminId: string, withdrawalId: string, ip?: string) {
-  const w = await prisma.merchantWithdrawal.findUnique({ where: { id: withdrawalId } });
+  const w = await prisma.servicerWithdrawal.findUnique({ where: { id: withdrawalId } });
   if (!w) throw notFound('Withdrawal not found');
   if (w.status !== 'approved') throw conflict('Only approved withdrawals can be marked paid');
 
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.merchantWithdrawal.update({
+    const updated = await tx.servicerWithdrawal.update({
       where: { id: withdrawalId },
       data: { status: 'paid', paidAt: new Date() },
     });
-    const merchant = await tx.servicer.update({
-      where: { id: w.merchantId },
+    const servicer = await tx.servicer.update({
+      where: { id: w.servicerId },
       data: { creditBalance: { decrement: w.amount } },
     });
-    await tx.merchantCreditLog.create({
+    await tx.servicerCreditLog.create({
       data: {
-        merchantId: w.merchantId,
+        servicerId: w.servicerId,
         type: 'withdrawal',
         amount: Number(w.amount),
-        balanceAfter: merchant.creditBalance,
+        balanceAfter: servicer.creditBalance,
         referenceId: withdrawalId,
         note: 'Withdrawal paid out',
       },
@@ -644,7 +644,7 @@ export async function markWithdrawalPaid(adminId: string, withdrawalId: string, 
       {
         type: 'withdrawal',
         amount: Number(w.amount),
-        merchantId: w.merchantId,
+        servicerId: w.servicerId,
         reference: 'Servicer withdrawal paid',
       },
       tx,
@@ -653,7 +653,7 @@ export async function markWithdrawalPaid(adminId: string, withdrawalId: string, 
       actorUserId: adminId,
       actorType: 'admin',
       action: 'withdrawal.paid',
-      entityType: 'MerchantWithdrawal',
+      entityType: 'ServicerWithdrawal',
       entityId: withdrawalId,
       ipAddress: ip,
       tx,
@@ -669,7 +669,7 @@ export async function listAppeals(status?: string) {
     where: status ? { status: status as 'pending' | 'approved' | 'rejected' } : {},
     orderBy: { createdAt: 'desc' },
     include: {
-      merchant: { select: { businessName: true } },
+      servicer: { select: { businessName: true } },
       penaltyLog: true,
     },
   });
@@ -701,15 +701,15 @@ export async function reviewAppeal(
         where: { id: appeal.penaltyLogId },
         data: { status: 'reversed' },
       });
-      await tx.merchantDeposit.update({
-        where: { merchantId: appeal.merchantId },
+      await tx.servicerDeposit.update({
+        where: { servicerId: appeal.servicerId },
         data: { currentBalance: { increment: amount } },
       });
       await recordTransaction(
         {
           type: 'refund',
           amount,
-          merchantId: appeal.merchantId,
+          servicerId: appeal.servicerId,
           reference: 'Penalty reversed — appeal approved',
         },
         tx,
@@ -735,7 +735,7 @@ export async function listCategoryRequests(status?: string) {
   return prisma.categoryRequest.findMany({
     where: status ? { status: status as 'pending' | 'approved' | 'rejected' } : {},
     orderBy: { createdAt: 'desc' },
-    include: { merchant: { select: { businessName: true } } },
+    include: { servicer: { select: { businessName: true } } },
   });
 }
 
@@ -814,12 +814,12 @@ export async function creditDepositTopup(
   const txn = await prisma.transaction.findUnique({ where: { id: transactionId } });
   if (!txn || txn.type !== 'deposit') throw notFound('Deposit top-up not found');
   if (txn.status !== 'pending') throw conflict('Top-up has already been processed');
-  if (!txn.merchantId) throw badRequest('Top-up transaction has no merchant');
+  if (!txn.servicerId) throw badRequest('Top-up transaction has no servicer');
 
   return prisma.$transaction(async (tx) => {
     await tx.transaction.update({ where: { id: transactionId }, data: { status: 'completed' } });
-    await tx.merchantDeposit.update({
-      where: { merchantId: txn.merchantId! },
+    await tx.servicerDeposit.update({
+      where: { servicerId: txn.servicerId! },
       data: {
         currentBalance: { increment: txn.amount },
         totalDeposited: { increment: txn.amount },
@@ -868,9 +868,9 @@ export async function updateSetting(adminId: string, key: string, value: unknown
 
 // ── Withdrawal notification trigger ──────────────────────────────────────────
 
-/** Called when a merchant submits a withdrawal — alerts admin via a job. */
-export async function notifyWithdrawalSubmitted(withdrawalId: string, merchantId: string) {
-  await enqueue(JOB_NAMES.WITHDRAWAL_NOTIFY, { withdrawalId, merchantId });
+/** Called when a servicer submits a withdrawal — alerts admin via a job. */
+export async function notifyWithdrawalSubmitted(withdrawalId: string, servicerId: string) {
+  await enqueue(JOB_NAMES.WITHDRAWAL_NOTIFY, { withdrawalId, servicerId });
 }
 
 // ── Admin Self-Service ──────────────────────────────────────────────────────

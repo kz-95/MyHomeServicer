@@ -37,7 +37,7 @@ interface Service {
   category?: { id: string; name: string; parentCategoryId?: string | null };
   title: string;
   description?: string | null;
-  merchantSku?: string | null;
+  servicerSku?: string | null;
   basePrice: number;
   priceType: string;
   taxMode: string;
@@ -128,7 +128,7 @@ type WizardStep = 1 | 2 | 3 | 4;
               } @else {
                 <label>
                   SKU (optional)
-                  <input [(ngModel)]="f.merchantSku" name="sku" placeholder="e.g. PLUMB-001" />
+                  <input [(ngModel)]="f.servicerSku" name="sku" placeholder="e.g. PLUMB-001" />
                 </label>
               }
             </div>
@@ -629,7 +629,7 @@ export class ListingWizardComponent implements OnInit {
       subcategorySel: '',
       newSubcategoryName: '',
       title: '',
-      merchantSku: '',
+      servicerSku: '',
       description: '',
       optionPrices: {} as OptionPriceMap,
       moduleRefs: [] as { moduleId: string; priceOverride: number | null }[],
@@ -715,7 +715,7 @@ export class ListingWizardComponent implements OnInit {
           ...this.f,
           subcategorySel: this.subcats().some((sc) => sc.id === svc.categoryId) ? svc.categoryId : '',
           title: svc.title,
-          merchantSku: svc.merchantSku ?? '',
+          servicerSku: svc.servicerSku ?? '',
           description: svc.description ?? '',
           basePrice: svc.basePrice,
           priceType: svc.priceType,
@@ -899,7 +899,7 @@ export class ListingWizardComponent implements OnInit {
     const body: Record<string, unknown> = {
       title: this.f.title.trim(),
       description: this.f.description || undefined,
-      merchantSku: this.f.merchantSku?.trim() || undefined,
+      servicerSku: this.f.servicerSku?.trim() || undefined,
       basePrice: this.f.basePrice,
       priceType: this.f.priceType,
       taxMode: this.f.taxMode,

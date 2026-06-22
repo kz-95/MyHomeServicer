@@ -7,7 +7,7 @@ import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
 
-interface Merchant {
+interface Servicer {
   id: string;
   businessName: string;
   email: string;
@@ -18,17 +18,17 @@ interface Merchant {
   creditBalance: number;
 }
 
-/** Admin merchant management - view and ban/unban merchants. */
+/** Admin servicer management - view and ban/unban servicers. */
 @Component({
-    selector: 'app-admin-merchants',
+    selector: 'app-admin-servicers',
     host: { class: 'page-enter' },
     imports: [CommonModule, FormsModule, ListToolbarComponent],
     template: `
-    <h1>Merchants</h1>
+    <h1>Servicers</h1>
     @if (loading()) {
-      <p class="muted">Loading merchants…</p>
+      <p class="muted">Loading servicers…</p>
     } @else if (loadFailed()) {
-      <div class="card load-err">Could not load merchants. Please refresh the page.</div>
+      <div class="card load-err">Could not load servicers. Please refresh the page.</div>
     } @else {
     <app-list-toolbar>
       <input class="search" type="text" placeholder="Search name or email…" [(ngModel)]="search" name="ms" toolbar-search />
@@ -50,7 +50,7 @@ interface Merchant {
         </tr>
       </thead>
       <tbody>
-        @for (m of displayMerchants(); track m.id) {
+        @for (m of displayServicers(); track m.id) {
           <tr>
             <td>{{ m.businessName }}</td>
             <td class="muted">{{ m.email }}</td>
@@ -69,7 +69,7 @@ interface Merchant {
           </tr>
         } @empty {
           <tr>
-            <td colspan="6" class="muted">No merchants found.</td>
+            <td colspan="6" class="muted">No servicers found.</td>
           </tr>
         }
       </tbody>
@@ -125,12 +125,12 @@ interface Merchant {
     `,
     ]
 })
-export class AdminMerchantsComponent implements OnInit {
+export class AdminServicersComponent implements OnInit {
   private api = inject(ApiService);
   private pin = inject(PinService);
   private dialog = inject(DialogService);
   private toast = inject(ToastService);
-  merchants = signal<Merchant[]>([]);
+  servicers = signal<Servicer[]>([]);
   loading = signal(true);
   loadFailed = signal(false);
   message = signal('');
@@ -140,10 +140,10 @@ export class AdminMerchantsComponent implements OnInit {
   sortField = signal<'business' | 'email' | 'rating' | 'deposit'>('business');
   sortDir = signal<'asc' | 'desc'>('asc');
 
-  private sortFieldMap: Record<string, keyof Merchant> = { business: 'businessName', email: 'email', rating: 'rating', deposit: 'depositBalance' };
+  private sortFieldMap: Record<string, keyof Servicer> = { business: 'businessName', email: 'email', rating: 'rating', deposit: 'depositBalance' };
 
-  displayMerchants = computed(() => {
-    let list = this.merchants();
+  displayServicers = computed(() => {
+    let list = this.servicers();
     const q = this.search().toLowerCase();
     if (q) {
       list = list.filter((m) => m.businessName.toLowerCase().includes(q) || m.email.toLowerCase().includes(q));
@@ -181,9 +181,9 @@ export class AdminMerchantsComponent implements OnInit {
 
   private load(): void {
     this.loadFailed.set(false);
-    this.api.get<{ data: Merchant[] }>('/admin/merchants').subscribe({
+    this.api.get<{ data: Servicer[] }>('/admin/servicers').subscribe({
       next: (r) => {
-        this.merchants.set(r.data);
+        this.servicers.set(r.data);
         this.loading.set(false);
       },
       error: () => {
@@ -193,35 +193,35 @@ export class AdminMerchantsComponent implements OnInit {
     });
   }
 
-  ban(m: Merchant): void {
+  ban(m: Servicer): void {
     this.dialog
       .prompt(`Reason for banning ${m.businessName}?`, {
         placeholder: 'Enter ban reason…',
-        confirmLabel: 'Ban merchant',
+        confirmLabel: 'Ban servicer',
       })
       .subscribe((reason) => {
         if (!reason) return;
         this.pin.requirePin().subscribe((pin) => {
           if (!pin) return;
           this.api
-            .post(`/admin/merchants/${m.id}/ban`, { reason }, { 'x-action-pin': pin })
+            .post(`/admin/servicers/${m.id}/ban`, { reason }, { 'x-action-pin': pin })
             .subscribe({
               next: () => {
-                this.toast.success('Merchant banned.');
+                this.toast.success('Servicer banned.');
                 this.load();
               },
-              error: (e) => this.toast.error(e.message ?? 'Could not ban merchant'),
+              error: (e) => this.toast.error(e.message ?? 'Could not ban servicer'),
             });
         });
       });
   }
 
-  unban(m: Merchant): void {
+  unban(m: Servicer): void {
     this.dialog
       .prompt(`Note for unbanning ${m.businessName}?`, {
         placeholder: 'Optional note…',
         defaultValue: 'Ban lifted.',
-        confirmLabel: 'Unban merchant',
+        confirmLabel: 'Unban servicer',
       })
       .subscribe((note) => {
         if (note === null) return; // cancelled
@@ -229,16 +229,16 @@ export class AdminMerchantsComponent implements OnInit {
           if (!pin) return;
           this.api
             .post(
-              `/admin/merchants/${m.id}/unban`,
+              `/admin/servicers/${m.id}/unban`,
               { adminNote: note || 'Ban lifted.' },
               { 'x-action-pin': pin },
             )
             .subscribe({
               next: () => {
-                this.toast.success('Merchant unbanned.');
+                this.toast.success('Servicer unbanned.');
                 this.load();
               },
-              error: (e) => this.toast.error(e.message ?? 'Could not unban merchant'),
+              error: (e) => this.toast.error(e.message ?? 'Could not unban servicer'),
             });
         });
       });

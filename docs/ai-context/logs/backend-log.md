@@ -2,6 +2,16 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-17 — SP-3 pricing engine landed + wired (post Wave-2 fix)
+
+**Root-cause fix:** `moduleRefSchema` (`lib/json-schemas.ts`) only had `{ moduleId, overridePrice? }`, but the SP-3 engine files used `ref.kind` and `ref.durationDeltaMin` — so `listing-pricing.service.ts`, `proposal-view.service.ts`, `sp3-auto-accept.service.ts` and `listing-pricing.test.ts` failed to compile (broke ts-jest's whole-program check). Added `kind: enum(['included','addon']).default('included')` and `durationDeltaMin: int().optional()` to the schema. Both default → pre-SP-3 stored refs and the QuoteProposal moduleRefs path parse unchanged.
+
+**Engine wired:** rewrote `listing-accept.service.ts` to use the real `computeListingPrice` / `computeListingDurationMin` (was a `computePrefill` stand-in put in by Agent D while the engine was type-broken). Resolves the merchant's best-fit listing, parses its `moduleRefs`, loads referenced `ServicerModule` rows into the engine's price map, builds the servicer flat-tax config (`serviceChargeRate`/`sstRegistered`/`taxInclusive` + `getSstRate()`), and returns `{ price, durationMin, message }`. Falls back to `basePrice` + `estimatedDurationMinutes` when no listing/options. `auto_accept_message` column is uncommitted DB drift (not in the Prisma client) → `message` stays null; servicer messaging is covered by the WhatsApp preset / `<app-wa-button>` flow.
+
+**Committed the 4 previously-untracked engine files** so the import is to tracked code: `listing-pricing.service.ts`, `proposal-view.service.ts`, `sp3-auto-accept.service.ts`, `tests/unit/listing-pricing.test.ts`.
+
+**Gates:** `tsc --noEmit` 0 (only the pre-existing tsconfig `TS5101`/`TS5107` deprecation warnings remain); `jest tests/unit` 273 pass / 0 fail (was 259 — the 14 listing-pricing/auto-accept cases now compile + pass). Did NOT touch other agents' working-tree files (quote/stripe/payment-gate, auth/home/demo-bar, seed).
+
 ## Session 2026-06-12 — SP-5 Servicer Business Profile restructure
 
 **Schema + migration:**
@@ -1791,3 +1801,73 @@ money-equivalent to a `credit` settlement.
 | `npx tsc --noEmit` (backend/) | ✅ 0 errors |
 | `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
 
+---
+
+## 2026-06-17 — Agent E: Servicer WhatsApp preset CRUD (SP-3 dispatch, branch `feat/sp3-wa-preset`)
+
+### Schema + migration
+- `schema.prisma`: new `ServicerWaPreset` model (`servicer_wa_presets`) — `{ id (uuid), servicerId FK,
+  label, body (@db.Text — `{name}`/`{orderId}`/`{eta}` placeholders), active (default true), timestamps }`,
+  `@@index([servicerId])`. Back-relation `waPresets ServicerWaPreset[]` on `Servicer`.
+- Migration `20260617201521_sp3_servicer_wa_preset` (additive CREATE TABLE + index + FK).
+- ⚠️ **DLL-lock + drift handling:** stopped the backend dev server (freed `query_engine-windows.dll.node`).
+  `prisma migrate dev` refused — the live DB carries unrelated **uncommitted drift from other agents' WIP**
+  (`merchant_services.listing_mode`/`auto_accept_message`, `quote_proposals.listing_id`, `QuoteStatus`
+  enum values, `invoices.due_date` default) that `migrate dev` wanted to destructively reconcile (would
+  drop 156 `listing_mode` values). To avoid leaving a half-applied state, authored the migration by hand
+  (isolated my table via `migrate diff` HEAD-schema vs working-schema), applied it with
+  `prisma db execute`, then `prisma migrate resolve --applied`, then `prisma generate`. The unrelated
+  drift was left untouched for its owning agents.
+
+### CRUD
+- `services/servicer-wa-preset.service.ts` — `list` (active-first then newest) / `create` / `update` /
+  soft-`delete` (active=false). servicerId-scoped via `findFirst({ id, servicerId })` → `notFound`.
+  Mirrors `servicer-module.service.ts`.
+- `routes/servicer-wa-preset.routes.ts` — `requireAuth, requireServicer`; GET/POST/PATCH/DELETE;
+  express-validator (`label` ≤80, `body` ≤2000); fields picked explicitly (never `req.body` → Prisma).
+- `routes/index.ts` — mounted `servicerWaPresetRouter` at `/servicer/wa-presets` (mirrors
+  `/servicer/modules`).
+
+### Gate
+| Check | Result |
+|-------|--------|
+| `npx tsc --noEmit` (backend/) | ✅ 0 errors in scope (3 untracked Phase-2 engine files — `listing-pricing`/`proposal-view`/`sp3-auto-accept` — stay pre-broken pending Work-stream A schema columns; not my scope) |
+| `prisma generate` | ✅ client regenerated with `ServicerWaPreset` |
+
+Docs synced: `schema-notes.md` (Block 2.7), `api-doc.md` (`/servicer/wa-presets`).
+
+
+---
+
+## Agent D — SP-3 dispatch + booking-flow + cards (2026-06-17, branch `feat/sp3-dispatch-cards`)
+
+**No re-confirm (task 1):** `booking.service.selectProposal` now creates the booking
+directly in `confirmed` (`confirmedAt` set) and schedules no-show detection at creation
+(moved out of `confirmJob`). `confirmJob` / `POST /servicer/jobs/:id/confirm` retained but
+dead-path. Mirrored in `dispatch.service.handleDispatchAccept` (already `confirmed`).
+
+**Taken guard (task 5):** `handleDispatchAccept` hardened from findFirst-then-create into an
+atomic conditional claim — `quoteRequest.updateMany WHERE status='open' → matched` inside the
+booking transaction; 0 rows → `409 "Sorry, this job was taken by another servicer."` Emits
+`quote.matched` to other broadcast merchants + `booking.confirmed` to the customer.
+
+**One-tap accept (task 3):** new `acceptQuoteListing` (`servicer-quote.service`) + route
+`POST /servicer/quotes/:id/accept-listing` — submits a proposal at the listing-computed
+`{price, duration, message}` with no manual form. New shared helper `listing-accept.service.ts`
+(`resolveListingAccept`) reuses the live `computePrefill` engine (NOT the unfinished Phase-2
+`listing-pricing.service` — its `ModuleRef.kind`/`durationDeltaMin` usage still mismatches the
+committed `ModuleRef` schema, owned by Work-stream A), falling back to listing `basePrice` +
+`estimatedDurationMinutes`.
+
+**Cards data (task 6):** `listIncomingQuotes` now returns `myProposalPrice/Eta/Message`;
+`listMerchantJobs` now returns `customerName/customerPhone` (confirmed+ only), `orderId`,
+`etaMinutes` for the active-card WhatsApp button.
+
+**Gates:**
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (backend/) | ✅ 0 errors in scope (only the 2 pre-existing tsconfig TS5101/TS5107 deprecation warnings) |
+| `npx jest tests/unit` | ✅ 259 passed; 1 suite fails to COMPILE — `listing-pricing.test.ts` (pre-broken Work-stream A engine, not my scope, my code does not import it) |
+
+Docs synced: `schema-notes.md` (BOOKING confirmed-on-select), `api-doc.md`
+(`/quotes/:id/accept-listing`, dispatch accept taken-guard, no-re-confirm note).

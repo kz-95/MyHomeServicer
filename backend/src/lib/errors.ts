@@ -15,6 +15,7 @@ export type ErrorCode =
   | 'BUSINESS_RULE_VIOLATION'
   | 'PAYMENT_REQUIRED'
   | 'RATE_LIMITED'
+  | 'PIN_COOLDOWN'
   | 'INTERNAL_ERROR';
 
 export interface ErrorDetail {
@@ -35,6 +36,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   PAYMENT_REQUIRED: 402,
   BUSINESS_RULE_VIOLATION: 422,
   RATE_LIMITED: 429,
+  PIN_COOLDOWN: 429,
   INTERNAL_ERROR: 500,
 };
 

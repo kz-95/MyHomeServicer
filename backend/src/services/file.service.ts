@@ -7,7 +7,7 @@ import { logger } from '../lib/logger';
 type Purpose =
   | 'arrive_photo'
   | 'done_photo'
-  | 'merchant_logo'
+  | 'servicer_logo'
   | 'kyc_document'
   | 'banner_image'
   | 'listing_photo';
@@ -16,7 +16,7 @@ const PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PURPOSES: Purpose[] = [
   'arrive_photo',
   'done_photo',
-  'merchant_logo',
+  'servicer_logo',
   'kyc_document',
   'banner_image',
   'listing_photo',
@@ -35,7 +35,7 @@ export async function createPresignedUpload(input: {
   mimeType: string;
   sizeBytes: number;
   uploaderUserId?: string;
-  uploaderMerchantId?: string;
+  uploaderServicerId?: string;
 }) {
   if (!PURPOSES.includes(input.purpose as Purpose)) {
     throw badRequest(`purpose must be one of: ${PURPOSES.join(', ')}`);
@@ -61,7 +61,7 @@ export async function createPresignedUpload(input: {
     data: {
       ownerType: input.purpose,
       uploaderUserId: input.uploaderUserId ?? null,
-      uploaderMerchantId: input.uploaderMerchantId ?? null,
+      uploaderServicerId: input.uploaderServicerId ?? null,
       purpose: input.purpose,
       mimeType: input.mimeType,
       sizeBytes: input.sizeBytes,
@@ -83,7 +83,7 @@ export async function createPresignedUpload(input: {
 export async function confirmUpload(fileId: string, ownerId: string) {
   const file = await prisma.file.findUnique({ where: { id: fileId } });
   if (!file) throw notFound('File not found');
-  if (file.uploaderUserId !== ownerId && file.uploaderMerchantId !== ownerId) {
+  if (file.uploaderUserId !== ownerId && file.uploaderServicerId !== ownerId) {
     throw notFound('File not found');
   }
 

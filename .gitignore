@@ -44,8 +44,9 @@ backend/build/
 
 # ── Prisma / Generated ────────────────────────────────────
 backend/prisma/seed/seeded-ids.json
-backend/prisma/migrations/**/migration.sql
-!backend/prisma/migrations/
+# NOTE: migration SQL MUST be committed (Prisma migrations workflow, see
+# CLAUDE.md). Do NOT ignore backend/prisma/migrations/**/migration.sql — doing
+# so left 0_init + others uncommitted and broke clean rebuilds.
 prisma/generated/
 **/generated/client/
 

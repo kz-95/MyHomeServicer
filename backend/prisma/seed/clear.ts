@@ -12,7 +12,7 @@ export async function clearAll(prisma: PrismaClient): Promise<void> {
   await prisma.auditLog.deleteMany();
   await prisma.transaction.deleteMany();
   await prisma.promotionRedemption.deleteMany();
-  await prisma.merchantCreditLog.deleteMany();
+  await prisma.servicerCreditLog.deleteMany();
   await prisma.penaltyAppeal.deleteMany();
   await prisma.penaltyLog.deleteMany();
   await prisma.invoice.deleteMany();
@@ -27,12 +27,12 @@ export async function clearAll(prisma: PrismaClient): Promise<void> {
   await prisma.quoteBroadcast.deleteMany();
   await prisma.discountCode.deleteMany();
   await prisma.quoteRequest.deleteMany();
-  await prisma.merchantWithdrawal.deleteMany();
-  await prisma.merchantProposalPreset.deleteMany();
-  await prisma.merchantService.deleteMany();
-  await prisma.merchantDeposit.deleteMany();
-  await prisma.merchantDocument.deleteMany();
-  await prisma.merchantSchedule.deleteMany();
+  await prisma.servicerWithdrawal.deleteMany();
+  await prisma.servicerProposalPreset.deleteMany();
+  await prisma.servicerService.deleteMany();
+  await prisma.servicerDeposit.deleteMany();
+  await prisma.servicerDocument.deleteMany();
+  await prisma.servicerSchedule.deleteMany();
   await prisma.categoryRequest.deleteMany();
   await prisma.promotion.deleteMany();
   await prisma.reward.deleteMany();

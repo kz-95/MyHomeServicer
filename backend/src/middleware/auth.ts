@@ -65,16 +65,16 @@ export async function devBypassAuth(
   }
 
   try {
-    const merchant = await prisma.servicer.findFirst({
+    const servicer = await prisma.servicer.findFirst({
       where: { email: header, deletedAt: null },
     });
-    if (merchant) {
+    if (servicer) {
       req.user = {
-        id: merchant.id,
+        id: servicer.id,
         kind: 'servicer',
         role: 'servicer',
-        email: merchant.email,
-        isDemo: merchant.isDemo,
+        email: servicer.email,
+        isDemo: servicer.isDemo,
       };
       next();
       return;
@@ -151,7 +151,7 @@ export function requireUser(req: Request, _res: Response, next: NextFunction): v
   next();
 }
 
-/** Require a plain customer account (not merchant, not admin). */
+/** Require a plain customer account (not servicer, not admin). */
 export function requireCustomer(req: Request, _res: Response, next: NextFunction): void {
   if (!req.user) {
     next(unauthorized());

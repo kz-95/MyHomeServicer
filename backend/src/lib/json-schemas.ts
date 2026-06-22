@@ -10,7 +10,7 @@ const timeSlot = z.enum(TIME_SLOTS);
 const weekday = z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
 const fieldRule = z.enum(['required', 'optional', 'hidden']);
 
-/** MERCHANT_SERVICE.auto_accept_conditions */
+/** SERVICER_SERVICE.auto_accept_conditions */
 export const autoAcceptConditionsSchema = z.object({
   budget_min: z.number().nonnegative().optional(),
   budget_max: z.number().nonnegative().optional(),
@@ -20,20 +20,20 @@ export const autoAcceptConditionsSchema = z.object({
 });
 export type AutoAcceptConditions = z.infer<typeof autoAcceptConditionsSchema>;
 
-/** MERCHANT_SERVICE.field_requirements — address/time/date/contact are locked. */
+/** SERVICER_SERVICE.field_requirements — address/time/date/contact are locked. */
 export const fieldRequirementsSchema = z.record(z.string(), fieldRule);
 export type FieldRequirements = z.infer<typeof fieldRequirementsSchema>;
 
 /**
- * MERCHANT_SERVICE.modifiers — option-price map (Phase 6 shape, extended with durationMin).
+ * SERVICER_SERVICE.modifiers — option-price map (Phase 6 shape, extended with durationMin).
  *
  * Shape: Record<questionKey, Record<optionValue, { price: number|null, durationMin?: number, notOffered: boolean }>>
  *
  * - questionKey  matches a priced question's `key` in Category.questionSchema
  * - optionValue  matches one of that question's option `value` strings
- * - price        the merchant's per-option price (null = "use base price only")
+ * - price        the servicer's per-option price (null = "use base price only")
  * - durationMin  estimated minutes for this option (optional; sums into estimated job time)
- * - notOffered   when true, the merchant does not offer this option at all;
+ * - notOffered   when true, the servicer does not offer this option at all;
  *                the option-price grid shows it greyed out / skippable
  *
  * Only priced questions (priced: true in the questionSchema) are stored here.
@@ -70,10 +70,17 @@ export type LineItem = z.infer<typeof lineItemSchema>;
 
 export const lineItemsSchema = z.array(lineItemSchema);
 
-/** QuoteProposal moduleRef — reference to a PricingModule with optional override */
+/**
+ * Module reference — used both by a listing (ServicerService.moduleRefs) and by
+ * a QuoteProposal. `kind` distinguishes always-included modules from tickable
+ * add-ons (SP-3 §8); `durationDeltaMin` is the module's contribution to the
+ * estimated job time (SP-3 §9). Both default so pre-SP-3 refs parse unchanged.
+ */
 export const moduleRefSchema = z.object({
   moduleId: z.string().uuid(),
+  kind: z.enum(['included', 'addon']).default('included'),
   overridePrice: z.number().nonnegative().nullable().optional(),
+  durationDeltaMin: z.number().int().optional(),
 });
 export type ModuleRef = z.infer<typeof moduleRefSchema>;
 

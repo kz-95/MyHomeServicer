@@ -90,7 +90,7 @@ bookingsRouter.post(
   }),
 );
 
-/** POST /bookings/:id/mutual-cancel/respond — accept/reject merchant request. */
+/** POST /bookings/:id/mutual-cancel/respond — accept/reject servicer request. */
 bookingsRouter.post(
   '/:id/mutual-cancel/respond',
   validate([body('accept').isBoolean()]),

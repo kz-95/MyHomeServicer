@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { ApiError } from '../lib/errors';
 import { asyncHandler } from '../lib/async-handler';
+import { checkPinCooldown, recordPinFailure, recordPinSuccess } from './pin-cooldown';
 
 /**
  * Verify a PIN against an entity (Servicer or User). A null/absent `pinHash`
@@ -32,21 +33,26 @@ export const requirePin = asyncHandler(
       throw new ApiError('FORBIDDEN', 'Admin account required');
     }
 
+    const userId = req.user.id;
+    await checkPinCooldown(userId);
+
     const pin = req.header('x-action-pin');
     if (!pin) {
       throw new ApiError('PIN_REQUIRED', 'This action requires the admin action PIN');
     }
 
-    const admin = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const admin = await prisma.user.findUnique({ where: { id: userId } });
     if (!admin?.actionPinHash) {
       throw new ApiError('PIN_REQUIRED', 'No action PIN is configured for this admin');
     }
 
     const ok = await bcrypt.compare(pin, admin.actionPinHash);
     if (!ok) {
+      await recordPinFailure(userId);
       throw new ApiError('PIN_INVALID', 'Incorrect action PIN');
     }
 
+    await recordPinSuccess(userId);
     req.pinVerified = true;
     next();
   },

@@ -23,7 +23,7 @@ export interface QuoteQuestion {
   type: "checkbox" | "radio" | "text" | "quantity" | "number";
   required: boolean;
   /**
-   * When true, the options on this question carry merchant-set prices - the
+   * When true, the options on this question carry servicer-set prices - the
    * servicer listing form renders an option-price grid for them and the
    * proposal price box is pre-filled from the customer's selections.
    * When false (or absent), the question is informational only (property type,
@@ -44,7 +44,7 @@ interface SeedParentCategory {
   icon: string;
 }
 
-/** Leaf-level service category (what merchants list under + customers quote). */
+/** Leaf-level service category (what servicers list under + customers quote). */
 interface SeedChildCategory {
   parentSlug: string;
   slug: string;
@@ -126,7 +126,7 @@ export const categories: SeedParentCategory[] = [
   { slug: "tech-it", name: "Tech & IT", icon: "monitor" },
 ];
 
-/** The 29 leaf-level service children (what merchants list under + customers quote). */
+/** The 29 leaf-level service children (what servicers list under + customers quote). */
 export const children: SeedChildCategory[] = [
   // ── Cleaning Service ──
   {
@@ -2384,15 +2384,15 @@ export const children: SeedChildCategory[] = [
 ];
 
 export const platformSettings: { key: string; value: unknown }[] = [
-  { key: "minimum_merchant_charge", value: { amount: 30.0 } },
+  { key: "minimum_servicer_charge", value: { amount: 30.0 } },
   // Travel fee: platform-wide overall baseline (RM). Effective = max(category, overall).
   { key: "travel_fee_baseline_overall", value: { amount: 20.0 } },
   // Supplies fee: platform-wide overall baseline for cleaning supplies (RM).
   { key: "supplies_fee_baseline_overall", value: { amount: 30.0 } },
   { key: "no_show_consecutive_threshold", value: { count: 3 } },
   { key: "no_show_weekly_threshold", value: { count: 5 } },
-  { key: "merchant_deposit_minimum", value: { amount: 100.0 } },
-  { key: "merchant_credit_withdrawal_minimum", value: { amount: 50.0 } },
+  { key: "servicer_deposit_minimum", value: { amount: 100.0 } },
+  { key: "servicer_credit_withdrawal_minimum", value: { amount: 50.0 } },
   { key: "quote_buffer_minutes", value: { minutes: 15 } },
   { key: "sst_rate", value: { rate: 0.06 } },
   { key: "noshow_grace_minutes", value: { minutes: 30 } },
@@ -2415,7 +2415,7 @@ export const platformSettings: { key: string; value: unknown }[] = [
       ],
     },
   },
-  { key: "merchant_proposal_preset_limit", value: { limit: 3 } },
+  { key: "servicer_proposal_preset_limit", value: { limit: 3 } },
   { key: "notification_sound_enabled", value: true },
   { key: "chat_sound_enabled", value: true },
   { key: "typing_sound_enabled", value: true },
@@ -2468,7 +2468,7 @@ export const platformSettings: { key: string; value: unknown }[] = [
       "Good to see you, {name}! How can I make your day easier?",
     ],
   },
-  // Servicer / merchant.
+  // Servicer / servicer.
   {
     key: "chat_greetings_servicer",
     value: [
@@ -2502,8 +2502,8 @@ export const featureFlags = [
   { key: "ai_chatbot", name: "AI chatbot", enabled: true },
   { key: "payment_gateway", name: "Payment gateway", enabled: false },
   { key: "reviews", name: "Customer reviews", enabled: false },
-  { key: "merchant_kyc", name: "Servicer KYC", enabled: false },
-  { key: "merchant_schedule", name: "Servicer schedule", enabled: false },
+  { key: "servicer_kyc", name: "Servicer KYC", enabled: false },
+  { key: "servicer_schedule", name: "Servicer schedule", enabled: false },
 ];
 
 export const chatKnowledge: {

@@ -4,7 +4,7 @@ import { getPlatformFeeRate } from './settings.service';
 import { computePlatformFee } from '../lib/money';
 
 /**
- * Credit wallet helpers — simple add/deduct on a user's or merchant's
+ * Credit wallet helpers — simple add/deduct on a user's or servicer's
  * `creditBalance`, plus the unified platform fee (backed by money.ts).
  *
  * The legacy `PlatformCharge` / `platform_charge` / `computeCharge` duality
@@ -24,7 +24,7 @@ export async function computeFee(amount: number): Promise<number> {
 
 /**
  * Adds (positive delta) or deducts (negative delta) credit on a user or
- * merchant account. Pass `tx` to run inside an existing Prisma transaction.
+ * servicer account. Pass `tx` to run inside an existing Prisma transaction.
  * Returns the new balance.
  */
 export async function adjustCredit(

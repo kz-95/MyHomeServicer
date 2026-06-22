@@ -10,7 +10,7 @@ import { verifyAccessToken } from '../services/auth.service';
 let io: IOServer | null = null;
 
 /**
- * Socket.io server. Uses the Redis adapter so broadcasts reach merchants
+ * Socket.io server. Uses the Redis adapter so broadcasts reach servicers
  * connected to any API instance. Every connection is authenticated on the
  * handshake; users auto-join their private room.
  *
@@ -48,11 +48,11 @@ export function initSocket(server: HttpServer): IOServer {
       return;
     }
     try {
-      const merchant = await prisma.servicer.findFirst({
+      const servicer = await prisma.servicer.findFirst({
         where: { email: token, deletedAt: null },
       });
-      if (merchant) {
-        socket.data.principal = { id: merchant.id, kind: 'servicer' };
+      if (servicer) {
+        socket.data.principal = { id: servicer.id, kind: 'servicer' };
         next();
         return;
       }
@@ -108,14 +108,14 @@ export function emitToUser(userId: string, event: string, payload: unknown): voi
   io?.to(`user:${userId}`).emit(event, payload);
 }
 
-/** Emit to a single merchant's private room. */
-export function emitToMerchant(merchantId: string, event: string, payload: unknown): void {
-  io?.to(`servicer:${merchantId}`).emit(event, payload);
+/** Emit to a single servicer's private room. */
+export function emitToServicer(servicerId: string, event: string, payload: unknown): void {
+  io?.to(`servicer:${servicerId}`).emit(event, payload);
 }
 
-/** Emit a quote broadcast to a specific set of merchant rooms — never global. */
-export function emitToMerchants(merchantIds: string[], event: string, payload: unknown): void {
-  if (!io || merchantIds.length === 0) return;
-  const rooms = merchantIds.map((id) => `servicer:${id}`);
+/** Emit a quote broadcast to a specific set of servicer rooms — never global. */
+export function emitToServicers(servicerIds: string[], event: string, payload: unknown): void {
+  if (!io || servicerIds.length === 0) return;
+  const rooms = servicerIds.map((id) => `servicer:${id}`);
   io.to(rooms).emit(event, payload);
 }

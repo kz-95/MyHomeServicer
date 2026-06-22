@@ -15,7 +15,7 @@ interface Invoice {
 }
 
 /**
- * Servicer Invoices page - lists all invoices issued under this merchant's account.
+ * Servicer Invoices page - lists all invoices issued under this servicer's account.
  * Supports filtering by paid / unpaid status and links to the PDF download.
  */
 @Component({

@@ -39,7 +39,7 @@ interface Address {
       <div class="card success-banner">
         <span class="success-ic">✓</span>
         <strong>Quote request sent!</strong>
-        <p class="muted">Your request has been submitted. Merchants are being notified.</p>
+        <p class="muted">Your request has been submitted. Servicers are being notified.</p>
       </div>
     }
     <h1>My quotes</h1>
@@ -107,7 +107,7 @@ interface Address {
         <p>
           Are you sure you want to cancel the <strong>{{ q.category.name }}</strong> quote?
         </p>
-        <p class="muted">This cannot be undone. Any merchants who have already responded will be notified.</p>
+        <p class="muted">This cannot be undone. Any servicers who have already responded will be notified.</p>
         <div class="modal-actions">
           <button class="btn-ghost" (click)="cancelling.set(null)" [disabled]="cancellingBusy()">Keep it</button>
           <button class="btn-primary" (click)="doCancel(q.id)" [disabled]="cancellingBusy()">

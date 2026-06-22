@@ -5,10 +5,11 @@ import { badRequest, conflict, notFound } from '../lib/errors';
 import {
   autoAcceptConditionsSchema,
   fieldRequirementsSchema,
+  moduleRefsSchema,
   optionPriceMapSchema,
 } from '../lib/json-schemas';
 
-const PRESET_LIMIT = 3; // V1 cap (seed-plan.md: merchant_proposal_preset_limit)
+const PRESET_LIMIT = 3; // V1 cap (seed-plan.md: servicer_proposal_preset_limit)
 const SKU_PATTERN = /^[A-Za-z0-9_-]{3,30}$/;
 
 export interface ServiceInput {
@@ -16,7 +17,7 @@ export interface ServiceInput {
   newSubcategoryName?: string;
   title: string;
   description?: string;
-  merchantSku?: string;
+  servicerSku?: string;
   basePrice: number;
   priceType: PriceType;
   taxMode: TaxMode;
@@ -24,6 +25,9 @@ export interface ServiceInput {
   taxRate?: number;
   estimatedDurationMinutes: number;
   autoAccept?: boolean;
+  autoAcceptMessage?: string | null;
+  listingMode?: 'simple' | 'advanced';
+  moduleRefs?: unknown;
   modifiers?: unknown;
   fieldRequirements?: unknown;
   imageUrl?: string | null;
@@ -32,48 +36,48 @@ export interface ServiceInput {
 
 // ── Servicer services CRUD ───────────────────────────────────────────────────
 
-export async function listServices(merchantId: string) {
-  return prisma.merchantService.findMany({
-    where: { merchantId, deletedAt: null },
+export async function listServices(servicerId: string) {
+  return prisma.servicerService.findMany({
+    where: { servicerId, deletedAt: null },
     orderBy: { createdAt: 'asc' },
     include: { category: { select: { id: true, name: true, parentCategoryId: true, imageUrl: true } } },
   });
 }
 
 /**
- * Lists the merchant's fixed platform "big category" plus the sub-categories
+ * Lists the servicer's fixed platform "big category" plus the sub-categories
  * under it — the options shown in the listing form's Sub Category field.
  */
-export async function listSubcategories(merchantId: string) {
-  const merchant = await prisma.servicer.findUnique({
-    where: { id: merchantId },
+export async function listSubcategories(servicerId: string) {
+  const servicer = await prisma.servicer.findUnique({
+    where: { id: servicerId },
     include: { category: true },
   });
-  if (!merchant) throw notFound('Servicer not found');
+  if (!servicer) throw notFound('Servicer not found');
   const subcategories = await prisma.category.findMany({
-    where: { parentCategoryId: merchant.categoryId, deletedAt: null },
+    where: { parentCategoryId: servicer.categoryId, deletedAt: null },
     orderBy: { name: 'asc' },
   });
   return {
-    category: { id: merchant.category.id, name: merchant.category.name },
+    category: { id: servicer.category.id, name: servicer.category.name },
     subcategories: subcategories.map((s) => ({ id: s.id, name: s.name })),
   };
 }
 
 /**
  * Resolves the category a listing belongs to. A listing sits under the
- * merchant's fixed big category — either as an existing sub-category, a new
- * sub-category the merchant names (created on the fly), or the big category
+ * servicer's fixed big category — either as an existing sub-category, a new
+ * sub-category the servicer names (created on the fly), or the big category
  * itself when no sub-category is given.
  */
 async function resolveServiceCategory(
-  merchantId: string,
+  servicerId: string,
   subcategoryId?: string,
   newSubcategoryName?: string,
 ): Promise<string> {
-  const merchant = await prisma.servicer.findUnique({ where: { id: merchantId } });
-  if (!merchant) throw notFound('Servicer not found');
-  const bigCategoryId = merchant.categoryId;
+  const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
+  if (!servicer) throw notFound('Servicer not found');
+  const bigCategoryId = servicer.categoryId;
 
   if (newSubcategoryName && newSubcategoryName.trim()) {
     const name = newSubcategoryName.trim();
@@ -105,41 +109,47 @@ async function resolveServiceCategory(
   return bigCategoryId;
 }
 
-async function checkSku(merchantId: string, sku: string | undefined, excludeId?: string) {
+async function checkSku(servicerId: string, sku: string | undefined, excludeId?: string) {
   if (!sku) return;
   if (!SKU_PATTERN.test(sku)) {
     throw badRequest('SKU must be 3-30 alphanumeric / hyphen / underscore characters');
   }
-  const dup = await prisma.merchantService.findFirst({
-    where: { merchantId, merchantSku: sku, ...(excludeId ? { id: { not: excludeId } } : {}) },
+  const dup = await prisma.servicerService.findFirst({
+    where: { servicerId, servicerSku: sku, ...(excludeId ? { id: { not: excludeId } } : {}) },
   });
   if (dup) throw conflict('That SKU is already used by another of your listings');
 }
 
-export async function createService(merchantId: string, input: ServiceInput) {
-  await checkSku(merchantId, input.merchantSku);
+export async function createService(servicerId: string, input: ServiceInput) {
+  await checkSku(servicerId, input.servicerSku);
   const categoryId = await resolveServiceCategory(
-    merchantId,
+    servicerId,
     input.subcategoryId,
     input.newSubcategoryName,
   );
 
-  return prisma.merchantService.create({
+  return prisma.servicerService.create({
     data: {
-      merchantId,
+      servicerId,
       categoryId,
       title: input.title,
       description: input.description ?? null,
       imageUrl: input.imageUrl ?? null,
       published: input.published ?? true,
-      merchantSku: input.merchantSku ?? null,
+      servicerSku: input.servicerSku ?? null,
       basePrice: input.basePrice,
       priceType: input.priceType,
       taxMode: input.taxMode,
       taxName: input.taxName ?? null,
       taxRate: input.taxRate ?? null,
       estimatedDurationMinutes: input.estimatedDurationMinutes,
+      listingMode: input.listingMode ?? 'simple',
       autoAccept: input.autoAccept ?? false,
+      autoAcceptMessage: input.autoAcceptMessage ?? null,
+      moduleRefs:
+        input.moduleRefs !== undefined
+          ? (moduleRefsSchema.parse(input.moduleRefs) as Prisma.InputJsonValue)
+          : undefined,
       modifiers:
         input.modifiers !== undefined
           ? (optionPriceMapSchema.parse(input.modifiers) as Prisma.InputJsonValue)
@@ -152,21 +162,21 @@ export async function createService(merchantId: string, input: ServiceInput) {
   });
 }
 
-async function ownedService(merchantId: string, serviceId: string) {
-  const service = await prisma.merchantService.findFirst({
-    where: { id: serviceId, merchantId, deletedAt: null },
+async function ownedService(servicerId: string, serviceId: string) {
+  const service = await prisma.servicerService.findFirst({
+    where: { id: serviceId, servicerId, deletedAt: null },
   });
   if (!service) throw notFound('Listing not found');
   return service;
 }
 
 export async function updateService(
-  merchantId: string,
+  servicerId: string,
   serviceId: string,
   input: Partial<ServiceInput>,
 ) {
-  await ownedService(merchantId, serviceId);
-  const data: Prisma.MerchantServiceUpdateInput = {};
+  await ownedService(servicerId, serviceId);
+  const data: Prisma.ServicerServiceUpdateInput = {};
 
   if (input.title !== undefined) data.title = input.title;
   if (input.description !== undefined) data.description = input.description;
@@ -180,27 +190,33 @@ export async function updateService(
   if (input.estimatedDurationMinutes !== undefined) {
     data.estimatedDurationMinutes = input.estimatedDurationMinutes;
   }
-  if (input.merchantSku !== undefined) {
-    await checkSku(merchantId, input.merchantSku || undefined, serviceId);
-    data.merchantSku = input.merchantSku || null;
+  if (input.servicerSku !== undefined) {
+    await checkSku(servicerId, input.servicerSku || undefined, serviceId);
+    data.servicerSku = input.servicerSku || null;
+  }
+  if (input.listingMode !== undefined) data.listingMode = input.listingMode;
+  if (input.autoAccept !== undefined) data.autoAccept = input.autoAccept;
+  if (input.autoAcceptMessage !== undefined) data.autoAcceptMessage = input.autoAcceptMessage;
+  if (input.moduleRefs !== undefined) {
+    data.moduleRefs = moduleRefsSchema.parse(input.moduleRefs) as Prisma.InputJsonValue;
   }
   if (input.modifiers !== undefined) {
     data.modifiers = optionPriceMapSchema.parse(input.modifiers) as Prisma.InputJsonValue;
   }
   if (input.subcategoryId !== undefined || input.newSubcategoryName !== undefined) {
     const categoryId = await resolveServiceCategory(
-      merchantId,
+      servicerId,
       input.subcategoryId,
       input.newSubcategoryName,
     );
     data.category = { connect: { id: categoryId } };
   }
-  return prisma.merchantService.update({ where: { id: serviceId }, data });
+  return prisma.servicerService.update({ where: { id: serviceId }, data });
 }
 
-export async function deleteService(merchantId: string, serviceId: string) {
-  await ownedService(merchantId, serviceId);
-  await prisma.merchantService.update({
+export async function deleteService(servicerId: string, serviceId: string) {
+  await ownedService(servicerId, serviceId);
+  await prisma.servicerService.update({
     where: { id: serviceId },
     data: { deletedAt: new Date() },
   });
@@ -208,11 +224,11 @@ export async function deleteService(merchantId: string, serviceId: string) {
 
 /** Toggle and configure auto-accept on a service. JSON conditions validated. */
 export async function configureAutoAccept(
-  merchantId: string,
+  servicerId: string,
   serviceId: string,
   input: { autoAccept: boolean; autoAcceptConditions?: unknown; autoAcceptPresetId?: string },
 ) {
-  await ownedService(merchantId, serviceId);
+  await ownedService(servicerId, serviceId);
   let conditions: Prisma.InputJsonValue | undefined;
   if (input.autoAccept) {
     if (!input.autoAcceptConditions) {
@@ -220,7 +236,7 @@ export async function configureAutoAccept(
     }
     conditions = autoAcceptConditionsSchema.parse(input.autoAcceptConditions);
   }
-  return prisma.merchantService.update({
+  return prisma.servicerService.update({
     where: { id: serviceId },
     data: {
       autoAccept: input.autoAccept,
@@ -232,30 +248,30 @@ export async function configureAutoAccept(
 
 // ── Proposal presets ─────────────────────────────────────────────────────────
 
-export async function listPresets(merchantId: string) {
-  return prisma.merchantProposalPreset.findMany({
-    where: { merchantId },
+export async function listPresets(servicerId: string) {
+  return prisma.servicerProposalPreset.findMany({
+    where: { servicerId },
     orderBy: { sortOrder: 'asc' },
   });
 }
 
 export async function createPreset(
-  merchantId: string,
+  servicerId: string,
   input: { name: string; message: string; priceOffset?: number; isDefault?: boolean },
 ) {
-  const count = await prisma.merchantProposalPreset.count({ where: { merchantId } });
+  const count = await prisma.servicerProposalPreset.count({ where: { servicerId } });
   if (count >= PRESET_LIMIT) {
     throw conflict(`Preset limit reached (${PRESET_LIMIT} in V1)`);
   }
   if (input.isDefault) {
-    await prisma.merchantProposalPreset.updateMany({
-      where: { merchantId },
+    await prisma.servicerProposalPreset.updateMany({
+      where: { servicerId },
       data: { isDefault: false },
     });
   }
-  return prisma.merchantProposalPreset.create({
+  return prisma.servicerProposalPreset.create({
     data: {
-      merchantId,
+      servicerId,
       name: input.name,
       message: input.message,
       priceOffset: input.priceOffset ?? null,
@@ -266,7 +282,7 @@ export async function createPreset(
 }
 
 export async function updatePreset(
-  merchantId: string,
+  servicerId: string,
   presetId: string,
   input: {
     name?: string;
@@ -276,17 +292,17 @@ export async function updatePreset(
     sortOrder?: number;
   },
 ) {
-  const preset = await prisma.merchantProposalPreset.findFirst({
-    where: { id: presetId, merchantId },
+  const preset = await prisma.servicerProposalPreset.findFirst({
+    where: { id: presetId, servicerId },
   });
   if (!preset) throw notFound('Preset not found');
   if (input.isDefault) {
-    await prisma.merchantProposalPreset.updateMany({
-      where: { merchantId },
+    await prisma.servicerProposalPreset.updateMany({
+      where: { servicerId },
       data: { isDefault: false },
     });
   }
-  return prisma.merchantProposalPreset.update({
+  return prisma.servicerProposalPreset.update({
     where: { id: presetId },
     data: {
       ...(input.name !== undefined && { name: input.name }),
@@ -298,10 +314,10 @@ export async function updatePreset(
   });
 }
 
-export async function deletePreset(merchantId: string, presetId: string) {
-  const preset = await prisma.merchantProposalPreset.findFirst({
-    where: { id: presetId, merchantId },
+export async function deletePreset(servicerId: string, presetId: string) {
+  const preset = await prisma.servicerProposalPreset.findFirst({
+    where: { id: presetId, servicerId },
   });
   if (!preset) throw notFound('Preset not found');
-  await prisma.merchantProposalPreset.delete({ where: { id: presetId } });
+  await prisma.servicerProposalPreset.delete({ where: { id: presetId } });
 }

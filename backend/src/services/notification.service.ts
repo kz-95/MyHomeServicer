@@ -1,10 +1,10 @@
 ﻿import { prisma } from '../lib/prisma';
-import { emitToUser, emitToMerchant } from '../socket';
+import { emitToUser, emitToServicer } from '../socket';
 import { logger } from '../lib/logger';
 
 /**
  * Notification service. Notifications target a customer/admin (`userId`) or a
- * merchant (`merchantId`). Each recipient has `notificationPrefs` controlling
+ * servicer (`servicerId`). Each recipient has `notificationPrefs` controlling
  * which notification types they receive and which categories they follow.
  */
 
@@ -38,7 +38,7 @@ interface NotificationInput {
   type: string;
   message: string;
   userId?: string;
-  merchantId?: string;
+  servicerId?: string;
   /** In-app redirect target for a click, e.g. `/customer/quotes/<id>`. */
   linkUrl?: string;
   /** Optional category id — drives the "followed categories" filter. */
@@ -62,9 +62,9 @@ export async function notify(input: NotificationInput): Promise<void> {
         select: { notificationPrefs: true },
       });
       prefs = readPrefs(u?.notificationPrefs);
-    } else if (input.merchantId) {
+    } else if (input.servicerId) {
       const m = await prisma.servicer.findUnique({
-        where: { id: input.merchantId },
+        where: { id: input.servicerId },
         select: { notificationPrefs: true },
       });
       prefs = readPrefs(m?.notificationPrefs);
@@ -84,7 +84,7 @@ export async function notify(input: NotificationInput): Promise<void> {
     const row = await prisma.notification.create({
       data: {
         userId: input.userId ?? null,
-        merchantId: input.merchantId ?? null,
+        servicerId: input.servicerId ?? null,
         type: input.type,
         message: input.message,
         linkUrl: input.linkUrl ?? null,
@@ -96,8 +96,8 @@ export async function notify(input: NotificationInput): Promise<void> {
     const payload = { id: row.id, type: row.type, message: row.message, createdAt: row.createdAt };
     if (input.userId) {
       emitToUser(input.userId, 'notification.new', payload);
-    } else if (input.merchantId) {
-      emitToMerchant(input.merchantId, 'notification.new', payload);
+    } else if (input.servicerId) {
+      emitToServicer(input.servicerId, 'notification.new', payload);
     }
   } catch (err) {
     logger.error('Failed to create notification', { error: (err as Error).message });
@@ -109,7 +109,7 @@ export async function notify(input: NotificationInput): Promise<void> {
  * "a queue item needs settling" alerts.
  */
 export async function notifyAdmins(
-  input: Omit<NotificationInput, 'userId' | 'merchantId'>,
+  input: Omit<NotificationInput, 'userId' | 'servicerId'>,
 ): Promise<void> {
   try {
     const admins = await prisma.user.findMany({

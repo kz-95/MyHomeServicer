@@ -90,7 +90,7 @@ interface WeekDay {
           <span class="muted">{{ sd.key }}: <strong>RM {{ sd.earnings | number: '1.2-2' }}</strong></span>
           <div class="day-info-actions">
             <button class="range-btn" (click)="selectedDay.set(null)">× Clear</button>
-            <a class="range-btn on" [routerLink]="['/servicer/jobs']">View history →</a>
+            <a class="range-btn on" [routerLink]="['/servicer/jobs/history']">View history →</a>
           </div>
         </div>
       }
@@ -290,8 +290,8 @@ export class ServicerDashboardComponent implements OnInit {
   }
 
   readonly quickLinks = [
-    { label: 'Pending Requests', path: '/servicer/jobs', icon: '📨', detail: 'Incoming quotes to respond to' },
-    { label: 'Active Jobs', path: '/servicer/jobs', icon: '🔧', detail: 'Jobs in progress' },
+    { label: 'Pending Requests', path: '/servicer/jobs/pending', icon: '📨', detail: 'Incoming quotes to respond to' },
+    { label: 'Active Jobs', path: '/servicer/jobs/active', icon: '🔧', detail: 'Jobs in progress' },
     { label: 'History', path: '/servicer/jobs/history', icon: '🗂️', detail: 'Past & completed jobs' },
     { label: 'Invoices', path: '/servicer/invoices', icon: '🧾', detail: 'View and download invoices' },
     { label: 'Service Listings', path: '/servicer/services', icon: '📋', detail: 'Manage your services' },

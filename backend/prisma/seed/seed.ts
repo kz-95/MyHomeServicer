@@ -1,5 +1,5 @@
 ﻿/**
- * Demo seed script. Populates a development database with 36 merchants (1 per
+ * Demo seed script. Populates a development database with 36 servicers (1 per
  * service category, 6 for 3D Modeling), 3 customers, 1 admin, in-flight
  * quotes/bookings, penalty scenarios, promotions and AI chat history.
  *
@@ -17,7 +17,7 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient, Prisma, Weekday, TimeSlot } from '@prisma/client';
 import { categories, children, platformSettings, penaltyRules, featureFlags, chatKnowledge } from './data/static';
 import { localizeQuestions } from './data/question-i18n';
-import { merchants, customers, DEMO_PASSWORD, ADMIN_PIN } from './data/accounts';
+import { servicers, customers, DEMO_PASSWORD, ADMIN_PIN } from './data/accounts';
 import { BUDGET_RANGE_PRESETS } from './data/budget-ranges';
 
 const prisma = new PrismaClient();
@@ -57,7 +57,7 @@ async function main(): Promise<void> {
   const pinHash = await bcrypt.hash(ADMIN_PIN, 12);
 
   // ── Categories ──
-  // categoryBySlug covers both parents and children - merchants/quotes key off child slugs.
+  // categoryBySlug covers both parents and children - servicers/quotes key off child slugs.
   const categoryBySlug: Record<string, string> = {};
 
   // Step 1: create the 7 parent categories (grouping only - no price/questions).
@@ -461,8 +461,8 @@ async function main(): Promise<void> {
     });
   }
 
-  // ── Merchants, deposits, services, presets ──
-  // Map each merchant ref → its local demo profile picture (M#_ShortName.png).
+  // ── Servicers, deposits, services, presets ──
+  // Map each servicer ref → its local demo profile picture (M#_ShortName.png).
   // Files live in backend/uploads/profiles/demo and are served at /api/files/local.
   const demoLogoDir = join(__dirname, '../../uploads/profiles/demo');
   const demoLogoByRef: Record<string, string> = {};
@@ -473,10 +473,10 @@ async function main(): Promise<void> {
     }
   }
 
-  const merchantByRef: Record<string, string> = {};
+  const servicerByRef: Record<string, string> = {};
   const serviceBySku: Record<string, string> = {};
-  for (const m of merchants) {
-    const merchant = await prisma.servicer.create({
+  for (const m of servicers) {
+    const servicer = await prisma.servicer.create({
       data: {
         id: fixedUuid(m.email),
         name: m.name,
@@ -486,7 +486,7 @@ async function main(): Promise<void> {
         pinHash,
         businessName: m.businessName,
         bio: `${m.businessName} - based in ${m.area}.`,
-        logoUrl: demoLogoByRef[m.ref] ?? `https://picsum.photos/seed/merchant${m.ref}/200/200`,
+        logoUrl: demoLogoByRef[m.ref] ?? `https://picsum.photos/seed/servicer${m.ref}/200/200`,
         categoryId: categoryBySlug[m.categorySlug],
         isCompany: m.isCompany,
         entityType: m.entityType,
@@ -512,29 +512,29 @@ async function main(): Promise<void> {
         isDemo: true,
       },
     });
-    merchantByRef[m.ref] = merchant.id;
+    servicerByRef[m.ref] = servicer.id;
 
-    await prisma.merchantDeposit.create({
+    await prisma.servicerDeposit.create({
       data: {
-        merchantId: merchant.id,
+        servicerId: servicer.id,
         totalDeposited: 500,
         currentBalance: 500,
         minimumRequired: 100,
       },
     });
     // Credit log showing initial deposit + bonus.
-    await prisma.merchantCreditLog.create({
+    await prisma.servicerCreditLog.create({
       data: {
-        merchantId: merchant.id,
+        servicerId: servicer.id,
         type: 'manual_adjustment',
         amount: 500,
         balanceAfter: 500,
         note: 'Initial security deposit',
       },
     });
-    await prisma.merchantCreditLog.create({
+    await prisma.servicerCreditLog.create({
       data: {
-        merchantId: merchant.id,
+        servicerId: servicer.id,
         type: 'manual_adjustment',
         amount: 100,
         balanceAfter: 600,
@@ -542,9 +542,9 @@ async function main(): Promise<void> {
         createdAt: new Date(Date.now() - 25 * 86_400_000),
       },
     });
-    await prisma.merchantProposalPreset.create({
+    await prisma.servicerProposalPreset.create({
       data: {
-        merchantId: merchant.id,
+        servicerId: servicer.id,
         name: 'Standard quote',
         message: `Thanks for considering ${m.businessName}. Happy to help with your job.`,
         priceOffset: 0,
@@ -552,13 +552,13 @@ async function main(): Promise<void> {
       },
     });
     for (const s of m.services) {
-      const svc = await prisma.merchantService.create({
+      const svc = await prisma.servicerService.create({
         data: {
-          merchantId: merchant.id,
+          servicerId: servicer.id,
           categoryId: categoryBySlug[m.categorySlug],
           title: s.title,
           description: s.title,
-          merchantSku: s.sku,
+          servicerSku: s.sku,
           basePrice: s.basePrice,
           priceType: s.priceType,
           taxMode: m.taxMode,
@@ -597,7 +597,7 @@ async function main(): Promise<void> {
         paymentMode: opts.payment ?? 'pay_later',
         deadlineMode: 'fixed_time',
         proposalDeadline: opts.deadline ?? minutes(offset),
-        merchantDeadline: opts.deadline
+        servicerDeadline: opts.deadline
           ? new Date(opts.deadline.getTime() - 15 * 60_000)
           : minutes(offset - 15),
         status: opts.status ?? 'open',
@@ -623,14 +623,14 @@ async function main(): Promise<void> {
       paymentMode: 'pay_later',
       deadlineMode: 'fixed_time',
       proposalDeadline: minutes(offset),
-      merchantDeadline: minutes(offset - 15),
+      servicerDeadline: minutes(offset - 15),
       status: 'open',
       serviceDetails: { aircon_service: ['wall_chemical', 'wall_general'], property_type: 'condo' },
     },
   });
-  await prisma.quoteBroadcast.create({ data: { quoteRequestId: activeQuote.id, merchantId: merchantByRef['M2'] } });
+  await prisma.quoteBroadcast.create({ data: { quoteRequestId: activeQuote.id, servicerId: servicerByRef['M2'] } });
   await prisma.quoteProposal.create({
-    data: { quoteRequestId: activeQuote.id, merchantId: merchantByRef['M2'], proposedPrice: 110, message: 'CoolBreeze AC can handle this job.', etaMinutes: 60, isAuto: true },
+    data: { quoteRequestId: activeQuote.id, servicerId: servicerByRef['M2'], proposedPrice: 110, message: 'CoolBreeze AC can handle this job.', etaMinutes: 60, isAuto: true },
   });
 
   // Open plumbing quote (C_FRESH) → M1 broadcast + proposal.
@@ -643,13 +643,13 @@ async function main(): Promise<void> {
       timeSlot: 'morning', preferredDate: days(2),
       propertyType: 'condo', budgetMin: 80, budgetMax: 250,
       paymentMode: 'pay_later', deadlineMode: 'fixed_time',
-      proposalDeadline: minutes(offset), merchantDeadline: minutes(offset - 15),
+      proposalDeadline: minutes(offset), servicerDeadline: minutes(offset - 15),
       status: 'open',
     },
   });
-  await prisma.quoteBroadcast.create({ data: { quoteRequestId: plumbingOpenQuote.id, merchantId: merchantByRef['M1'] } });
+  await prisma.quoteBroadcast.create({ data: { quoteRequestId: plumbingOpenQuote.id, servicerId: servicerByRef['M1'] } });
   await prisma.quoteProposal.create({
-    data: { quoteRequestId: plumbingOpenQuote.id, merchantId: merchantByRef['M1'], proposedPrice: 100, message: 'Ahmad Plumbing can fix this - fast and reliable.', etaMinutes: 60 },
+    data: { quoteRequestId: plumbingOpenQuote.id, servicerId: servicerByRef['M1'], proposedPrice: 100, message: 'Ahmad Plumbing can fix this - fast and reliable.', etaMinutes: 60 },
   });
 
   // Open catering quote (C_LOYAL) → M9 broadcast + proposal.
@@ -662,26 +662,26 @@ async function main(): Promise<void> {
       timeSlot: 'noon', preferredDate: days(3),
       propertyType: 'landed', budgetMin: 150, budgetMax: 500,
       paymentMode: 'pay_later', deadlineMode: 'fixed_time',
-      proposalDeadline: minutes(offset + 60), merchantDeadline: minutes(offset + 45),
+      proposalDeadline: minutes(offset + 60), servicerDeadline: minutes(offset + 45),
       status: 'open',
     },
   });
-  await prisma.quoteBroadcast.create({ data: { quoteRequestId: cateringOpenQuote.id, merchantId: merchantByRef['M9'] } });
+  await prisma.quoteBroadcast.create({ data: { quoteRequestId: cateringOpenQuote.id, servicerId: servicerByRef['M9'] } });
   await prisma.quoteProposal.create({
-    data: { quoteRequestId: cateringOpenQuote.id, merchantId: merchantByRef['M9'], proposedPrice: 200, message: 'Auntie Mei Catering - homestyle Malaysian menu.', etaMinutes: 180, isAuto: true },
+    data: { quoteRequestId: cateringOpenQuote.id, servicerId: servicerByRef['M9'], proposedPrice: 200, message: 'Auntie Mei Catering - homestyle Malaysian menu.', etaMinutes: 180, isAuto: true },
   });
 
-  // Extra broadcasts (no proposal yet) - merchants see pending incoming quotes.
-  const extraBroadcasts: { customerRef: string; addressKey: string; categorySlug: string; merchantRef: string }[] = [
-    { customerRef: 'C_FRESH', addressKey: 'C_FRESH:0', categorySlug: 'tv-repair',          merchantRef: 'M19' },
-    { customerRef: 'C_FRESH', addressKey: 'C_FRESH:0', categorySlug: 'ceiling-fan-repair',  merchantRef: 'M22' },
-    { customerRef: 'C_ACTIVE', addressKey: 'C_ACTIVE:0', categorySlug: 'art-class',         merchantRef: 'M24' },
-    { customerRef: 'C_LOYAL', addressKey: 'C_LOYAL:0', categorySlug: 'roof',               merchantRef: 'M16' },
-    { customerRef: 'C_LOYAL', addressKey: 'C_LOYAL:1', categorySlug: 'carpet-cleaning',     merchantRef: 'M6' },
+  // Extra broadcasts (no proposal yet) - servicers see pending incoming quotes.
+  const extraBroadcasts: { customerRef: string; addressKey: string; categorySlug: string; servicerRef: string }[] = [
+    { customerRef: 'C_FRESH', addressKey: 'C_FRESH:0', categorySlug: 'tv-repair',          servicerRef: 'M19' },
+    { customerRef: 'C_FRESH', addressKey: 'C_FRESH:0', categorySlug: 'ceiling-fan-repair',  servicerRef: 'M22' },
+    { customerRef: 'C_ACTIVE', addressKey: 'C_ACTIVE:0', categorySlug: 'art-class',         servicerRef: 'M24' },
+    { customerRef: 'C_LOYAL', addressKey: 'C_LOYAL:0', categorySlug: 'roof',               servicerRef: 'M16' },
+    { customerRef: 'C_LOYAL', addressKey: 'C_LOYAL:1', categorySlug: 'carpet-cleaning',     servicerRef: 'M6' },
   ];
   for (const eb of extraBroadcasts) {
     const q = await makeQuote(eb.customerRef, eb.addressKey, eb.categorySlug, { status: 'open', deadline: minutes(offset) });
-    await prisma.quoteBroadcast.create({ data: { quoteRequestId: q.id, merchantId: merchantByRef[eb.merchantRef] } });
+    await prisma.quoteBroadcast.create({ data: { quoteRequestId: q.id, servicerId: servicerByRef[eb.servicerRef] } });
   }
   console.log('  ✓ 3 open quotes with proposals + 5 extra broadcasts (pending)');
 
@@ -689,7 +689,7 @@ async function main(): Promise<void> {
   async function makeBooking(
     customerRef: string,
     addressKey: string,
-    merchantRef: string,
+    servicerRef: string,
     categorySlug: string,
     status: 'pending_confirm' | 'in_progress' | 'completed' | 'cancelled',
     payment: 'pay_now' | 'pay_later' | 'cash',
@@ -704,7 +704,7 @@ async function main(): Promise<void> {
     const proposal = await prisma.quoteProposal.create({
       data: {
         quoteRequestId: q.id,
-        merchantId: merchantByRef[merchantRef],
+        servicerId: servicerByRef[servicerRef],
         proposedPrice: price,
         message: 'Proposal accepted by customer.',
         etaMinutes: 60,
@@ -717,7 +717,7 @@ async function main(): Promise<void> {
         quoteRequestId: q.id,
         proposalId: proposal.id,
         userId: customerByRef[customerRef],
-        merchantId: merchantByRef[merchantRef],
+        servicerId: servicerByRef[servicerRef],
         status,
         price,
         paymentMode: payment,
@@ -726,15 +726,15 @@ async function main(): Promise<void> {
         confirmedAt: opts?.scheduledDate ?? (status !== 'pending_confirm' ? days(-2) : null),
         arrivedAt: ['in_progress', 'completed'].includes(status) ? (opts?.scheduledDate ?? days(-2)) : null,
         arrivePhotoUrl: ['in_progress', 'completed'].includes(status)
-          ? `https://picsum.photos/seed/arrive${merchantRef}/800/600`
+          ? `https://picsum.photos/seed/arrive${servicerRef}/800/600`
           : null,
         doneAt: status === 'completed' ? (opts?.scheduledDate ?? days(-2)) : null,
         donePhotoUrl: status === 'completed'
-          ? `https://picsum.photos/seed/done${merchantRef}/800/600`
+          ? `https://picsum.photos/seed/done${servicerRef}/800/600`
           : null,
         cashConfirmed: false,
-        cancelledBy: status === 'cancelled' ? 'merchant' : null,
-        cancelReason: status === 'cancelled' ? 'No-show - merchant did not arrive' : null,
+        cancelledBy: status === 'cancelled' ? 'servicer' : null,
+        cancelReason: status === 'cancelled' ? 'No-show - servicer did not arrive' : null,
       },
     });
     return booking;
@@ -751,10 +751,10 @@ async function main(): Promise<void> {
   await makeBooking('C_LOYAL', 'C_LOYAL:0', 'M4', 'home-cleaning', 'completed', 'pay_later', 140);
   await makeBooking('C_LOYAL', 'C_LOYAL:1', 'M9', 'catering', 'completed', 'pay_later', 120);
 
-  // ── Bulk completed bookings for ALL merchants ──
-  // Each merchant gets 8-15 completed jobs (50 for AC Doctor) evenly spaced
+  // ── Bulk completed bookings for ALL servicers ──
+  // Each servicer gets 8-15 completed jobs (50 for AC Doctor) evenly spaced
   // across the last 30 days so every dashboard shows real 30-day revenue data.
-  const merchantSlugs: { ref: string; slug: string; prices: number[]; count: number }[] = [
+  const servicerSlugs: { ref: string; slug: string; prices: number[]; count: number }[] = [
     { ref: 'M1',  slug: 'plumber',                prices: [80, 120, 160, 200, 250], count: 15 },
     { ref: 'M2',  slug: 'aircond-servicer',       prices: [80, 110, 140, 180],       count: 15 },
     { ref: 'M3',  slug: 'electrical-wiring',      prices: [60, 100, 150, 200],       count: 15 },
@@ -853,9 +853,19 @@ async function main(): Promise<void> {
     { ref: 'M94',  slug: 'cooking-class',          prices: [55, 85, 130, 190],         count: 8  },
     { ref: 'M95',  slug: 'gym-trainer',            prices: [55, 75, 110, 170],         count: 8  },
     { ref: 'M96',  slug: 'alarm-cctv',             prices: [130, 240, 480, 950],       count: 8  },
+    // ── New categories (M97–M105) — Painting, Moving, Gardening ──
+    { ref: 'M97',  slug: 'painting',               prices: [120, 180, 240, 320],       count: 10 },
+    { ref: 'M98',  slug: 'moving',                 prices: [200, 350, 500, 800],       count: 10 },
+    { ref: 'M99',  slug: 'gardening',              prices: [80,  120, 180, 250],       count: 10 },
+    { ref: 'M100', slug: 'painting',               prices: [110, 170, 230, 300],       count: 8  },
+    { ref: 'M101', slug: 'moving',                 prices: [180, 320, 480, 750],       count: 8  },
+    { ref: 'M102', slug: 'gardening',              prices: [70,  110, 160, 220],       count: 8  },
+    { ref: 'M103', slug: 'painting',               prices: [100, 160, 220, 290],       count: 8  },
+    { ref: 'M104', slug: 'moving',                 prices: [160, 300, 450, 700],       count: 8  },
+    { ref: 'M105', slug: 'gardening',              prices: [65,  100, 150, 210],       count: 8  },
   ];
-  const allBulkCompleted: { booking: Awaited<ReturnType<typeof makeBooking>>; merchantRef: string; price: number }[] = [];
-  for (const m of merchantSlugs) {
+  const allBulkCompleted: { booking: Awaited<ReturnType<typeof makeBooking>>; servicerRef: string; price: number }[] = [];
+  for (const m of servicerSlugs) {
     const count = m.count;
     // Build a set of working days: ~80% chance per day (takes 1-2 days off per week).
     const workingDays: number[] = [];
@@ -875,18 +885,18 @@ async function main(): Promise<void> {
         m.ref, m.slug, 'completed', pay, price,
         { scheduledDate: sched },
       );
-      allBulkCompleted.push({ booking: b, merchantRef: m.ref, price });
+      allBulkCompleted.push({ booking: b, servicerRef: m.ref, price });
     }
   }
-  console.log(`  ✓ ${allBulkCompleted.length} bulk completed bookings across all merchants`);
+  console.log(`  ✓ ${allBulkCompleted.length} bulk completed bookings across all servicers`);
   console.log('  ✓ in-flight bookings (pending, in-progress, cash, 3 completed)');
 
-  // ── Per-merchant scenario bookings (all 96 merchants) ──
+  // ── Per-servicer scenario bookings (all 105 servicers) ──
   // Each servicer account gets one of each state so every dashboard has real data.
   const allCustomerRefs = ['C_FRESH', 'C_FRESH2', 'C_FRESH3', 'C_ACTIVE', 'C_ACTIVE2', 'C_ACTIVE3', 'C_LOYAL', 'C_LOYAL2', 'C_LOYAL3'];
   const allCustomerAddrs = ['C_FRESH:0', 'C_FRESH2:0', 'C_FRESH3:0', 'C_ACTIVE:0', 'C_ACTIVE2:0', 'C_ACTIVE3:0', 'C_LOYAL:0', 'C_LOYAL2:0', 'C_LOYAL3:0'];
   let scenarioIdx = 0;
-  for (const m of merchantSlugs) {
+  for (const m of servicerSlugs) {
     const custRef = allCustomerRefs[scenarioIdx % allCustomerRefs.length];
     const addrKey = allCustomerAddrs[scenarioIdx % allCustomerAddrs.length];
     // pending_confirm
@@ -897,16 +907,16 @@ async function main(): Promise<void> {
     await makeBooking(custRef, addrKey, m.ref, m.slug, 'cancelled', 'pay_later', m.prices[2 % m.prices.length], { scheduledDate: days(-1) });
     scenarioIdx++;
   }
-  console.log(`  ✓ per-merchant scenario bookings (pending, in-progress, cancelled) for all ${merchantSlugs.length} merchants`);
+  console.log(`  ✓ per-servicer scenario bookings (pending, in-progress, cancelled) for all ${servicerSlugs.length} servicers`);
 
   // ── Invoices + escrow_release for completed bookings ──
-  // So that merchant dashboards show actual earnings on first boot.
-  const completedBookings: { booking: typeof compM1; merchantRef: string; price: number }[] = [
+  // So that servicer dashboards show actual earnings on first boot.
+  const completedBookings: { booking: typeof compM1; servicerRef: string; price: number }[] = [
     ...allBulkCompleted,
   ];
   let seqCounter = 1;
   for (const cb of completedBookings) {
-    const merchantId = merchantByRef[cb.merchantRef];
+    const servicerId = servicerByRef[cb.servicerRef];
     const doneAt = cb.booking.doneAt ?? new Date();
     // Apply a promo discount to roughly every 5th completed booking so the
     // earnings data reflects promotion usage.
@@ -915,7 +925,7 @@ async function main(): Promise<void> {
     await prisma.invoice.create({
       data: {
         bookingId: cb.booking.id,
-        merchantId,
+        servicerId,
         invoiceNumber: `INV-SEED-${String(seqCounter).padStart(4, '0')}`,
         sequenceNumber: seqCounter++,
         subtotal: cb.price,
@@ -934,7 +944,7 @@ async function main(): Promise<void> {
       data: {
         type: 'escrow_release',
         amount: total,
-        merchantId,
+        servicerId,
         bookingId: cb.booking.id,
         reference: `Seed - completed booking`,
         createdAt: doneAt,
@@ -949,19 +959,19 @@ async function main(): Promise<void> {
   await prisma.penaltyLog.create({
     data: {
       bookingId: m3Cancelled.id,
-      merchantId: merchantByRef['M3'],
+      servicerId: servicerByRef['M3'],
       ruleId: penaltyRuleByType['noshow'],
       type: 'noshow',
       amountDeducted: 50,
     },
   });
-  await prisma.merchantDeposit.update({
-    where: { merchantId: merchantByRef['M3'] },
+  await prisma.servicerDeposit.update({
+    where: { servicerId: servicerByRef['M3'] },
     data: { currentBalance: 450 },
   });
-  await prisma.merchantCreditLog.create({
+  await prisma.servicerCreditLog.create({
     data: {
-      merchantId: merchantByRef['M3'],
+      servicerId: servicerByRef['M3'],
       type: 'manual_adjustment',
       amount: -50,
       balanceAfter: 450,
@@ -975,7 +985,7 @@ async function main(): Promise<void> {
   const m23Penalty = await prisma.penaltyLog.create({
     data: {
       bookingId: m23Cancelled.id,
-      merchantId: merchantByRef['M23'],
+      servicerId: servicerByRef['M23'],
       ruleId: penaltyRuleByType['noshow'],
       type: 'noshow',
       amountDeducted: 50,
@@ -984,7 +994,7 @@ async function main(): Promise<void> {
   await prisma.penaltyAppeal.create({
     data: {
       penaltyLogId: m23Penalty.id,
-      merchantId: merchantByRef['M23'],
+      servicerId: servicerByRef['M23'],
       reason: 'Customer gave the wrong unit number; I waited 30 minutes outside.',
       status: 'pending',
     },
@@ -995,7 +1005,7 @@ async function main(): Promise<void> {
   const m9Penalty = await prisma.penaltyLog.create({
     data: {
       bookingId: m9Cancelled.id,
-      merchantId: merchantByRef['M9'],
+      servicerId: servicerByRef['M9'],
       ruleId: penaltyRuleByType['cancel'],
       type: 'cancel',
       amountDeducted: 30,
@@ -1005,7 +1015,7 @@ async function main(): Promise<void> {
   await prisma.penaltyAppeal.create({
     data: {
       penaltyLogId: m9Penalty.id,
-      merchantId: merchantByRef['M9'],
+      servicerId: servicerByRef['M9'],
       reason: 'Family emergency - provided hospital documentation.',
       status: 'approved',
       adminNote: 'Appeal approved, RM30 reversed to deposit.',
@@ -1062,7 +1072,7 @@ async function main(): Promise<void> {
   });
   console.log('  ✓ promotions (Ahmad 10%, Maid First, Welcome RM20, MMU 10%)');
 
-  // ── Merchant schedules (all 36) ──
+  // ── Servicer schedules (all 36) ──
   const weekdaySlots: Array<{ weekday: Weekday; timeSlot: TimeSlot }> = [
     { weekday: Weekday.mon, timeSlot: TimeSlot.morning }, { weekday: Weekday.mon, timeSlot: TimeSlot.noon },
     { weekday: Weekday.tue, timeSlot: TimeSlot.morning }, { weekday: Weekday.tue, timeSlot: TimeSlot.noon },
@@ -1074,10 +1084,10 @@ async function main(): Promise<void> {
   ];
   const allRefs = Array.from({ length: 96 }, (_, i) => `M${i + 1}`);
   const scheduleRows = allRefs.flatMap(ref =>
-    weekdaySlots.map(slot => ({ merchantId: merchantByRef[ref], ...slot }))
+    weekdaySlots.map(slot => ({ servicerId: servicerByRef[ref], ...slot }))
   );
-  await prisma.merchantSchedule.createMany({ data: scheduleRows });
-  console.log('  ✓ merchant schedules (all 36: weekday morning+noon, weekend morning)');
+  await prisma.servicerSchedule.createMany({ data: scheduleRows });
+  console.log('  ✓ servicer schedules (all 36: weekday morning+noon, weekend morning)');
 
   // ── Admin queue items ──
   // Several pending category requests so the review queue is realistic.
@@ -1092,7 +1102,7 @@ async function main(): Promise<void> {
   for (const cr of categoryRequestSeed) {
     await prisma.categoryRequest.create({
       data: {
-        merchantId: merchantByRef[cr.ref],
+        servicerId: servicerByRef[cr.ref],
         name: cr.name,
         description: cr.desc,
         status: 'pending',
@@ -1110,9 +1120,9 @@ async function main(): Promise<void> {
     { ref: 'M32', amount: 300, bank: 'Public Bank', acct: '3162 5577 8832' },
   ];
   for (const w of withdrawalSeed) {
-    await prisma.merchantWithdrawal.create({
+    await prisma.servicerWithdrawal.create({
       data: {
-        merchantId: merchantByRef[w.ref],
+        servicerId: servicerByRef[w.ref],
         amount: w.amount,
         bankName: w.bank,
         bankAccount: w.acct,
@@ -1132,7 +1142,7 @@ async function main(): Promise<void> {
     const pl = await prisma.penaltyLog.create({
       data: {
         bookingId: b.id,
-        merchantId: merchantByRef[ap.ref],
+        servicerId: servicerByRef[ap.ref],
         ruleId: penaltyRuleByType['noshow'],
         type: 'noshow',
         amountDeducted: 50,
@@ -1141,7 +1151,7 @@ async function main(): Promise<void> {
     await prisma.penaltyAppeal.create({
       data: {
         penaltyLogId: pl.id,
-        merchantId: merchantByRef[ap.ref],
+        servicerId: servicerByRef[ap.ref],
         reason: ap.reason,
         status: 'pending',
       },
@@ -1185,7 +1195,7 @@ async function main(): Promise<void> {
         sessionId: chat.id,
         role: 'assistant',
         content:
-          "You can find your past bookings under Order History. Tap 'Rebook same merchant' to submit a new quote pre-filled with the same service details.",
+          "You can find your past bookings under Order History. Tap 'Rebook same servicer' to submit a new quote pre-filled with the same service details.",
         createdAt: at(1),
       },
       { sessionId: chat.id, role: 'user', content: 'Can I change the date when I rebook?', createdAt: at(2) },
@@ -1260,7 +1270,7 @@ async function main(): Promise<void> {
     seededAt: new Date().toISOString(),
     deadlineOffsetMinutes: offset,
     categories: categories.length,
-    merchants: merchants.length,
+    servicers: servicers.length,
     customers: customers.length,
     adminId: admin.id,
   };

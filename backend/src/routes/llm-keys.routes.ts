@@ -4,6 +4,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { validate } from '../middleware/validate';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { requirePin } from '../middleware/pin';
+import { checkPinCooldown, recordPinFailure, recordPinSuccess } from '../middleware/pin-cooldown';
 import { prisma } from '../lib/prisma';
 import { notFound, badRequest, forbidden } from '../lib/errors';
 import { configVault } from '../lib/config-vault';
@@ -249,7 +250,14 @@ llmKeysRouter.post(
   asyncHandler(async (req, res) => {
     if (!allowDemo) throw forbidden('Demo seed is disabled in production');
 
-    if (req.body.pin !== DEMO_PIN) throw forbidden('Incorrect demo PIN');
+    const userId = req.user!.id;
+    await checkPinCooldown(userId);
+
+    if (req.body.pin !== DEMO_PIN) {
+      await recordPinFailure(userId);
+      throw forbidden('Incorrect demo PIN');
+    }
+    await recordPinSuccess(userId);
 
     const geminiKey = process.env.G_LLM_API_Token || process.env.AICHAT_LLM_API_KEY || '';
     const deepseekKey = process.env.DS_LLM_API_Token || process.env.AICHAT_LLM_FALLBACK_API_KEY || '';

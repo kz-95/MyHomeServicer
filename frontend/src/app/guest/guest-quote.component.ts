@@ -6,6 +6,7 @@ import { AuthService, GuestQuoteData } from '../core/services/auth.service';
 import { ConfigService } from '../core/services/config.service';
 import { StripePaymentService } from '../core/services/stripe-payment.service';
 import { DemoBarComponent } from '../shared/demo-bar.component';
+import { DemoUnlockService } from '../core/services/demo-unlock.service';
 import { AddressFieldsComponent } from '../shared/address-fields.component';
 import { PhoneInputComponent } from '../shared/phone-input.component';
 import { CalendarPickerComponent } from '../shared/calendar-picker.component';
@@ -113,9 +114,11 @@ function emptyForm(): FormState {
           <h1>Request a quote</h1>
           <div class="sub-row">
             <p class="sub-muted">Your details stay in this browser. <a routerLink="/login">Sign in</a> to save them to your account.</p>
+            @if (unlock.unlocked()) {
             <div class="demo-autofill">
               <button class="btn-autofill" type="button" (click)="demoAutoFill()">⚡ Demo: Auto-fill</button>
             </div>
+            }
           </div>
 
           @if (submitted()) {
@@ -327,7 +330,7 @@ function emptyForm(): FormState {
                 <dd>{{ timeSlotLabel() }} · {{ f.preferredDate || ' - ' }}</dd>
                 <dt>Contact</dt>
                 <dd>{{ f.contactName }} · {{ f.contactNumber }}</dd>
-                <dt>
+                <dt class="service-dt">
                   <details class="service-details">
                     <summary class="service-summary">Service: {{ categoryName() }} <span class="chevron">▸</span></summary>
                     <div class="service-answers">
@@ -337,7 +340,6 @@ function emptyForm(): FormState {
                     </div>
                   </details>
                 </dt>
-                <dd></dd>
                 @if (f.extraNotes) { <dt>Extra Details</dt><dd>{{ f.extraNotes }}</dd> }
                 @if (f.notes) { <dt>Address Instructions</dt><dd>{{ f.notes }}</dd> }
                 <dt>Full Address</dt>
@@ -445,7 +447,7 @@ function emptyForm(): FormState {
   `,
     styles: [`
     :host { display: block; }
-    .shell { min-height: 100vh; background: var(--color-bg); }
+    .shell { height: 100vh; overflow-y: auto; background: var(--color-bg); }
     /* §5.3: public top bar scrolls with content - NOT sticky. */
     .topbar {
       display: flex; align-items: center; gap: 0.75rem;
@@ -572,14 +574,15 @@ function emptyForm(): FormState {
     .review { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; }
     .review dt { font-weight: 600; color: var(--color-muted); }
     .review dd { margin: 0; word-break: break-word; }
-    .service-details { display: inline; }
+    .review dt.service-dt { grid-column: 1 / -1; font-weight: 400; }
+    .service-details { display: block; }
     .service-summary { cursor: pointer; list-style: none; font-weight: 600; color: var(--color-muted); user-select: none; }
     .service-summary::-webkit-details-marker { display: none; }
     .service-summary .chevron { display: inline-block; transition: transform 0.2s ease; font-size: 0.75rem; }
     .service-details[open] .chevron { transform: rotate(90deg); }
-    .service-answers { margin-top: 0.5rem; display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; }
+    .service-answers { margin-top: 0.5rem; display: grid; grid-template-columns: minmax(0, 14rem) minmax(0, 1fr); gap: 0.25rem 0.75rem; }
     .answer-row { display: contents; }
-    .answer-label { color: var(--color-muted); white-space: nowrap; }
+    .answer-label { color: var(--color-muted); }
     .answer-value { color: var(--color-text); }
     .addr-line2 { font-size: 0.85rem; color: var(--color-muted); margin-top: 0.1rem; }
     .pane { padding-bottom: 1rem; }
@@ -637,12 +640,16 @@ function emptyForm(): FormState {
       .content { padding: 1rem; }
       .review { grid-template-columns: 1fr; }
       .review dd { margin-bottom: 0.5rem; }
+      .service-answers { grid-template-columns: 1fr; gap: 0 0; }
+      .answer-row { display: block; margin-bottom: 0.35rem; }
+      .answer-label { display: block; }
     }
   `]
 })
 export class GuestQuoteComponent implements OnInit, OnDestroy {
   isDevMode = isDevMode;
   config = inject(ConfigService);
+  protected readonly unlock = inject(DemoUnlockService);
   private api = inject(ApiService);
   private auth = inject(AuthService);
   private route = inject(ActivatedRoute);
@@ -884,6 +891,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   onParentChange(parentId: string): void {
     this.parentId.set(parentId);
     this.f.categoryId = '';
+    this.f.answers = {};
     this.f.budgetIndex = '';
     this.budgetSlider = 0;
     this.questions.set([]);
@@ -894,6 +902,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
 
   onCategoryChange(id: string): void {
     this.f.categoryId = id;
+    this.f.answers = {};
     this.f.budgetIndex = '';
     this.budgetSlider = 0;
     const cat = this.categories().find((c) => c.id === id);

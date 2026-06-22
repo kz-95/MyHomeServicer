@@ -62,7 +62,7 @@ categoriesRouter.get(
   }),
 );
 
-/** GET /categories/:slug — single category + active merchant count. */
+/** GET /categories/:slug — single category + active servicer count. */
 categoriesRouter.get(
   '/:slug',
   asyncHandler(async (req, res) => {
@@ -71,7 +71,7 @@ categoriesRouter.get(
     });
     if (!category) throw notFound('Category not found');
 
-    const merchantCount = await prisma.servicer.count({
+    const servicerCount = await prisma.servicer.count({
       where: { deletedAt: null, isBanned: false, categoryId: category.id },
     });
 
@@ -86,27 +86,27 @@ categoriesRouter.get(
       description: category.description,
       defaultPriceSuggestion: category.defaultPriceSuggestion,
       defaultEstimatedDurationMinutes: category.defaultEstimatedDurationMinutes,
-      merchantCount,
+      servicerCount,
     });
   }),
 );
 
-/** GET /categories/:slug/merchants — merchants offering this category. */
+/** GET /categories/:slug/servicers — servicers offering this category. */
 categoriesRouter.get(
-  '/:slug/merchants',
+  '/:slug/servicers',
   asyncHandler(async (req, res) => {
     const category = await prisma.category.findFirst({
       where: { slug: req.params.slug, deletedAt: null, published: true },
     });
     if (!category) throw notFound('Category not found');
 
-    const merchants = await prisma.servicer.findMany({
+    const servicers = await prisma.servicer.findMany({
       where: { deletedAt: null, isBanned: false, categoryId: category.id },
       include: { services: { where: { deletedAt: null } } },
     });
 
     res.json({
-      data: merchants.map((m) => ({
+      data: servicers.map((m) => ({
         id: m.id,
         businessName: m.businessName,
         bio: m.bio,
@@ -118,7 +118,7 @@ categoriesRouter.get(
           title: s.title,
           basePrice: s.basePrice,
           priceType: s.priceType,
-          sku: s.merchantSku,
+          sku: s.servicerSku,
         })),
       })),
     });

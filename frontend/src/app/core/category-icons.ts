@@ -4,7 +4,7 @@
  * Category records store their icon as a Lucide icon NAME string
  * (e.g. "wind", "sparkles", "chef-hat", "wrench"). This project does not
  * bundle an icon-font / Lucide library - the established convention across
- * the app (see the portal sidebars in customer-shell / merchant-shell /
+ * the app (see the portal sidebars in customer-shell / servicer-shell /
  * admin-shell, which use emoji such as '🔍' '📋' '📅') is to render icons
  * as emoji glyphs. This helper maps a Lucide icon name to its closest emoji
  * so category cards show a glyph instead of the raw icon name as text.

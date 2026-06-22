@@ -5,12 +5,12 @@ import { asyncHandler } from '../lib/async-handler';
 import { validate } from '../middleware/validate';
 import { registerLimiter } from '../middleware/rate-limit';
 import { notFound } from '../lib/errors';
-import { registerMerchant } from '../services/auth.service';
+import { registerServicer } from '../services/auth.service';
 
-/** Public merchant endpoints — profile, services, and registration. */
+/** Public servicer endpoints — profile, services, and registration. */
 export const servicersRouter = Router();
 
-/** POST /merchants/register — register a new merchant account. */
+/** POST /servicers/register — register a new servicer account. */
 servicersRouter.post(
   '/register',
   registerLimiter,
@@ -23,16 +23,16 @@ servicersRouter.post(
     body('categoryId').isUUID().withMessage('A platform category must be selected'),
   ]),
   asyncHandler(async (req, res) => {
-    const { user, tokens } = await registerMerchant(req.body);
+    const { user, tokens } = await registerServicer(req.body);
     res.status(201).json({
-      merchant: { id: user.id, email: user.email, role: user.role },
+      servicer: { id: user.id, email: user.email, role: user.role },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     });
   }),
 );
 
-/** GET /merchants/:id — public merchant profile. */
+/** GET /servicers/:id — public servicer profile. */
 servicersRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -65,12 +65,12 @@ servicersRouter.get(
   }),
 );
 
-/** GET /merchants/:id/services — the merchant's active services. */
+/** GET /servicers/:id/services — the servicer's active services. */
 servicersRouter.get(
   '/:id/services',
   asyncHandler(async (req, res) => {
-    const services = await prisma.merchantService.findMany({
-      where: { merchantId: req.params.id, deletedAt: null },
+    const services = await prisma.servicerService.findMany({
+      where: { servicerId: req.params.id, deletedAt: null },
       include: { category: { select: { name: true, slug: true } } },
     });
     res.json({
@@ -78,7 +78,7 @@ servicersRouter.get(
         id: s.id,
         title: s.title,
         description: s.description,
-        sku: s.merchantSku,
+        sku: s.servicerSku,
         basePrice: s.basePrice,
         priceType: s.priceType,
         estimatedDurationMinutes: s.estimatedDurationMinutes,

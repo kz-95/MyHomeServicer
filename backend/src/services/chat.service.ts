@@ -506,7 +506,7 @@ export async function buildAssistantPrompt(
               quoteRequest: {
                 select: { category: { select: { name: true, id: true } } },
               },
-              merchant: { select: { businessName: true } },
+              servicer: { select: { businessName: true } },
             },
           }),
           prisma.booking.count({
@@ -526,7 +526,7 @@ export async function buildAssistantPrompt(
                 select: {
                   id: true,
                   proposedPrice: true,
-                  merchant: { select: { businessName: true } },
+                  servicer: { select: { businessName: true } },
                 },
               },
             },
@@ -558,7 +558,7 @@ export async function buildAssistantPrompt(
           const cat = b.quoteRequest?.category;
           const date = b.scheduledDate.toISOString().split("T")[0];
           const oid = formatOrderId(b.orderNumber, b.createdAt);
-          extra += `\n- ${oid} [${b.status}] ${cat?.name ?? "Unknown"} with ${b.merchant.businessName} on ${date} — RM ${Number(b.price).toFixed(2)}`;
+          extra += `\n- ${oid} [${b.status}] ${cat?.name ?? "Unknown"} with ${b.servicer.businessName} on ${date} — RM ${Number(b.price).toFixed(2)}`;
           if (cat) extra += ` (categoryId: ${cat.id})`;
         }
         extra +=
@@ -575,7 +575,7 @@ export async function buildAssistantPrompt(
           const proposalCount = q.proposals.length;
           extra += `\n- [${q.status}] ${q.category.name} on ${date} — ${proposalCount} proposal(s) received`;
           for (const p of q.proposals) {
-            extra += `\n  • ${p.merchant.businessName}: RM ${Number(p.proposedPrice).toFixed(2)}`;
+            extra += `\n  • ${p.servicer.businessName}: RM ${Number(p.proposedPrice).toFixed(2)}`;
           }
         }
       } else {
@@ -1944,6 +1944,17 @@ function cardConfirmAck(lang?: string): string {
   return (lang && CARD_CONFIRM_ACK[lang]) || CARD_CONFIRM_ACK.en;
 }
 
+const CARD_TRANSITION_ACK: Record<string, string> = {
+  en: "Thank you for confirming your information! We've got all the information needed. Before we proceed, please bear with us, there are a few more questions to clarify.",
+  ms: "Terima kasih kerana mengesahkan maklumat anda! Kami sudah mendapat semua maklumat yang diperlukan. Sebelum kami teruskan, sila bersabar sebentar, ada beberapa soalan lagi untuk dijelaskan.",
+  zh: "感谢您确认您的信息！我们已获得所需的全部信息。在我们继续之前，请稍等，还有几个问题需要厘清。",
+  ta: "உங்கள் தகவல்களை உறுதிப்படுத்தியதற்கு நன்றி! தேவையான அனைத்து தகவல்களும் கிடைத்துவிட்டன. தொடர்வதற்கு முன், சில கேள்விகளுக்கு விளக்கம் தேவை, சற்று பொறுமையாக இருங்கள்.",
+  rojak: "Thank you for confirming your information! We've got all the information needed. Before we proceed, please bear with us, there are a few more questions to clarify.",
+};
+function transitionToQuestionsAck(lang?: string): string {
+  return (lang && CARD_TRANSITION_ACK[lang]) || CARD_TRANSITION_ACK.en;
+}
+
 interface FlowQuestion {
   key: string;
   label: string;
@@ -2122,8 +2133,18 @@ export async function sendToAi(
       cq,
       opts.lang,
     );
+    // First time entering the questions phase: all base fields just collected,
+    // no questions answered yet, and the next card is a question. Use a warm
+    // transition message instead of the generic "Got it." ack.
+    const enteringQuestions =
+      next.some((b) => b.type === "quote_question") &&
+      (opts.answeredQuestions ?? []).length === 0;
     return {
-      answer: replacer(cardConfirmAck(opts.lang)),
+      answer: replacer(
+        enteringQuestions
+          ? transitionToQuestionsAck(opts.lang)
+          : cardConfirmAck(opts.lang),
+      ),
       tokensUsed: 0,
       actionBlocks: next,
     };

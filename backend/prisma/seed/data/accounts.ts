@@ -1,6 +1,7 @@
 ﻿/**
- * Merchant and customer account seed data.
- * 36 servicers - 1 per child category, except 3D Modeling which gets 6 specialists.
+ * Servicer and customer account seed data.
+ * 96 servicers (3 sets × 32 categories) + 9 new category servicers
+ * (Painting ×3, Moving ×3, Gardening ×3) = 105 total.
  * + 3 customers + 1 admin.
  */
 
@@ -23,7 +24,7 @@ export interface SeedService {
   procedure?: string;
 }
 
-export interface SeedMerchant {
+export interface SeedServicer {
   ref: string;
   email: string;
   name: string;
@@ -60,7 +61,7 @@ const YR = 'YYYY';
 const SEP = '-';
 const PAD = 4;
 
-export const merchants: SeedMerchant[] = [
+export const servicers: SeedServicer[] = [
   // ── M1  Plumber ──
   {
     ref: 'M1', email: 'ahmad.bin.ismail@demo.local',
@@ -871,7 +872,7 @@ export const merchants: SeedMerchant[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════
-  // SET B  (M37–M66) - second merchant per category
+  // SET B  (M37–M66) - second servicer per category
   // ══════════════════════════════════════════════════════════════════════
 
   // ── M37  Plumber (B) ──
@@ -1490,7 +1491,7 @@ export const merchants: SeedMerchant[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════
-  // SET C  (M67–M96) - third merchant per category
+  // SET C  (M67–M96) - third servicer per category
   // ══════════════════════════════════════════════════════════════════════
 
   // ── M67  Plumber (C) ──
@@ -2105,6 +2106,200 @@ export const merchants: SeedMerchant[] = [
       { sku: 'VGS-ACCESS', title: 'Access control & biometric door system', basePrice: 400, priceType: 'quote', duration: 180,
         autoAccept: true, autoAcceptConditions: { budget_min: 300, budget_max: 5000 } },
       { sku: 'VGS-NVR', title: 'NVR/DVR CCTV system setup', basePrice: 300, priceType: 'fixed', duration: 150 },
+    ],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // NEW CATEGORIES  (M97–M105) - Painting, Moving, Gardening (3 each)
+  // ══════════════════════════════════════════════════════════════════════
+
+  // ── M97  Painting (A) ──
+  {
+    ref: 'M97', email: 'zainul.arifin@demo.local',
+    name: 'Zainul Arifin', businessName: 'BrightWall Painting Services',
+    phone: '+60 12-300 0097',
+    isCompany: false, entityType: 'sole_proprietorship',
+    taxMode: 'none', taxNumber: null, brn: null,
+    sstRegistered: false, sstNumber: null,
+    serviceChargeRate: 0, taxInclusive: false,
+    bankName: 'CIMB', bankAccount: '7022 8841 0097',
+    showEmailPublic: false, showPhonePublic: true,
+    invoicePrefix: 'BWP', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
+    invoiceContent: null, invoiceSuffix: null,
+    area: 'Bangsar, KL', serviceAreas: ['Bangsar', 'KL', 'Damansara'],
+    rating: 4.5, categorySlug: 'painting',
+    services: [
+      { sku: 'BWP-WALL', title: 'Interior wall & ceiling painting', basePrice: 150, priceType: 'hourly', duration: 180,
+        autoAccept: true, autoAcceptConditions: { budget_min: 100, budget_max: 2000 } },
+      { sku: 'BWP-EXT', title: 'Exterior & facade painting', basePrice: 200, priceType: 'quote', duration: 240 },
+    ],
+  },
+  // ── M98  Moving (A) ──
+  {
+    ref: 'M98', email: 'hafizi.mokhtar@demo.local',
+    name: 'Hafizi Mokhtar', businessName: 'EasyMove Relocation Services',
+    phone: '+60 12-300 0098',
+    isCompany: false, entityType: 'sole_proprietorship',
+    taxMode: 'none', taxNumber: null, brn: null,
+    sstRegistered: false, sstNumber: null,
+    serviceChargeRate: 0, taxInclusive: false,
+    bankName: 'Maybank', bankAccount: '5141 2233 0098',
+    showEmailPublic: false, showPhonePublic: true,
+    invoicePrefix: 'EMR', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
+    invoiceContent: null, invoiceSuffix: null,
+    area: 'Cheras, KL', serviceAreas: ['Cheras', 'KL', 'Ampang'],
+    rating: 4.4, categorySlug: 'moving',
+    services: [
+      { sku: 'EMR-HOME', title: 'Full home relocation service', basePrice: 350, priceType: 'quote', duration: 300,
+        autoAccept: true, autoAcceptConditions: { budget_min: 200, budget_max: 3000 } },
+      { sku: 'EMR-FURN', title: 'Furniture moving & assembly', basePrice: 200, priceType: 'fixed', duration: 180 },
+    ],
+  },
+  // ── M99  Gardening (A) ──
+  {
+    ref: 'M99', email: 'ramesh.pillai@demo.local',
+    name: 'Ramesh Pillai', businessName: 'GreenThumb Garden Care',
+    phone: '+60 12-300 0099',
+    isCompany: false, entityType: 'sole_proprietorship',
+    taxMode: 'none', taxNumber: null, brn: null,
+    sstRegistered: false, sstNumber: null,
+    serviceChargeRate: 0, taxInclusive: false,
+    bankName: 'RHB', bankAccount: '2148 6633 0099',
+    showEmailPublic: false, showPhonePublic: true,
+    invoicePrefix: 'GTG', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
+    invoiceContent: null, invoiceSuffix: null,
+    area: 'Damansara Utama, PJ', serviceAreas: ['Damansara', 'PJ', 'Petaling Jaya'],
+    rating: 4.6, categorySlug: 'gardening',
+    services: [
+      { sku: 'GTG-LAWN', title: 'Lawn mowing & grass trimming', basePrice: 80, priceType: 'fixed', duration: 90,
+        autoAccept: true, autoAcceptConditions: { budget_min: 60, budget_max: 500 } },
+      { sku: 'GTG-LAND', title: 'Garden landscaping & planting', basePrice: 180, priceType: 'quote', duration: 240 },
+    ],
+  },
+  // ── M100  Painting (B) ──
+  {
+    ref: 'M100', email: 'faridah.othman@demo.local',
+    name: 'Faridah Othman', businessName: 'ColourCraft Interior Painting',
+    phone: '+60 12-300 0100',
+    isCompany: false, entityType: 'sole_proprietorship',
+    taxMode: 'none', taxNumber: null, brn: null,
+    sstRegistered: false, sstNumber: null,
+    serviceChargeRate: 0, taxInclusive: false,
+    bankName: 'Public Bank', bankAccount: '3162 5577 0100',
+    showEmailPublic: false, showPhonePublic: true,
+    invoicePrefix: 'CCI', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
+    invoiceContent: null, invoiceSuffix: null,
+    area: 'Subang Jaya, Selangor', serviceAreas: ['Subang Jaya', 'Shah Alam', 'PJ'],
+    rating: 4.3, categorySlug: 'painting',
+    services: [
+      { sku: 'CCI-ROOM', title: 'Room repaint (walls + ceiling)', basePrice: 140, priceType: 'hourly', duration: 180,
+        autoAccept: true, autoAcceptConditions: { budget_min: 100, budget_max: 1500 } },
+      { sku: 'CCI-DOOR', title: 'Door, grille & feature wall painting', basePrice: 120, priceType: 'fixed', duration: 120 },
+    ],
+  },
+  // ── M101  Moving (B) ──
+  {
+    ref: 'M101', email: 'azwan.shah@demo.local',
+    name: 'Azwan Shah', businessName: 'SwiftShift Moving & Storage',
+    phone: '+60 12-300 0101',
+    isCompany: false, entityType: 'sole_proprietorship',
+    taxMode: 'none', taxNumber: null, brn: null,
+    sstRegistered: false, sstNumber: null,
+    serviceChargeRate: 0, taxInclusive: false,
+    bankName: 'Hong Leong', bankAccount: '1900 4422 0101',
+    showEmailPublic: false, showPhonePublic: true,
+    invoicePrefix: 'SSM', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
+    invoiceContent: null, invoiceSuffix: null,
+    area: 'Subang Jaya, Selangor', serviceAreas: ['Subang Jaya', 'PJ', 'Klang'],
+    rating: 4.2, categorySlug: 'moving',
+    services: [
+      { sku: 'SSM-HOUSE', title: 'House & apartment moving', basePrice: 300, priceType: 'quote', duration: 300,
+        autoAccept: true, autoAcceptConditions: { budget_min: 150, budget_max: 2500 } },
+      { sku: 'SSM-OFFICE', title: 'Office relocation & IT equipment move', basePrice: 500, priceType: 'quote', duration: 360 },
+    ],
+  },
+  // ── M102  Gardening (B) ──
+  {
+    ref: 'M102', email: 'tan.beng.hock@demo.local',
+    name: 'Tan Beng Hock', businessName: 'LushGarden Landscaping Works',
+    phone: '+60 12-300 0102',
+    isCompany: false, entityType: 'sole_proprietorship',
+    taxMode: 'none', taxNumber: null, brn: null,
+    sstRegistered: false, sstNumber: null,
+    serviceChargeRate: 0, taxInclusive: false,
+    bankName: 'CIMB', bankAccount: '7022 8841 0102',
+    showEmailPublic: false, showPhonePublic: true,
+    invoicePrefix: 'LGL', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
+    invoiceContent: null, invoiceSuffix: null,
+    area: 'Shah Alam, Selangor', serviceAreas: ['Shah Alam', 'Subang Jaya', 'PJ'],
+    rating: 4.4, categorySlug: 'gardening',
+    services: [
+      { sku: 'LGL-MAINT', title: 'Monthly garden maintenance package', basePrice: 120, priceType: 'hourly', duration: 120,
+        autoAccept: true, autoAcceptConditions: { budget_min: 80, budget_max: 600 } },
+      { sku: 'LGL-HEDGE', title: 'Hedge trimming & tree pruning', basePrice: 100, priceType: 'fixed', duration: 90 },
+    ],
+  },
+  // ── M103  Painting (C) ──
+  {
+    ref: 'M103', email: 'nur.izzati.razak@demo.local',
+    name: 'Nur Izzati Razak', businessName: 'ProPaint Specialist',
+    phone: '+60 12-300 0103',
+    isCompany: false, entityType: 'sole_proprietorship',
+    taxMode: 'none', taxNumber: null, brn: null,
+    sstRegistered: false, sstNumber: null,
+    serviceChargeRate: 0, taxInclusive: false,
+    bankName: 'Maybank', bankAccount: '5141 2233 0103',
+    showEmailPublic: false, showPhonePublic: true,
+    invoicePrefix: 'PPS', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
+    invoiceContent: null, invoiceSuffix: null,
+    area: 'Ampang, KL', serviceAreas: ['Ampang', 'KL', 'Cheras'],
+    rating: 4.4, categorySlug: 'painting',
+    services: [
+      { sku: 'PPS-INT', title: 'Interior painting & touch-up', basePrice: 130, priceType: 'hourly', duration: 150,
+        autoAccept: true, autoAcceptConditions: { budget_min: 80, budget_max: 1800 } },
+      { sku: 'PPS-EPOXY', title: 'Epoxy floor & waterproof coating', basePrice: 250, priceType: 'quote', duration: 240 },
+    ],
+  },
+  // ── M104  Moving (C) ──
+  {
+    ref: 'M104', email: 'chandran.govindasamy@demo.local',
+    name: 'Chandran Govindasamy', businessName: 'SafeMove Professional Movers',
+    phone: '+60 12-300 0104',
+    isCompany: false, entityType: 'sole_proprietorship',
+    taxMode: 'none', taxNumber: null, brn: null,
+    sstRegistered: false, sstNumber: null,
+    serviceChargeRate: 0, taxInclusive: false,
+    bankName: 'RHB', bankAccount: '2148 6633 0104',
+    showEmailPublic: false, showPhonePublic: true,
+    invoicePrefix: 'SMP', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
+    invoiceContent: null, invoiceSuffix: null,
+    area: 'Kepong, KL', serviceAreas: ['Kepong', 'KL', 'Selayang'],
+    rating: 4.3, categorySlug: 'moving',
+    services: [
+      { sku: 'SMP-MOVE', title: 'Residential moving with lorry', basePrice: 280, priceType: 'quote', duration: 300,
+        autoAccept: true, autoAcceptConditions: { budget_min: 150, budget_max: 2000 } },
+      { sku: 'SMP-PACK', title: 'Packing & wrapping service', basePrice: 150, priceType: 'fixed', duration: 180 },
+    ],
+  },
+  // ── M105  Gardening (C) ──
+  {
+    ref: 'M105', email: 'noraini.hamzah@demo.local',
+    name: 'Noraini Hamzah', businessName: 'EcoGarden Services',
+    phone: '+60 12-300 0105',
+    isCompany: false, entityType: 'sole_proprietorship',
+    taxMode: 'none', taxNumber: null, brn: null,
+    sstRegistered: false, sstNumber: null,
+    serviceChargeRate: 0, taxInclusive: false,
+    bankName: 'Public Bank', bankAccount: '3162 5577 0105',
+    showEmailPublic: false, showPhonePublic: true,
+    invoicePrefix: 'EGS', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
+    invoiceContent: null, invoiceSuffix: null,
+    area: 'Wangsa Maju, KL', serviceAreas: ['Wangsa Maju', 'KL', 'Setapak'],
+    rating: 4.2, categorySlug: 'gardening',
+    services: [
+      { sku: 'EGS-CARE', title: 'Lawn care & weed removal', basePrice: 70, priceType: 'fixed', duration: 90,
+        autoAccept: true, autoAcceptConditions: { budget_min: 50, budget_max: 400 } },
+      { sku: 'EGS-SOIL', title: 'Soil treatment & fertilising', basePrice: 100, priceType: 'fixed', duration: 90 },
     ],
   },
 ];

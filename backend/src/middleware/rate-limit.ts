@@ -46,7 +46,7 @@ export const pinLimiter = makeLimiter({ windowMs: 15 * 60_000, limit: 5 }, true)
 /** 20 / hour / user. */
 export const quoteLimiter = makeLimiter({ windowMs: 60 * 60_000, limit: 20 }, true);
 
-/** 10 proposals / hour / merchant. */
+/** 10 proposals / hour / servicer. */
 export const proposalLimiter = makeLimiter({ windowMs: 60 * 60_000, limit: 10 }, true);
 
 /** 20 / 10min / user — AI chat short-window cap. */

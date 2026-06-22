@@ -5,13 +5,14 @@ import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
 import { IconComponent } from '../../shared/icon.component';
+import { ServicerDetailPopupComponent } from '../../shared/servicer-detail-popup.component';
 
 interface HistoryItem {
   type: string;
   bookingId: string;
   orderId?: string;
-  merchantId: string;
-  merchantName: string;
+  servicerId: string;
+  servicerName: string;
   categoryName: string;
   categoryIcon?: string;
   completedAt: string;
@@ -22,7 +23,7 @@ interface HistoryItem {
 @Component({
     selector: 'app-order-history',
     host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, ListToolbarComponent, IconComponent],
+    imports: [CommonModule, FormsModule, ListToolbarComponent, IconComponent, ServicerDetailPopupComponent],
     template: `
     <h1>Order history</h1>
     <p class="muted">Rebook a past job in one tap.</p>
@@ -38,7 +39,7 @@ interface HistoryItem {
         <input
           class="search"
           type="text"
-          placeholder="Search by merchant or category…"
+          placeholder="Search by servicer or category…"
           [(ngModel)]="search"
           name="ohs"
           toolbar-search
@@ -58,7 +59,7 @@ interface HistoryItem {
         <div class="row-left">
           <span class="svc-avatar"><app-icon [name]="(h.categoryIcon || 'home')" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
           <div>
-            <strong>{{ h.merchantName }}</strong>
+            <button type="button" class="svc-name-btn" (click)="detailServicerId.set(h.servicerId)">{{ h.servicerName }}</button>
             <span class="muted">· {{ h.categoryName }}</span>
             <div class="muted">
               Completed {{ h.completedAt | date: 'mediumDate' }} · RM
@@ -69,13 +70,16 @@ interface HistoryItem {
             }
           </div>
         </div>
-        <button class="btn-primary" (click)="reorder(h)">Rebook same merchant</button>
+        <button class="btn-primary" (click)="reorder(h)">Rebook same servicer</button>
       </div>
       }
     }
     @if (message()) {
       <p class="err">{{ message() }}</p>
     }
+
+    <!-- ── Servicer detail popup ──────────────────────────────────────── -->
+    <app-servicer-detail-popup [servicerId]="detailServicerId()" (closed)="detailServicerId.set(null)" />
   `,
     styles: [
         `
@@ -106,6 +110,26 @@ interface HistoryItem {
         align-items: center;
         gap: 0.7rem;
         min-width: 0;
+      }
+      .svc-name-btn {
+        display: block;
+        background: transparent;
+        border: none;
+        padding: 0;
+        font: inherit;
+        font-weight: 700;
+        color: var(--color-text);
+        cursor: pointer;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        transition: color var(--transition);
+      }
+      .svc-name-btn:hover {
+        color: var(--color-primary);
+        text-decoration: underline;
       }
       .svc-avatar {
         display: inline-flex;
@@ -202,6 +226,8 @@ export class OrderHistoryComponent implements OnInit {
   private api = inject(ApiService);
   private router = inject(Router);
   items = signal<HistoryItem[]>([]);
+  /** Servicer id whose detail popup is open, or null. */
+  detailServicerId = signal<string | null>(null);
   loading = signal(true);
   loadFailed = signal(false);
   message = signal('');
@@ -215,7 +241,7 @@ export class OrderHistoryComponent implements OnInit {
     if (q) {
       list = list.filter(
         (h) =>
-          h.merchantName.toLowerCase().includes(q) ||
+          h.servicerName.toLowerCase().includes(q) ||
           h.categoryName.toLowerCase().includes(q),
       );
     }
@@ -247,7 +273,12 @@ export class OrderHistoryComponent implements OnInit {
   reorder(h: HistoryItem): void {
     this.message.set('');
     this.api.post<{ prefill: Record<string, unknown> }>(`/bookings/${h.bookingId}/reorder`, {}).subscribe({
-      next: (r) => this.router.navigate(['/customer/quote/new'], { state: { prefill: r.prefill } }),
+      next: (r) =>
+        this.router.navigate(['/customer/quote/new'], {
+          // rebookServicer locks the quote to this servicer (direct, no broadcast)
+          // and hides the category pickers in the quote form.
+          state: { prefill: r.prefill, rebookServicer: { id: h.servicerId, name: h.servicerName } },
+        }),
       error: (e) => this.message.set(e.message),
     });
   }

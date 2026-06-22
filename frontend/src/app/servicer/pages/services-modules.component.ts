@@ -468,7 +468,9 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
     this.loadFailed.set(false);
     this.api.get<{ data: ServicerModule[] }>('/servicer/modules').subscribe({
       next: (r) => {
-        this.modules.set(r.data);
+        // Prices arrive as Decimal-as-string from the API; coerce to number so
+        // sorting (a.price - b.price) and the number-input edit form behave.
+        this.modules.set(r.data.map((m) => ({ ...m, price: Number(m.price) })));
         this.loading.set(false);
       },
       error: () => {

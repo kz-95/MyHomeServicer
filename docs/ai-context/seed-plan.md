@@ -77,7 +77,7 @@ These replace the original 4-chip row on the login page.
 > `HomeMaintenance_Moving01.png`, `HomeMaintenance_Gardening01.png`). They fix the chat
 > mis-match where repaint→Renovation / movers→Carpenter / lawn→Renovation forced irrelevant
 > questions. **No servicers seeded under them yet** — browse shows the category but with 0
-> providers until merchants are added. Non-essential questions are `required: false` (skippable).
+> providers until servicers are added. Non-essential questions are `required: false` (skippable).
 
 ### Additional seeded data
 

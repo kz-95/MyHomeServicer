@@ -102,7 +102,8 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
         display: flex;
         justify-content: center;
         align-items: flex-start;
-        min-height: 100vh;
+        height: 100vh;
+        overflow-y: auto;
         padding: 8vh 1rem 4rem;
         background: var(--color-bg);
       }
