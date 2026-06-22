@@ -389,7 +389,7 @@ button {
   border-color: var(--color-primary-light);
 }
 
-input,
+input:not([type="radio"]):not([type="checkbox"]),
 select,
 textarea {
   font-family: var(--font-body);
@@ -404,7 +404,7 @@ textarea {
     border-color var(--transition),
     box-shadow var(--transition);
 }
-input:focus,
+input:not([type="radio"]):not([type="checkbox"]):focus,
 select:focus,
 textarea:focus {
   border-color: var(--color-primary);

@@ -69,6 +69,7 @@ export function slotEndTime(date: Date, slot: TimeSlot): Date {
 
 interface SelectProposalOptions {
   settlementMethod?: SettlementMethod;
+  paymentIntentId?: string;
 }
 
 /**
@@ -119,10 +120,13 @@ export async function selectProposal(
   const isPayNow = quote.paymentMode === 'pay_now';
   const paymentTiming = isPayNow ? 'pay_now' : 'pay_later' as const;
 
-  // pay_later must specify a settlement method.
-  if (!isPayNow && !opts.settlementMethod) {
-    throw badRequest('settlementMethod is required for pay_later bookings');
-  }
+  // pay_later settlement method: prefer an explicit request override, else the
+  // choice the customer already made at quote-request time (no re-ask in the
+  // select-servicer modal). Default to 'cash' for legacy quotes with no stored
+  // choice rather than blocking selection.
+  const settlementMethod: SettlementMethod | null = isPayNow
+    ? null
+    : (opts.settlementMethod ?? quote.settlementMethod ?? 'cash');
 
   // Resolve line items from the proposal snapshot, or fall back to legacy.
   const rawProposalItems = proposal.lineItems as any;
@@ -162,7 +166,7 @@ export async function selectProposal(
         price: proposal.proposedPrice,
         paymentMode: quote.paymentMode,
         paymentTiming,
-        settlementMethod: isPayNow ? null : (opts.settlementMethod ?? null),
+        settlementMethod,
         lineItems: lineItemsSnapshot as any,
         scheduledDate: quote.preferredDate,
         timeSlot: quote.timeSlot,
@@ -215,7 +219,27 @@ export async function selectProposal(
         },
       });
 
-      if (quote.budgetMax != null) {
+      // Gateway (card) payment: payment was already captured before booking
+      // creation. Record the gateway_payment transaction linked to this booking
+      // and skip wallet deduction — funds are with Stripe, not the wallet.
+      if (opts.paymentIntentId) {
+        await tx.transaction.create({
+          data: {
+            type: 'gateway_payment',
+            status: 'completed',
+            amount: escrowTotal,
+            bookingId: created.id,
+            userId,
+            escrowId: escrow.id,
+            stripePaymentIntentId: opts.paymentIntentId,
+            reference: `Stripe PaymentIntent ${opts.paymentIntentId}`,
+            metadata: {
+              stripePaymentIntentId: opts.paymentIntentId,
+              stage: 'booking_create',
+            },
+          },
+        });
+      } else if (quote.budgetMax != null) {
         // Credit was already held at quote creation — refund excess budget.
         const excess = Number(quote.budgetMax) - escrowTotal;
         if (excess > 0) {
@@ -307,7 +331,7 @@ export async function selectProposal(
     bookingId: booking.id,
     quoteId,
     paymentTiming,
-    settlementMethod: isPayNow ? null : opts.settlementMethod,
+    settlementMethod,
   });
   return { bookingId: booking.id };
 }

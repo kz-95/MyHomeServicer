@@ -822,6 +822,10 @@ model QuoteRequest {
   budgetMin        Decimal?     @map("budget_min") @db.Decimal(10, 2)
   budgetMax        Decimal?     @map("budget_max") @db.Decimal(10, 2)
   paymentMode      PaymentMode  @map("payment_mode")
+  // Customer's pay_later settlement choice (credit | cash), captured at quote
+  // request time and carried through to booking — so proposal-select does not
+  // re-ask. Null for pay_now (decided at the pay step) and legacy rows.
+  settlementMethod SettlementMethod? @map("settlement_method")
   tipAmount        Decimal?     @map("tip_amount") @db.Decimal(10, 2)
   deadlineMode     DeadlineMode @map("deadline_mode")
   proposalDeadline DateTime     @map("proposal_deadline")

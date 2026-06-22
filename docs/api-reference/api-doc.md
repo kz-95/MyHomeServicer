@@ -468,6 +468,7 @@ Submit a new quote request.
   "budgetMin": 50,
   "budgetMax": 150,
   "paymentMode": "pay_now" | "pay_later" | "cash",
+  "settlementMethod": "credit" | "cash",
   "tipAmount": 10.00,
   "deadlineMode": "fcfs" | "fixed_time",
   "proposalDeadline": "2026-06-15T15:00:00Z",
@@ -481,6 +482,10 @@ Submit a new quote request.
   "targetServicerId": "uuid"
 }
 ```
+`settlementMethod` (optional, `pay_later` only — `credit` or `cash`) records how the
+customer intends to settle after completion. **Persisted on the quote** (added
+2026-06-22) so proposal-select reuses it instead of re-asking. Ignored for `pay_now`.
+
 `targetServicerId` (optional) is the **locked-rebook / direct-quote** target. When
 present the quote is **not** broadcast to all matching servicers — it goes only to
 this one servicer (sent via the "Rebook same servicer" action on order history,
@@ -560,7 +565,7 @@ Pick a proposal.
   "settlementMethod": "gateway | credit | cash"
 }
 ```
-`settlementMethod` is required when the quote's `paymentMode` is `pay_later` (must be `credit` or `cash`). Omit or send `null` for `pay_now` quotes.
+For `pay_later` quotes the settlement method is **no longer required here** — it was captured at quote-request time and stored on `QuoteRequest.settlementMethod`, and the select handler reuses it (legacy quotes with no stored choice fall back to `cash`). An explicit `settlementMethod` in the body still overrides the stored value. For `pay_now` + card, send `settlementMethod: "gateway"` (plus `paymentIntentId`). Changed 2026-06-22 to remove the duplicate settlement prompt in the select-servicer modal.
 **Response 201:** `{ "bookingId": "uuid" }`
 
 > **No servicer re-confirm (SP-3 dispatch wave).** Selecting a proposal now creates the

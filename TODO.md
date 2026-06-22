@@ -4,6 +4,57 @@
 
 ---
 
+## 🔴 SECURITY — gateway payment bypass (pay_now card) — flagged 2026-06-23
+
+> **Not yet fixed — planned for a dedicated session.** Found during the settlement-method
+> work; pre-existing (the `opts.paymentIntentId` trust block predates that change).
+
+**Exploit chain (CRITICAL + HIGH, one chain):**
+- `booking.service.ts:225-241` — `selectProposal` records a `completed` `gateway_payment`
+  transaction for `escrowTotal` using the **client-supplied** `opts.paymentIntentId`, with
+  NO Stripe verification. Any string (or a real-but-unpaid / cheaper PI) → booking goes
+  `confirmed`, escrow funded on paper, servicer paid out, customer pays nothing.
+- `stripe.routes.ts:38-51` — `POST /stripe/payment-intent` takes a **client `amount`** and,
+  at proposal-select time (no `bookingId` yet), stamps only `userId` into PI metadata — no
+  `quoteId`/`proposalId`, no server-derived amount. So #1 has nothing authoritative to check.
+- A correct `payment_intent.succeeded` webhook already exists (idempotent, marks paid) — the
+  inline select-path recording bypasses it.
+
+**Fix (do all together):**
+- [ ] `createPaymentIntent` route — derive `amount` server-side from the quote/proposal
+      (never trust body `amount` for booking PIs); stamp `{ userId, quoteId, proposalId }`
+      into PI metadata at creation.
+- [ ] `selectProposal` — before recording, `stripe.paymentIntents.retrieve(piId)` and assert
+      `status==='succeeded'`, `amount===Math.round(escrowTotal*100)`, `currency`,
+      `metadata.userId===userId` (+ quoteId/proposalId). Reject otherwise. Prefer routing the
+      record through the existing webhook path rather than inline.
+- [ ] Migration — unique constraint on `Transaction.stripePaymentIntentId` (block PI replay
+      across bookings). `stripePaymentIntentId` already exists; add `@unique`.
+- [ ] Gates: backend `tsc` 0 + jest payment tests; add a regression test for the bypass.
+
+---
+
+## 🟢 Fix — double settlement-method ask + modal radio align — 2026-06-23 (branch `feat/sp3-dispatch-cards`)
+
+- [x] **Radio alignment bug (frontend)** — global `input { width:100% }` in `styles.css`
+      stretched radios in the select-servicer modal, shoving labels to the far right.
+      Excluded `[type=radio]`/`[type=checkbox]` from the global `input` + `:focus` rules.
+- [x] **Duplicate settlement prompt** — `pay_later` settlement (credit/cash) was asked in
+      the quote wizard AND re-asked in the proposals select-servicer modal. Root cause: the
+      quote-wizard choice was collected but **never persisted** (no column), so the modal
+      was the only place it was captured.
+      - [x] Schema: `QuoteRequest.settlementMethod SettlementMethod?` + migration.
+      - [x] `createQuote` persists it for `pay_later` (null for `pay_now`).
+      - [x] `selectProposal` reuses `quote.settlementMethod` (request override still wins;
+            legacy rows fall back to `cash`) — no longer throws "required".
+      - [x] `proposals.component.ts`: removed the modal settlement radio + signal; stopped
+            sending `settlementMethod` for `pay_later`.
+      - [x] Docs: `schema-notes.md`, `api-doc.md` (`POST /quotes`, `POST /quotes/:id/select`).
+- [ ] **Verify gates:** backend `tsc` 0 + `npm run db:migrate` (stop server first — DLL lock),
+      frontend `tsc` 0 / `ng build` 0.
+
+---
+
 ## 🟢 Autopilot backlog sweep — 2026-06-22 (branch `feat/sp3-dispatch-cards`)
 
 Full detail + next-agent actions in `docs/ai-context/logs/SESSION-HANDOFF.md`.
@@ -84,7 +135,7 @@ afterwards. Fix gates ALL payment modes before any broadcast/dispatch/notify.
       webhook; pay_later/cash → validate account + `requireNoUnpaidInvoice`. Wrap so a gate
       failure leaves zero broadcast rows / no socket / no notify. Files: `quote.service.ts`,
       `quotes.routes.ts`, `stripe.routes.ts`. Gate: BE `tsc` 0 + jest.
-- [ ] **B — Demo data (frontend forms)** — (1) ✅ DONE (2026-06-17): guest stale answers cleared via
+- [x] **B — Demo data (frontend forms)** — (1) ✅ DONE (2026-06-17): guest stale answers cleared via
       `f.answers={}` in `guest-quote.component.ts onCategoryChange` (L898) + `onParentChange` (L887);
       `ng build` AOT 0. (2) repoint both
       demo autofills to plumbing, distinct: customer (`quote-form.component.ts demoAutoFill ~1798`)

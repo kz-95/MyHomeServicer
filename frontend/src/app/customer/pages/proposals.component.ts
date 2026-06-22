@@ -112,19 +112,6 @@ const STAGGER_MS = 70;
           for <strong>RM {{ p.proposedPrice | number: '1.2-2' }}</strong>.
         </p>
         <p class="muted">This will create a booking and cannot be undone.</p>
-        @if (paymentMode() && paymentMode() !== 'pay_now') {
-          <div class="settle-opt">
-            <p class="label">Settlement method</p>
-            <label class="opt">
-              <input type="radio" name="settlementMethod" [checked]="settlementMethod() === 'credit'" (change)="settlementMethod.set('credit')" />
-              Credit / card
-            </label>
-            <label class="opt">
-              <input type="radio" name="settlementMethod" [checked]="settlementMethod() === 'cash'" (change)="settlementMethod.set('cash')" />
-              Cash on completion
-            </label>
-          </div>
-        }
         @if (paymentMode() === 'pay_now') {
           <div class="settle-opt">
             <p class="label">Payment method</p>
@@ -329,7 +316,6 @@ export class ProposalsComponent implements OnInit, OnDestroy {
   error = signal('');
   pending = signal<Proposal | null>(null);
   paymentMode = signal<string | null>(null);
-  settlementMethod = signal<'credit' | 'cash' | null>(null);
 
   search = signal('');
   filter = signal<'all' | 'auto' | 'manual'>('all');
@@ -435,9 +421,6 @@ export class ProposalsComponent implements OnInit, OnDestroy {
     this.api.get<{ paymentMode: string }>(`/quotes/${this.id}`).subscribe({
       next: (q) => {
         this.paymentMode.set(q.paymentMode);
-        if (q.paymentMode !== 'pay_now') {
-          this.settlementMethod.set('credit');
-        }
       },
     });
   }
@@ -445,6 +428,7 @@ export class ProposalsComponent implements OnInit, OnDestroy {
   // ── Card payment for gateway pay_now ──────────────────────────────────
   cardStep = signal<'idle' | 'intent_loading' | 'intent_ready' | 'success' | 'error'>('idle');
   clientSecret = signal<string | null>(null);
+  paymentIntentId = signal<string | null>(null);
   cardErrorMsg = signal('');
   cardPaymentDone = signal(false);
 
@@ -454,10 +438,12 @@ export class ProposalsComponent implements OnInit, OnDestroy {
     this.cardStep.set('intent_loading');
     this.cardErrorMsg.set('');
     this.clientSecret.set(null);
+    this.paymentIntentId.set(null);
     try {
-      const res = await firstValueFrom(this.api.post<{ clientSecret: string }>('/stripe/create-payment-intent', { amount }));
+      const res = await firstValueFrom(this.api.post<{ clientSecret: string; paymentIntentId: string }>('/stripe/create-payment-intent', { amount }));
       if (res?.clientSecret) {
         this.clientSecret.set(res.clientSecret);
+        this.paymentIntentId.set(res.paymentIntentId ?? null);
         this.cardStep.set('intent_ready');
       } else {
         this.cardStep.set('error');
@@ -484,6 +470,7 @@ export class ProposalsComponent implements OnInit, OnDestroy {
   cancelCardPayment(): void {
     this.cardStep.set('idle');
     this.clientSecret.set(null);
+    this.paymentIntentId.set(null);
     this.selectedSettlementMethod.set('credit');
   }
 
@@ -491,11 +478,12 @@ export class ProposalsComponent implements OnInit, OnDestroy {
     this.selecting.set(true);
     this.error.set('');
     const body: Record<string, unknown> = { proposalId };
-    if (this.paymentMode() !== 'pay_now' && this.settlementMethod()) {
-      body['settlementMethod'] = this.settlementMethod();
-    }
+    // pay_later settlement was chosen at quote-request time and is stored on the
+    // quote — the backend reuses it, so we no longer send it here.
     if (this.paymentMode() === 'pay_now' && this.selectedSettlementMethod() === 'gateway') {
       body['settlementMethod'] = 'gateway';
+      const piId = this.paymentIntentId();
+      if (piId) body['paymentIntentId'] = piId;
     }
     this.api
       .post<{ bookingId: string }>(`/quotes/${this.id}/select`, body)

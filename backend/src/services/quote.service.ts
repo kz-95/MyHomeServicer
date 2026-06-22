@@ -319,6 +319,10 @@ export async function createQuote(
       budgetMin: input.budgetMin ?? null,
       budgetMax: input.budgetMax ?? null,
       paymentMode: input.paymentMode,
+      // Persist the pay_later settlement choice so proposal-select can reuse it
+      // without re-asking the customer. pay_now settles at the pay step.
+      settlementMethod:
+        input.paymentMode === 'pay_now' ? null : (input.settlementMethod ?? null),
       tipAmount: input.tipAmount ?? null,
       deadlineMode: input.deadlineMode,
       proposalDeadline,
