@@ -26,18 +26,23 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
           <div class="divider"><span>or</span></div>
         }
 
-        <label>Name<input [(ngModel)]="name" name="name" maxlength="100" /></label>
-        <label>Email<input [(ngModel)]="email" name="email" type="email" autocomplete="email" maxlength="255" /></label>
-        <label>Phone<app-phone-input [(ngModel)]="phone" name="phone"></app-phone-input></label>
+        <label>Name<input [(ngModel)]="name" name="name" maxlength="100" [class.input-error]="fieldErr()['name']" (ngModelChange)="clearErr('name')" (blur)="validateField('name')" /></label>
+        @if (fieldErr()['name']) { <span class="field-err">{{ fieldErr()['name'] }}</span> }
+        <label>Email<input [(ngModel)]="email" name="email" type="email" autocomplete="email" maxlength="255" [class.input-error]="fieldErr()['email']" (ngModelChange)="clearErr('email')" (blur)="validateField('email')" /></label>
+        @if (fieldErr()['email']) { <span class="field-err">{{ fieldErr()['email'] }}</span> }
+        <label>Phone<app-phone-input [(ngModel)]="phone" name="phone" (ngModelChange)="clearErr('phone')"></app-phone-input></label>
+        @if (fieldErr()['phone']) { <span class="field-err">{{ fieldErr()['phone'] }}</span> }
         <label>
           Password
-          <input type="password" [(ngModel)]="password" name="password" autocomplete="new-password" maxlength="128" />
+          <input type="password" [(ngModel)]="password" name="password" autocomplete="new-password" maxlength="128" [class.input-error]="fieldErr()['password']" (ngModelChange)="clearErr('password')" (blur)="validateField('password')" />
         </label>
+        @if (fieldErr()['password']) { <span class="field-err">{{ fieldErr()['password'] }}</span> }
         <span class="muted hint">At least 8 characters and one number.</span>
         <label>
           Security PIN <span class="muted">(optional)</span>
-          <input type="password" [(ngModel)]="pin" name="pin" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="6-digit PIN" />
+          <input type="password" [(ngModel)]="pin" name="pin" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="6-digit PIN" [class.input-error]="fieldErr()['pin']" (ngModelChange)="clearErr('pin')" (blur)="validateField('pin')" />
         </label>
+        @if (fieldErr()['pin']) { <span class="field-err">{{ fieldErr()['pin'] }}</span> }
         <span class="muted hint">Leave blank to use the default PIN (123456). You can change it in Account settings.</span>
 
         @if (error()) {
@@ -93,6 +98,11 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
       .err {
         color: var(--color-danger);
       }
+      .field-err {
+        color: var(--color-danger);
+        font-size: 0.78rem;
+        margin-top: -0.4rem;
+      }
       .divider {
         display: flex;
         align-items: center;
@@ -142,8 +152,44 @@ export class RegisterComponent implements OnInit {
   pin = '';
   busy = signal(false);
   error = signal('');
+  fieldErr = signal<Record<string, string>>({});
   showGoogle = Boolean(this.config.googleClientId);
   googleUrl = googleOAuthUrl;
+
+  /** Validate a single field; returns its error message ('' when valid). */
+  private checkField(key: string): string {
+    switch (key) {
+      case 'name':
+        return this.name.trim() ? '' : 'Enter your name';
+      case 'email':
+        if (!this.email.trim()) return 'Enter a valid email';
+        return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(this.email) ? '' : 'Enter a valid email';
+      case 'phone':
+        return /^[0-9+\-\s()]{6,20}$/.test(this.phone) ? '' : 'Enter a valid phone number';
+      case 'password':
+        if (this.password.length < 8 || !/[0-9]/.test(this.password))
+          return 'At least 8 characters and one number';
+        return '';
+      case 'pin':
+        if (this.pin && !/^[0-9]{6}$/.test(this.pin)) return 'PIN must be exactly 6 digits';
+        return '';
+      default:
+        return '';
+    }
+  }
+
+  /** Validate one field on blur and store its message. */
+  validateField(key: string): void {
+    const msg = this.checkField(key);
+    this.fieldErr.update((m) => ({ ...m, [key]: msg }));
+  }
+
+  /** Clear a field's error on input. */
+  clearErr(key: string): void {
+    if (this.fieldErr()[key]) {
+      this.fieldErr.update((m) => ({ ...m, [key]: '' }));
+    }
+  }
 
   ngOnInit(): void {
     const prefill = this.route.snapshot.queryParamMap.get('prefill');
@@ -157,26 +203,11 @@ export class RegisterComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.name || !this.email || !this.phone || !this.password) {
-      this.error.set('Please fill in every field');
-      return;
-    }
-    if (this.password.length < 8) {
-      this.error.set('Password must be at least 8 characters');
-      return;
-    }
-    if (!/^[0-9+\-\s()]{6,20}$/.test(this.phone)) {
-      this.error.set('Please enter a valid phone number');
-      return;
-    }
-    if (!this.email.includes('@')) {
-      this.error.set('Please enter a valid email address');
-      return;
-    }
-    if (this.pin && !/^[0-9]{6}$/.test(this.pin)) {
-      this.error.set('PIN must be exactly 6 digits');
-      return;
-    }
+    const keys = ['name', 'email', 'phone', 'password', 'pin'];
+    const errs: Record<string, string> = {};
+    for (const k of keys) errs[k] = this.checkField(k);
+    this.fieldErr.set(errs);
+    if (keys.some((k) => errs[k])) return;
     this.busy.set(true);
     this.error.set('');
     const payload: { name: string; email: string; phone: string; password: string; pin?: string } = {

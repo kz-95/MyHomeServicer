@@ -31,27 +31,40 @@ interface Category {
 
         @if (step() === 1) {
           <span class="section">Your account</span>
-          <label>Contact name<input [(ngModel)]="name" name="name" /></label>
-          <label>Email<input [(ngModel)]="email" name="email" autocomplete="username" /></label>
-          <label>Phone<app-phone-input [(ngModel)]="phone" name="phone"></app-phone-input></label>
+          <label>Contact name<input [(ngModel)]="name" name="name" [class.input-error]="fieldErr()['name']" (ngModelChange)="clearErr('name')" (blur)="validateField('name')" /></label>
+          @if (fieldErr()['name']) { <span class="field-err">{{ fieldErr()['name'] }}</span> }
+          <label>Email<input [(ngModel)]="email" name="email" autocomplete="username" [class.input-error]="fieldErr()['email']" (ngModelChange)="clearErr('email')" (blur)="validateField('email')" /></label>
+          @if (fieldErr()['email']) { <span class="field-err">{{ fieldErr()['email'] }}</span> }
+          <label>Phone<app-phone-input [(ngModel)]="phone" name="phone" (ngModelChange)="clearErr('phone')"></app-phone-input></label>
+          @if (fieldErr()['phone']) { <span class="field-err">{{ fieldErr()['phone'] }}</span> }
           <label>
             Password
             <div class="pw-wrap">
-              <input [type]="showPassword() ? 'text' : 'password'" [(ngModel)]="password" name="password" autocomplete="new-password" />
-              <button type="button" class="eye-btn" (click)="showPassword.set(!showPassword())" tabindex="-1">
-                {{ showPassword() ? '🙈' : '👁' }}
+              <input [type]="showPassword() ? 'text' : 'password'" [(ngModel)]="password" name="password" autocomplete="new-password" [class.input-error]="fieldErr()['password']" (ngModelChange)="clearErr('password')" (blur)="validateField('password')" />
+              <button type="button" class="eye-btn" (click)="showPassword.set(!showPassword())" tabindex="-1" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+                @if (showPassword()) {
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                } @else {
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
               </button>
             </div>
           </label>
+          @if (fieldErr()['password']) { <span class="field-err">{{ fieldErr()['password'] }}</span> }
           <label>
             Confirm password
             <div class="pw-wrap">
-              <input [type]="showConfirmPassword() ? 'text' : 'password'" [(ngModel)]="confirmPassword" name="confirmPassword" autocomplete="new-password" />
-              <button type="button" class="eye-btn" (click)="showConfirmPassword.set(!showConfirmPassword())" tabindex="-1">
-                {{ showConfirmPassword() ? '🙈' : '👁' }}
+              <input [type]="showConfirmPassword() ? 'text' : 'password'" [(ngModel)]="confirmPassword" name="confirmPassword" autocomplete="new-password" [class.input-error]="fieldErr()['confirmPassword']" (ngModelChange)="clearErr('confirmPassword')" (blur)="validateField('confirmPassword')" />
+              <button type="button" class="eye-btn" (click)="showConfirmPassword.set(!showConfirmPassword())" tabindex="-1" [attr.aria-label]="showConfirmPassword() ? 'Hide password' : 'Show password'">
+                @if (showConfirmPassword()) {
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                } @else {
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
               </button>
             </div>
           </label>
+          @if (fieldErr()['confirmPassword']) { <span class="field-err">{{ fieldErr()['confirmPassword'] }}</span> }
           <span class="muted hint">At least 8 characters and one number.</span>
 
           @if (error()) {
@@ -63,16 +76,18 @@ interface Category {
 
         @if (step() === 2) {
           <span class="section">Your business</span>
-          <label>Business name<input [(ngModel)]="businessName" name="businessName" /></label>
+          <label>Business name<input [(ngModel)]="businessName" name="businessName" [class.input-error]="fieldErr()['businessName']" (ngModelChange)="clearErr('businessName')" (blur)="validateField('businessName')" /></label>
+          @if (fieldErr()['businessName']) { <span class="field-err">{{ fieldErr()['businessName'] }}</span> }
           <label>
             Service category
-            <select [(ngModel)]="categoryId" name="categoryId">
+            <select [(ngModel)]="categoryId" name="categoryId" [class.input-error]="fieldErr()['categoryId']" (ngModelChange)="clearErr('categoryId')" (blur)="validateField('categoryId')">
               <option value="">Select a category…</option>
               @for (c of categories(); track c.id) {
                 <option [value]="c.id">{{ c.name }}</option>
               }
             </select>
           </label>
+          @if (fieldErr()['categoryId']) { <span class="field-err">{{ fieldErr()['categoryId'] }}</span> }
           <span class="muted hint">This is fixed once you register.</span>
 
           <label>
@@ -85,11 +100,13 @@ interface Category {
             We are a registered company
           </label>
           @if (isCompany) {
-            <label>Tax number<input [(ngModel)]="taxNumber" name="taxNumber" /></label>
+            <label>Tax number<input [(ngModel)]="taxNumber" name="taxNumber" [class.input-error]="fieldErr()['taxNumber']" (ngModelChange)="clearErr('taxNumber')" (blur)="validateField('taxNumber')" /></label>
+            @if (fieldErr()['taxNumber']) { <span class="field-err">{{ fieldErr()['taxNumber'] }}</span> }
             <label>
               Business registration number
-              <input [(ngModel)]="businessRegistrationNumber" name="brn" />
+              <input [(ngModel)]="businessRegistrationNumber" name="brn" [class.input-error]="fieldErr()['businessRegistrationNumber']" (ngModelChange)="clearErr('businessRegistrationNumber')" (blur)="validateField('businessRegistrationNumber')" />
             </label>
+            @if (fieldErr()['businessRegistrationNumber']) { <span class="field-err">{{ fieldErr()['businessRegistrationNumber'] }}</span> }
           }
 
           @if (error()) {
@@ -110,12 +127,13 @@ interface Category {
               Skip to use the default: <strong>123456</strong>.
             </p>
             <label>PIN (6 digits)
-              <input type="password" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" [(ngModel)]="pin" name="pin" />
+              <input type="password" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" [(ngModel)]="pin" name="pin" [class.input-error]="fieldErr()['pin']" (ngModelChange)="clearErr('pin')" (blur)="validateField('pin')" />
             </label>
+            @if (fieldErr()['pin']) { <span class="field-err">{{ fieldErr()['pin'] }}</span> }
             <label>Confirm PIN
-              <input type="password" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" [(ngModel)]="pinConfirm" name="pinConfirm" />
+              <input type="password" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" [(ngModel)]="pinConfirm" name="pinConfirm" [class.input-error]="fieldErr()['pinConfirm']" (ngModelChange)="clearErr('pinConfirm')" (blur)="validateField('pinConfirm')" />
             </label>
-            @if (pinError()) { <p class="err">{{ pinError() }}</p> }
+            @if (fieldErr()['pinConfirm']) { <span class="field-err">{{ fieldErr()['pinConfirm'] }}</span> }
             @if (error()) { <p class="err">{{ error() }}</p> }
             <div class="btn-row">
               <button class="btn-ghost" (click)="skipPin()">Skip</button>
@@ -211,16 +229,26 @@ interface Category {
       .eye-btn {
         position: absolute;
         right: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         background: none;
         border: none;
         cursor: pointer;
-        font-size: 1rem;
         padding: 0;
         line-height: 1;
         color: var(--color-muted);
       }
+      .eye-btn svg {
+        display: block;
+      }
       .err {
         color: var(--color-danger);
+      }
+      .field-err {
+        color: var(--color-danger);
+        font-size: 0.78rem;
+        margin-top: -0.4rem;
       }
       .btn-row {
         display: flex;
@@ -258,10 +286,64 @@ export class ServicerRegisterComponent implements OnInit {
   step = signal(1);
   pin = signal('');
   pinConfirm = signal('');
-  pinError = signal('');
 
   busy = signal(false);
   error = signal('');
+  fieldErr = signal<Record<string, string>>({});
+
+  /** Validate a single field; returns its error message ('' when valid). */
+  private checkField(key: string): string {
+    switch (key) {
+      case 'name':
+        return this.name.trim() ? '' : 'Enter your name';
+      case 'email':
+        if (!this.email.trim()) return 'Enter a valid email';
+        return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(this.email) ? '' : 'Enter a valid email';
+      case 'phone':
+        return /^[0-9+\-\s()]{6,20}$/.test(this.phone) ? '' : 'Enter a valid phone number';
+      case 'password':
+        if (this.password.length < 8 || !/[0-9]/.test(this.password))
+          return 'At least 8 characters and one number';
+        return '';
+      case 'confirmPassword':
+        if (!this.confirmPassword) return 'Passwords do not match';
+        return this.confirmPassword === this.password ? '' : 'Passwords do not match';
+      case 'businessName':
+        return this.businessName.trim() ? '' : 'Enter your business name';
+      case 'categoryId':
+        return this.categoryId ? '' : 'Select a category';
+      case 'taxNumber':
+        if (this.isCompany && !this.taxNumber.trim()) return 'Required for a registered company';
+        return '';
+      case 'businessRegistrationNumber':
+        if (this.isCompany && !this.businessRegistrationNumber.trim())
+          return 'Required for a registered company';
+        return '';
+      case 'pin':
+        if ((this.pin() || this.pinConfirm()) && !/^[0-9]{6}$/.test(this.pin()))
+          return 'PIN must be exactly 6 digits';
+        return '';
+      case 'pinConfirm':
+        if ((this.pin() || this.pinConfirm()) && this.pinConfirm() !== this.pin())
+          return 'PINs do not match';
+        return '';
+      default:
+        return '';
+    }
+  }
+
+  /** Validate one field on blur and store its message. */
+  validateField(key: string): void {
+    const msg = this.checkField(key);
+    this.fieldErr.update((m) => ({ ...m, [key]: msg }));
+  }
+
+  /** Clear a field's error on input. */
+  clearErr(key: string): void {
+    if (this.fieldErr()[key]) {
+      this.fieldErr.update((m) => ({ ...m, [key]: '' }));
+    }
+  }
 
   ngOnInit(): void {
     this.api
@@ -274,24 +356,25 @@ export class ServicerRegisterComponent implements OnInit {
 
   nextStep1(): void {
     this.error.set('');
-    if (!this.name || !this.email || !this.phone || !this.password) {
-      this.error.set('Please fill in your account details');
-      return;
-    }
-    if (this.password !== this.confirmPassword) {
-      this.error.set('Passwords do not match.');
-      return;
-    }
+    const keys = ['name', 'email', 'phone', 'password', 'confirmPassword'];
+    if (this.validateKeys(keys)) return;
     this.step.set(2);
   }
 
   nextStep2(): void {
     this.error.set('');
-    if (!this.businessName || !this.categoryId) {
-      this.error.set('Please enter your business name and pick a category');
-      return;
-    }
+    const keys = ['businessName', 'categoryId'];
+    if (this.isCompany) keys.push('taxNumber', 'businessRegistrationNumber');
+    if (this.validateKeys(keys)) return;
     this.step.set(3);
+  }
+
+  /** Validate the given field keys, store messages, return true if any invalid. */
+  private validateKeys(keys: string[]): boolean {
+    const errs: Record<string, string> = { ...this.fieldErr() };
+    for (const k of keys) errs[k] = this.checkField(k);
+    this.fieldErr.set(errs);
+    return keys.some((k) => errs[k]);
   }
 
   submit(pin?: string): void {
@@ -333,18 +416,7 @@ export class ServicerRegisterComponent implements OnInit {
 
   submitPin(): void {
     const p = this.pin();
-    const pc = this.pinConfirm();
-    this.pinError.set('');
-    if (p || pc) {
-      if (p !== pc) {
-        this.pinError.set('PINs do not match.');
-        return;
-      }
-      if (!/^[0-9]{6}$/.test(p)) {
-        this.pinError.set('PIN must be exactly 6 digits.');
-        return;
-      }
-    }
+    if (this.validateKeys(['pin', 'pinConfirm'])) return;
     this.submit(p || undefined);
   }
 }
