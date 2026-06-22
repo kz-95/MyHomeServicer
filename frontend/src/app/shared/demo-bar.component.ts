@@ -343,6 +343,7 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
       border-bottom: 1px solid var(--color-border);
       height: 28px;
       position: relative;
+      z-index: 9999;
     }
     .demo-bar::before {
       content: '';
@@ -422,7 +423,7 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
       border: 1px solid var(--color-border);
       border-radius: 4px;
       padding: 0.3rem 0;
-      z-index: 100;
+      z-index: 9999;
       box-shadow: var(--shadow-md);
     }
     .demo-dd-menu::-webkit-scrollbar { width: 8px; }
@@ -488,7 +489,7 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
         overflow: visible;
       }
       /* Lift the dropdown above sibling page DOM on mobile. */
-      .demo-dd-menu { z-index: 9000; }
+      .demo-dd-menu { z-index: 9999; }
     }
   `],
 })

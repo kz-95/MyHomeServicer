@@ -159,7 +159,7 @@ export function fuzzyScore(query: string, text: string): number | null {
         top: calc(100% + 4px);
         left: 0;
         right: 0;
-        z-index: 200;
+        z-index: 9999;
         background: var(--color-surface);
         border: 1px solid var(--color-border);
         border-radius: var(--radius, 8px);
