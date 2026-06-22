@@ -743,3 +743,11 @@ select {
     animation: none;
   }
 }
+
+.logo-icon {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 0.5rem;
+}

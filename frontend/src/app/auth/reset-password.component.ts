@@ -10,6 +10,7 @@ import { ApiService } from '../core/services/api.service';
     template: `
     <div class="wrap">
       <div class="card box">
+        <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" />
         <h1>Set new password</h1>
 
         @if (!done()) {

@@ -15,6 +15,7 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
     template: `
     <div class="wrap">
       <div class="card box">
+        <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" />
         <h1>Create account</h1>
         <p class="muted">Sign up as a customer</p>
 

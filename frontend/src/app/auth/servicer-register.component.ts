@@ -24,6 +24,7 @@ interface Category {
     template: `
     <div class="wrap">
       <div class="card box">
+        <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" />
         <h1>Join as a Servicer</h1>
         <p class="muted">Register your business and start receiving quote requests.</p>
 

@@ -15,6 +15,7 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
     template: `
     <div class="wrap">
       <div class="card box">
+        <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" />
         <h1>Sign in</h1>
 
         <label>Email<input [(ngModel)]="email" name="email" type="email" autocomplete="username" /></label>
