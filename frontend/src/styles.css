@@ -751,3 +751,16 @@ select {
   display: block;
   margin: 0 auto 0.5rem;
 }
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--color-text);
+  margin-bottom: 0.5rem;
+}
+.auth-brand .logo-icon { margin: 0; }

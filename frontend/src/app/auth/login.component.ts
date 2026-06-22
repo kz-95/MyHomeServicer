@@ -15,7 +15,13 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
     template: `
     <div class="wrap">
       <div class="card box">
-        <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" />
+        <a routerLink="/" class="brand">
+          <span class="logo-wrap" [class.loaded]="logoLoaded()">
+            <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" (load)="logoLoaded.set(true)" />
+            <span class="logo-shimmer"></span>
+          </span>
+          My Home Servicer
+        </a>
         <h1>Sign in</h1>
 
         <label>Email<input [(ngModel)]="email" name="email" type="email" autocomplete="username" /></label>
@@ -189,6 +195,22 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
       }
       .skip-btn:hover {
         border-color: var(--color-primary); color: var(--color-primary);
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: 1.25rem;
+        background: var(--color-primary);
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-decoration: none;
+        flex-shrink: 0;
+        margin-bottom: 0.5rem;
       }
       /* Admin rescue CSS - DISABLED 2026-06-03 */
       /* .admin-rescue-section { text-align: center; margin-top: 1rem; } */

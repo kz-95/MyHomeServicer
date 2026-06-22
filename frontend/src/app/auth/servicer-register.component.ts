@@ -24,7 +24,13 @@ interface Category {
     template: `
     <div class="wrap">
       <div class="card box">
-        <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" />
+        <a routerLink="/" class="brand">
+          <span class="logo-wrap" [class.loaded]="logoLoaded()">
+            <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" (load)="logoLoaded.set(true)" />
+            <span class="logo-shimmer"></span>
+          </span>
+          My Home Servicer
+        </a>
         <h1>Join as a Servicer</h1>
         <p class="muted">Register your business and start receiving quote requests.</p>
 
@@ -307,6 +313,43 @@ interface Category {
         height: 1px;
         background: var(--color-border);
       }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: 1.25rem;
+        background: var(--color-primary);
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-decoration: none;
+        flex-shrink: 0;
+        margin-bottom: 0.5rem;
+      }
+      .logo-wrap {
+        position: relative;
+        display: inline-flex;
+        width: 34px;
+        height: 34px;
+        flex-shrink: 0;
+      }
+      .logo-shimmer {
+        position: absolute;
+        inset: 0;
+        border-radius: 6px;
+        background: linear-gradient(90deg, var(--color-border) 25%, var(--color-bg) 50%, var(--color-border) 75%);
+        background-size: 200% 100%;
+        animation: logo-shimmer-move 2s ease-in-out infinite;
+        transition: opacity 0.3s;
+      }
+      .logo-wrap.loaded .logo-shimmer { opacity: 0; pointer-events: none; animation: none; }
+      @keyframes logo-shimmer-move {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
     `,
     ]
 })
@@ -316,6 +359,7 @@ export class ServicerRegisterComponent implements OnInit {
   private config = inject(ConfigService);
   private router = inject(Router);
 
+  logoLoaded = signal(false);
   categories = signal<Category[]>([]);
   showGoogle = Boolean(this.config.googleClientId);
   googleUrl = googleServicerUrl;

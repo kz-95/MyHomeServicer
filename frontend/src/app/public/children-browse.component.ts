@@ -73,7 +73,7 @@ interface Category {
                     }
                   </span>
                   <span class="card-cover" [class.loaded]="isLoaded(cat.id)"></span>
-                  @if (!isLoaded(cat.id)) {
+                  @if (!barsRemovedIds().has(cat.id)) {
                     <span class="bw-scan1" [style.animation-delay.ms]="(-700 + i * 350) % 1200 - 1200"></span>
                     <span class="bw-scan2" [style.animation-delay.ms]="(i * 350) % 1400 - 1400"></span>
                     <span class="bw-sweep1" [style.animation-delay.ms]="(-1300 + i * 350) % 1800 - 1800"></span>
@@ -306,6 +306,7 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
   error = signal(false);
   /** Category ids whose thumbnail has finished preloading (then the photo reveals). */
   loadedIds = signal<Set<string>>(new Set());
+  barsRemovedIds = signal<Set<string>>(new Set());
   private currentSlug = '';
   private destroyed = false;
 
@@ -328,14 +329,20 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
       img.src = url;
       img.decode().then(() => {
         if (this.destroyed) return;
-        const wait = Math.max(0, 400 - (performance.now() - t0));
+        const wait = Math.max(0, 550 - (performance.now() - t0));
         setTimeout(() => {
           this.loadedIds.update((s) => { const n = new Set(s); n.add(cat.id); return n; });
+          setTimeout(() => {
+            this.barsRemovedIds.update(s => { const n = new Set(s); n.add(cat.id); return n; });
+          }, 200);
           setTimeout(next, 200);
         }, wait);
       }).catch(() => {
         if (this.destroyed) return;
         this.loadedIds.update((s) => { const n = new Set(s); n.add(cat.id); return n; });
+        setTimeout(() => {
+          this.barsRemovedIds.update(s => { const n = new Set(s); n.add(cat.id); return n; });
+        }, 200);
         setTimeout(next, 200);
       });
     };
@@ -364,6 +371,7 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
       next: (res) => {
         const cats = res.data ?? [];
         this.loadedIds.set(new Set());
+        this.barsRemovedIds.set(new Set());
         this.children.set(cats);
         this.loading.set(false);
         this.preloadSequential(cats);

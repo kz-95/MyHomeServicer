@@ -229,7 +229,7 @@ interface Category {
                 ></span>
                 <span class="svc-wash"></span>
                 <span class="card-cover" [class.loaded]="isLoaded(cat.id)"></span>
-                @if (!isLoaded(cat.id)) {
+                @if (!barsRemovedIds().has(cat.id)) {
                   <span class="bw-scan1" [style.animation-delay.ms]="(-700 + i * 350) % 1200 - 1200"></span>
                   <span class="bw-scan2" [style.animation-delay.ms]="(i * 350) % 1400 - 1400"></span>
                   <span class="bw-sweep1" [style.animation-delay.ms]="(-1300 + i * 350) % 1800 - 1800"></span>
@@ -795,7 +795,7 @@ interface Category {
         inset: 0;
         z-index: 4;
         background: var(--color-surface);
-        transition: opacity 0.35s ease;
+        transition: opacity 0.55s ease;
       }
       .card-cover.loaded { opacity: 0; pointer-events: none; }
 
@@ -1482,6 +1482,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   allCategories = signal<Category[]>([]);
   /** Category ids whose thumbnail has finished preloading (card reveals then). */
   loadedIds = signal<Set<string>>(new Set());
+  barsRemovedIds = signal<Set<string>>(new Set());
   loading = signal(true);
 
   private queuedIds = new Set<string>();
@@ -1500,7 +1501,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       const t0 = performance.now();
       img.src = url;
       img.decode().then(() => {
-        const wait = Math.max(0, 400 - (performance.now() - t0));
+      const wait = Math.max(0, 550 - (performance.now() - t0));
         setTimeout(() => this.heroImageLoading.set(false), wait);
       }).catch(() => this.heroImageLoading.set(false));
     });
@@ -1542,7 +1543,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     img.src = this.thumbUrl(cat);
     img.decode().then(() => {
       if (this.destroyed) return;
-      const wait = Math.max(0, 400 - (performance.now() - t0));
+      const wait = Math.max(0, 550 - (performance.now() - t0));
       setTimeout(() => {
         if (this.destroyed) return;
         this.loadedIds.update((s) => {
@@ -1550,6 +1551,13 @@ export class HomeComponent implements OnInit, OnDestroy {
           n.add(cat.id);
           return n;
         });
+        setTimeout(() => {
+          this.barsRemovedIds.update((s) => {
+            const n = new Set(s);
+            n.add(cat.id);
+            return n;
+          });
+        }, 200);
         setTimeout(() => this.drainPreload(), 200);
       }, wait);
     }).catch(() => {
