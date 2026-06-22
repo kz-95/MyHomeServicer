@@ -1500,7 +1500,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       const t0 = performance.now();
       img.src = url;
       img.decode().then(() => {
-        const wait = Math.max(0, 200 - (performance.now() - t0));
+        const wait = Math.max(0, 500 - (performance.now() - t0));
         setTimeout(() => this.heroImageLoading.set(false), wait);
       }).catch(() => this.heroImageLoading.set(false));
     });
@@ -1542,8 +1542,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     img.src = this.thumbUrl(cat);
     img.decode().then(() => {
       if (this.destroyed) return;
-      const wait = Math.max(0, 200 - (performance.now() - t0));
+      const wait = Math.max(0, 500 - (performance.now() - t0));
       setTimeout(() => {
+        if (this.destroyed) return;
         this.loadedIds.update((s) => {
           const n = new Set(s);
           n.add(cat.id);

@@ -69,30 +69,34 @@ const STAGGER_MS = 100;
           <p class="muted">No services match “{{ query() }}”.</p>
         } @else {
           <div class="grid page-child" [class.stagger-done]="staggerDone()">
-            @for (cat of visibleList(); track cat.revealed ? ('real-'+cat.id) : ('skel-'+cat.index); let idx = $index) {
-              @if (cat.revealed) {
+            @for (cat of visibleList(); track cat.revealed ? ('real-'+cat.id) : ('skel-'+cat.index); let i = $index) {
                 <a
-                  class="bw-card bw-revealed"
+                  class="bw-card"
+                  [class.bw-revealed]="cat.revealed"
+                  [class.bw-skeleton]="!cat.revealed"
                   routerLink="/customer/quote/new"
-                  [queryParams]="{ category: cat.id }"
-                  [style]="{'--cat-color': cat.cardColor || 'var(--color-primary)'}"
+                  [queryParams]="cat.revealed ? { category: cat.id } : {}"
+                  [style]="cat.revealed ? {'--cat-color': cat.cardColor || 'var(--color-primary)'} : {}"
                 >
-                  <span class="bw-wash"></span>
-                  <span class="bw-photo" [style.background-image]="'url(' + (cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug)) + ')'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
-                  <span class="bw-body">
-                    <span class="bw-ic"><app-icon [name]="cat.icon || 'home'" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
-                    <strong>{{ cat.name }}</strong>
-                    @if (cat.defaultPriceSuggestion) {
-                      <span class="bw-price">from RM {{ cat.defaultPriceSuggestion }}</span>
-                    }
-                  </span>
+                  @if (cat.revealed) {
+                    <span class="bw-wash"></span>
+                    <span class="bw-photo" [style.background-image]="'url(' + (cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug)) + ')'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
+                    <span class="bw-body">
+                      <span class="bw-ic"><app-icon [name]="cat.icon || 'home'" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
+                      <strong>{{ cat.name }}</strong>
+                      @if (cat.defaultPriceSuggestion) {
+                        <span class="bw-price">from RM {{ cat.defaultPriceSuggestion }}</span>
+                      }
+                    </span>
+                  }
+                  <span class="card-cover" [class.loaded]="cat.revealed"></span>
+                  @if (!cat.revealed) {
+                    <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
+                    <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
+                    <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
+                    <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+                  }
                 </a>
-              } @else {
-                <div class="bw-card bw-skeleton">
-                  <span class="bw-scan"></span>
-                  <span class="bw-sweep"></span>
-                </div>
-              }
             }
           </div>
         }
@@ -243,123 +247,42 @@ const STAGGER_MS = 100;
       }
       .sort-dir:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
-      /* Skeleton card with scanning animation */
-      .bw-skeleton {
-        background: var(--color-surface);
-        border-color: var(--color-border);
-        cursor: default;
-        animation: border-glow 1.2s cubic-bezier(0.85, 0, 0.15, 1) infinite;
+      /* Skeleton reveal - cover overlay + spawn stagger */
+      @keyframes skeleton-spawn {
+        from { opacity: 1; }
+        to   { opacity: 0; pointer-events: none; }
       }
-      .bw-skeleton:hover {
+      .bw-card.bw-skeleton::after {
+        content: "";
+        position: absolute; inset: 0; z-index: 10;
+        background: var(--color-bg);
+        animation: skeleton-spawn 0.35s ease both;
+      }
+      .grid > :nth-child(1)::after { animation-delay: 0s; }
+      .grid > :nth-child(2)::after { animation-delay: 0.35s; }
+      .grid > :nth-child(3)::after { animation-delay: 0.7s; }
+      .grid > :nth-child(4)::after { animation-delay: 1.05s; }
+      .grid > :nth-child(5)::after { animation-delay: 1.4s; }
+      .grid > :nth-child(6)::after { animation-delay: 1.75s; }
+      .grid > :nth-child(7)::after { animation-delay: 2.1s; }
+      .grid > :nth-child(8)::after { animation-delay: 2.45s; }
+      .bw-card.bw-skeleton {
+        cursor: default;
+      }
+      .bw-card.bw-skeleton:hover {
         transform: none;
         box-shadow: var(--shadow);
       }
-      @keyframes border-glow {
-        0%, 100% { border-color: var(--color-border); box-shadow: var(--shadow); }
-        15%      { border-color: rgba(240,160,30,0.15); box-shadow: 0 0 0 1px rgba(240,160,30,0.06), var(--shadow); }
-        50%      { border-color: rgba(240,160,30,0.35); box-shadow: 0 0 0 1.5px rgba(240,160,30,0.12), var(--shadow-md); }
-        85%      { border-color: rgba(240,160,30,0.15); box-shadow: 0 0 0 1px rgba(240,160,30,0.06), var(--shadow); }
+      .card-cover {
+        position: absolute; inset: 0; z-index: 4;
+        background: var(--color-surface);
+        transition: opacity 0.35s ease;
       }
-      /* ── Scan + Sweep light bars ── 4 layers ── */
-      /* Scan: thicker = slower (0.9s / 1.4s) */
-      @keyframes bw-scan1 {
-        0%   { transform: skewX(-24deg) translateX(-98%); }
-        100% { transform: skewX(-24deg) translateX(245%); }
-      }
-      @keyframes bw-scan2 {
-        0%   { transform: skewX(-24deg) translateX(-53%); }
-        100% { transform: skewX(-24deg) translateX(107%); }
-      }
-      /* Sweep: thicker = faster (1.8s / 1.5s) */
-      @keyframes bw-sweep1 {
-        0%   { transform: skewX(-24deg) translateX(-103%); }
-        100% { transform: skewX(-24deg) translateX(295%); }
-      }
-      @keyframes bw-sweep2 {
-        0%   { transform: skewX(-24deg) translateX(-53%); }
-        100% { transform: skewX(-24deg) translateX(118%); }
-      }
-
-      /* ── Scan/Sweep layer base ── */
-      .bw-scan, .bw-sweep {
-        position: absolute;
-        top: 0;
-        height: 100%;
-        z-index: 5;
-        pointer-events: none;
-        will-change: transform;
-        backface-visibility: hidden;
-        transform: translateZ(0);
-      }
-      .bw-scan::before,
-      .bw-sweep::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        height: 100%;
-        pointer-events: none;
-        will-change: transform;
-        backface-visibility: hidden;
-        transform: translateZ(0);
-      }
-
-      /* ── Scan-1 - thin, fast (0.9s) ── */
-      .bw-scan {
-        width: 41%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(180,140,255,0.06) 25%, rgba(240,160,30,0.12) 50%,
-          rgba(180,140,255,0.06) 75%, transparent 100%);
-        animation: bw-scan1 0.9s linear infinite;
-      }
-      /* ── Scan-2 - medium (1.4s) ── */
-      .bw-scan::before {
-        width: 94%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(140,210,255,0.08) 30%, rgba(240,160,30,0.14) 50%,
-          rgba(140,210,255,0.08) 70%, transparent 100%);
-        animation: bw-scan2 1.4s linear infinite;
-      }
-
-      /* ── Sweep-1 - thin, slow (1.8s) ── */
-      .bw-sweep {
-        width: 34%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(255,180,180,0.06) 25%, rgba(240,160,30,0.12) 50%,
-          rgba(255,180,180,0.06) 75%, transparent 100%);
-        animation: bw-sweep1 1.8s linear infinite;
-      }
-      /* ── Sweep-2 - medium (1.5s) ── */
-      .bw-sweep::before {
-        width: 85%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(180,220,255,0.08) 30%, rgba(240,160,30,0.14) 50%,
-          rgba(180,220,255,0.08) 70%, transparent 100%);
-        animation: bw-sweep2 1.5s linear infinite;
-      }
-
-      /* Staggered delay per skeleton card - both scan and sweep */
-      .bw-skeleton:nth-child(1) .bw-scan, .bw-skeleton:nth-child(1) .bw-sweep { animation-delay: 0s; }
-      .bw-skeleton:nth-child(2) .bw-scan, .bw-skeleton:nth-child(2) .bw-sweep { animation-delay: 0.15s; }
-      .bw-skeleton:nth-child(3) .bw-scan, .bw-skeleton:nth-child(3) .bw-sweep { animation-delay: 0.3s; }
-      .bw-skeleton:nth-child(4) .bw-scan, .bw-skeleton:nth-child(4) .bw-sweep { animation-delay: 0.45s; }
-      .bw-skeleton:nth-child(5) .bw-scan, .bw-skeleton:nth-child(5) .bw-sweep { animation-delay: 0.6s; }
-      .bw-skeleton:nth-child(6) .bw-scan, .bw-skeleton:nth-child(6) .bw-sweep { animation-delay: 0.75s; }
-      .bw-skeleton:nth-child(7) .bw-scan, .bw-skeleton:nth-child(7) .bw-sweep { animation-delay: 0.9s; }
-      .bw-skeleton:nth-child(8) .bw-scan, .bw-skeleton:nth-child(8) .bw-sweep { animation-delay: 1.05s; }
+      .card-cover.loaded { opacity: 0; pointer-events: none; }
 
       @media (prefers-reduced-motion: reduce) {
-        .bw-scan, .bw-sweep,
-        .bw-scan::before,
-        .bw-sweep::before {
-          animation: none;
-        }
-        .bw-skeleton {
-          animation: none;
-        }
-        .stagger-done .bw-card,
-        .bw-revealed {
-          animation: none;
-        }
+        .bw-revealed { animation: none; }
+        .bw-card.bw-skeleton::after { animation: none; opacity: 0; }
       }
       /* Card reveal - smooth fade-in + slide-up for each staggered card */
       @keyframes card-reveal {

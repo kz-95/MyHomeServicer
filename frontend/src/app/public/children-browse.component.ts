@@ -32,10 +32,12 @@ interface Category {
       <section class="children-section">
         @if (loading()) {
           <div class="svc-grid">
-            @for (_ of [1, 2, 3, 4]; track _) {
+            @for (_ of [1, 2, 3, 4]; track _; let i = $index) {
               <div class="card skeleton">
-                  <span class="bw-scan"></span>
-                  <span class="bw-sweep"></span>
+                  <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
+                  <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
+                  <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
+                  <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
                 </div>
             }
           </div>
@@ -57,9 +59,8 @@ interface Category {
         } @else {
           <h2>{{ parentName() }}</h2>
           <div class="svc-grid">
-            @for (cat of children(); track cat.id) {
-              @if (isLoaded(cat.id)) {
-                <button class="svc-card svc-reveal" (click)="pick(cat)" [style]="{'--cat-color': cat.cardColor || 'var(--color-primary)'}">
+            @for (cat of children(); track cat.id; let i = $index) {
+                <button class="svc-card" [class.skeleton]="!isLoaded(cat.id)" (click)="pick(cat)" [style]="{'--cat-color': cat.cardColor || 'var(--color-primary)'}">
                   <span class="svc-wash"></span>
                   <span class="svc-photo shown" [style.background-image]="'url(' + thumbUrl(cat) + ')'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
                   <span class="svc-body">
@@ -71,13 +72,14 @@ interface Category {
                       <span class="svc-price">from RM {{ cat.defaultPriceSuggestion }}</span>
                     }
                   </span>
+                  <span class="card-cover" [class.loaded]="isLoaded(cat.id)"></span>
+                  @if (!isLoaded(cat.id)) {
+                    <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
+                    <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
+                    <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
+                    <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+                  }
                 </button>
-              } @else {
-                <div class="card skeleton">
-                  <span class="bw-scan"></span>
-                  <span class="bw-sweep"></span>
-                </div>
-              }
             }
           </div>
         }
@@ -180,12 +182,6 @@ interface Category {
         transition: opacity 0.45s ease;
       }
       .svc-photo.shown { opacity: 1; }
-      /* Card fades in only after its thumbnail finished preloading. */
-      @keyframes card-reveal {
-        from { opacity: 0; transform: translateY(10px) scale(0.97); }
-        to   { opacity: 1; transform: translateY(0) scale(1); }
-      }
-      .svc-reveal { animation: card-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
       .svc-body {
         position: relative;
         z-index: 3;
@@ -223,116 +219,44 @@ interface Category {
         color: rgba(255, 255, 255, 0.85);
       }
 
-      /* ── Skeleton ── sized by the same .svc-grid as the real cards so the
-         placeholder occupies the exact same track (no jump on reveal). */
-      .skeleton {
-        position: relative;
-        overflow: hidden;
-        min-height: 100px;
-        border-radius: var(--radius);
-        background: var(--color-surface);
-        border-color: var(--color-border);
-        cursor: default;
-        animation: border-glow 1.2s cubic-bezier(0.85, 0, 0.15, 1) infinite;
+      /* Skeleton reveal - cover overlay */
+      @keyframes skeleton-spawn {
+        from { opacity: 1; }
+        to   { opacity: 0; pointer-events: none; }
       }
-      .skeleton:hover {
+      .skeleton::after,
+      .svc-card.skeleton::after {
+        content: "";
+        position: absolute; inset: 0; z-index: 10;
+        background: var(--color-bg);
+        animation: skeleton-spawn 0.35s ease both;
+      }
+      .svc-grid > :nth-child(1)::after { animation-delay: 0s; }
+      .svc-grid > :nth-child(2)::after { animation-delay: 0.35s; }
+      .svc-grid > :nth-child(3)::after { animation-delay: 0.7s; }
+      .svc-grid > :nth-child(4)::after { animation-delay: 1.05s; }
+      .svc-card.skeleton {
+        cursor: default;
+      }
+      .svc-card.skeleton:hover {
         transform: none;
         box-shadow: var(--shadow);
       }
-      @keyframes border-glow {
-        0%, 100% { border-color: var(--color-border); box-shadow: var(--shadow); }
-        15%      { border-color: rgba(240,160,30,0.15); box-shadow: 0 0 0 1px rgba(240,160,30,0.06), var(--shadow); }
-        50%      { border-color: rgba(240,160,30,0.35); box-shadow: 0 0 0 1.5px rgba(240,160,30,0.12), var(--shadow-md); }
-        85%      { border-color: rgba(240,160,30,0.15); box-shadow: 0 0 0 1px rgba(240,160,30,0.06), var(--shadow); }
-      }
-      /* ── Scan + Sweep light bars ── 4 layers, all entering from OUTSIDE the
-         left edge and sweeping fully past the right, looping ── */
-      @keyframes bw-scan1 {
-        0%   { transform: skewX(-24deg) translateX(-130%); }
-        100% { transform: skewX(-24deg) translateX(250%); }
-      }
-      @keyframes bw-scan2 {
-        0%   { transform: skewX(-24deg) translateX(-130%); }
-        100% { transform: skewX(-24deg) translateX(250%); }
-      }
-      @keyframes bw-sweep1 {
-        0%   { transform: skewX(-24deg) translateX(-130%); }
-        100% { transform: skewX(-24deg) translateX(280%); }
-      }
-      @keyframes bw-sweep2 {
-        0%   { transform: skewX(-24deg) translateX(-130%); }
-        100% { transform: skewX(-24deg) translateX(250%); }
-      }
-
-      .bw-scan, .bw-sweep {
+      .card-cover {
         position: absolute;
-        top: 0;
-        height: 100%;
-        z-index: 5;
+        inset: 0;
+        z-index: 4;
+        background: var(--color-surface);
+        transition: opacity 0.35s ease;
+      }
+      .card-cover.loaded {
+        opacity: 0;
         pointer-events: none;
-        will-change: transform;
-        backface-visibility: hidden;
-        transform: translateZ(0);
       }
-      .bw-scan::before,
-      .bw-sweep::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        height: 100%;
-        pointer-events: none;
-        will-change: transform;
-        backface-visibility: hidden;
-        transform: translateZ(0);
-      }
-
-      .bw-scan {
-        width: 41%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(180,140,255,0.06) 25%, rgba(240,160,30,0.12) 50%,
-          rgba(180,140,255,0.06) 75%, transparent 100%);
-        animation: bw-scan1 0.9s linear infinite;
-      }
-      .bw-scan::before {
-        width: 94%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(140,210,255,0.08) 30%, rgba(240,160,30,0.14) 50%,
-          rgba(140,210,255,0.08) 70%, transparent 100%);
-        animation: bw-scan2 1.4s linear infinite;
-      }
-      .bw-sweep {
-        width: 34%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(255,180,180,0.06) 25%, rgba(240,160,30,0.12) 50%,
-          rgba(255,180,180,0.06) 75%, transparent 100%);
-        animation: bw-sweep1 1.8s linear infinite;
-      }
-      .bw-sweep::before {
-        width: 85%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(180,220,255,0.08) 30%, rgba(240,160,30,0.14) 50%,
-          rgba(180,220,255,0.08) 70%, transparent 100%);
-        animation: bw-sweep2 1.5s linear infinite;
-      }
-
-      .card.skeleton:nth-child(1) .bw-scan, .card.skeleton:nth-child(1) .bw-sweep { animation-delay: 0s; }
-      .card.skeleton:nth-child(2) .bw-scan, .card.skeleton:nth-child(2) .bw-sweep { animation-delay: 0.15s; }
-      .card.skeleton:nth-child(3) .bw-scan, .card.skeleton:nth-child(3) .bw-sweep { animation-delay: 0.3s; }
-      .card.skeleton:nth-child(4) .bw-scan, .card.skeleton:nth-child(4) .bw-sweep { animation-delay: 0.45s; }
-
-      @media (prefers-reduced-motion: reduce) {
-        .bw-scan, .bw-sweep,
-        .bw-scan::before,
-        .bw-sweep::before {
-          animation: none;
-        }
-        .skeleton {
-          animation: none;
-        }
-        .svc-reveal {
-          animation: none;
-        }
-      }
+      .svc-card .bw-scan1 { width: 30%; }
+      .svc-card .bw-scan2 { width: 45%; }
+      .svc-card .bw-sweep1 { width: 25%; }
+      .svc-card .bw-sweep2 { width: 18%; }
 
       /* ── Error ── */
       .err-card {

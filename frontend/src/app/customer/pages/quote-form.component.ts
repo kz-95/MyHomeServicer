@@ -318,10 +318,13 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
             @if (autoFillOpen()) {
               <div class="af-dropdown">
                 @if (presetsLoading()) {
-                  @for (_ of [0,1,2]; track _) {
+                  @for (_ of [0,1,2]; track _; let i = $index) {
                     <div class="af-item bw-skeleton">
-                      <span class="bw-scan"></span>
-                      <span class="bw-sweep"></span>
+                      <span class="card-cover"></span>
+                      <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
+                      <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
+                      <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
+                      <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
                       <strong class="sk-line sk-title">&nbsp;</strong>
                       <span class="sk-line sk-sub">&nbsp;</span>
                     </div>
@@ -953,7 +956,6 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
       .af-item.bw-skeleton {
         position: relative; overflow: hidden; cursor: default; pointer-events: none;
         background: var(--color-surface); min-height: 48px;
-        animation: border-glow 1.2s cubic-bezier(0.85, 0, 0.15, 1) infinite;
       }
       .af-item.bw-skeleton:hover { background: var(--color-surface); }
       .af-item.bw-skeleton .sk-line {
@@ -965,76 +967,29 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
       .af-item.bw-skeleton .sk-sub {
         width: 80%; height: 10px;
       }
-      @keyframes border-glow {
-        0%, 100% { border-color: var(--color-border); }
-        50%      { border-color: rgba(240,160,30,0.35); }
+      .af-item.bw-skeleton .bw-scan1 { width: 30%; }
+      .af-item.bw-skeleton .bw-scan2 { width: 40%; }
+      .af-item.bw-skeleton .bw-sweep1 { width: 25%; }
+      .af-item.bw-skeleton .bw-sweep2 { width: 20%; }
+      @keyframes skeleton-spawn {
+        from { opacity: 1; }
+        to   { opacity: 0; pointer-events: none; }
       }
-      @keyframes bw-scan1 {
-        0%   { transform: skewX(-24deg) translateX(-98%); }
-        100% { transform: skewX(-24deg) translateX(245%); }
+      .af-item.bw-skeleton::after {
+        content: "";
+        position: absolute; inset: 0; z-index: 10;
+        background: var(--color-bg);
+        animation: skeleton-spawn 0.35s ease both;
       }
-      @keyframes bw-scan2 {
-        0%   { transform: skewX(-24deg) translateX(-53%); }
-        100% { transform: skewX(-24deg) translateX(107%); }
+      .af-dropdown > :nth-child(1)::after { animation-delay: 0s; }
+      .af-dropdown > :nth-child(2)::after { animation-delay: 0.35s; }
+      .af-dropdown > :nth-child(3)::after { animation-delay: 0.7s; }
+      .card-cover {
+        position: absolute; inset: 0; z-index: 4;
+        background: var(--color-surface);
+        transition: opacity 0.35s ease;
       }
-      @keyframes bw-sweep1 {
-        0%   { transform: skewX(-24deg) translateX(-103%); }
-        100% { transform: skewX(-24deg) translateX(295%); }
-      }
-      @keyframes bw-sweep2 {
-        0%   { transform: skewX(-24deg) translateX(-53%); }
-        100% { transform: skewX(-24deg) translateX(118%); }
-      }
-      .af-item.bw-skeleton .bw-scan, .af-item.bw-skeleton .bw-sweep {
-        position: absolute; top: 0; height: 100%; z-index: 5;
-        pointer-events: none; will-change: transform;
-        backface-visibility: hidden; transform: translateZ(0);
-      }
-      .af-item.bw-skeleton .bw-scan::before,
-      .af-item.bw-skeleton .bw-sweep::before {
-        content: ''; position: absolute; top: 0; height: 100%;
-        pointer-events: none; will-change: transform;
-        backface-visibility: hidden; transform: translateZ(0);
-      }
-      .af-item.bw-skeleton .bw-scan {
-        width: 41%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(180,140,255,0.06) 25%, rgba(240,160,30,0.12) 50%,
-          rgba(180,140,255,0.06) 75%, transparent 100%);
-        animation: bw-scan1 0.9s linear infinite;
-      }
-      .af-item.bw-skeleton .bw-scan::before {
-        width: 94%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(140,210,255,0.08) 30%, rgba(240,160,30,0.14) 50%,
-          rgba(140,210,255,0.08) 70%, transparent 100%);
-        animation: bw-scan2 1.4s linear infinite;
-      }
-      .af-item.bw-skeleton .bw-sweep {
-        width: 34%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(255,180,180,0.06) 25%, rgba(240,160,30,0.12) 50%,
-          rgba(255,180,180,0.06) 75%, transparent 100%);
-        animation: bw-sweep1 1.8s linear infinite;
-      }
-      .af-item.bw-skeleton .bw-sweep::before {
-        width: 85%;
-        background: linear-gradient(to right,
-          transparent 0%, rgba(180,220,255,0.08) 30%, rgba(240,160,30,0.14) 50%,
-          rgba(180,220,255,0.08) 70%, transparent 100%);
-        animation: bw-sweep2 1.5s linear infinite;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .af-item.bw-skeleton .bw-scan, .af-item.bw-skeleton .bw-sweep,
-        .af-item.bw-skeleton .bw-scan::before, .af-item.bw-skeleton .bw-sweep::before {
-          animation: none;
-        }
-        .af-item.bw-skeleton { animation: none; }
-      }
-      /* Staggered delays per skeleton row */
-      .af-item.bw-skeleton:nth-child(1) .bw-scan, .af-item.bw-skeleton:nth-child(1) .bw-sweep { animation-delay: 0s; }
-      .af-item.bw-skeleton:nth-child(2) .bw-scan, .af-item.bw-skeleton:nth-child(2) .bw-sweep { animation-delay: 0.15s; }
-      .af-item.bw-skeleton:nth-child(3) .bw-scan, .af-item.bw-skeleton:nth-child(3) .bw-sweep { animation-delay: 0.3s; }
+      .card-cover.loaded { opacity: 0; pointer-events: none; }
       /* Save as Preset */
       .btn-save-preset {
         font-size: 0.82rem; padding: 0.45rem 1.2rem; min-width: 140px;

@@ -37,10 +37,13 @@ const STAGGER_MS = 70;
 
     @if (loading()) {
       <div class="skeleton-list">
-        @for (s of skeletonSlots; track s) {
+        @for (s of skeletonSlots; track s; let i = $index) {
           <div class="card proposal skel-card">
-            <span class="bw-scan"></span>
-            <span class="bw-sweep"></span>
+            <span class="card-cover"></span>
+            <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
+            <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
+            <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
+            <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
           </div>
         }
       </div>
@@ -270,36 +273,39 @@ const STAGGER_MS = 70;
       .skel-card {
         position: relative; overflow: hidden; min-height: 72px;
         cursor: default;
-        animation: pp-border-glow 1.2s cubic-bezier(0.85, 0, 0.15, 1) infinite;
+        animation: border-glow 1.2s cubic-bezier(0.85, 0, 0.15, 1) infinite;
       }
       .skel-card:hover { transform: none; box-shadow: var(--shadow); }
-      @keyframes pp-border-glow {
-        0%, 100% { border-color: var(--color-border); box-shadow: var(--shadow); }
-        50%       { border-color: rgba(240,160,30,0.35); box-shadow: 0 0 0 1.5px rgba(240,160,30,0.12), var(--shadow-md); }
+      .bw-scan1 { width: 30%; }
+      .bw-scan2 { width: 45%; }
+      .bw-sweep1 { width: 25%; }
+      .bw-sweep2 { width: 18%; }
+      @keyframes skeleton-spawn {
+        from { opacity: 1; }
+        to   { opacity: 0; pointer-events: none; }
       }
-      @keyframes pp-scan1 { 0% { transform: skewX(-24deg) translateX(-98%); } 100% { transform: skewX(-24deg) translateX(245%); } }
-      @keyframes pp-scan2 { 0% { transform: skewX(-24deg) translateX(-53%); } 100% { transform: skewX(-24deg) translateX(107%); } }
-      @keyframes pp-sweep1 { 0% { transform: skewX(-24deg) translateX(-103%); } 100% { transform: skewX(-24deg) translateX(295%); } }
-      @keyframes pp-sweep2 { 0% { transform: skewX(-24deg) translateX(-53%); } 100% { transform: skewX(-24deg) translateX(118%); } }
-      .bw-scan, .bw-sweep {
-        position: absolute; top: 0; height: 100%; z-index: 5; pointer-events: none; will-change: transform;
+      .skel-card::after {
+        content: "";
+        position: absolute; inset: 0; z-index: 10;
+        background: var(--color-bg);
+        animation: skeleton-spawn 0.35s ease both;
       }
-      .bw-scan::before, .bw-sweep::before { content: ''; position: absolute; top: 0; height: 100%; pointer-events: none; will-change: transform; }
-      .bw-scan { width: 41%; background: linear-gradient(to right, transparent 0%, rgba(180,140,255,0.06) 25%, rgba(240,160,30,0.12) 50%, rgba(180,140,255,0.06) 75%, transparent 100%); animation: pp-scan1 0.9s linear infinite; }
-      .bw-scan::before { width: 94%; background: linear-gradient(to right, transparent 0%, rgba(140,210,255,0.08) 30%, rgba(240,160,30,0.14) 50%, rgba(140,210,255,0.08) 70%, transparent 100%); animation: pp-scan2 1.4s linear infinite; }
-      .bw-sweep { width: 34%; background: linear-gradient(to right, transparent 0%, rgba(255,180,180,0.06) 25%, rgba(240,160,30,0.12) 50%, rgba(255,180,180,0.06) 75%, transparent 100%); animation: pp-sweep1 1.8s linear infinite; }
-      .bw-sweep::before { width: 85%; background: linear-gradient(to right, transparent 0%, rgba(180,220,255,0.08) 30%, rgba(240,160,30,0.14) 50%, rgba(180,220,255,0.08) 70%, transparent 100%); animation: pp-sweep2 1.5s linear infinite; }
-      .skel-card:nth-child(1) .bw-scan, .skel-card:nth-child(1) .bw-sweep { animation-delay: 0s; }
-      .skel-card:nth-child(2) .bw-scan, .skel-card:nth-child(2) .bw-sweep { animation-delay: 0.15s; }
-      .skel-card:nth-child(3) .bw-scan, .skel-card:nth-child(3) .bw-sweep { animation-delay: 0.3s; }
-      .skel-card:nth-child(4) .bw-scan, .skel-card:nth-child(4) .bw-sweep { animation-delay: 0.45s; }
-      .skel-card:nth-child(5) .bw-scan, .skel-card:nth-child(5) .bw-sweep { animation-delay: 0.6s; }
+      .skeleton-list > :nth-child(1)::after { animation-delay: 0s; }
+      .skeleton-list > :nth-child(2)::after { animation-delay: 0.35s; }
+      .skeleton-list > :nth-child(3)::after { animation-delay: 0.7s; }
+      .skeleton-list > :nth-child(4)::after { animation-delay: 1.05s; }
+      .skeleton-list > :nth-child(5)::after { animation-delay: 1.4s; }
+      .card-cover {
+        position: absolute; inset: 0; z-index: 4;
+        background: var(--color-surface);
+        transition: opacity 0.35s ease;
+      }
+      .card-cover.loaded { opacity: 0; pointer-events: none; }
       @keyframes pp-reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       .pp-revealed { animation: pp-reveal 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
       @media (prefers-reduced-motion: reduce) {
-        .bw-scan, .bw-sweep, .bw-scan::before, .bw-sweep::before { animation: none; }
-        .skel-card { animation: none; }
         .pp-revealed { animation: none; }
+        .skel-card::after { animation: none; opacity: 0; }
       }
     `,
     ]
