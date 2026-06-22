@@ -979,11 +979,11 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
         content: "";
         position: absolute; inset: 0; z-index: 10;
         background: var(--color-bg);
-        animation: skeleton-spawn 0.35s ease both;
+        animation: skeleton-spawn 0.15s ease both;
       }
       .af-dropdown > :nth-child(1)::after { animation-delay: 0s; }
-      .af-dropdown > :nth-child(2)::after { animation-delay: 0.35s; }
-      .af-dropdown > :nth-child(3)::after { animation-delay: 0.7s; }
+      .af-dropdown > :nth-child(2)::after { animation-delay: 0.15s; }
+      .af-dropdown > :nth-child(3)::after { animation-delay: 0.3s; }
       .card-cover {
         position: absolute; inset: 0; z-index: 4;
         background: var(--color-surface);

@@ -762,21 +762,21 @@ interface Category {
         inset: 0;
         z-index: 10;
         background: var(--color-bg);
-        animation: skeleton-spawn 0.35s ease both;
+        animation: skeleton-spawn 0.15s ease both;
       }
       /* Stagger skeleton spawn 0.35s per card */
       .grid > :nth-child(1)::after,
       .svc-grid > :nth-child(1)::after { animation-delay: 0s; }
       .grid > :nth-child(2)::after,
-      .svc-grid > :nth-child(2)::after { animation-delay: 0.35s; }
+      .svc-grid > :nth-child(2)::after { animation-delay: 0.15s; }
       .grid > :nth-child(3)::after,
-      .svc-grid > :nth-child(3)::after { animation-delay: 0.7s; }
+      .svc-grid > :nth-child(3)::after { animation-delay: 0.3s; }
       .grid > :nth-child(4)::after,
-      .svc-grid > :nth-child(4)::after { animation-delay: 1.05s; }
+      .svc-grid > :nth-child(4)::after { animation-delay: 0.45s; }
       .grid > :nth-child(5)::after,
-      .svc-grid > :nth-child(5)::after { animation-delay: 1.4s; }
+      .svc-grid > :nth-child(5)::after { animation-delay: 0.6s; }
       .grid > :nth-child(6)::after,
-      .svc-grid > :nth-child(6)::after { animation-delay: 1.75s; }
+      .svc-grid > :nth-child(6)::after { animation-delay: 0.75s; }
       .skeleton:hover { transform: none; box-shadow: var(--shadow); }
       @keyframes card-reveal {
         from { opacity: 0; transform: translateY(10px) scale(0.97); }

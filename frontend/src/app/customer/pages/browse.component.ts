@@ -73,7 +73,7 @@ const SKELETON_COUNT = 34;
                   class="bw-card"
                   [class.bw-revealed]="cat.revealed"
                   [class.bw-skeleton]="!cat.revealed"
-                  [style.--spawn-delay.ms]="i * 200"
+                  [style.--spawn-delay.ms]="i * 50"
                   routerLink="/customer/quote/new"
                   [queryParams]="cat.id ? { category: cat.id } : {}"
                   [style]="cat.id ? {'--cat-color': cat.cardColor || 'var(--color-primary)'} : {}"
@@ -256,7 +256,7 @@ const SKELETON_COUNT = 34;
         content: "";
         position: absolute; inset: 0; z-index: 10;
         background: var(--color-bg);
-        animation: skeleton-spawn 0.25s ease both;
+        animation: skeleton-spawn 0.15s ease both;
         animation-delay: var(--spawn-delay, 0s);
       }
       .bw-card.bw-skeleton {

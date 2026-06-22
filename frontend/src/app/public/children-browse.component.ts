@@ -229,12 +229,12 @@ interface Category {
         content: "";
         position: absolute; inset: 0; z-index: 10;
         background: var(--color-bg);
-        animation: skeleton-spawn 0.35s ease both;
+        animation: skeleton-spawn 0.15s ease both;
       }
       .svc-grid > :nth-child(1)::after { animation-delay: 0s; }
-      .svc-grid > :nth-child(2)::after { animation-delay: 0.35s; }
-      .svc-grid > :nth-child(3)::after { animation-delay: 0.7s; }
-      .svc-grid > :nth-child(4)::after { animation-delay: 1.05s; }
+      .svc-grid > :nth-child(2)::after { animation-delay: 0.15s; }
+      .svc-grid > :nth-child(3)::after { animation-delay: 0.3s; }
+      .svc-grid > :nth-child(4)::after { animation-delay: 0.45s; }
       .svc-card.skeleton {
         cursor: default;
       }
