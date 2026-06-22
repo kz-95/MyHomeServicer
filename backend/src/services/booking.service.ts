@@ -295,7 +295,7 @@ export async function selectProposal(
     servicerId: proposal.servicerId,
     type: 'jobs',
     message: `You've been selected for a new job — it's confirmed and ready.`,
-    linkUrl: '/servicer/jobs',
+    linkUrl: '/servicer/jobs/active',
     category: quote.categoryId,
   });
 
@@ -681,9 +681,13 @@ export async function listBookings(userId: string, status?: string) {
     include: {
       servicer: { select: { id: true, businessName: true, logoUrl: true, rating: true } },
       quoteRequest: { select: { category: { select: { name: true, icon: true } } } },
+      invoice: { select: { invoiceNumber: true } },
     },
   });
-  return rows.map((b) => ({ ...b, orderId: formatOrderId(b.orderNumber, b.createdAt) }));
+  return rows.map((b) => {
+    const { invoice, ...rest } = b as any;
+    return { ...rest, orderId: formatOrderId(b.orderNumber, b.createdAt), invoiceNumber: invoice?.invoiceNumber ?? null };
+  });
 }
 
 /** Full booking detail — customer must own it. */
@@ -763,7 +767,7 @@ export async function customerCancelBooking(userId: string, bookingId: string, r
     servicerId: booking.servicerId,
     type: 'jobs',
     message: 'The customer cancelled the scheduled job.',
-    linkUrl: '/servicer/jobs',
+    linkUrl: '/servicer/jobs/history',
   });
   return updated;
 }

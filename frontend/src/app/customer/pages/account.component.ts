@@ -60,7 +60,7 @@ interface QuotePreset {
  */
 @Component({
     selector: 'app-account',
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     imports: [FormsModule, ModalComponent, PlacesAutocompleteComponent, AddressFieldsComponent, PhoneInputComponent],
     template: `
     <h1>My account</h1>
@@ -159,7 +159,7 @@ interface QuotePreset {
       } @else {
         @if (defaultPreset(); as d) {
           <div class="preset-default">
-            <div>
+            <div class="addr-text">
               <strong>{{ d.label || d.contactName }}</strong>
               <span class="tag">Default</span>
               <div class="muted">{{ d.contactName }} · {{ d.contactNumber }}</div>
@@ -179,7 +179,7 @@ interface QuotePreset {
         }
         @for (c of otherPresets(); track c.id) {
           <div class="addr">
-            <div>
+            <div class="addr-text">
               <strong>{{ c.label || c.contactName }}</strong>
               @if (c.isDefault) {
                 <span class="tag">Default</span>
@@ -411,12 +411,12 @@ interface QuotePreset {
       <div class="modal-backdrop" (click)="deactivateStep.set(0)">
         <div class="modal" (click)="$event.stopPropagation()">
           <h3>Confirm deactivation</h3>
-          <label>Reason for leaving *<textarea [(ngModel)]="deactivateReason" name="dreason" rows="3"></textarea></label>
-          <label>Enter your password<input type="password" [(ngModel)]="deactivatePassword" name="dpass" /></label>
+          <label>Reason for leaving <span class="err">*</span><textarea [(ngModel)]="deactivateReason" name="dreason" rows="3" required></textarea></label>
+          <label>Enter your password <span class="err">*</span><input type="password" [(ngModel)]="deactivatePassword" name="dpass" required /></label>
           @if (deactivateError()) { <p class="err">{{ deactivateError() }}</p> }
           <div class="modal-actions">
             <button class="btn-ghost" (click)="deactivateStep.set(0)">Cancel</button>
-            <button class="btn-primary" (click)="deactivateStep.set(3)">Continue</button>
+            <button class="btn-primary" (click)="deactivateStep2Continue()">Continue</button>
           </div>
         </div>
       </div>
@@ -510,6 +510,23 @@ interface QuotePreset {
         display: flex;
         gap: 0.4rem;
         flex-shrink: 0;
+        flex-wrap: wrap;
+      }
+      .addr-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow-wrap: break-word;
+      }
+      @media (max-width: 560px) {
+        .addr,
+        .preset-default {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0.45rem;
+        }
+        .addr-actions {
+          justify-content: flex-start;
+        }
       }
       .tag {
         font-size: 0.7rem;
@@ -1150,6 +1167,19 @@ export class AccountComponent implements OnInit {
           error: (e) => this.toast.error(e.message ?? 'Could not delete address'),
         });
       });
+  }
+
+  deactivateStep2Continue(): void {
+    this.deactivateError.set(null);
+    if (!this.deactivateReason().trim()) {
+      this.deactivateError.set('Please enter a reason.');
+      return;
+    }
+    if (!this.deactivatePassword()) {
+      this.deactivateError.set('Please enter your password.');
+      return;
+    }
+    this.deactivateStep.set(3);
   }
 
   doDeactivate(): void {

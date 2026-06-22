@@ -82,7 +82,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
 
 @Component({
     selector: 'app-quote-form',
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     imports: [FormsModule, RouterLink, ModalComponent, AddressFieldsComponent, PhoneInputComponent, CalendarPickerComponent, IconComponent, StripeCardFormComponent],
     template: `
     <div class="page-head">
@@ -313,7 +313,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
           <div class="af-section">
             <button type="button" class="btn-ghost af-trigger" (click)="toggleAutoFill()">
               <app-icon name="chevron-down" sizeToken="sm" />
-              Auto-fill <span class="muted">(use preset)</span>
+              Auto-fill <span class="muted hide-mobile">(use preset)</span>
             </button>
             @if (autoFillOpen()) {
               <div class="af-dropdown">
@@ -912,8 +912,9 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
       .checkbox.field-invalid { color: var(--color-danger); }
       .field-msg { font-size: 0.8rem; font-weight: 400; color: var(--color-danger); margin-top: 0.1rem; }
       /* Page header row: title left, demo autofill right */
-      .page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-      .page-head h1 { margin: 0; }
+      .page-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; width: 100%; }
+      .page-head h1 { margin: 0; flex: 1; min-width: 0; }
+      @media (max-width: 767px) { .btn-autofill { margin-left: auto; } .af-dropdown { left: auto; right: 0; min-width: 260px; max-width: 85vw; } }
       .btn-autofill {
         font-size: 0.78rem; font-weight: 500; padding: 0.25rem 0.7rem;
         border-radius: 999px; border: 1px solid var(--color-border);
@@ -923,7 +924,8 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
       .btn-autofill:hover { background: var(--color-bg); color: var(--color-text); border-color: var(--color-muted); }
       /* Auto-fill preset */
       .af-section { position: relative; }
-      .preset-row { display: flex; align-items: center; justify-content: center; gap: 0.6rem; flex-wrap: wrap; }
+      .preset-row { display: flex; align-items: center; justify-content: center; gap: 0.6rem; }
+      @media (max-width: 767px) { .hide-mobile { display: none; } }
       .preset-or { font-size: 0.85rem; color: var(--color-muted); }
       .af-trigger {
         font-size: 0.88rem; padding: 0.45rem 1.2rem; min-width: 140px;
@@ -1205,6 +1207,7 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
   // ── Card payment state ──────────────────────────────────────────────────
   cardStep = signal<'idle' | 'intent_loading' | 'intent_ready' | 'success' | 'error'>('idle');
   clientSecret = signal<string | null>(null);
+  paymentIntentId = signal<string | null>(null);
   cardErrorMsg = signal('');
   cardPaymentDone = signal(false);
 
@@ -1213,15 +1216,17 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
     this.cardStep.set('intent_loading');
     this.cardErrorMsg.set('');
     this.clientSecret.set(null);
+    this.paymentIntentId.set(null);
     const total = this.estimatedTotal();
     if (!total || total <= 0) {
       this.cardStep.set('idle');
       return;
     }
     try {
-      const res = await firstValueFrom(this.api.post<{ clientSecret: string }>('/stripe/create-payment-intent', { amount: total }));
+      const res = await firstValueFrom(this.api.post<{ clientSecret: string; paymentIntentId: string }>('/stripe/create-payment-intent', { amount: total }));
       if (res?.clientSecret) {
         this.clientSecret.set(res.clientSecret);
+        this.paymentIntentId.set(res.paymentIntentId ?? null);
         this.cardStep.set('intent_ready');
       } else {
         this.cardStep.set('error');
@@ -1830,9 +1835,10 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
     this.f.paymentTiming = 'pay_now';
     this.f.settlementMethod = 'gateway';
 
-    // Fill answer questions from the first child category
+    // Fill answer questions from the plumbing child category
     const cats = this.categories();
-    const firstChild = cats.find((c) => c.parentCategoryId) ?? cats[0];
+    const plumber = cats.find((c) => c.slug === 'plumber');
+    const firstChild = plumber ?? cats.find((c) => c.parentCategoryId) ?? cats[0];
     if (firstChild) {
       this.parentId.set(firstChild.parentCategoryId ?? '');
       this.onCategoryChange(firstChild.id);

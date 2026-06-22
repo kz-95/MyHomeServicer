@@ -43,7 +43,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 @Component({
     selector: 'app-transactions',
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     imports: [CommonModule, FormsModule, ModalComponent],
     template: `
     <h1>Payment history</h1>

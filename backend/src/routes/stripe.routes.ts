@@ -32,21 +32,22 @@ stripeRouter.post(
   requireCustomer,
   validate([
     body('amount').isFloat({ min: 0.01 }).withMessage('amount must be a positive number'),
-    body('bookingId').isUUID().withMessage('bookingId must be a valid UUID'),
+    body('bookingId').optional().isUUID().withMessage('bookingId must be a valid UUID'),
   ]),
   asyncHandler(async (req, res) => {
-    const { amount, bookingId } = req.body as { amount: number; bookingId: string };
+    const { amount, bookingId } = req.body as { amount: number; bookingId?: string };
     const userId = req.user!.id;
 
-    // Verify the user owns this booking.
-    const booking = await prisma.booking.findFirst({
-      where: { id: bookingId, userId },
-    });
-    if (!booking) throw notFound('Booking not found or does not belong to you');
+    if (bookingId) {
+      const booking = await prisma.booking.findFirst({
+        where: { id: bookingId, userId },
+      });
+      if (!booking) throw notFound('Booking not found or does not belong to you');
+    }
 
     const { clientSecret, paymentIntentId } = await createPaymentIntent(amount, {
-      bookingId,
       userId,
+      ...(bookingId ? { bookingId } : {}),
     });
 
     res.json({ clientSecret, paymentIntentId });

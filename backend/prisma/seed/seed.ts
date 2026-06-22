@@ -740,8 +740,6 @@ async function main(): Promise<void> {
     return booking;
   }
 
-  // M4 - pending_confirm home-cleaning booking.
-  await makeBooking('C_LOYAL', 'C_LOYAL:0', 'M4', 'home-cleaning', 'pending_confirm', 'pay_later', 90);
   // M2 - in_progress aircond servicing booking.
   await makeBooking('C_LOYAL', 'C_LOYAL:0', 'M2', 'aircond-servicer', 'in_progress', 'pay_now', 130);
   // M4 - completed cash booking awaiting cash-confirm.
@@ -899,15 +897,13 @@ async function main(): Promise<void> {
   for (const m of servicerSlugs) {
     const custRef = allCustomerRefs[scenarioIdx % allCustomerRefs.length];
     const addrKey = allCustomerAddrs[scenarioIdx % allCustomerAddrs.length];
-    // pending_confirm
-    await makeBooking(custRef, addrKey, m.ref, m.slug, 'pending_confirm', 'pay_later', m.prices[0], { scheduledDate: days(2) });
     // in_progress
     await makeBooking(custRef, addrKey, m.ref, m.slug, 'in_progress', 'pay_now', m.prices[1 % m.prices.length], { scheduledDate: new Date() });
     // cancelled
     await makeBooking(custRef, addrKey, m.ref, m.slug, 'cancelled', 'pay_later', m.prices[2 % m.prices.length], { scheduledDate: days(-1) });
     scenarioIdx++;
   }
-  console.log(`  ✓ per-servicer scenario bookings (pending, in-progress, cancelled) for all ${servicerSlugs.length} servicers`);
+  console.log(`  ✓ per-servicer scenario bookings (in-progress, cancelled) for all ${servicerSlugs.length} servicers`);
 
   // ── Invoices + escrow_release for completed bookings ──
   // So that servicer dashboards show actual earnings on first boot.

@@ -114,7 +114,7 @@ function emptyForm(): FormState {
           <h1>Request a quote</h1>
           <div class="sub-row">
             <p class="sub-muted">Your details stay in this browser. <a routerLink="/login">Sign in</a> to save them to your account.</p>
-            @if (unlock.unlocked()) {
+            @if (config.hasDemoData && unlock.unlocked()) {
             <div class="demo-autofill">
               <button class="btn-autofill" type="button" (click)="demoAutoFill()">⚡ Demo: Auto-fill</button>
             </div>
@@ -929,8 +929,8 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     this.stepError.set('');
     this.fieldErrors.clear();
 
-    this.f.contactName = 'Sarah Lim';
-    this.f.contactNumber = '012-3456789';
+    this.f.contactName = 'Zen';
+    this.f.contactNumber = '011-39296559';
     this.f.addressNo = '12';
     this.f.streetDetails = 'Jalan SS2/72';
     this.f.newAddressPostcode = '47300';
@@ -946,7 +946,8 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     this.f.notes = 'Register at guard house, park at visitor lot B, management office open 9am-5pm';
 
     const cats = this.categories();
-    const firstChild = cats.find((c) => c.parentCategoryId) ?? cats[0];
+    const plumber = cats.find((c) => c.slug === 'plumber');
+    const firstChild = plumber ?? cats.find((c) => c.parentCategoryId) ?? cats[0];
     if (firstChild) {
       this.parentId.set(firstChild.parentCategoryId ?? '');
       this.onCategoryChange(firstChild.id);

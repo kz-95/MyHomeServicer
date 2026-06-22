@@ -29,7 +29,7 @@ const STAGGER_MS = 70;
 /** Bundled proposals for one quote - the customer picks one to book. */
 @Component({
     selector: 'app-proposals',
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     imports: [CommonModule, FormsModule, ModalComponent, ListToolbarComponent, IconComponent, StripeCardFormComponent, ServicerDetailPopupComponent],
     template: `
     <h1>Proposals</h1>

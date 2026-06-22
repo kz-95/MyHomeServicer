@@ -300,10 +300,12 @@ quotesRouter.post(
   validate([
     body('proposalId').isUUID().withMessage('proposalId must be a UUID'),
     body('settlementMethod').optional().isIn(['gateway', 'credit', 'cash']).withMessage('settlementMethod must be gateway, credit, or cash'),
+    body('paymentIntentId').optional().isString().withMessage('paymentIntentId must be a string'),
   ]),
   asyncHandler(async (req, res) => {
     const result = await selectProposal(req.user!.id, req.params.id, req.body.proposalId, {
       settlementMethod: req.body.settlementMethod ?? undefined,
+      paymentIntentId: req.body.paymentIntentId ?? undefined,
     });
     res.status(201).json(result);
   }),

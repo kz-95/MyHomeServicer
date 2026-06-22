@@ -705,12 +705,12 @@ interface Penalty {
           <div class="modal-backdrop" (click)="deactivateStep.set(0)">
             <div class="modal" (click)="$event.stopPropagation()">
               <h3>Confirm deactivation</h3>
-              <label>Reason for leaving *<textarea [(ngModel)]="deactivateReason" name="dreason" rows="3"></textarea></label>
-              <label>Enter your PIN to confirm<input type="password" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" [(ngModel)]="deactivatePin" name="dpass" /></label>
+              <label>Reason for leaving <span class="err">*</span><textarea [(ngModel)]="deactivateReason" name="dreason" rows="3" required></textarea></label>
+              <label>Enter your PIN to confirm <span class="err">*</span><input type="password" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" [(ngModel)]="deactivatePin" name="dpass" required /></label>
               @if (deactivateError()) { <p class="err">{{ deactivateError() }}</p> }
               <div class="modal-actions">
                 <button class="btn-ghost" (click)="deactivateStep.set(0)">Cancel</button>
-                <button class="btn-primary" (click)="deactivateStep.set(3)">Continue</button>
+                <button class="btn-primary" (click)="deactivateStep2Continue()">Continue</button>
               </div>
             </div>
           </div>
@@ -1463,6 +1463,23 @@ export class ServicerAccountComponent implements OnInit {
   }
 
   // ── Deactivate ──
+  deactivateStep2Continue(): void {
+    this.deactivateError.set(null);
+    if (!this.deactivateReason().trim()) {
+      this.deactivateError.set('Please enter a reason.');
+      return;
+    }
+    if (!this.deactivatePin()) {
+      this.deactivateError.set('Please enter your PIN.');
+      return;
+    }
+    if (this.deactivatePin().length !== 6) {
+      this.deactivateError.set('PIN must be 6 digits.');
+      return;
+    }
+    this.deactivateStep.set(3);
+  }
+
   doDeactivate(): void {
     this.deactivateError.set(null);
     if (this.deactivateConfirm() !== 'DELETE') { this.deactivateError.set('Type DELETE to confirm.'); return; }

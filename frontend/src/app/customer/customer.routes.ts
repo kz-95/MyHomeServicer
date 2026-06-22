@@ -31,8 +31,24 @@ export const customerRoutes: Routes = [
       },
       {
         path: 'bookings',
-        loadComponent: () =>
-          import('./pages/my-bookings.component').then((m) => m.MyBookingsComponent),
+        children: [
+          { path: '', redirectTo: 'pending', pathMatch: 'full' },
+          {
+            path: 'pending',
+            loadComponent: () =>
+              import('./pages/my-bookings.component').then((m) => m.MyBookingsComponent),
+          },
+          {
+            path: 'inProgress',
+            loadComponent: () =>
+              import('./pages/my-bookings.component').then((m) => m.MyBookingsComponent),
+          },
+          {
+            path: 'history',
+            loadComponent: () =>
+              import('./pages/my-bookings.component').then((m) => m.MyBookingsComponent),
+          },
+        ],
       },
       {
         path: 'history',

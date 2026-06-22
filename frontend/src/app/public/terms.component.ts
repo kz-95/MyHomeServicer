@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [CommonModule],
   template: `
+    <div class="terms-scroll-wrap">
     <div class="terms-page">
       <div class="terms-card card">
         <h1 class="terms-heading">Terms &amp; Conditions</h1>
@@ -52,12 +53,24 @@ import { CommonModule } from '@angular/common';
         </section>
       </div>
     </div>
+    </div>
   `,
   styles: [`
+    .terms-scroll-wrap {
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .terms-scroll-wrap::-webkit-scrollbar {
+      width: 8px;
+    }
+    .terms-scroll-wrap::-webkit-scrollbar-thumb {
+      background: var(--color-border, #ccc);
+      border-radius: 4px;
+    }
     .terms-page {
-      max-width: 700px;
-      margin: 2.5rem auto;
-      padding: 0 1rem 3rem;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2.5rem 1rem 3rem;
     }
     .terms-card {
       padding: 2.5rem 2rem;
@@ -88,11 +101,24 @@ import { CommonModule } from '@angular/common';
       color: var(--color-text);
     }
     @media (max-width: 560px) {
+      .terms-page {
+        padding: 1rem 0.75rem 2rem;
+      }
       .terms-card {
-        padding: 1.5rem 1rem;
+        padding: 1.25rem 0.75rem;
       }
       .terms-heading {
-        font-size: 1.35rem;
+        font-size: 1.2rem;
+      }
+      .terms-updated {
+        margin-bottom: 1.25rem;
+      }
+      .terms-section {
+        margin-bottom: 1rem;
+      }
+      .terms-section p {
+        font-size: 0.88rem;
+        line-height: 1.55;
       }
     }
   `],

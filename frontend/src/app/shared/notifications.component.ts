@@ -19,6 +19,7 @@ const TYPE_LABELS: Record<string, string> = {
  */
 @Component({
     selector: 'app-notifications',
+    host: { class: 'page-narrow' },
     imports: [ModalComponent, NotificationSettingsComponent],
     template: `
     <div class="page-enter">
@@ -80,13 +81,26 @@ const TYPE_LABELS: Record<string, string> = {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 1rem;
+        gap: 0.75rem;
         flex-wrap: wrap;
       }
+      .head h1 { margin: 0; }
       .head-acts {
         display: flex;
         gap: 0.5rem;
         align-items: center;
+      }
+      @media (max-width: 600px) {
+        .head {
+          gap: 0.4rem;
+          flex-wrap: nowrap;
+        }
+        .head h1 {
+          font-size: 1.1rem;
+        }
+        .head-acts {
+          flex-shrink: 0;
+        }
       }
       .filters {
         display: flex;

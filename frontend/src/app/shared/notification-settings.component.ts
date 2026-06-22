@@ -26,7 +26,7 @@ const TYPE_LABELS: Record<string, string> = {
  */
 @Component({
     selector: 'app-notification-settings',
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     imports: [FormsModule],
     template: `
     <h1>Notification settings</h1>

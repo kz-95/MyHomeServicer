@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { ChatWidgetService } from '../../core/services/chat-widget.service';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
@@ -10,12 +10,12 @@ import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
 import { StripePaymentService } from '../../core/services/stripe-payment.service';
 import { ModalComponent } from '../../shared/modal.component';
-import { ListToolbarComponent } from '../../shared/list-toolbar.component';
 import { ServicerDetailPopupComponent } from '../../shared/servicer-detail-popup.component';
 
 interface Booking {
   id: string;
   orderId?: string;
+  invoiceNumber?: string | null;
   status: string;
   price: number;
   paymentMode: string;
@@ -50,11 +50,25 @@ interface InvoiceDetail {
 const SKELETON_COUNT = 5;
 const STAGGER_MS = 70;
 
+type TabKey = 'pending' | 'inProgress' | 'history';
+
+const TAB_STATUSES: Record<TabKey, string[]> = {
+  pending: ['pending_confirm', 'confirmed'],
+  inProgress: ['in_progress'],
+  history: ['completed', 'cancelled'],
+};
+
+const TAB_LABELS: Record<TabKey, string> = {
+  pending: 'Pending',
+  inProgress: 'In Progress',
+  history: 'History',
+};
+
 /** Customer booking list with live status updates over Socket.io. */
 @Component({
     selector: 'app-my-bookings',
-    host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, ModalComponent, RouterLink, ListToolbarComponent, ServicerDetailPopupComponent],
+    host: { class: 'page-enter page-narrow' },
+    imports: [CommonModule, FormsModule, ModalComponent, RouterLink, ServicerDetailPopupComponent],
     template: `
     <h1>My bookings</h1>
     @if (loading()) {
@@ -77,34 +91,38 @@ const STAGGER_MS = 70;
         <a routerLink="/customer" class="btn-primary">Find a service →</a>
       </div>
     } @else {
-      <div class="tabs">
-        <button class="tab" [class.active]="tab() === 'pending'" (click)="tab.set('pending')">
-          Pending <span class="n">{{ pendingCount() }}</span>
-        </button>
-        <button class="tab" [class.active]="tab() === 'in_progress'" (click)="tab.set('in_progress')">
-          In progress <span class="n">{{ progressCount() }}</span>
-        </button>
-        <button class="tab" [class.active]="tab() === 'history'" (click)="tab.set('history')">
-          History <span class="n">{{ historyCount() }}</span>
-        </button>
-      </div>
-      <app-list-toolbar>
+      <nav class="subnav">
+        @for (t of tabs(); track t.key) {
+          <a
+            class="subnav-link"
+            [class.active]="activeTab() === t.key"
+            [routerLink]="'/customer/bookings/' + t.key"
+          >
+            {{ t.label }} <span class="n">{{ t.count }}</span>
+          </a>
+        }
+      </nav>
+      <div class="toolbar">
         <input
           class="search"
           type="text"
-          placeholder="Search by servicer or category…"
+          placeholder="Search by date, invoice#, category, servicer or price…"
           [(ngModel)]="search"
           name="bs"
-          toolbar-search
         />
-        <select [(ngModel)]="sortBy" name="mbsort" toolbar-sort>
-          <option value="date">Most recent</option>
-          <option value="price">Highest price</option>
-        </select>
-      </app-list-toolbar>
+        <div class="sort-group">
+          <select [(ngModel)]="sortBy" name="mbsort">
+            <option value="date">Date</option>
+            <option value="price">Price</option>
+          </select>
+          <button class="btn-icon" (click)="reverseSort.set(!reverseSort())" [attr.aria-label]="reverseSort() ? 'Descending' : 'Ascending'">
+            {{ reverseSort() ? '↓' : '↑' }}
+          </button>
+        </div>
+      </div>
       @if (filteredBookings().length === 0) {
         <div class="card empty-card">
-          <p>No {{ tab() === 'in_progress' ? 'in-progress' : tab() }} bookings.</p>
+          <p>No {{ TAB_LABELS[activeTab()].toLowerCase() }} bookings.</p>
         </div>
       }
       @for (b of filteredBookings(); track b.id; let idx = $index) {
@@ -128,6 +146,9 @@ const STAGGER_MS = 70;
             </div>
             @if (b.orderId) {
               <div class="order-id">{{ b.orderId }}</div>
+            }
+            @if (b.invoiceNumber) {
+              <div class="inv-id">{{ b.invoiceNumber }}</div>
             }
           </div>
           <div class="right">
@@ -280,7 +301,7 @@ const STAGGER_MS = 70;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.8rem;
+        margin-bottom: 0.6rem;
         transition: box-shadow var(--transition), transform var(--transition);
       }
       .booking:hover {
@@ -293,6 +314,12 @@ const STAGGER_MS = 70;
         color: var(--color-muted);
         margin-top: 0.15rem;
         letter-spacing: 0.03em;
+      }
+      .inv-id {
+        font-size: 0.7rem;
+        font-family: monospace;
+        color: var(--color-muted);
+        margin-top: 0.15rem;
       }
       .servicer-head {
         display: inline-flex;
@@ -375,84 +402,92 @@ const STAGGER_MS = 70;
       .toolbar {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.75rem;
+        gap: 0.5rem;
         align-items: center;
-        padding-bottom: 1rem;
+        padding-bottom: 0.65rem;
         border-bottom: 1px solid var(--color-border);
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
       }
       .search {
-        min-width: 180px;
-        max-width: 260px;
+        width: 220px;
+        min-width: 140px;
         border-radius: 999px;
-        padding: 0.45rem 0.85rem;
+        padding: 0.4rem 0.75rem;
         border: 1px solid var(--color-border);
         background: var(--color-surface);
         color: var(--color-text);
-        font-size: 0.88rem;
+        font-size: 0.85rem;
         outline: none;
         transition: border-color var(--transition);
       }
       .search:focus { border-color: var(--color-primary); }
-      .tabs {
+      .sort-group {
         display: flex;
-        gap: 0.4rem;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
+        align-items: center;
+        gap: 0.25rem;
       }
-      .tab {
+      .sort-group select {
+        border-radius: 6px;
+        padding: 0.4rem 0.5rem;
+        border: 1px solid var(--color-border);
+        background: var(--color-surface);
+        color: var(--color-text);
+        font-size: 0.82rem;
+        outline: none;
+      }
+      .sort-group select:focus { border-color: var(--color-primary); }
+      .btn-icon {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        padding: 0.35rem 0.5rem;
+        font-size: 0.82rem;
+        cursor: pointer;
+        color: var(--color-text);
+        line-height: 1;
+        transition: border-color var(--transition);
+      }
+      .btn-icon:hover { border-color: var(--color-primary); }
+      .subnav {
+        display: flex;
+        gap: 0.3rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+      }
+      .subnav-link {
         background: transparent;
         border: none;
         border-radius: 999px;
-        padding: 0.6rem 1.2rem;
+        padding: 0.45rem 1rem;
         color: var(--color-muted);
         cursor: pointer;
+        text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
+        gap: 0.35rem;
+        font-size: 0.88rem;
         transition: background 0.15s ease, color 0.15s ease;
       }
-      .tab:hover:not(.active) {
+      .subnav-link:hover:not(.active) {
         color: var(--color-text);
         background: var(--color-bg);
       }
-      .tab.active {
-        background: var(--color-primary);
+      .subnav-link.active {
         background: var(--gradient-sidebar);
         color: #fff;
         font-weight: 600;
         box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2);
       }
-      .tab .n {
+      .subnav-link .n {
         border-radius: 999px;
         padding: 0.05rem 0.5rem;
         font-size: 0.78rem;
         background: var(--color-bg);
         color: var(--color-muted);
       }
-      .tab.active .n {
+      .subnav-link.active .n {
         background: rgba(255, 255, 255, 0.25);
         color: #fff;
-      }
-      .chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-      }
-      .chip {
-        background: transparent;
-        border: 1px solid var(--color-border);
-        border-radius: 999px;
-        padding: 0.25rem 0.75rem;
-        font-size: 0.82rem;
-        cursor: pointer;
-        color: var(--color-muted);
-        transition: background var(--transition), color var(--transition), border-color var(--transition);
-      }
-      .chip.on {
-        background: var(--color-primary);
-        color: #fff;
-        border-color: var(--color-primary);
       }
       /* Mobile - stack info and actions vertically */
       @media (max-width: 600px) {
@@ -559,6 +594,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   private dialog = inject(DialogService);
   private toast = inject(ToastService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private widget = inject(ChatWidgetService);
   private stripePay = inject(StripePaymentService);
 
@@ -567,50 +603,53 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   private staggerTimer: ReturnType<typeof setInterval> | null = null;
 
   bookings = signal<Booking[]>([]);
-  /** Servicer id whose detail popup is open, or null. */
   detailServicerId = signal<string | null>(null);
   loading = signal(true);
   loadFailed = signal(false);
-  /** Holds the booking id currently being opened as a support chat, or null. */
   reporting = signal<string | null>(null);
 
   search = signal('');
-  /** Active booking tab. Pending = awaiting/confirmed, History = completed + cancelled. */
-  tab = signal<'pending' | 'in_progress' | 'history'>('pending');
   sortBy = signal<'date' | 'price'>('date');
+  reverseSort = signal(false);
 
-  /** Booking statuses grouped under each tab. */
-  private readonly tabStatuses: Record<'pending' | 'in_progress' | 'history', string[]> = {
-    pending: ['pending_confirm', 'confirmed'],
-    in_progress: ['in_progress'],
-    history: ['completed', 'cancelled'],
-  };
+  /** Derived from the active route's last segment. */
+  activeTab = signal<TabKey>('pending');
+  readonly TAB_LABELS = TAB_LABELS;
 
-  pendingCount = computed(
-    () => this.bookings().filter((b) => this.tabStatuses.pending.includes(b.status)).length,
-  );
-  progressCount = computed(
-    () => this.bookings().filter((b) => this.tabStatuses.in_progress.includes(b.status)).length,
-  );
-  historyCount = computed(
-    () => this.bookings().filter((b) => this.tabStatuses.history.includes(b.status)).length,
-  );
+  tabs = computed(() => {
+    const all = this.bookings();
+    return (Object.keys(TAB_STATUSES) as TabKey[]).map((key) => ({
+      key,
+      label: TAB_LABELS[key],
+      count: all.filter((b) => TAB_STATUSES[key].includes(b.status)).length,
+    }));
+  });
 
   filteredBookings = computed(() => {
-    const statuses = this.tabStatuses[this.tab()];
+    const statuses = TAB_STATUSES[this.activeTab()];
     let list = this.bookings().filter((b) => statuses.includes(b.status));
     const q = this.search().toLowerCase();
     if (q) {
-      list = list.filter(
-        (b) =>
-          b.servicer.businessName.toLowerCase().includes(q) ||
-          b.quoteRequest.category.name.toLowerCase().includes(q),
-      );
+      list = list.filter((b) => {
+        if (b.servicer.businessName.toLowerCase().includes(q)) return true;
+        if (b.quoteRequest.category.name.toLowerCase().includes(q)) return true;
+        if (b.orderId?.toLowerCase().includes(q)) return true;
+        if (b.invoiceNumber?.toLowerCase().includes(q)) return true;
+        if (b.scheduledDate && new Date(b.scheduledDate).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' }).toLowerCase().includes(q)) return true;
+        if (b.price.toString().includes(q) || `rm${b.price}`.includes(q)) return true;
+        return false;
+      });
     }
     const sb = this.sortBy();
+    const rev = this.reverseSort();
     list = [...list].sort((a, b) => {
-      if (sb === 'price') return b.price - a.price;
-      return b.scheduledDate.localeCompare(a.scheduledDate);
+      if (sb === 'price') {
+        return rev ? a.price - b.price : b.price - a.price;
+      }
+      // date sort
+      return rev
+        ? b.scheduledDate.localeCompare(a.scheduledDate)
+        : a.scheduledDate.localeCompare(b.scheduledDate);
     });
     return list;
   });
@@ -619,13 +658,22 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   invoiceData = signal<InvoiceDetail | null>(null);
   invoiceLoading = signal(false);
   invoiceError = signal('');
-  /** Booking whose invoice is open (drives the "Pay by card" eligibility check). */
   payBooking = signal<Booking | null>(null);
   paying = signal(false);
 
   private subs: Subscription[] = [];
 
   ngOnInit(): void {
+    this.subs.push(
+      this.route.url.subscribe((segments) => {
+        const last = segments[segments.length - 1]?.path as TabKey | undefined;
+        if (last && last in TAB_STATUSES) {
+          this.activeTab.set(last);
+        } else {
+          this.activeTab.set('pending');
+        }
+      }),
+    );
     this.load();
     for (const ev of ['booking.confirmed', 'booking.arrived', 'booking.done', 'booking.cancelled']) {
       this.subs.push(this.socket.on(ev).subscribe(() => this.load()));
@@ -705,11 +753,6 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Pay an unpaid booking invoice by card via Stripe Checkout. The amount is
-   * derived server-side from the invoice; the backend webhook runs the full
-   * gateway settlement (servicer payout + platform fee) on completion.
-   */
   payByCard(): void {
     const inv = this.invoiceData();
     if (!inv) return;

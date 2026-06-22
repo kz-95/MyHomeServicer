@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
-import { ListToolbarComponent } from '../../shared/list-toolbar.component';
 import { IconComponent } from '../../shared/icon.component';
 import { ServicerDetailPopupComponent } from '../../shared/servicer-detail-popup.component';
 
@@ -22,8 +21,8 @@ interface HistoryItem {
 /** Order history with one-tap reorder. */
 @Component({
     selector: 'app-order-history',
-    host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, ListToolbarComponent, IconComponent, ServicerDetailPopupComponent],
+    host: { class: 'page-enter page-narrow' },
+    imports: [CommonModule, FormsModule, IconComponent, ServicerDetailPopupComponent],
     template: `
     <h1>Order history</h1>
     <p class="muted">Rebook a past job in one tap.</p>
@@ -35,25 +34,29 @@ interface HistoryItem {
     } @else if (items().length === 0) {
       <div class="card">No completed orders yet - past jobs will appear here.</div>
     } @else {
-      <app-list-toolbar>
+      <div class="toolbar">
         <input
           class="search"
           type="text"
           placeholder="Search by servicer or category…"
           [(ngModel)]="search"
           name="ohs"
-          toolbar-search
         />
-        <div class="chips" toolbar-filters>
+        <div class="chips">
           <button class="chip" [class.on]="statusFilter() === 'all'" (click)="statusFilter.set('all')">All</button>
           <button class="chip" [class.on]="statusFilter() === 'completed'" (click)="statusFilter.set('completed')">Completed</button>
           <button class="chip" [class.on]="statusFilter() === 'cancelled'" (click)="statusFilter.set('cancelled')">Cancelled</button>
         </div>
-        <select [(ngModel)]="sortBy" name="ohsort" toolbar-sort>
-          <option value="date">Most recent</option>
-          <option value="price">Highest price</option>
-        </select>
-      </app-list-toolbar>
+        <div class="sort-group">
+          <select [(ngModel)]="sortBy" name="ohsort">
+            <option value="date">Date</option>
+            <option value="price">Price</option>
+          </select>
+          <button class="btn-icon" (click)="reverseSort.set(!reverseSort())" [attr.aria-label]="reverseSort() ? 'Descending' : 'Ascending'">
+            {{ reverseSort() ? '↓' : '↑' }}
+          </button>
+        </div>
+      </div>
       @for (h of filteredItems(); track h.bookingId) {
       <div class="card row page-child">
         <div class="row-left">
@@ -91,7 +94,7 @@ interface HistoryItem {
         justify-content: space-between;
         align-items: center;
         gap: 1rem;
-        margin-bottom: 0.8rem;
+        margin-bottom: 0.6rem;
         transition: box-shadow var(--transition), transform var(--transition);
       }
       .row:hover {
@@ -156,47 +159,64 @@ interface HistoryItem {
       .toolbar {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.75rem;
+        gap: 0.5rem;
         align-items: center;
-        padding-bottom: 1rem;
+        padding-bottom: 0.65rem;
         border-bottom: 1px solid var(--color-border);
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
       }
       .search {
-        min-width: 180px;
-        max-width: 260px;
+        width: 220px;
+        min-width: 140px;
         border-radius: 999px;
-        padding: 0.45rem 0.85rem;
+        padding: 0.4rem 0.75rem;
         border: 1px solid var(--color-border);
         background: var(--color-surface);
         color: var(--color-text);
-        font-size: 0.88rem;
+        font-size: 0.85rem;
         outline: none;
         transition: border-color var(--transition);
       }
       .search:focus { border-color: var(--color-primary); }
-      select {
+      .sort-group {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin-left: auto;
+      }
+      .sort-group select {
+        border-radius: 6px;
+        padding: 0.4rem 0.5rem;
         border: 1px solid var(--color-border);
-        border-radius: var(--radius);
         background: var(--color-surface);
         color: var(--color-text);
-        padding: 0.4rem 0.6rem;
-        font-size: 0.88rem;
+        font-size: 0.82rem;
         outline: none;
-        cursor: pointer;
       }
-      select:focus { border-color: var(--color-primary); }
+      .sort-group select:focus { border-color: var(--color-primary); }
+      .btn-icon {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        padding: 0.35rem 0.5rem;
+        font-size: 0.82rem;
+        cursor: pointer;
+        color: var(--color-text);
+        line-height: 1;
+        transition: border-color var(--transition);
+      }
+      .btn-icon:hover { border-color: var(--color-primary); }
       .chips {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.4rem;
+        gap: 0.3rem;
       }
       .chip {
         background: transparent;
         border: 1px solid var(--color-border);
         border-radius: 999px;
-        padding: 0.25rem 0.75rem;
-        font-size: 0.82rem;
+        padding: 0.25rem 0.65rem;
+        font-size: 0.8rem;
         cursor: pointer;
         color: var(--color-muted);
         transition: background var(--transition), color var(--transition), border-color var(--transition);
@@ -234,6 +254,7 @@ export class OrderHistoryComponent implements OnInit {
 
   search = signal('');
   sortBy = signal<'date' | 'price'>('date');
+  reverseSort = signal(false);
   statusFilter = signal<'all' | 'completed' | 'cancelled'>('all');
   filteredItems = computed(() => {
     let list = this.items();
@@ -250,9 +271,14 @@ export class OrderHistoryComponent implements OnInit {
       list = list.filter((h) => h.type === sf);
     }
     const sort = this.sortBy();
+    const rev = this.reverseSort();
     list = [...list].sort((a, b) => {
-      if (sort === 'price') return b.totalPrice - a.totalPrice;
-      return b.completedAt.localeCompare(a.completedAt);
+      if (sort === 'price') {
+        return rev ? a.totalPrice - b.totalPrice : b.totalPrice - a.totalPrice;
+      }
+      return rev
+        ? b.completedAt.localeCompare(a.completedAt)
+        : a.completedAt.localeCompare(b.completedAt);
     });
     return list;
   });

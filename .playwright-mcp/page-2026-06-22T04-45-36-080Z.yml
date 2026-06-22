@@ -1,0 +1,119 @@
+- generic [ref=e2]:
+  - contentinfo [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - strong [ref=e8]: Cleaning
+          - navigation [ref=e9]:
+            - link "Home Cleaning" [ref=e10] [cursor=pointer]:
+              - /url: /services/cleaning-service
+            - link "Sofa / Mattress Cleaning" [ref=e11] [cursor=pointer]:
+              - /url: /services/cleaning-service
+            - link "Carpet Cleaning" [ref=e12] [cursor=pointer]:
+              - /url: /services/cleaning-service
+            - link "Curtain Cleaning" [ref=e13] [cursor=pointer]:
+              - /url: /services/cleaning-service
+        - generic [ref=e14]:
+          - strong [ref=e15]: Repair
+          - navigation [ref=e16]:
+            - link "Washing Machine & Dryer" [ref=e17] [cursor=pointer]:
+              - /url: /services/appliance-repair
+            - link "Refrigerator Repair" [ref=e18] [cursor=pointer]:
+              - /url: /services/appliance-repair
+            - link "TV Repair" [ref=e19] [cursor=pointer]:
+              - /url: /services/appliance-repair
+            - link "Oven Repair" [ref=e20] [cursor=pointer]:
+              - /url: /services/appliance-repair
+            - link "Water Heater Repair" [ref=e21] [cursor=pointer]:
+              - /url: /services/appliance-repair
+            - link "Ceiling Fan Repair" [ref=e22] [cursor=pointer]:
+              - /url: /services/appliance-repair
+            - link "Aircond Repair" [ref=e23] [cursor=pointer]:
+              - /url: /services/appliance-repair
+        - generic [ref=e24]:
+          - strong [ref=e25]: Event
+          - navigation [ref=e26]:
+            - link "Event Planner" [ref=e27] [cursor=pointer]:
+              - /url: /services/events-weddings
+            - link "Catering Service" [ref=e28] [cursor=pointer]:
+              - /url: /services/events-weddings
+        - generic [ref=e29]:
+          - strong [ref=e30]: Improvement
+          - navigation [ref=e31]:
+            - link "Professional Organizer" [ref=e32] [cursor=pointer]:
+              - /url: /services/home-improvement
+            - link "Aircond Installer" [ref=e33] [cursor=pointer]:
+              - /url: /services/home-improvement
+            - link "Carpenter" [ref=e34] [cursor=pointer]:
+              - /url: /services/home-improvement
+            - link "Renovation" [ref=e35] [cursor=pointer]:
+              - /url: /services/home-improvement
+            - link "Interior Design" [ref=e36] [cursor=pointer]:
+              - /url: /services/home-improvement
+            - link "Door Gate" [ref=e37] [cursor=pointer]:
+              - /url: /services/home-improvement
+            - link "Roof" [ref=e38] [cursor=pointer]:
+              - /url: /services/home-improvement
+        - generic [ref=e39]:
+          - strong [ref=e40]: Maintenance
+          - navigation [ref=e41]:
+            - link "Aircond Servicer" [ref=e42] [cursor=pointer]:
+              - /url: /services/home-maintenance
+            - link "Plumber" [ref=e43] [cursor=pointer]:
+              - /url: /services/home-maintenance
+            - link "Electrical & Wiring" [ref=e44] [cursor=pointer]:
+              - /url: /services/home-maintenance
+        - generic [ref=e45]:
+          - strong [ref=e46]: Training
+          - navigation [ref=e47]:
+            - link "Art Class" [ref=e48] [cursor=pointer]:
+              - /url: /services/training-classes
+            - link "Language Class" [ref=e49] [cursor=pointer]:
+              - /url: /services/training-classes
+            - link "Music Class" [ref=e50] [cursor=pointer]:
+              - /url: /services/training-classes
+            - link "Home Tutoring" [ref=e51] [cursor=pointer]:
+              - /url: /services/training-classes
+            - link "Cooking Class" [ref=e52] [cursor=pointer]:
+              - /url: /services/training-classes
+            - link "Private Gym Trainer" [ref=e53] [cursor=pointer]:
+              - /url: /services/training-classes
+            - link "3D Modeling Class" [ref=e54] [cursor=pointer]:
+              - /url: /services/training-classes
+        - generic [ref=e55]:
+          - strong [ref=e56]: Tech & IT
+          - navigation [ref=e57]:
+            - link "Alarm & CCTV Services" [ref=e58] [cursor=pointer]:
+              - /url: /services/tech-it
+        - generic [ref=e59]:
+          - strong [ref=e60]: Company
+          - navigation [ref=e61]:
+            - link "Home" [ref=e62] [cursor=pointer]:
+              - /url: /
+            - link "Join as Servicer" [ref=e63] [cursor=pointer]:
+              - /url: /register/servicer
+        - generic [ref=e64]:
+          - strong [ref=e65]: Support
+          - navigation [ref=e66]:
+            - link "Contact Us" [ref=e67] [cursor=pointer]:
+              - /url: /
+            - link "Help Center" [ref=e68] [cursor=pointer]:
+              - /url: /
+        - generic [ref=e69]:
+          - strong [ref=e70]: Legal
+          - navigation [ref=e71]:
+            - link "Terms & Conditions" [ref=e72] [cursor=pointer]:
+              - /url: /terms
+            - link "Privacy Policy" [ref=e73] [cursor=pointer]:
+              - /url: /
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - text: © 2026
+          - link "AllergicToAnything" [ref=e76] [cursor=pointer]:
+            - /url: https://github.com/AllergicToAnything
+          - text: . All rights reserved.
+        - generic [ref=e77]: My Home Servicer
+  - generic:
+    - status
+  - generic:
+    - generic "Enter your PIN"

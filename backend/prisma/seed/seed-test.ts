@@ -488,40 +488,8 @@ async function main() {
     console.log('  [2/9] Open aircond quote (pay_now) + auto-proposal');
   }
 
-  // ── Scenario 3: Booking pending_confirm (pay_later) - home-cleaning M4 ──
-  {
-    const quoteId = fixedUuid('scenario:3-pending-cleaning-quote');
-    await prisma.quoteRequest.create({
-      data: {
-        id: quoteId, userId: customerId, categoryId: childIdBySlug['home-cleaning'],
-        addressId, contactName: 'David Tan', contactNumber: '+60 11-234 5678',
-        timeSlot: 'morning', preferredDate: days(1),
-        propertyType: 'condo', budgetMin: 60, budgetMax: 150,
-        paymentMode: 'pay_later', deadlineMode: 'fixed_time',
-        proposalDeadline: minutes(120), servicerDeadline: minutes(105), status: 'matched',
-      },
-    });
-    const proposalId = fixedUuid('scenario:3-pending-cleaning-proposal');
-    await prisma.quoteProposal.create({
-      data: {
-        id: proposalId, quoteRequestId: quoteId, servicerId: servicerIds.M4,
-        proposedPrice: 90, message: 'Sparkle Home Cleaning at your service.', etaMinutes: 120, status: 'selected',
-      },
-    });
-    // pending_confirm booking - no confirmedAt set
-    await prisma.booking.create({
-      data: {
-        id: fixedUuid('scenario:3-pending-cleaning-booking'),
-        quoteRequestId: quoteId, proposalId,
-        userId: customerId, servicerId: servicerIds.M4,
-        status: 'pending_confirm', price: 90, paymentMode: 'pay_later',
-        scheduledDate: days(1), timeSlot: 'morning',
-      },
-    });
-    console.log('  [3/9] Booking pending_confirm (home-cleaning, pay_later)');
-  }
 
-  // ── Scenario 4: Booking confirmed (pay_now) - electrical-wiring M3 ──
+  // ── Scenario 3: Booking confirmed (pay_now) - electrical-wiring M3 ──
   {
     const quoteId = fixedUuid('scenario:4-confirmed-electrical-quote');
     await prisma.quoteRequest.create({
@@ -552,10 +520,10 @@ async function main() {
         confirmedAt: days(-1),
       },
     });
-    console.log('  [4/9] Booking confirmed (electrical-wiring, pay_now)');
+    console.log('  [3/8] Booking confirmed (electrical-wiring, pay_now)');
   }
 
-  // ── Scenario 5: Booking in_progress (cash) - plumber M1 with arrive photo ──
+  // ── Scenario 4: Booking in_progress (cash) - plumber M1 with arrive photo ──
   {
     const quoteId = fixedUuid('scenario:5-inprogress-plumber-quote');
     await prisma.quoteRequest.create({
@@ -588,10 +556,10 @@ async function main() {
         arrivePhotoUrl: 'https://picsum.photos/seed/arriveM1/800/600',
       },
     });
-    console.log('  [5/9] Booking in_progress (plumber, cash, arrived w/ photo)');
+    console.log('  [4/8] Booking in_progress (plumber, cash, arrived w/ photo)');
   }
 
-  // ── Scenario 6: Booking completed (pay_later) + invoice + transaction - catering M9 ──
+  // ── Scenario 5: Booking completed (pay_later) + invoice + transaction - catering M9 ──
   {
     const quoteId = fixedUuid('scenario:6-completed-catering-quote');
     await prisma.quoteRequest.create({
@@ -644,10 +612,10 @@ async function main() {
         createdAt: days(-3),
       },
     });
-    console.log('  [6/9] Booking completed (catering, pay_later, invoice + txn)');
+    console.log('  [5/8] Booking completed (catering, pay_later, invoice + txn)');
   }
 
-  // ── Scenario 7: Booking completed (pay_now) + invoice + escrow - home-tutoring M27 ──
+  // ── Scenario 6: Booking completed (pay_now) + invoice + escrow - home-tutoring M27 ──
   {
     const quoteId = fixedUuid('scenario:7-completed-tutoring-quote');
     await prisma.quoteRequest.create({
@@ -704,10 +672,10 @@ async function main() {
         createdAt: days(-4),
       },
     });
-    console.log('  [7/9] Booking completed (home-tutoring, pay_now, escrow release + invoice)');
+    console.log('  [6/8] Booking completed (home-tutoring, pay_now, escrow release + invoice)');
   }
 
-  // ── Scenario 8: Booking cancelled (pay_later) - 3d-modeling M30 ──
+  // ── Scenario 7: Booking cancelled (pay_later) - 3d-modeling M30 ──
   {
     const quoteId = fixedUuid('scenario:8-cancelled-3d-quote');
     await prisma.quoteRequest.create({
@@ -740,10 +708,10 @@ async function main() {
         cancelledBy: 'customer', cancelReason: 'Change of plans - no longer needed.',
       },
     });
-    console.log('  [8/9] Booking cancelled (3d-modeling, pay_later, customer cancel)');
+    console.log('  [7/8] Booking cancelled (3d-modeling, pay_later, customer cancel)');
   }
 
-  // ── Scenario 9: Booking completed + cash_confirmed + cash payment - home-cleaning M4 ──
+  // ── Scenario 8: Booking completed + cash_confirmed + cash payment - home-cleaning M4 ──
   {
     const quoteId = fixedUuid('scenario:9-cash-completed-cleaning-quote');
     await prisma.quoteRequest.create({
@@ -797,7 +765,7 @@ async function main() {
         createdAt: days(-5),
       },
     });
-    console.log('  [9/9] Booking completed + cash_confirmed (home-cleaning, cash)');
+    console.log('  [8/8] Booking completed + cash_confirmed (home-cleaning, cash)');
   }
 
   console.log('\n============================================');

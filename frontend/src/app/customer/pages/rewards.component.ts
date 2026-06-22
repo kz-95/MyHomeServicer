@@ -51,7 +51,7 @@ interface VoucherWithApp extends Redemption {
 @Component({
     selector: 'app-rewards',
     imports: [CommonModule, FormsModule, ListToolbarComponent],
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     template: `
     <h1>Rewards</h1>
     <p class="muted">Earn points on every booking and redeem them for perks.</p>

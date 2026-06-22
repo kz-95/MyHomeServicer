@@ -309,7 +309,6 @@ Platform marketing budget: RM 5,000 total, RM 320 spent.
 - Email: `customer.loyal@demo.local`
 - 2 saved addresses: Damansara Heights (default) + SS2
 - Multiple completed bookings across most categories (from the bulk seed across all 19 servicers)
-- 1 pending_confirm booking (M5, RM 90)
 - 1 in_progress booking (M8, RM 130)
 - 1 active open catering quote (M10, M11, M12 broadcast; proposals from M10, M11)
 - Chat session with history
@@ -446,11 +445,10 @@ All seeded photos use placeholder URLs from `picsum.photos`:
    - ServicerService records (1-3 services per servicer; M9 gets 62 total incl. 60 bulk)
 6. **In-flight quotes** — 3 open quotes (aircon, plumbing, catering) with broadcasts and proposals
 7. **Bulk completed bookings** — 194 completed jobs across all 19 servicers spread over 30 days (8 each, M9 gets 50)
-8. **In-flight bookings** — 7 bookings across all states:
-   - 1 pending_confirm (M5)
-   - 1 in_progress (M8)
-   - 1 completed cash (M6)
-   - 4 cancelled (penalty scenarios)
+8. **In-flight bookings** — 6 bookings across all states:
+    - 1 in_progress (M8)
+    - 1 completed cash (M6)
+    - 4 cancelled (penalty scenarios)
 9. **Invoices + escrow_release transactions** — for all 194 bulk completed bookings + 3 in-flight completed
 10. **Penalty scenarios** — M2 active penalty, M7 appeal pending, M12 reversed
 11. **Promotions** — 2 servicer + 2 platform

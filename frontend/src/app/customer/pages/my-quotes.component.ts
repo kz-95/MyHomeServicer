@@ -32,7 +32,7 @@ interface Address {
 
 @Component({
     selector: 'app-my-quotes',
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     imports: [CommonModule, FormsModule, RouterLink, CountdownComponent, ModalComponent, IconComponent],
     template: `
     @if (justSubmitted()) {
