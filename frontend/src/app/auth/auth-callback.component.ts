@@ -29,6 +29,12 @@ export class AuthCallbackComponent implements OnInit {
     try {
       const user = JSON.parse(decodeURIComponent(userRaw)) as Principal;
       this.auth.completeGoogleAuth({ accessToken, refreshToken, user });
+      // `next` (e.g. servicer-intent sign-in) overrides the role-based landing.
+      const next = params.get('next');
+      if (next && next.startsWith('/')) {
+        this.router.navigateByUrl(next);
+        return;
+      }
       const target = user.role === 'admin' ? '/admin' : user.role === 'servicer' ? '/servicer' : '/customer';
       this.router.navigate([target]);
     } catch {

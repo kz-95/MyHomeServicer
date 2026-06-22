@@ -65,7 +65,11 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const banned = await prisma.bannedEmail.findUnique({ where: { email: req.body.email.toLowerCase().trim() } });
     if (banned) throw badRequest('This email has been banned and cannot register.');
-    const { user, tokens } = await registerServicer(req.body);
+    // A logged-in customer finishing the servicer form converts their account
+    // in place (e.g. after an interrupted Google sign-up). Only a customer can convert.
+    const convertFromUserId =
+      req.user?.kind === 'user' && req.user.role === 'customer' ? req.user.id : undefined;
+    const { user, tokens } = await registerServicer(req.body, convertFromUserId);
     if (req.body.pin) {
       const pinHash = await bcrypt.hash(req.body.pin, 12);
       await prisma.servicer.update({ where: { id: user.id }, data: { pinHash } });
@@ -206,7 +210,12 @@ authRouter.post(
  * Only registered when GOOGLE_CLIENT_ID is configured.
  */
 if (isGoogleConfigured()) {
-  authRouter.get('/google', passport.authenticate('google', { session: false }));
+  authRouter.get('/google', (req: Request, res: Response, next: NextFunction) => {
+    // `intent=servicer` rides along as OAuth `state` so the callback can route
+    // the user back to the servicer registration form (email prefilled).
+    const state = req.query.intent === 'servicer' ? 'servicer' : undefined;
+    passport.authenticate('google', { session: false, state })(req, res, next);
+  });
 
   /**
    * GET /auth/google/callback — handle Google OAuth callback.
@@ -226,6 +235,9 @@ if (isGoogleConfigured()) {
           refresh_token: result.refreshToken,
           user: JSON.stringify(result.principal),
         });
+        // Servicer-intent sign-in returns to the servicer registration form so
+        // the (now authenticated) customer can complete it; email is prefilled there.
+        if (req.query.state === 'servicer') params.set('next', '/register/servicer');
         res.redirect(`${env.APP_URL}/auth/callback?${params.toString()}`);
       })(req, res, next);
     },

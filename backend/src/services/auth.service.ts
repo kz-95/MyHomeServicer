@@ -182,10 +182,19 @@ export async function registerServicer(input: {
   taxNumber?: string;
   businessRegistrationNumber?: string;
   serviceAreas?: string[];
-}): Promise<{ user: Principal; tokens: TokenPair }> {
+}, convertFromUserId?: string): Promise<{ user: Principal; tokens: TokenPair }> {
   assertPasswordStrength(input.password);
   const existing = await findAccountByEmail(input.email);
-  if (existing) throw new ApiError('CONFLICT', 'An account with that email already exists');
+  // A logged-in customer "becoming a servicer" is allowed to reuse their own
+  // email: their customer row is converted in place (retired into the paired
+  // customer-mode slot below). Any OTHER existing account is a hard conflict.
+  const convertingUser =
+    convertFromUserId && existing?.kind === 'user' && existing.record?.id === convertFromUserId
+      ? existing.record
+      : null;
+  if (existing && !convertingUser) {
+    throw new ApiError('CONFLICT', 'An account with that email already exists');
+  }
 
   // The servicer's platform category is fixed at registration.
   const category = await prisma.category.findFirst({
@@ -216,6 +225,16 @@ export async function registerServicer(input: {
       },
     },
   });
+  if (convertingUser) {
+    // Retire the converted customer into the servicer's paired customer-mode
+    // account: a normal login with the real email now resolves to the servicer
+    // (the real email only exists in the Servicer table), while their existing
+    // customer history is preserved as this servicer's customer mode.
+    await prisma.user.update({
+      where: { id: convertingUser.id },
+      data: { email: pairedCustomerEmail(servicer.id) },
+    });
+  }
   const principal: Principal = {
     id: servicer.id,
     kind: 'servicer',
