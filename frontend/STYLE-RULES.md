@@ -418,36 +418,82 @@ customer / servicer / admin) on phone (≤560px):
 
 ## 7. Component Patterns
 
-### 7.0 Global Prompt Guard Law
+### 7.0 Overlays & Modals Law (centered dialogs)
 
-Any UI that must be the user's primary focus before they can continue (prompt guards, insufficient-credit overlays, confirmation blockers) follows these universal rules. §7.17 (proposal prompt) and §7.19 (top-up prompt) are specific applications of this law.
+> **Rewritten 2026-06-23.** The old rule mandated `position: fixed; z-index:
+> 9999` overlays. That is the **root cause** of the recurring "modal cropped /
+> off-center / scroll-trapped" bug and is now **banned** for centered dialogs.
+> Inventory of every popup: [`docs/ai-context/modal-audit.md`](../docs/ai-context/modal-audit.md).
 
-**Hard rules:**
+**Why `position: fixed` overlays break.** A `position: fixed` element only
+anchors to the viewport when **no ancestor** has a `transform`, `filter`,
+`perspective`, `will-change`, or `contain`. This app animates page sections with
+`transform: translateY(...)` (stagger/fade reveals) **everywhere**, so a fixed
+overlay declared inside a page component re-anchors to that transformed ancestor
+and gets clipped, mis-centered, and scroll-trapped. You cannot reliably "just
+place it outside the animated element" — the tree changes as features grow.
 
-1. **Fixed full-screen backdrop.** `var(--color-backdrop)` covers the entire viewport at `z-index: 9998`. Clicking the backdrop does **not** dismiss (the guard is intentionally blocking).
+**THE RULE — every centered dialog/prompt/guard/confirm MUST use a native
+top-layer `<dialog>`:**
 
-2. **Fixed panel above everything.** `position: fixed; z-index: 9999` — above modals, FAB, topbars. Center variant: `top: 50%; left: 50%; transform: translate(-50%, -50%)`. Bottom-anchored variant: `bottom: 0; left: 50%; transform: translateX(-50%)`.
+1. **Use `<app-modal>`.** It wraps a native `<dialog>` driven by `showModal()`,
+   which renders in the browser **top layer** — immune to ancestor `transform` /
+   `overflow` / `z-index` / `contain`, and viewport-centered by the UA. This is
+   the *only* approved way to make a centered modal. It works **no matter where**
+   the `<app-modal>` tag sits in the component tree.
 
-3. **Body scroll locked.** Apply on mount, restore on dismiss and in `ngOnDestroy`:
+2. **NEVER hand-roll a `position: fixed` backdrop** for a centered dialog. No
+   `.backdrop { position: fixed; inset: 0 }` + `.panel` inside a page or shared
+   component. If `<app-modal>`'s chrome doesn't fit (custom header, countdown,
+   multi-panel), use a **raw native `<dialog>`** element with `showModal()` —
+   never a fixed div. Pattern: `<dialog #dlg>` + `(cancel)="$event.preventDefault()"`
+   + drive `dlg.showModal()/dlg.close()` from your `open` signal via `effect()`,
+   centered box styled on the `<dialog>`, dim via `::backdrop`. See
+   `dispatch-prompt-guard.component.ts` / `dialog-outlet.component.ts` for the
+   canonical raw-dialog implementation.
 
-   ```css
-   body {
-     overflow: hidden;
-     touch-action: none;
-   }
-   ```
+3. **No z-index racing.** The top layer sits above all normal content
+   automatically — do **not** invent `z-index: 9999`. (Stacking between two
+   simultaneously-open `showModal()` dialogs follows call order, last-opened on
+   top — keep "one guard at a time", rule 8.)
 
-   Do NOT use `position: fixed` on `<body>` — iOS Safari loses scroll position.
+4. **Sizing & scroll.** Dialog box: `max-width: min(<W>, calc(100vw - 2rem));
+   max-height: calc(100dvh - 4rem)`. Inner panel scrolls:
+   `overflow-y: auto; overscroll-behavior: contain`. Header + footer (title, ✕,
+   action buttons) sit **outside** the scroll region — always visible. Use
+   `100dvh` (dynamic viewport) so mobile browser chrome never crops the box.
 
-4. **Internal scroll only.** Guard body: `max-height: 50–60vh; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin`.
+5. **Body scroll lock is automatic.** `showModal()` makes the page inert and
+   blocks background scroll — do **not** manually toggle `body { overflow:
+   hidden }` (the old rule; it caused iOS scroll-position loss).
 
-5. **Autofocus first action.** First interactive element (primary button or input) receives focus on open.
+6. **Backdrop click + Esc.** Drag-safe close: only dismiss when **both**
+   mousedown and mouseup land on the `<dialog>` element itself (the letterbox
+   around the panel), never on a drag that started inside. Native Esc fires the
+   `cancel` event — `preventDefault()` it and route through your own close so the
+   parent stays the single owner of `open`. Non-dismissible guards (e.g. dispatch
+   countdown) `preventDefault()` `cancel` with no close.
 
-6. **Header + footer pinned outside scroll.** Title, close (✕), and action buttons sit outside the scrollable body — always visible regardless of content length.
+7. **Autofocus first action.** First interactive element (primary button or
+   input) receives focus on open (`showModal()` focuses the first focusable by
+   default; add `autofocus` to override).
 
-7. **One guard at a time.** Never stack multiple guards. Deduplicate if a second event fires while one is open.
+8. **One guard at a time.** Never stack multiple centered guards. Deduplicate if
+   a second event fires while one is open. Auto-dismiss timers pause on
+   `mouseenter`, resume on `mouseleave`.
 
-8. **Esc dismisses** (unless intentionally non-dismissible — document the exception). Auto-dismiss timers pause on `mouseenter`, resume on `mouseleave`.
+**Corner-anchored chrome is exempt** (toasts, FAB, a bell/notification dropdown,
+a searchable-select panel): those are **not** centered modals. Anchor them with
+`position: absolute` relative to their trigger, or — only if they must live at
+the app root in `shell.component` (no transformed ancestor) — `position: fixed`.
+Never copy the root-level fixed pattern into a page/feature component.
+
+**Migration checklist when you add or touch a popup:**
+- [ ] Is it a centered dialog/prompt/confirm? → `<app-modal>` or raw native `<dialog>`. No fixed backdrop.
+- [ ] `max-height: calc(100dvh - 4rem)` + inner `overflow-y: auto`?
+- [ ] Header/footer outside the scroll region?
+- [ ] Backdrop-click drag-safe + Esc via `cancel` preventDefault?
+- [ ] Added/updated the row in `docs/ai-context/modal-audit.md`?
 
 ### 7.1 Cards
 
@@ -591,11 +637,12 @@ Patterns:
   releases on the backdrop must **not** close it. Applies to `app-modal` and
   `app-dialog-outlet` (confirm/alert/prompt). Never close on a bare `(click)`.
 
-- **`<app-modal>` must be placed outside any animated element** that uses
-  `transform` (including `page-enter` keyframes). A CSS `transform` (even
-  `translateY(0)`) creates a new containing block, causing the modal's `position:
-fixed` to target the transformed ancestor instead of the viewport. Place the
-  `<app-modal>` tag after the animated wrapper, not inside it.
+- **Placement is now irrelevant — `<app-modal>` uses a native top-layer
+  `<dialog>`** (`showModal()`), so it renders correctly **anywhere** in the tree,
+  even inside `transform`-animated wrappers. (Superseded the old "must be placed
+  outside any animated element" rule, which was a fragile workaround for the
+  `position: fixed` clipping bug. See **§7.0 Overlays & Modals Law** — hand-rolled
+  fixed backdrops for centered dialogs are banned.)
 - **All modal scrollable containers must have `overscroll-behavior: contain`**
   to prevent scroll chaining (scrolling the modal content must not scroll the
   page or trigger auto-hide on the topbar behind it).
@@ -802,6 +849,13 @@ Sticky nav/header bars use the shared `appAutoHide` directive
 
 ### 7.17 Proposal prompt guard
 
+> **See §7.0 first.** This guard is **bottom-centre, corner-anchored** chrome
+> mounted at the app root (`shell.component`, no transformed ancestor), so its
+> `position: fixed` is exempt from the centered-dialog ban. A **centered**
+> dispatch/accept prompt must instead use a native top-layer `<dialog>` — see
+> `dispatch-prompt-guard.component.ts`. Do not copy this fixed pattern into a
+> page/feature component.
+
 When a new incoming quote arrives, a fixed-position prompt guard appears at the
 bottom-centre of the viewport to surface the opportunity immediately. This is a
 **blocking overlay pattern** — the prompt must be the user's primary focus.
@@ -960,6 +1014,14 @@ rewards, etc.) must give the user the ability to quickly narrow and reorder
 rows. No bare table is acceptable.
 
 ### 7.19 Top-up prompt guard (insufficient credit overlay)
+
+> **Superseded by §7.0 for new work.** This is a **centered** guard, so per the
+> rewritten Overlays & Modals Law it should be a native top-layer `<dialog>`
+> (`<app-modal>` or raw `<dialog showModal>`), **not** a hand-rolled `position:
+> fixed` overlay. The fixed implementation below is retained only because it is
+> mounted at the app root (`shell.component`); if you touch it, migrate it to a
+> `<dialog>` and drop the `z-index: 9999` / manual body-scroll-lock. Never
+> reproduce this fixed pattern inside a page/feature component.
 
 When a user attempts to submit a pay_now quote with insufficient wallet credit, a
 fixed-position centered prompt guard overlays the page instead of a modal. This

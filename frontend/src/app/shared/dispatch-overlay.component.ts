@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, signal, inject, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ElementRef, ViewChild, effect, signal, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -27,8 +27,8 @@ interface JobDetail {
     selector: 'app-dispatch-overlay',
     imports: [CommonModule, FormsModule, RouterLink, MapViewComponent],
     template: `
-    @if (open()) {
-      <div class="dispatch-backdrop" (click)="onBackdropClick($event)">
+    <dialog #mainDlg class="dispatch-dialog wide-dlg" (mousedown)="onDown($event)" (mouseup)="onUp($event, 'main')" (cancel)="$event.preventDefault(); close()">
+      @if (open()) {
         <div class="dispatch-overlay" role="dialog" aria-modal="true">
 
           <div class="dispatch-hd">
@@ -197,12 +197,12 @@ interface JobDetail {
             }
           }
         </div>
-      </div>
-    }
+      }
+    </dialog>
 
-    @if (showQr()) {
-      <div class="dispatch-backdrop" (click)="showQr.set(false)">
-        <div class="dispatch-qr" (click)="$event.stopPropagation()">
+    <dialog #qrDlg class="dispatch-dialog" (mousedown)="onDown($event)" (mouseup)="onUp($event, 'qr')" (cancel)="$event.preventDefault(); showQr.set(false)">
+      @if (showQr()) {
+        <div class="dispatch-qr">
           <h3>&#x1F4F1; Navigate from your phone</h3>
           <div class="qr-code">
             @if (qrDataUrl()) {
@@ -212,12 +212,12 @@ interface JobDetail {
           <p class="muted">Opens Google Maps or Waze</p>
           <button class="btn-ghost" (click)="showQr.set(false)">&larr; Back to job</button>
         </div>
-      </div>
-    }
+      }
+    </dialog>
 
-    @if (showCancelModal()) {
-      <div class="dispatch-backdrop" (click)="cancelModalClose()">
-        <div class="dispatch-cancel" (click)="$event.stopPropagation()">
+    <dialog #cancelDlg class="dispatch-dialog" (mousedown)="onDown($event)" (mouseup)="onUp($event, 'cancel')" (cancel)="$event.preventDefault(); cancelModalClose()">
+      @if (showCancelModal()) {
+        <div class="dispatch-cancel">
           <h3>&#x1F6AB; Cancel this booking?</h3>
           <form (ngSubmit)="submitCancel()">
             <label>Reason *<textarea [(ngModel)]="cancelReason" name="reason" rows="3" required></textarea></label>
@@ -230,24 +230,32 @@ interface JobDetail {
             </div>
           </form>
         </div>
-      </div>
-    }
+      }
+    </dialog>
   `,
     styles: [
         `
       :host { display: contents; }
 
-      .dispatch-backdrop {
-        position: fixed;
-        inset: 0;
+      /* Native <dialog> + showModal() — top-layer, immune to ancestor
+         transform/overflow clipping, always viewport-centered. See
+         frontend/STYLE-RULES.md "Overlays & modals". Do NOT revert to a
+         position:fixed backdrop. */
+      .dispatch-dialog {
+        padding: 0;
+        border: none;
+        background: transparent;
+        max-width: min(440px, calc(100vw - 2rem));
+        max-height: calc(100dvh - 4rem);
+        width: 100%;
+        overflow: visible;
+        color: var(--color-text);
+      }
+      .dispatch-dialog.wide-dlg {
+        max-width: min(1200px, calc(100vw - 2rem));
+      }
+      .dispatch-dialog::backdrop {
         background: var(--color-backdrop);
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        padding: 2vh 1rem;
-        z-index: 1000;
-        overflow-y: auto;
-        overscroll-behavior: contain;
         animation: backdrop-in 0.18s ease-out both;
       }
       @keyframes backdrop-in {
@@ -260,8 +268,7 @@ interface JobDetail {
         border-radius: var(--radius);
         box-shadow: var(--shadow-lg);
         width: 100%;
-        max-width: 1200px;
-        max-height: 95vh;
+        max-height: calc(100dvh - 4rem);
         display: flex;
         flex-direction: column;
         animation: pop 0.18s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -618,14 +625,57 @@ interface JobDetail {
     `,
     ]
 })
-export class DispatchOverlayComponent implements OnInit {
+export class DispatchOverlayComponent implements OnInit, OnDestroy {
   @Input({ required: true }) jobId!: string;
   @Input() readOnly = false;
   @Output() closed = new EventEmitter<void>();
   @Output() actionPerformed = new EventEmitter<void>();
 
+  @ViewChild('mainDlg') private mainDlg?: ElementRef<HTMLDialogElement>;
+  @ViewChild('qrDlg') private qrDlg?: ElementRef<HTMLDialogElement>;
+  @ViewChild('cancelDlg') private cancelDlg?: ElementRef<HTMLDialogElement>;
+
   private api = inject(ApiService);
   private toast = inject(ToastService);
+
+  /** Drag-safe backdrop close: press target tracked so a text-selection drag
+   *  that ends on the backdrop does not dismiss the dialog. */
+  private downTarget: EventTarget | null = null;
+
+  constructor() {
+    // Keep each native top-layer dialog in step with its signal.
+    effect(() => this.toggle(this.mainDlg, this.open()));
+    effect(() => this.toggle(this.qrDlg, this.showQr()));
+    effect(() => this.toggle(this.cancelDlg, this.showCancelModal()));
+  }
+
+  private toggle(ref: ElementRef<HTMLDialogElement> | undefined, want: boolean): void {
+    const dlg = ref?.nativeElement;
+    if (!dlg) return;
+    if (want && !dlg.open) dlg.showModal();
+    else if (!want && dlg.open) dlg.close();
+  }
+
+  onDown(event: MouseEvent): void {
+    this.downTarget = event.target;
+  }
+
+  onUp(event: MouseEvent, which: 'main' | 'qr' | 'cancel'): void {
+    const onBackdrop =
+      event.target === event.currentTarget && this.downTarget === event.currentTarget;
+    this.downTarget = null;
+    if (!onBackdrop) return;
+    if (which === 'main') this.close();
+    else if (which === 'qr') this.showQr.set(false);
+    else this.cancelModalClose();
+  }
+
+  ngOnDestroy(): void {
+    for (const ref of [this.mainDlg, this.qrDlg, this.cancelDlg]) {
+      const dlg = ref?.nativeElement;
+      if (dlg?.open) dlg.close();
+    }
+  }
 
   open = signal(true);
   loading = signal(true);
@@ -667,10 +717,6 @@ export class DispatchOverlayComponent implements OnInit {
     this.open.set(false);
     this.navOpen.set(false);
     this.closed.emit();
-  }
-
-  onBackdropClick(e: MouseEvent): void {
-    if (e.target === e.currentTarget) this.close();
   }
 
   isMobile(): boolean {

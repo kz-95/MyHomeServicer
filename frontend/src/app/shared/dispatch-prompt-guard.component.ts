@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/services/api.service';
@@ -31,8 +31,8 @@ interface DispatchPrompt {
   standalone: true,
   imports: [FormsModule, IconComponent, DatePipe],
   template: `
-    @if (prompt(); as p) {
-      <div class="dp-backdrop" (click)="$event.stopPropagation()">
+    <dialog #dlg class="dp-dialog" (cancel)="$event.preventDefault()">
+      @if (prompt(); as p) {
         <div class="dp-overlay" role="dialog" aria-modal="true">
           <!-- Header -->
           <div class="dp-hd">
@@ -129,16 +129,27 @@ interface DispatchPrompt {
             <p class="err">{{ error() }}</p>
           }
         </div>
-      </div>
-    }
+      }
+    </dialog>
   `,
   styles: [`
     :host { display: contents; }
-    .dp-backdrop {
-      position: fixed; inset: 0; z-index: 9999;
+    /* Native <dialog> + showModal() renders in the top layer — immune to
+       ancestor transform/overflow clipping and always viewport-centered.
+       See frontend/STYLE-RULES.md "Overlays & modals". Do NOT revert to a
+       position:fixed backdrop. */
+    .dp-dialog {
+      padding: 0;
+      border: none;
+      background: transparent;
+      max-width: min(520px, calc(100vw - 2rem));
+      max-height: calc(100dvh - 4rem);
+      width: 100%;
+      overflow: visible;
+      color: var(--color-text);
+    }
+    .dp-dialog::backdrop {
       background: rgba(0,0,0,0.6);
-      display: flex; align-items: center; justify-content: center;
-      padding: 1rem;
       animation: fadeIn 0.2s ease;
     }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -146,9 +157,8 @@ interface DispatchPrompt {
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: 16px;
-      max-width: 520px;
       width: 100%;
-      max-height: 90vh;
+      max-height: calc(100dvh - 4rem);
       overflow-y: auto;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
       display: flex;
@@ -252,10 +262,24 @@ export class DispatchPromptGuardComponent implements OnInit, OnDestroy {
   private socket = inject(SocketService);
   private toast = inject(ToastService);
 
+  @ViewChild('dlg') private dlgRef?: ElementRef<HTMLDialogElement>;
+
   prompt = signal<DispatchPrompt | null>(null);
   countdownSecs = signal<number>(10);
   actioning = signal(false);
   error = signal('');
+
+  constructor() {
+    // Drive the native top-layer dialog from the prompt signal: open when a
+    // dispatch arrives, close when it's cleared (accept/decline/timeout).
+    effect(() => {
+      const dlg = this.dlgRef?.nativeElement;
+      if (!dlg) return;
+      const hasPrompt = this.prompt() !== null;
+      if (hasPrompt && !dlg.open) dlg.showModal();
+      else if (!hasPrompt && dlg.open) dlg.close();
+    });
+  }
 
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private socketSub: Subscription | null = null;
@@ -276,6 +300,8 @@ export class DispatchPromptGuardComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.socketSub?.unsubscribe();
     this.clearTimer();
+    const dlg = this.dlgRef?.nativeElement;
+    if (dlg?.open) dlg.close();
   }
 
   private showPrompt(data: DispatchPrompt): void {

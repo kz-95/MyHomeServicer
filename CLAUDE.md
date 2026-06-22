@@ -32,6 +32,7 @@ of the following, Claude must explicitly ask the user for permission:
 | Tech choices, versions, why a library was picked | `docs/ai-context/tech-stack.md` |
 | Dev setup, commands, env vars, docker | `docs/setup-guides/INSTRUCTIONS.md` |
 | Design tokens, theming, CSS conventions | `frontend/STYLE-RULES.md` |
+| Modals/popups/overlays — which use the safe top-layer `<dialog>` | `docs/ai-context/modal-audit.md` (+ rule in STYLE-RULES §7.0) |
 | Full bug history (frozen archive) | `docs/ai-context/archive/coordination.md` |
 
 ---
@@ -69,6 +70,7 @@ the user says otherwise.
 - **After ANY schema change:** stop the running server (frees the Windows DLL lock — `query_engine-windows.dll.node` makes `prisma generate` fail silently while the server runs, leaving a stale client that throws P2022 on login), then run `npm run db:migrate` (`prisma migrate dev --name <change>`) to generate + apply the migration and regenerate the client, commit the new folder under `prisma/migrations/`, and restart. Never edit an already-applied migration — add a new one.
 - Run `npx tsc --noEmit` after every edit to `backend/src/` (zero errors = gate)
 - Run `npx tsc --noEmit` in `frontend/` after completion
+- **Every centered modal/popup/dialog/prompt-guard MUST use a native top-layer `<dialog>`** — `<app-modal>` or a raw `<dialog>` + `showModal()`. NEVER hand-roll a `position: fixed` backdrop inside a page/feature component: a fixed element re-anchors to (and is clipped by) any ancestor with `transform`/`filter`/`will-change`/`contain`, and this app's stagger animations transform page wrappers everywhere → cropped/off-center/scroll-trapped modals. Full law: `frontend/STYLE-RULES.md §7.0`. Inventory: `docs/ai-context/modal-audit.md` (update it when adding/migrating a popup). Corner toasts/FAB/dropdowns are exempt (anchor with `position:absolute`, or `fixed` only at the shell root).
 - **After `npm install <package>` in backend or frontend:** always commit the updated `package-lock.json` in the same commit as the code change. The bat launchers (`Run.bat`, `Run-Clean.bat`, `Run-Test.bat`) detect a newer `package-lock.json` and auto-run `npm install` — no manual bat edits needed. Committing `package-lock.json` is what triggers this on other machines.
 - **CI pipeline** — three event-driven workflows (see `docs/superpowers/specs/2026-06-10-ci-pipeline-design.md`):
   - `push-checks.yml` — lint + build + unit tests on every push (~3 min)
