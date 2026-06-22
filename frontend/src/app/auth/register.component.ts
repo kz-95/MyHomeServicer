@@ -63,11 +63,13 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
       }
       .wrap {
         display: flex;
-        justify-content: center;
+        flex-direction: column;
+        align-items: center;
         height: 100vh;
+        height: 100dvh;
         overflow-y: auto;
-        padding-top: 6vh;
-        padding-inline: 1rem;
+        padding: 6vh 1rem;
+        box-sizing: border-box;
       }
       .box {
         width: 100%;

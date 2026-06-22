@@ -140,10 +140,13 @@ interface Category {
       }
       .wrap {
         display: flex;
-        justify-content: center;
+        flex-direction: column;
+        align-items: center;
         height: 100vh;
+        height: 100dvh;
         overflow-y: auto;
         padding: 6vh 1rem;
+        box-sizing: border-box;
       }
       .box {
         width: 100%;
