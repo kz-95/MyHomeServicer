@@ -526,13 +526,13 @@ const STAGGER_MS = 70;
         content: "";
         position: absolute; inset: 0; z-index: 10;
         background: var(--color-bg);
-        animation: skeleton-spawn 0.15s ease both;
+        animation: skeleton-spawn 0.1s ease both;
       }
       .skeleton-list > :nth-child(1)::after { animation-delay: 0s; }
-      .skeleton-list > :nth-child(2)::after { animation-delay: 0.15s; }
-      .skeleton-list > :nth-child(3)::after { animation-delay: 0.3s; }
-      .skeleton-list > :nth-child(4)::after { animation-delay: 0.45s; }
-      .skeleton-list > :nth-child(5)::after { animation-delay: 0.6s; }
+      .skeleton-list > :nth-child(2)::after { animation-delay: 0.05s; }
+      .skeleton-list > :nth-child(3)::after { animation-delay: 0.1s; }
+      .skeleton-list > :nth-child(4)::after { animation-delay: 0.15s; }
+      .skeleton-list > :nth-child(5)::after { animation-delay: 0.2s; }
       .card-cover {
         position: absolute; inset: 0; z-index: 4;
         background: var(--color-surface);
