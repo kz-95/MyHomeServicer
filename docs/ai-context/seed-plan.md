@@ -43,7 +43,7 @@ if (process.env.NODE_ENV === 'production' && user.isDemo) {
 | `customer.active@demo.local` | Customer | Has an open quote with 3 proposals waiting. Used to demo proposal selection. |
 | `customer.loyal@demo.local` | Customer | Has 4 completed bookings with invoices, saved addresses, chat history, ready for reorder demo. |
 | `admin@demo.local` | Admin | Sees the category requests queue, withdrawal queue, reports, settings panel, 30-day platform revenue chart. Action PIN: `1234` |
-| `servicer.{1..36}@demo.local` | Servicer | 36 servicers — 1 per child category (31 total), except 3D Modeling which has 6 specialists (Fusion 360, SketchUp, Blender, Maya, 3ds Max, ZBrush). Demo-bar dropdown lists them sorted A→Z with scrollbar. |
+| `servicer.{1..36}@demo.local` | Servicer | 36 servicers — spread across 34 child categories. Demo-bar dropdown lists them sorted A→Z with scrollbar. |
 
 All accounts use password `Demo@2026`. Two PINs (see security-notes.md): the **action PIN** `1234` (per-account; sensitive admin saves + the Admin Accounts/Review Queues view-guards), and the **demo login gate** `5201314` (fixed shared speedbump shown to demo accounts on portal entry; real `isDemo=false` accounts are not gated).
 

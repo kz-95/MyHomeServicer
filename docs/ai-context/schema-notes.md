@@ -394,6 +394,6 @@ There is no `DepositTopup` model — top-up requests are tracked as a `PLATFORM_
 | Subcategory display | Admin decision | `Category.parentCategoryId` self-relation already in schema. Frontend category browse needs update. |
 
 ## Update 2026-05-31 — Category taxonomy + fields
-- **Category is now 2-level** via `parentCategoryId` self-relation: 7 parents (grouping) + 28 children (quotable services). Children carry `questionSchema`, `defaultPriceSuggestion`, `defaultEstimatedDurationMinutes`. Slugs/list in `category-taxonomy.md`.
+- **Category is now 2-level** via `parentCategoryId` self-relation: 7 parents (grouping) + 34 children (quotable services). Children carry `questionSchema`, `defaultPriceSuggestion`, `defaultEstimatedDurationMinutes`. Slugs/list in `category-taxonomy.md`.
 - New `Category` fields in use: `published Boolean @default(false)`, `bannerUrl`, `cardColor`, `description`. Public `GET /categories` returns published only.
 - Planned (pricing-model spec): `modifiers` per-option `durationMin`; per-category + overall travel-fee baselines; questionSchema `maxSelect`/`minSelect`; global `property_type` quote field; inspection flag + procedure.

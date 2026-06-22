@@ -98,7 +98,10 @@ interface PromoValidationResult {
       <header class="topbar">
         <!-- Logo title - clicking it returns to the public home page. -->
         <button class="logo" (click)="goHome()" title="Go to home page">
-          <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" />
+          <span class="logo-wrap" [class.loaded]="logoLoaded()">
+            <img src="assets/ico/MyHomeServicerIcon.png" class="logo-icon" alt="" (load)="logoLoaded.set(true)" />
+            <span class="logo-shimmer"></span>
+          </span>
           My Home Servicer
         </button>
         @if (currentPageLabel()) {
@@ -587,6 +590,27 @@ interface PromoValidationResult {
         height: 34px;
         object-fit: contain;
         flex-shrink: 0;
+      }
+      .logo-wrap {
+        position: relative;
+        display: inline-flex;
+        width: 34px;
+        height: 34px;
+        flex-shrink: 0;
+      }
+      .logo-shimmer {
+        position: absolute;
+        inset: 0;
+        border-radius: 6px;
+        background: linear-gradient(90deg, var(--color-border) 25%, var(--color-bg) 50%, var(--color-border) 75%);
+        background-size: 200% 100%;
+        animation: logo-shimmer-move 2s ease-in-out infinite;
+        transition: opacity 0.3s;
+      }
+      .logo-wrap.loaded .logo-shimmer { opacity: 0; pointer-events: none; animation: none; }
+      @keyframes logo-shimmer-move {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
       }
       .page-title {
         font-size: 0.85rem;
@@ -1576,6 +1600,7 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   /** True while a sign-out is in flight (revoke request awaiting). */
   signingOut = signal(false);
+  logoLoaded = signal(false);
 
   // ── Rewards re-engagement prompt ────────────────────────────────────────
   rewardsPromptVisible = signal(false);

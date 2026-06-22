@@ -183,11 +183,11 @@ interface Category {
           <div class="grid">
              @for (_ of [1, 2, 3, 4, 5, 6]; track _; let i = $index) {
                <div class="card skeleton page-child">
-                 <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
-                 <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
-                 <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
-                 <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
-               </div>
+                  <span class="bw-scan1" [style.animation-delay.ms]="(-700 + i * 350) % 1200 - 1200"></span>
+                  <span class="bw-scan2" [style.animation-delay.ms]="(i * 350) % 1400 - 1400"></span>
+                  <span class="bw-sweep1" [style.animation-delay.ms]="(-1300 + i * 350) % 1800 - 1800"></span>
+                  <span class="bw-sweep2" [style.animation-delay.ms]="(-600 + i * 350) % 900 - 900"></span>
+                </div>
              }
            </div>
          } @else if (error()) {
@@ -230,10 +230,10 @@ interface Category {
                 <span class="svc-wash"></span>
                 <span class="card-cover" [class.loaded]="isLoaded(cat.id)"></span>
                 @if (!isLoaded(cat.id)) {
-                  <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
-                  <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
-                  <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
-                  <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+                  <span class="bw-scan1" [style.animation-delay.ms]="(-700 + i * 350) % 1200 - 1200"></span>
+                  <span class="bw-scan2" [style.animation-delay.ms]="(i * 350) % 1400 - 1400"></span>
+                  <span class="bw-sweep1" [style.animation-delay.ms]="(-1300 + i * 350) % 1800 - 1800"></span>
+                  <span class="bw-sweep2" [style.animation-delay.ms]="(-600 + i * 350) % 900 - 900"></span>
                 }
                 <span class="svc-body">
                   <span class="svc-ic"

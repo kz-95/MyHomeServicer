@@ -321,10 +321,10 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
                   @for (_ of [0,1,2]; track _; let i = $index) {
                     <div class="af-item bw-skeleton">
                       <span class="card-cover"></span>
-                      <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
-                      <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
-                      <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
-                      <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+                      <span class="bw-scan1" [style.animation-delay.ms]="(-700 + i * 350) % 1200 - 1200"></span>
+                      <span class="bw-scan2" [style.animation-delay.ms]="(i * 350) % 1400 - 1400"></span>
+                      <span class="bw-sweep1" [style.animation-delay.ms]="(-1300 + i * 350) % 1800 - 1800"></span>
+                      <span class="bw-sweep2" [style.animation-delay.ms]="(-600 + i * 350) % 900 - 900"></span>
                       <strong class="sk-line sk-title">&nbsp;</strong>
                       <span class="sk-line sk-sub">&nbsp;</span>
                     </div>

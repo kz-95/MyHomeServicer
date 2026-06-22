@@ -40,10 +40,10 @@ const STAGGER_MS = 70;
         @for (s of skeletonSlots; track s; let i = $index) {
           <div class="card proposal skel-card">
             <span class="card-cover"></span>
-            <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
-            <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
-            <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
-            <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+            <span class="bw-scan1" [style.animation-delay.ms]="(-700 + i * 350) % 1200 - 1200"></span>
+            <span class="bw-scan2" [style.animation-delay.ms]="(i * 350) % 1400 - 1400"></span>
+            <span class="bw-sweep1" [style.animation-delay.ms]="(-1300 + i * 350) % 1800 - 1800"></span>
+            <span class="bw-sweep2" [style.animation-delay.ms]="(-600 + i * 350) % 900 - 900"></span>
           </div>
         }
       </div>

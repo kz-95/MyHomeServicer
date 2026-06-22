@@ -34,10 +34,10 @@ interface Category {
           <div class="svc-grid">
             @for (_ of [1, 2, 3, 4]; track _; let i = $index) {
               <div class="card skeleton">
-                  <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
-                  <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
-                  <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
-                  <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+                  <span class="bw-scan1" [style.animation-delay.ms]="(-700 + i * 350) % 1200 - 1200"></span>
+                  <span class="bw-scan2" [style.animation-delay.ms]="(i * 350) % 1400 - 1400"></span>
+                  <span class="bw-sweep1" [style.animation-delay.ms]="(-1300 + i * 350) % 1800 - 1800"></span>
+                  <span class="bw-sweep2" [style.animation-delay.ms]="(-600 + i * 350) % 900 - 900"></span>
                 </div>
             }
           </div>
@@ -74,10 +74,10 @@ interface Category {
                   </span>
                   <span class="card-cover" [class.loaded]="isLoaded(cat.id)"></span>
                   @if (!isLoaded(cat.id)) {
-                    <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
-                    <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
-                    <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
-                    <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+                    <span class="bw-scan1" [style.animation-delay.ms]="(-700 + i * 350) % 1200 - 1200"></span>
+                    <span class="bw-scan2" [style.animation-delay.ms]="(i * 350) % 1400 - 1400"></span>
+                    <span class="bw-sweep1" [style.animation-delay.ms]="(-1300 + i * 350) % 1800 - 1800"></span>
+                    <span class="bw-sweep2" [style.animation-delay.ms]="(-600 + i * 350) % 900 - 900"></span>
                   }
                 </button>
             }
@@ -322,15 +322,22 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
     const next = () => {
       if (this.destroyed || i >= cats.length) return;
       const cat = cats[i++];
+      const url = this.thumbUrl(cat);
+      const t0 = performance.now();
       const img = new Image();
-      const done = () => {
+      img.src = url;
+      img.decode().then(() => {
+        if (this.destroyed) return;
+        const wait = Math.max(0, 400 - (performance.now() - t0));
+        setTimeout(() => {
+          this.loadedIds.update((s) => { const n = new Set(s); n.add(cat.id); return n; });
+          setTimeout(next, 200);
+        }, wait);
+      }).catch(() => {
         if (this.destroyed) return;
         this.loadedIds.update((s) => { const n = new Set(s); n.add(cat.id); return n; });
-        setTimeout(next, 160);
-      };
-      img.onload = done;
-      img.onerror = done;
-      img.src = this.thumbUrl(cat);
+        setTimeout(next, 200);
+      });
     };
     next();
   }

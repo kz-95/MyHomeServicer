@@ -22,8 +22,7 @@ interface Category {
   bgZoom?: number;
 }
 
-const SKELETON_COUNT = 8;
-const STAGGER_MS = 100;
+const SKELETON_COUNT = 34;
 
 /**
  * Customer landing page - find a service. Search and pick a category to
@@ -69,18 +68,19 @@ const STAGGER_MS = 100;
           <p class="muted">No services match “{{ query() }}”.</p>
         } @else {
           <div class="grid page-child" [class.stagger-done]="staggerDone()">
-            @for (cat of visibleList(); track cat.revealed ? ('real-'+cat.id) : ('skel-'+cat.index); let i = $index) {
+            @for (cat of visibleList(); track cat.id || ('skel-' + cat.index); let i = $index) {
                 <a
                   class="bw-card"
                   [class.bw-revealed]="cat.revealed"
                   [class.bw-skeleton]="!cat.revealed"
+                  [style.--spawn-delay.ms]="i * 200"
                   routerLink="/customer/quote/new"
-                  [queryParams]="cat.revealed ? { category: cat.id } : {}"
-                  [style]="cat.revealed ? {'--cat-color': cat.cardColor || 'var(--color-primary)'} : {}"
+                  [queryParams]="cat.id ? { category: cat.id } : {}"
+                  [style]="cat.id ? {'--cat-color': cat.cardColor || 'var(--color-primary)'} : {}"
                 >
-                  @if (cat.revealed) {
+                  @if (cat.id) {
                     <span class="bw-wash"></span>
-                    <span class="bw-photo" [style.background-image]="'url(' + (cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug)) + ')'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
+                    <span class="bw-photo" [style.background-image]="'url(' + (cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug || '')) + ')'" [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'" [style.background-position]="(cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'"></span>
                     <span class="bw-body">
                       <span class="bw-ic"><app-icon [name]="cat.icon || 'home'" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
                       <strong>{{ cat.name }}</strong>
@@ -88,13 +88,13 @@ const STAGGER_MS = 100;
                         <span class="bw-price">from RM {{ cat.defaultPriceSuggestion }}</span>
                       }
                     </span>
+                    <span class="card-cover" [class.loaded]="cat.revealed"></span>
                   }
-                  <span class="card-cover" [class.loaded]="cat.revealed"></span>
                   @if (!cat.revealed) {
-                    <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
-                    <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
-                    <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
-                    <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+                    <span class="bw-scan1" [style.animation-delay.ms]="(-700 + i * 350) % 1200 - 1200"></span>
+                    <span class="bw-scan2" [style.animation-delay.ms]="(i * 350) % 1400 - 1400"></span>
+                    <span class="bw-sweep1" [style.animation-delay.ms]="(-1300 + i * 350) % 1800 - 1800"></span>
+                    <span class="bw-sweep2" [style.animation-delay.ms]="(-600 + i * 350) % 900 - 900"></span>
                   }
                 </a>
             }
@@ -256,16 +256,9 @@ const STAGGER_MS = 100;
         content: "";
         position: absolute; inset: 0; z-index: 10;
         background: var(--color-bg);
-        animation: skeleton-spawn 0.35s ease both;
+        animation: skeleton-spawn 0.25s ease both;
+        animation-delay: var(--spawn-delay, 0s);
       }
-      .grid > :nth-child(1)::after { animation-delay: 0s; }
-      .grid > :nth-child(2)::after { animation-delay: 0.35s; }
-      .grid > :nth-child(3)::after { animation-delay: 0.7s; }
-      .grid > :nth-child(4)::after { animation-delay: 1.05s; }
-      .grid > :nth-child(5)::after { animation-delay: 1.4s; }
-      .grid > :nth-child(6)::after { animation-delay: 1.75s; }
-      .grid > :nth-child(7)::after { animation-delay: 2.1s; }
-      .grid > :nth-child(8)::after { animation-delay: 2.45s; }
       .bw-card.bw-skeleton {
         cursor: default;
       }
@@ -348,24 +341,25 @@ export class BrowseComponent implements OnInit, OnDestroy {
     return list;
   });
 
-  visibleList = computed(() => {
+  visibleList = computed<
+    Array<Partial<Category> & { revealed: boolean; index: number }>
+  >(() => {
     const cats = this.filtered();
     const loaded = this.loadedIds();
 
-    // During initial API load, show skeleton placeholders
+    // During the initial API load, show pure skeleton placeholders (no card data).
     if (this.loading() && cats.length === 0) {
       return Array.from({ length: SKELETON_COUNT }, (_, i) => ({
-        revealed: false as const,
+        revealed: false,
         index: i,
       }));
     }
 
-    // A card stays a skeleton until its own thumbnail finished preloading.
-    return cats.map((c, i) =>
-      loaded.has(c.id)
-        ? { revealed: true as const, index: i, ...c }
-        : { revealed: false as const, index: i },
-    );
+    // Render every real card up-front so its photo starts loading immediately,
+    // hidden under the cover. A card only flips `revealed` (cover cross-fade)
+    // once its thumbnail has fully preloaded - so the cover lifts onto an
+    // already-painted image instead of catching it mid-interlace.
+    return cats.map((c, i) => ({ ...c, revealed: loaded.has(c.id), index: i }));
   });
 
   ngOnInit(): void {
@@ -414,18 +408,29 @@ export class BrowseComponent implements OnInit, OnDestroy {
       return;
     }
     this.preloading = true;
+    const url = cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug);
+    const t0 = performance.now();
     const img = new Image();
-    const done = () => {
+    img.src = url;
+    img.decode().then(() => {
+      if (this.destroyed) return;
+      const wait = Math.max(0, 400 - (performance.now() - t0));
+      setTimeout(() => {
+        this.loadedIds.update((s) => {
+          const n = new Set(s);
+          n.add(cat.id);
+          return n;
+        });
+        setTimeout(() => this.drainPreload(), 200);
+      }, wait);
+    }).catch(() => {
       if (this.destroyed) return;
       this.loadedIds.update((s) => {
         const n = new Set(s);
         n.add(cat.id);
         return n;
       });
-      setTimeout(() => this.drainPreload(), STAGGER_MS);
-    };
-    img.onload = done;
-    img.onerror = done;
-    img.src = cat.bannerUrl || cat.imageUrl || placeholderUrl(cat.slug);
+      setTimeout(() => this.drainPreload(), 200);
+    });
   }
 }

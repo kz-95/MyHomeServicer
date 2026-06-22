@@ -3565,3 +3565,24 @@ Each phase should be a separate commit. Push to `master`.
 - Frontend `tsc --noEmit`: 0 errors
 - Frontend `ng build`: green, 14.4s
 - Backend `tsc --noEmit`: 0 errors (unchanged)
+
+---
+
+## Session 2026-06-22 (p.m.) — Skeleton animation unified + loading UX polish
+
+**Branch**: `feat/sp3-dispatch-cards`
+
+### Summary
+Refactored entire skeleton loading system across 6 components. Extracted shared keyframes + base CSS to `styles.css`. Converted all components from `::before` pseudo-element nesting to 4 independent `<span>` elements. Added DOM-consistent layered reveal (spawn overlay, card-cover fade). Applied modulo-wrapped negative animation delays. Fixed demo bar + dropdown z-index. Added logo shimmer to shell.
+
+### Key changes
+- **Shared CSS**: border-glow, bw-scan1/2, bw-sweep1/2 keyframes + base positioning in styles.css
+- **Template**: all 6 components use 4 independent spans, no ::before nesting
+- **Card reveal**: `.card-cover` overlay with CSS transition, `::after` spawn overlay with stagger
+- **Delay formula**: modulo-wrapped `(expr) % duration - duration` ensures always-negative delays
+- **drainPreload**: `img.decode()` + 400ms minimum floor replaces `onload`/`onerror`
+- **z-index**: demo bar + dropdown 9999, search-select 9999
+- **Logo shimmer**: shell.component.ts `.logo-wrap` + `.logo-shimmer` animated gradient
+- **Docs**: seed-plan.md (31→34 children), schema-notes.md (28→34 children)
+
+### Files: 11 files, +~450 / -~550 lines
