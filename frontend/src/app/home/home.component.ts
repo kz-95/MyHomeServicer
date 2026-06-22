@@ -44,11 +44,15 @@ interface Category {
       }
       <header class="topnav">
         <a class="brand" routerLink="/">
-          <img
-            src="assets/ico/MyHomeServicerIcon.png"
-            class="logo-icon"
-            alt=""
-          />
+          <span class="logo-wrap" [class.loaded]="logoLoaded()">
+            <img
+              src="assets/ico/MyHomeServicerIcon.png"
+              class="logo-icon"
+              alt=""
+              (load)="logoLoaded.set(true)"
+            />
+            <span class="logo-shimmer"></span>
+          </span>
           My Home Servicer
         </a>
         <div class="search">
@@ -108,6 +112,13 @@ interface Category {
             [style.background-position]="heroPosX() + '% ' + heroPosY() + '%'"
           ></span>
           <span class="hero-wash"></span>
+          <span class="hero-cover" [class.loaded]="!heroImageLoading()"></span>
+          @if (heroImageLoading()) {
+            <span class="bw-scan1"></span>
+            <span class="bw-scan2"></span>
+            <span class="bw-sweep1"></span>
+            <span class="bw-sweep2"></span>
+          }
         </span>
         <div class="hero-inner page-child">
           <h1>Home service,<br />sorted.</h1>
@@ -134,7 +145,7 @@ interface Category {
               </button>
             </div>
             @if (searchDropdownOpen() && query().trim()) {
-              <div class="search-dropdown">
+              <div class="search-dropdown" (mousedown)="$event.preventDefault()">
                 @for (cat of filtered(); track cat.id) {
                   <button class="sd-item" (mousedown)="pick(cat)">
                     <span class="sd-ic"
@@ -144,11 +155,13 @@ interface Category {
                         strokeWidth="1.5"
                     /></span>
                     <span>{{ cat.name }}</span>
-                    @if (cat.defaultPriceSuggestion) {
-                      <span class="sd-price"
-                        >from RM {{ cat.defaultPriceSuggestion }}</span
-                      >
-                    }
+                    <span class="sd-price">
+                      @if (cat.defaultPriceSuggestion) {
+                        from RM {{ cat.defaultPriceSuggestion }}
+                      } @else {
+                        &ndash;
+                      }
+                    </span>
                   </button>
                 } @empty {
                   <div class="sd-empty">No services match</div>
@@ -168,14 +181,16 @@ interface Category {
         <h2 class="page-child">Browse services</h2>
         @if (loading()) {
           <div class="grid">
-            @for (_ of [1, 2, 3, 4, 5, 6]; track _) {
-              <div class="card skeleton page-child">
-                <span class="bw-scan"></span>
-                <span class="bw-sweep"></span>
-              </div>
-            }
-          </div>
-        } @else if (error()) {
+             @for (_ of [1, 2, 3, 4, 5, 6]; track _; let i = $index) {
+               <div class="card skeleton page-child">
+                 <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
+                 <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
+                 <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
+                 <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+               </div>
+             }
+           </div>
+         } @else if (error()) {
           <div class="card err-card page-child">
             <span class="err-ic">
               <app-icon name="x-circle" sizeToken="lg" />
@@ -195,47 +210,48 @@ interface Category {
           </div>
         } @else {
           <div class="svc-grid">
-            @for (cat of displayed(); track cat.id) {
-              @if (isLoaded(cat.id)) {
-                <button
-                  class="svc-card svc-reveal"
-                  (click)="pick(cat)"
-                  [style]="{
-                    '--cat-color': cat.cardColor || 'var(--color-primary)',
-                  }"
-                >
-                  <span
-                    class="svc-photo"
-                    [style.background-image]="'url(' + thumbUrl(cat) + ')'"
-                    [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'"
-                    [style.background-position]="
-                      (cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'
-                    "
-                  ></span>
-                  <span class="svc-wash"></span>
-                  <span class="svc-body">
-                    <span class="svc-ic"
-                      ><app-icon
-                        [name]="cat.icon || 'home'"
-                        sizeToken="md"
-                        stroke="#fff"
-                        strokeWidth="1.5"
-                    /></span>
-                    <strong>{{ cat.name }}</strong>
-                    @if (cat.defaultPriceSuggestion) {
-                      <span class="svc-price"
-                        >from RM {{ cat.defaultPriceSuggestion }}</span
-                      >
-                    }
-                    <span class="svc-cta">Request a quote →</span>
-                  </span>
-                </button>
-              } @else {
-                <div class="card skeleton">
-                  <span class="bw-scan"></span>
-                  <span class="bw-sweep"></span>
-                </div>
-              }
+            @for (cat of displayed(); track cat.id; let i = $index) {
+              <button
+                class="svc-card"
+                [class.skeleton]="!isLoaded(cat.id)"
+                [style]="{
+                  '--cat-color': cat.cardColor || 'var(--color-primary)',
+                }"
+                (click)="pick(cat)"
+              >
+                <span
+                  class="svc-photo"
+                  [style.background-image]="'url(' + thumbUrl(cat) + ')'"
+                  [style.background-size]="cat.bgZoom && cat.bgZoom !== 100 ? (cat.bgZoom + '%') : 'cover'"
+                  [style.background-position]="
+                    (cat.bgPosX ?? 50) + '% ' + (cat.bgPosY ?? 50) + '%'
+                  "
+                ></span>
+                <span class="svc-wash"></span>
+                <span class="card-cover" [class.loaded]="isLoaded(cat.id)"></span>
+                @if (!isLoaded(cat.id)) {
+                  <span class="bw-scan1" [style.animation-delay.ms]="-700 + i * 350"></span>
+                  <span class="bw-scan2" [style.animation-delay.ms]="i * 350"></span>
+                  <span class="bw-sweep1" [style.animation-delay.ms]="-1300 + i * 350"></span>
+                  <span class="bw-sweep2" [style.animation-delay.ms]="-600 + i * 350"></span>
+                }
+                <span class="svc-body">
+                  <span class="svc-ic"
+                    ><app-icon
+                      [name]="cat.icon || 'home'"
+                      sizeToken="md"
+                      stroke="#fff"
+                      strokeWidth="1.5"
+                  /></span>
+                  <strong>{{ cat.name }}</strong>
+                  @if (cat.defaultPriceSuggestion) {
+                    <span class="svc-price"
+                      >from RM {{ cat.defaultPriceSuggestion }}</span
+                    >
+                  }
+                  <span class="svc-cta">Request a quote →</span>
+                </span>
+              </button>
             }
           </div>
         }
@@ -395,6 +411,27 @@ interface Category {
         object-fit: contain;
         flex-shrink: 0;
       }
+      .logo-wrap {
+        position: relative;
+        display: inline-flex;
+        width: 34px;
+        height: 34px;
+        flex-shrink: 0;
+      }
+      .logo-shimmer {
+        position: absolute;
+        inset: 0;
+        border-radius: 6px;
+        background: linear-gradient(90deg, var(--color-border) 25%, var(--color-bg) 50%, var(--color-border) 75%);
+        background-size: 200% 100%;
+        animation: logo-shimmer-move 2s ease-in-out infinite;
+        transition: opacity 0.3s;
+      }
+      .logo-wrap.loaded .logo-shimmer { opacity: 0; pointer-events: none; animation: none; }
+      @keyframes logo-shimmer-move {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
       .search {
         display: flex;
         align-items: center;
@@ -473,9 +510,15 @@ interface Category {
       /* ── Hero ── */
       /* No overflow/mask on the section itself - those clip the hero search
          dropdown at the hero's bottom edge. They live on .hero-bg (photo+wash
-         only) so the dropdown can overflow the hero and overlay the section below. */
+         only) so the dropdown can overflow the hero and overlay the section below.
+         z-index lifts the entire hero above later siblings (cats, testimonials,
+         how) so the search dropdown isn't buried by service cards. */
       .hero {
         position: relative;
+        /* Lifts the whole hero (and its absolutely-positioned search dropdown)
+           above the later .cats service cards, which otherwise paint over the
+           dropdown's overflow. Must clear the cards' stacking. */
+        z-index: 1000;
         width: 100%;
         padding: 2rem 1.5rem 0.6rem;
         display: flex;
@@ -522,9 +565,17 @@ interface Category {
           transparent 72%
         );
       }
+      .hero-cover {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        background: var(--color-bg);
+        transition: opacity 0.5s ease;
+        opacity: 1;
+      }
+      .hero-cover.loaded { opacity: 0; pointer-events: none; }
       .hero-inner {
         position: relative;
-        z-index: 2;
         flex: 1;
         min-width: 0;
         max-width: var(--content-max);
@@ -699,203 +750,59 @@ interface Category {
 
       /* ── Skeleton ── sized like .svc-card so the placeholder occupies the
          exact same grid track (no jump when the real card reveals). */
-      .skeleton {
-        position: relative;
-        overflow: hidden;
-        min-height: 100px;
-        background: var(--color-surface);
-        border-color: var(--color-border);
-        cursor: default;
-        animation: border-glow 1.2s cubic-bezier(0.85, 0, 0.15, 1) infinite;
+      @keyframes skeleton-spawn {
+        from { opacity: 1; }
+        to   { opacity: 0; pointer-events: none; }
       }
-      /* Card fades in only after its thumbnail finished preloading. */
+      .skeleton { min-height: 100px; border-color: var(--color-border); }
+      .skeleton::after,
+      .svc-card.skeleton::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        background: var(--color-bg);
+        animation: skeleton-spawn 0.35s ease both;
+      }
+      /* Stagger skeleton spawn 0.35s per card */
+      .grid > :nth-child(1)::after,
+      .svc-grid > :nth-child(1)::after { animation-delay: 0s; }
+      .grid > :nth-child(2)::after,
+      .svc-grid > :nth-child(2)::after { animation-delay: 0.35s; }
+      .grid > :nth-child(3)::after,
+      .svc-grid > :nth-child(3)::after { animation-delay: 0.7s; }
+      .grid > :nth-child(4)::after,
+      .svc-grid > :nth-child(4)::after { animation-delay: 1.05s; }
+      .grid > :nth-child(5)::after,
+      .svc-grid > :nth-child(5)::after { animation-delay: 1.4s; }
+      .grid > :nth-child(6)::after,
+      .svc-grid > :nth-child(6)::after { animation-delay: 1.75s; }
+      .skeleton:hover { transform: none; box-shadow: var(--shadow); }
       @keyframes card-reveal {
         from { opacity: 0; transform: translateY(10px) scale(0.97); }
         to   { opacity: 1; transform: translateY(0) scale(1); }
       }
       .svc-reveal { animation: card-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
-      .skeleton:hover {
+      .svc-card.skeleton {
+        cursor: default;
+      }
+      .svc-card.skeleton:hover {
         transform: none;
         box-shadow: var(--shadow);
       }
-      @keyframes border-glow {
-        0%,
-        100% {
-          border-color: var(--color-border);
-          box-shadow: var(--shadow);
-        }
-        15% {
-          border-color: rgba(240, 160, 30, 0.15);
-          box-shadow:
-            0 0 0 1px rgba(240, 160, 30, 0.06),
-            var(--shadow);
-        }
-        50% {
-          border-color: rgba(240, 160, 30, 0.35);
-          box-shadow:
-            0 0 0 1.5px rgba(240, 160, 30, 0.12),
-            var(--shadow-md);
-        }
-        85% {
-          border-color: rgba(240, 160, 30, 0.15);
-          box-shadow:
-            0 0 0 1px rgba(240, 160, 30, 0.06),
-            var(--shadow);
-        }
-      }
-      /* ── Scan + Sweep light bars ── 4 layers ── */
-      /* Scan: thicker = slower (0.9s / 1.4s) */
-      @keyframes bw-scan1 {
-        0% {
-          transform: skewX(-24deg) translateX(-98%);
-        }
-        100% {
-          transform: skewX(-24deg) translateX(245%);
-        }
-      }
-      @keyframes bw-scan2 {
-        0% {
-          transform: skewX(-24deg) translateX(-53%);
-        }
-        100% {
-          transform: skewX(-24deg) translateX(107%);
-        }
-      }
-      /* Sweep: thicker = faster (1.8s / 1.5s) */
-      @keyframes bw-sweep1 {
-        0% {
-          transform: skewX(-24deg) translateX(-103%);
-        }
-        100% {
-          transform: skewX(-24deg) translateX(295%);
-        }
-      }
-      @keyframes bw-sweep2 {
-        0% {
-          transform: skewX(-24deg) translateX(-53%);
-        }
-        100% {
-          transform: skewX(-24deg) translateX(118%);
-        }
-      }
-
-      /* ── Scan/Sweep layer base ── */
-      .bw-scan,
-      .bw-sweep {
+      .card-cover {
         position: absolute;
-        top: 0;
-        height: 100%;
-        z-index: 5;
-        pointer-events: none;
-        will-change: transform;
-        backface-visibility: hidden;
-        transform: translateZ(0);
+        inset: 0;
+        z-index: 4;
+        background: var(--color-surface);
+        transition: opacity 0.35s ease;
       }
-      .bw-scan::before,
-      .bw-sweep::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        height: 100%;
-        pointer-events: none;
-        will-change: transform;
-        backface-visibility: hidden;
-        transform: translateZ(0);
-      }
-
-      /* ── Scan-1 - thin, fast (0.9s) ── */
-      .bw-scan {
-        width: 41%;
-        background: linear-gradient(
-          to right,
-          transparent 0%,
-          rgba(180, 140, 255, 0.06) 25%,
-          rgba(240, 160, 30, 0.12) 50%,
-          rgba(180, 140, 255, 0.06) 75%,
-          transparent 100%
-        );
-        animation: bw-scan1 0.9s linear infinite;
-      }
-      /* ── Scan-2 - medium (1.4s) ── */
-      .bw-scan::before {
-        width: 94%;
-        background: linear-gradient(
-          to right,
-          transparent 0%,
-          rgba(140, 210, 255, 0.08) 30%,
-          rgba(240, 160, 30, 0.14) 50%,
-          rgba(140, 210, 255, 0.08) 70%,
-          transparent 100%
-        );
-        animation: bw-scan2 1.4s linear infinite;
-      }
-
-      /* ── Sweep-1 - thin, slow (1.8s) ── */
-      .bw-sweep {
-        width: 34%;
-        background: linear-gradient(
-          to right,
-          transparent 0%,
-          rgba(255, 180, 180, 0.06) 25%,
-          rgba(240, 160, 30, 0.12) 50%,
-          rgba(255, 180, 180, 0.06) 75%,
-          transparent 100%
-        );
-        animation: bw-sweep1 1.8s linear infinite;
-      }
-      /* ── Sweep-2 - medium (1.5s) ── */
-      .bw-sweep::before {
-        width: 85%;
-        background: linear-gradient(
-          to right,
-          transparent 0%,
-          rgba(180, 220, 255, 0.08) 30%,
-          rgba(240, 160, 30, 0.14) 50%,
-          rgba(180, 220, 255, 0.08) 70%,
-          transparent 100%
-        );
-        animation: bw-sweep2 1.5s linear infinite;
-      }
-
-      /* Staggered delay per skeleton card */
-      .card.skeleton:nth-child(1) .bw-scan,
-      .card.skeleton:nth-child(1) .bw-sweep {
-        animation-delay: 0s;
-      }
-      .card.skeleton:nth-child(2) .bw-scan,
-      .card.skeleton:nth-child(2) .bw-sweep {
-        animation-delay: 0.15s;
-      }
-      .card.skeleton:nth-child(3) .bw-scan,
-      .card.skeleton:nth-child(3) .bw-sweep {
-        animation-delay: 0.3s;
-      }
-      .card.skeleton:nth-child(4) .bw-scan,
-      .card.skeleton:nth-child(4) .bw-sweep {
-        animation-delay: 0.45s;
-      }
-      .card.skeleton:nth-child(5) .bw-scan,
-      .card.skeleton:nth-child(5) .bw-sweep {
-        animation-delay: 0.6s;
-      }
-      .card.skeleton:nth-child(6) .bw-scan,
-      .card.skeleton:nth-child(6) .bw-sweep {
-        animation-delay: 0.75s;
-      }
+      .card-cover.loaded { opacity: 0; pointer-events: none; }
 
       @media (prefers-reduced-motion: reduce) {
-        .bw-scan,
-        .bw-sweep,
-        .bw-scan::before,
-        .bw-sweep::before {
-          animation: none;
-        }
-        .skeleton {
-          animation: none;
-        }
-        .svc-reveal {
-          animation: none;
-        }
+        .svc-reveal { animation: none; }
+        .skeleton::after,
+        .svc-card.skeleton::after { animation: none; opacity: 0; }
       }
 
       /* ── Testimonials ── */
@@ -1583,10 +1490,19 @@ export class HomeComponent implements OnInit, OnDestroy {
   private destroyed = false;
 
   constructor() {
-    // Preload thumbnails for whatever the grid currently shows (tracks search
-    // results too) so each card reveals only once its image is fully loaded.
     effect(() => {
       this.queuePreload(this.displayed());
+    });
+    effect(() => {
+      const url = this.heroBannerUrl() || '/assets/Images/Banner_Placeholder.png';
+      this.heroImageLoading.set(true);
+      const img = new Image();
+      const t0 = performance.now();
+      img.src = url;
+      img.decode().then(() => {
+        const wait = Math.max(0, 200 - (performance.now() - t0));
+        setTimeout(() => this.heroImageLoading.set(false), wait);
+      }).catch(() => this.heroImageLoading.set(false));
     });
   }
 
@@ -1621,25 +1537,37 @@ export class HomeComponent implements OnInit, OnDestroy {
       return;
     }
     this.preloading = true;
+    const t0 = performance.now();
     const img = new Image();
-    const done = () => {
+    img.src = this.thumbUrl(cat);
+    img.decode().then(() => {
+      if (this.destroyed) return;
+      const wait = Math.max(0, 200 - (performance.now() - t0));
+      setTimeout(() => {
+        this.loadedIds.update((s) => {
+          const n = new Set(s);
+          n.add(cat.id);
+          return n;
+        });
+        setTimeout(() => this.drainPreload(), 200);
+      }, wait);
+    }).catch(() => {
       if (this.destroyed) return;
       this.loadedIds.update((s) => {
         const n = new Set(s);
         n.add(cat.id);
         return n;
       });
-      setTimeout(() => this.drainPreload(), 120);
-    };
-    img.onload = done;
-    img.onerror = done;
-    img.src = this.thumbUrl(cat);
+      setTimeout(() => this.drainPreload(), 200);
+    });
   }
   error = signal(false);
   query = signal("");
   searchDropdownOpen = signal(false);
   fabCollapsed = signal(false);
   heroBannerUrl = signal("");
+  heroImageLoading = signal(true);
+  logoLoaded = signal(false);
   heroPosX = signal("50");
   heroPosY = signal("30");
   heroZoom = signal("100");
@@ -1685,10 +1613,13 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   // When searching, match across ALL categories (children included) so a service
   // like "aircond repair" surfaces even though only the 7 parents show by default.
+  // Items with a defaultPriceSuggestion sort first so priced services surface at the top.
   filtered = computed(() => {
     const q = this.query().trim().toLowerCase();
-    if (!q) return this.categories();
-    return this.allCategories().filter((c) => c.name.toLowerCase().includes(q));
+    const all = q ? this.allCategories().filter((c) => c.name.toLowerCase().includes(q)) : this.categories();
+    const priced = all.filter((c) => c.defaultPriceSuggestion != null);
+    const unpriced = all.filter((c) => c.defaultPriceSuggestion == null);
+    return [...priced, ...unpriced];
   });
 
   displayed = computed((): Category[] => {
