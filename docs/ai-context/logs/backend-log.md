@@ -2,6 +2,40 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-23 — Auto-Accept Wiring + Listing Preview (Item 2)
+
+**Scope:** TODO.md Item 2 — wire `evaluateAutoAcceptGates` into the live auto-accept flow, create listing preview endpoint, fix MYT `getUTCDay` bug in dispatch.service.ts. Executed on `feat/sp3-dispatch-cards`.
+
+### Task 1 — Wire `evaluateAutoAcceptGates` into dispatchMatches
+- `quote.service.ts:8-10` (imports): Replaced `quoteMatchesAutoAccept, computeAutoPrice` (legacy) with `evaluateAutoAcceptGates, QuoteLite, ListingLite, ServicerLite, ScheduleLite` from `sp3-auto-accept.service` + `ModuleLite` from `listing-pricing.service` + `getSstRate` from `settings.service`.
+- `quote.service.ts:521-619` (auto-accept loop): Replaced the old single-`service.find(quoteMatchesAutoAccept)` + `computeAutoPrice` + preset lookup with the SP-3 4-gate engine:
+  1. Pre-fetches `sstRate`, all `ServicerModule` rows from all matched services' `moduleRefs`, and all `ServicerSchedule` rows for all matched servicers (batched, one query each).
+  2. For each match, filters to services with `autoAccept: true`, builds `ListingLite` + `ServicerLite` + `QuoteLite` adapters, calls `evaluateAutoAcceptGates(...)`.
+  3. If `result.pass`, creates `QuoteProposal` with `proposedPrice: result.total`, `lineItems: result.lineItems`, `etaMinutes: result.durationMin`, `message: service.autoAcceptMessage`.
+  4. Preset ID is no longer stored (the SP-3 engine replaces the preset price-offset model). Message falls back to the listing's `autoAcceptMessage` field.
+- The old `quoteMatchesAutoAccept` / `computeAutoPrice` remain defined in `auto-accept.service.ts` but are no longer imported by the live flow.
+
+### Task 2 — Listing preview endpoint
+- `servicer.routes.ts:31-38` (imports): Added `ServicerTaxConfig` from `lib/money`, `OptionPriceMap, ModuleRef` from `lib/json-schemas`, `ModuleLite, ListingForPricing, Answers, computeListingPrice, computeListingDurationMin` from `listing-pricing.service`.
+- New route `GET /servicer/me/services/:id/preview`:
+  - Auth: `requireAuth` + `requireServicer` (inherited from router-level middleware).
+  - Query: `?answers={"type":"wall"}` (optional JSON string for per-question answers).
+  - Returns: `{ data: { listingId, basePrice, priceType, subtotal, serviceCharge, sst, total, lineItems[], durationMin, autoAccept: { eligible, reasons[] } } }`.
+  - Auto-accept eligibility is a structural check (autoAccept ON + priceType === 'fixed'); full 4-gate evaluation requires a real quote context (budget, preferredDate, timeSlot, lat/lng) which is NOT available in a listing-preview call.
+
+### Task 3 — Fix dispatch.service.ts MYT day bug
+- `dispatch.service.ts:41-42`: The old `currentDay = WEEKDAYS[now.getUTCDay()]` + `currentHour = now.getUTCHours() + 8` had the hour shifted but the day was still UTC. At UTC 23:00 (MYT 07:00 the next day), the day was wrong — near midnight, the dispatch would target the **previous** MYT weekday.
+- Fix: Compute `mytNow = new Date(now.getTime() + 8 * 3600_000)` first, then derive both `currentDay` and `currentHour` from `mytNow`. This is the same pattern used in `sp3-auto-accept.service.ts:91-92`.
+
+**Gates:**
+- `rtk proxy npx tsc --noEmit`: 8 pre-existing errors (admin.service.ts unused imports, credit.service.ts INSUFFICIENT_CREDIT type drift, routes/index.ts missing exports). Zero new errors.
+- `npx jest tests/unit/listing-pricing.test.ts`: 14/14 pass (7 pricing + 2 duration + 5 auto-accept gates). All green.
+
+**Commits:**
+1. `fix(dispatch): apply MYT +8h shift before both day and hour reads`
+2. `feat(auto-accept): wire evaluateAutoAcceptGates into dispatchMatches live flow`
+3. `feat(listing): add GET /servicer/me/services/:id/preview endpoint`
+
 ## Session 2026-06-23 — Escrow Integrity (Item 3)
 
 **Scope:** TODO.md Item 3 — four-part escrow integrity fix on `feat/sp3-dispatch-cards`.

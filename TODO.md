@@ -33,7 +33,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   - [x] Stream C — urgent same-day: admin-configurable RM150 fee (20% platform / 80% servicer), customer warning hint, line-item + escrow split, admin-dashboard urgent-fee line
   - [x] Stream A — card visual: Price→Time→Place bold hierarchy, address, `[Urgent]` tag, propertyType chip, `View on map` deep-link (Google/Waze, new tab), ▾ expander (name/avatar/answers/notes). Frontend-only. File: `frontend/src/app/servicer/pages/incoming-quotes.component.ts`
   - [ ] Tier 2 (optional): OSM mini-map in expander if `lat/lng` seeded
-- [ ] **2. Auto-accept wiring** (beat 2) — wire `evaluateAutoAcceptGates` into the live
+- [x] **2. Auto-accept wiring** (beat 2) — wire `evaluateAutoAcceptGates` into the live
   flow; listing preview endpoint. (SP3 work-stream B; MYT bug fixed in item 1)
 - [x] **3. Escrow integrity** (beat 3/6) — write `escrow_hold` at payment time; derive
   amount server-side; when accepted/final price (+ urgent fee) > escrow held → BLOCK +
