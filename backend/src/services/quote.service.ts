@@ -294,10 +294,11 @@ export async function createQuote(
   // so the amount held here can never drift from the figure the customer saw
   // (BUG-4). Gateway (Stripe card) payments are paid via card, not the wallet,
   // so no credit hold applies.
-  const creditHold =
+  const baseHold =
     input.paymentMode === 'pay_now' && input.settlementMethod !== 'gateway'
       ? computeHoldAmount(input.budgetMax ?? null, input.tipAmount ?? 0)
       : 0;
+  const creditHold = baseHold > 0 && urgentFee ? Math.round((baseHold + urgentFee) * 100) / 100 : baseHold;
   if (creditHold > 0 && !options?.skipCreditCheck) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
