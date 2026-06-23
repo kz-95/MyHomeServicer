@@ -17,6 +17,7 @@ import { haversineKm } from '../lib/distance';
 import { computeHoldAmount } from '../lib/money';
 import { TIME_SLOTS, TimeSlotValue } from '../lib/time-slots';
 import { startDispatchRotation } from './dispatch.service';
+import { jobDatetime, isPastJob, isSameDayMYT, resolveUrgentFee } from './quote-timing.service';
 
 /** The 15-minute gap between servicer deadline and proposal deadline. */
 const SERVICER_DEADLINE_OFFSET_MS = 15 * 60_000;
@@ -41,7 +42,8 @@ export interface CreateQuoteInput {
   settlementMethod?: 'credit' | 'gateway' | 'cash';
   tipAmount?: number;
   deadlineMode: 'fcfs' | 'fixed_time';
-  proposalDeadline: string;
+  /** @deprecated Deadline is now derived from the job time; ignored if passed. */
+  proposalDeadline?: string;
   notes?: string;
   promoCode?: string;
   serviceDetails?: Record<string, string | string[]>;
@@ -204,14 +206,23 @@ export async function createQuote(
   input: CreateQuoteInput,
   options?: { skipCreditCheck?: boolean; deferBroadcastUntilPayment?: boolean },
 ) {
-  const proposalDeadline = new Date(input.proposalDeadline);
-  if (Number.isNaN(proposalDeadline.getTime()) || proposalDeadline <= new Date()) {
-    throw badRequest('proposalDeadline must be a valid future timestamp');
-  }
-  const servicerDeadline = new Date(proposalDeadline.getTime() - SERVICER_DEADLINE_OFFSET_MS);
-  if (servicerDeadline <= new Date()) {
-    throw badRequest('proposalDeadline must be at least 15 minutes in the future');
-  }
+  // Timing model (2026-06-23): the job's own start time drives the response
+  // window. No customer-chosen deadline; no past-dated jobs.
+  const preferred = new Date(input.preferredDate);
+  if (Number.isNaN(preferred.getTime())) throw badRequest('preferredDate must be a valid date');
+  const jobAt = jobDatetime(preferred, input.timeSlot);
+  if (isPastJob(jobAt)) throw badRequest('Cannot request a job in the past — pick a current or future time.');
+
+  // Servicers must respond before the job starts (buffer-trimmed); proposal
+  // deadline == job start. Reuse the existing 15-min buffer constant.
+  const servicerDeadline = new Date(jobAt.getTime() - SERVICER_DEADLINE_OFFSET_MS);
+  const proposalDeadline = jobAt;
+
+  // Same MYT calendar day → urgent surcharge (snapshot fee so later setting
+  // changes never rewrite history).
+  const urgentCfg = isSameDayMYT(jobAt, new Date()) ? await resolveUrgentFee() : null;
+  const isUrgent = urgentCfg !== null;
+  const urgentFee = urgentCfg ? urgentCfg.amount : null;
 
   let address;
   if (input.addressId) {
@@ -327,6 +338,8 @@ export async function createQuote(
       deadlineMode: input.deadlineMode,
       proposalDeadline,
       servicerDeadline,
+      isUrgent,
+      urgentFee,
       notes: input.notes ?? null,
       promoCode: input.promoCode ?? null,
       ...(input.serviceDetails
@@ -804,13 +817,19 @@ export async function getQuoteProposals(userId: string, quoteId: string) {
 }
 
 /** Cancel an open quote before any proposal is selected. */
-export async function cancelQuote(userId: string, quoteId: string): Promise<void> {
+export async function cancelQuote(userId: string, quoteId: string, reason?: string, details?: string): Promise<void> {
   const quote = await prisma.quoteRequest.findFirst({ where: { id: quoteId, userId } });
   if (!quote) throw notFound('Quote not found');
   if (quote.status !== 'open') {
     throw conflict('Quote is already matched, expired, or reposted');
   }
-  await prisma.quoteRequest.update({ where: { id: quoteId }, data: { status: 'cancelled' } });
+
+  // Store cancel reason in notes for admin visibility.
+  const cancelNote = details ? `${reason}: ${details}` : reason;
+  await prisma.quoteRequest.update({
+    where: { id: quoteId },
+    data: { status: 'cancelled', notes: cancelNote ?? 'Cancelled by customer' },
+  });
 
   // Refund the credit hold that was taken at quote creation.
   const refundAmount =
