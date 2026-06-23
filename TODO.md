@@ -28,9 +28,9 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 > - Plan 5 — `docs/superpowers/plans/2026-06-23-customer-journey-polish.md` (C1 proposal logo + C2 Order History consolidation; C2 has open route-shape question — confirm before its Task 3)
 
 - [ ] **1. Dispatch card spec — build top-down** (beat 2). Per the spec, in order:
-  - [ ] Schema migration: `QuoteRequest.isUrgent/urgentFee/images`, Booking carry-through, seed `urgent_same_day_fee` setting
-  - [ ] Stream B — timing rework: job datetime from `preferredDate`+bucket (morning 8 / noon 12 / afternoon 14 / evening 18 / night 20 MYT); timer = now→job time; reject past bookings; fix MYT `getUTCDay` bug; drop customer deadline picker
-  - [ ] Stream C — urgent same-day: admin-configurable RM150 fee (20% platform / 80% servicer), customer warning hint, line-item + escrow split, admin-dashboard urgent-fee line
+  - [x] Schema migration: `QuoteRequest.isUrgent/urgentFee/images`, Booking carry-through, seed `urgent_same_day_fee` setting
+  - [x] Stream B — timing rework: job datetime from `preferredDate`+bucket (morning 8 / noon 12 / afternoon 14 / evening 18 / night 20 MYT); timer = now→job time; reject past bookings; fix MYT `getUTCDay` bug; drop customer deadline picker
+  - [x] Stream C — urgent same-day: admin-configurable RM150 fee (20% platform / 80% servicer), customer warning hint, line-item + escrow split, admin-dashboard urgent-fee line
   - [ ] Stream A — card visual: Price→Time→Place bold hierarchy, address, `[Urgent]` tag, propertyType chip, `View on map` deep-link (Google/Waze, new tab), ▾ expander (name/avatar/answers/notes). Frontend-only. File: `frontend/src/app/servicer/pages/incoming-quotes.component.ts`
   - [ ] Tier 2 (optional): OSM mini-map in expander if `lat/lng` seeded
 - [ ] **2. Auto-accept wiring** (beat 2) — wire `evaluateAutoAcceptGates` into the live

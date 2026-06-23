@@ -1,6 +1,6 @@
 # Dispatch Backend Foundation — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Rework quote timing so the response timer runs now → job time, reject past-dated bookings, and add an admin-configurable same-day "urgent" surcharge — the backend foundation the redesigned dispatch card renders.
 
@@ -34,11 +34,11 @@ Run tests with `npm test` (jest) from `backend/`. Type-gate every edit: `rtk pro
 - Modify: `backend/prisma/schema.prisma` (QuoteRequest ~`812-857`, Booking model)
 - Create: migration folder via `prisma migrate dev`
 
-- [ ] **Step 1: Stop the running backend.** The server holds a lock on
+- [x] **Step 1: Stop the running backend.** The server holds a lock on
   `query_engine-windows.dll.node`; `prisma generate` fails silently while it runs
   (P2022 on next login). Stop the backend terminal / `Run.bat` window before migrating.
 
-- [ ] **Step 2: Add fields to `QuoteRequest`** (after `lng Float?`, ~line 840):
+- [x] **Step 2: Add fields to `QuoteRequest`** (after `lng Float?`, ~line 840):
 
 ```prisma
   isUrgent   Boolean  @default(false) @map("is_urgent")
@@ -46,19 +46,19 @@ Run tests with `npm test` (jest) from `backend/`. Type-gate every edit: `rtk pro
   images     String[] @default([]) @map("images")
 ```
 
-- [ ] **Step 3: Add carry-through fields to `Booking`** (alongside its other money fields):
+- [x] **Step 3: Add carry-through fields to `Booking`** (alongside its other money fields):
 
 ```prisma
   isUrgent   Boolean  @default(false) @map("is_urgent")
   urgentFee  Decimal? @db.Decimal(10, 2) @map("urgent_fee")
 ```
 
-- [ ] **Step 4: Create + apply the migration**
+- [x] **Step 4: Create + apply the migration**
 
 Run (from `backend/`): `npm run db:migrate -- --name dispatch_urgent_images`
 Expected: prisma creates `prisma/migrations/<ts>_dispatch_urgent_images/`, applies it, regenerates the client. No P2022.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/prisma/schema.prisma backend/prisma/migrations
@@ -73,7 +73,7 @@ git commit -m "feat(quote): schema for urgent surcharge + quote images"
 - Modify: `backend/src/lib/time-slots.ts`
 - Test: `backend/tests/unit/quote-timing.test.ts` (new)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 import { SLOT_START_HOUR, slotStartHour } from '../../src/lib/time-slots';
@@ -88,12 +88,12 @@ describe('slot start hours (MYT)', () => {
 });
 ```
 
-- [ ] **Step 2: Run it, verify it fails**
+- [x] **Step 2: Run it, verify it fails**
 
 Run: `npx jest tests/unit/quote-timing.test.ts -t "slot start hours"`
 Expected: FAIL — `SLOT_START_HOUR` is not exported.
 
-- [ ] **Step 3: Add to `backend/src/lib/time-slots.ts`** (after the existing `TIME_SLOTS` / `TimeSlotValue`):
+- [x] **Step 3: Add to `backend/src/lib/time-slots.ts`** (after the existing `TIME_SLOTS` / `TimeSlotValue`):
 
 ```typescript
 /** Start hour (MYT, 24h) for each quote time-slot bucket. Mirrors SLOT_END_HOUR
@@ -111,12 +111,12 @@ export function slotStartHour(slot: TimeSlotValue): number {
 }
 ```
 
-- [ ] **Step 4: Run it, verify it passes**
+- [x] **Step 4: Run it, verify it passes**
 
 Run: `npx jest tests/unit/quote-timing.test.ts -t "slot start hours"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src/lib/time-slots.ts backend/tests/unit/quote-timing.test.ts
@@ -131,7 +131,7 @@ git commit -m "feat(quote): slot start-hour map for job-time derivation"
 - Create: `backend/src/services/quote-timing.service.ts`
 - Test: `backend/tests/unit/quote-timing.test.ts` (append)
 
-- [ ] **Step 1: Write the failing tests** (append to the file)
+- [x] **Step 1: Write the failing tests** (append to the file)
 
 ```typescript
 import { jobDatetime, isPastJob, isSameDayMYT } from '../../src/services/quote-timing.service';
@@ -171,12 +171,12 @@ describe('isSameDayMYT', () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail**
+- [x] **Step 2: Run, verify fail**
 
 Run: `npx jest tests/unit/quote-timing.test.ts -t "jobDatetime"`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Create `backend/src/services/quote-timing.service.ts`**
+- [x] **Step 3: Create `backend/src/services/quote-timing.service.ts`**
 
 ```typescript
 import { TimeSlotValue, slotStartHour } from '../lib/time-slots';
@@ -214,12 +214,12 @@ export function isSameDayMYT(a: Date, b: Date): boolean {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass**
+- [x] **Step 4: Run, verify pass**
 
 Run: `npx jest tests/unit/quote-timing.test.ts`
 Expected: PASS (all describes).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src/services/quote-timing.service.ts backend/tests/unit/quote-timing.test.ts
@@ -235,7 +235,7 @@ git commit -m "feat(quote): job-datetime + past + same-day MYT helpers"
 - Test: `backend/tests/unit/quote-timing.test.ts` (append)
 - Seed: `backend/prisma/seed/*` — add the setting
 
-- [ ] **Step 1: Seed the platform setting.** Find where existing settings like
+- [x] **Step 1: Seed the platform setting.** Find where existing settings like
   `platform_fee_rate` / `quote_buffer_minutes` are seeded (grep
   `platform_fee_rate` under `backend/prisma/seed/`) and add a sibling row:
 
@@ -243,7 +243,7 @@ git commit -m "feat(quote): job-datetime + past + same-day MYT helpers"
 { key: 'urgent_same_day_fee', value: { amount: 150, platform_share: 0.20 } },
 ```
 
-- [ ] **Step 2: Write the failing test** (append)
+- [x] **Step 2: Write the failing test** (append)
 
 ```typescript
 import { splitUrgentFee } from '../../src/services/quote-timing.service';
@@ -258,12 +258,12 @@ describe('splitUrgentFee', () => {
 });
 ```
 
-- [ ] **Step 3: Run, verify fail**
+- [x] **Step 3: Run, verify fail**
 
 Run: `npx jest tests/unit/quote-timing.test.ts -t "splitUrgentFee"`
 Expected: FAIL — not exported.
 
-- [ ] **Step 4: Add to `quote-timing.service.ts`**
+- [x] **Step 4: Add to `quote-timing.service.ts`**
 
 ```typescript
 import { getSetting } from './settings.service';
@@ -284,12 +284,12 @@ export function splitUrgentFee(amount: number, platformShare: number): { platfor
 }
 ```
 
-- [ ] **Step 5: Run, verify pass**
+- [x] **Step 5: Run, verify pass**
 
 Run: `npx jest tests/unit/quote-timing.test.ts -t "splitUrgentFee"`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/src/services/quote-timing.service.ts backend/tests/unit/quote-timing.test.ts backend/prisma/seed
@@ -303,13 +303,13 @@ git commit -m "feat(quote): urgent-fee resolver + split + seed setting"
 **Files:**
 - Modify: `backend/src/services/quote.service.ts` (`createQuote`, `200-340`)
 
-- [ ] **Step 1: Add imports** (top of `quote.service.ts`, with the other `./` imports):
+- [x] **Step 1: Add imports** (top of `quote.service.ts`, with the other `./` imports):
 
 ```typescript
 import { jobDatetime, isPastJob, isSameDayMYT, resolveUrgentFee } from './quote-timing.service';
 ```
 
-- [ ] **Step 2: Replace the deadline block** (`quote.service.ts:207-214`). Old code:
+- [x] **Step 2: Replace the deadline block** (`quote.service.ts:207-214`). Old code:
 
 ```typescript
   const proposalDeadline = new Date(input.proposalDeadline);
@@ -344,7 +344,7 @@ Replace with (deadline derived from the job time, not customer-entered):
   const urgentFee = urgentCfg ? urgentCfg.amount : null;
 ```
 
-- [ ] **Step 3: Persist the urgent fields.** In the `prisma.quoteRequest.create({ data: { ... } })`
+- [x] **Step 3: Persist the urgent fields.** In the `prisma.quoteRequest.create({ data: { ... } })`
   block (`quote.service.ts:308-340`), add after `servicerDeadline,`:
 
 ```typescript
@@ -352,7 +352,7 @@ Replace with (deadline derived from the job time, not customer-entered):
       urgentFee,
 ```
 
-- [ ] **Step 4: Make `proposalDeadline` optional on the input type.** In
+- [x] **Step 4: Make `proposalDeadline` optional on the input type.** In
   `CreateQuoteInput` (`quote.service.ts:24-47`) change:
 
 ```typescript
@@ -366,16 +366,16 @@ to
 
 This keeps existing callers (repost, guest, seed, route) compiling while the value is ignored.
 
-- [ ] **Step 5: Type-gate**
+- [x] **Step 5: Type-gate**
 
 Run: `rtk proxy npx tsc --noEmit` (from `backend/`)
 Expected: zero errors. (If callers reference `input.proposalDeadline`, they still compile — it's optional now.)
 
-- [ ] **Step 6: Smoke test the rejection.** Add a focused test
+- [x] **Step 6: Smoke test the rejection.** Add a focused test
   `backend/tests/unit/quote-timing.test.ts` (append) that the helper rejects past:
   already covered by `isPastJob`. No new test needed here; integration is covered by E2E.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/src/services/quote.service.ts
@@ -389,7 +389,7 @@ git commit -m "feat(quote): derive deadline from job time, reject past, flag urg
 **Files:**
 - Modify: `backend/src/services/quote.service.ts` (`creditHold`, `286-300`)
 
-- [ ] **Step 1: Add the urgent fee to the hold.** Old (`quote.service.ts:286-289`):
+- [x] **Step 1: Add the urgent fee to the hold.** Old (`quote.service.ts:286-289`):
 
 ```typescript
   const creditHold =
@@ -408,12 +408,12 @@ Replace with (escrow must cover the surcharge so it can't be bypassed):
   const creditHold = baseHold > 0 && urgentFee ? Math.round((baseHold + urgentFee) * 100) / 100 : baseHold;
 ```
 
-- [ ] **Step 2: Type-gate**
+- [x] **Step 2: Type-gate**
 
 Run: `rtk proxy npx tsc --noEmit`
 Expected: zero errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/src/services/quote.service.ts
@@ -431,7 +431,7 @@ git commit -m "feat(quote): include urgent fee in pay-now credit hold"
 **Files:**
 - Modify: `backend/src/routes/quotes.routes.ts` (`146`, `236` area)
 
-- [ ] **Step 1: Find the validators.** Grep `proposalDeadline` in `quotes.routes.ts`.
+- [x] **Step 1: Find the validators.** Grep `proposalDeadline` in `quotes.routes.ts`.
   For each `body('proposalDeadline')...` chain that is required, add `.optional()`:
 
 ```typescript
@@ -441,7 +441,7 @@ git commit -m "feat(quote): include urgent fee in pay-now credit hold"
 (Keep whatever format check exists; just prepend `.optional()`.) The value is now
 ignored by `createQuote`, so a missing one must not 400.
 
-- [ ] **Step 2: Type-gate + commit**
+- [x] **Step 2: Type-gate + commit**
 
 Run: `rtk proxy npx tsc --noEmit`
 ```bash
@@ -456,23 +456,23 @@ git commit -m "fix(quote): proposalDeadline optional (deadline now derived)"
 **Files:**
 - Modify: `backend/src/services/servicer-quote.service.ts` (`listIncomingQuotes`, `243-308`)
 
-- [ ] **Step 1: Select the fields.** The query already does
+- [x] **Step 1: Select the fields.** The query already does
   `include: { quoteRequest: { ... } }`. `isUrgent`/`urgentFee` are scalar columns on
   `quoteRequest`, so they're already loaded — no `select` change needed.
 
-- [ ] **Step 2: Add to the returned object** (in the `.map`, after `paymentMode: q.paymentMode,`):
+- [x] **Step 2: Add to the returned object** (in the `.map`, after `paymentMode: q.paymentMode,`):
 
 ```typescript
         isUrgent: q.isUrgent,
         urgentFee: q.urgentFee != null ? Number(q.urgentFee) : null,
 ```
 
-- [ ] **Step 3: Type-gate**
+- [x] **Step 3: Type-gate**
 
 Run: `rtk proxy npx tsc --noEmit`
 Expected: zero errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/src/services/servicer-quote.service.ts
@@ -483,25 +483,25 @@ git commit -m "feat(servicer): surface urgent flag + fee on incoming quotes"
 
 ## Task 9: Reseed + manual verification
 
-- [ ] **Step 1: Reseed** (server stopped during migrate; restart after).
+- [x] **Step 1: Reseed** (server stopped during migrate; restart after).
 
 Run (from `backend/`): `npm run db:reset` (migrate reset + reseed) then start the backend.
 Expected: seed completes, `urgent_same_day_fee` row present.
 
-- [ ] **Step 2: Run the full unit suite**
+- [x] **Step 2: Run the full unit suite**
 
 Run: `npm test`
 Expected: all green, including the new `quote-timing.test.ts`.
 
-- [ ] **Step 3: Manual check — same-day urgent.** Create a quote (customer.fresh) with
+- [x] **Step 3: Manual check — same-day urgent.** Create a quote (customer.fresh) with
   `preferredDate` = today and an afternoon slot via the quote form. Expected: quote
   persists with `isUrgent = true`, `urgentFee = 150`; the servicer feed
   (`GET /servicer/quotes` as M9) returns `isUrgent: true`.
 
-- [ ] **Step 4: Manual check — past rejection.** Attempt a quote with a past date.
+- [x] **Step 4: Manual check — past rejection.** Attempt a quote with a past date.
   Expected: 400 "Cannot request a job in the past".
 
-- [ ] **Step 5: Commit any seed tweaks**
+- [x] **Step 5: Commit any seed tweaks**
 
 ```bash
 git add backend/prisma/seed

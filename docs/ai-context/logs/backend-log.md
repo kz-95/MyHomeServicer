@@ -2,6 +2,52 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-23 — Dispatch Backend Foundation (Plan 1)
+
+**Scope:** `docs/superpowers/plans/2026-06-23-dispatch-backend-foundation.md` — 9 tasks executed in order on `feat/sp3-dispatch-cards`.
+
+### Task 1 — Schema migration
+- Added `isUrgent` (Boolean, default false), `urgentFee` (Decimal?), `images` (String[]) to `QuoteRequest` model
+- Added `isUrgent` (Boolean, default false), `urgentFee` (Decimal?) to `Booking` model
+- Migration `20260623092156_dispatch_urgent_images` created + applied cleanly
+
+### Task 2 — slotStartHour
+- Added `SLOT_START_HOUR` map + `slotStartHour()` to `lib/time-slots.ts`
+- 2 unit tests, all pass
+
+### Task 3 — quote-timing.service.ts (new)
+- Created `backend/src/services/quote-timing.service.ts` with `jobDatetime()`, `isPastJob()`, `isSameDayMYT()`
+- 5 unit tests (jobDatetime, isPastJob x2, isSameDayMYT x2), all pass
+
+### Task 4 — resolveUrgentFee + splitUrgentFee
+- Added `resolveUrgentFee()` (async, reads `urgent_same_day_fee` platform setting) and `splitUrgentFee()` (pure split)
+- Seeded `urgent_same_day_fee` = `{ amount: 150, platform_share: 0.20 }` in both `static.ts` and `seed-test.ts`
+- 2 unit tests, all pass
+
+### Task 5 — createQuote deadline rework
+- Replaced customer-entered deadline block with job-time derivation: `jobDatetime(preferredDate, timeSlot)` → `proposalDeadline`, `servicerDeadline = jobAt - 15min`
+- Rejects past-dated jobs: `isPastJob(jobAt)` → 400
+- Flags same-day MYT jobs: `isSameDayMYT(jobAt, now)` → resolves urgent fee, sets `isUrgent` + `urgentFee`
+- Persists `isUrgent`, `urgentFee` in `prisma.quoteRequest.create`
+- Made `proposalDeadline` optional on `CreateQuoteInput`
+
+### Task 6 — Credit hold includes urgent fee
+- `creditHold = baseHold + urgentFee` for pay-now non-gateway quotes
+
+### Task 7 — Route validators
+- Made `proposalDeadline` optional in `quotes.routes.ts` `createValidators` (`.optional().isISO8601()`)
+
+### Task 8 — Servicer feed surfaces urgent fields
+- Added `isUrgent` + `urgentFee` to `listIncomingQuotes` mapped return object
+
+### Task 9 — Reseed + test
+- `npm run db:reset` — clean reseed, `urgent_same_day_fee` setting present
+- Full test suite: 14 suites passed, 290 tests passed
+- 6 failures all pre-existing (merchantCancelJob/INSUFFICIENT_CREDIT/MerchantService — servicer rename leftovers + legacy credit type error, login regression — unrelated)
+- New `quote-timing.test.ts`: 9/9 pass
+
+**Gates:** `rtk proxy npx tsc --noEmit` → 0 new errors (8 pre-existing only). Backend running on port 3000.
+
 ## Session 2026-06-17 — SP-3 pricing engine landed + wired (post Wave-2 fix)
 
 **Root-cause fix:** `moduleRefSchema` (`lib/json-schemas.ts`) only had `{ moduleId, overridePrice? }`, but the SP-3 engine files used `ref.kind` and `ref.durationDeltaMin` — so `listing-pricing.service.ts`, `proposal-view.service.ts`, `sp3-auto-accept.service.ts` and `listing-pricing.test.ts` failed to compile (broke ts-jest's whole-program check). Added `kind: enum(['included','addon']).default('included')` and `durationDeltaMin: int().optional()` to the schema. Both default → pre-SP-3 stored refs and the QuoteProposal moduleRefs path parse unchanged.
@@ -1871,3 +1917,11 @@ committed `ModuleRef` schema, owned by Work-stream A), falling back to listing `
 
 Docs synced: `schema-notes.md` (BOOKING confirmed-on-select), `api-doc.md`
 (`/quotes/:id/accept-listing`, dispatch accept taken-guard, no-re-confirm note).
+
+
+## 2026-06-23 — Proposal card support
+- `servicer-quote.service.ts`: `openQuote` returns budgetMin, budgetMax, preferredDate, timeSlot
+- `stripe.routes.ts`: `bookingId` made optional in `/create-payment-intent`
+- `quotes.routes.ts`: accepts `paymentIntentId` in `/:id/select`
+- `booking.service.ts`: `selectProposal` handles gateway paymentIntentId — skips wallet deduction, records gateway_payment transaction
+- `booking.service.ts`: servicer job notifications link to `/servicer/jobs/active` (confirmed) and `/servicer/jobs/history` (cancelled)
