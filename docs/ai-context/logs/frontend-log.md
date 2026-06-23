@@ -2,6 +2,42 @@
 
 > Single-writer log — only the **Frontend** agent writes here.
 
+## Session 2026-06-23 — Plan 4: Servicer Calendar Polish + Coherence
+
+**Scope:** `docs/superpowers/plans/2026-06-23-servicer-calendar-polish.md` — 3 tasks.
+
+### Task 1 — Coherence check
+- Verified calendar endpoint (`servicer.routes.ts:838`) uses `Booking.scheduledDate`.
+- Verified `countSlotJobs` (`servicer-quote.service.ts:21`) uses `b.scheduledDate`.
+- Both use same field — already coherent. No code change.
+
+### Task 2 — Today emphasis + urgent marker
+**Backend changes (3 files):**
+- `servicer.routes.ts`: added `isUrgent: true` to calendar endpoint select + output mapping.
+- `booking.service.ts` `selectProposal`: added `isUrgent: quote.isUrgent ?? false` and `urgentFee: quote.urgentFee ?? null` to `tx.booking.create` data — **critical gap fix** (without this, bookings never carry the urgent flag from quotes, so calendar urgent dots would never render).
+- `dispatch.service.ts`: added `isUrgent`/`urgentFee` to quoteRequest select + `tx.booking.create` data (same gap, dispatch path).
+
+**Frontend changes (1 file):**
+- `calendar.component.ts`:
+  - `CalendarBooking` interface: added `isUrgent?: boolean`.
+  - Template: added `@if (b.isUrgent) { <span class="dot-urgent"></span> }` inside day-booking pill.
+  - CSS: added `.cal-cell.today { outline: 2px solid var(--color-primary); outline-offset: -2px; }` for today emphasis.
+  - CSS: added `.dot-urgent` — 6px red circle next to booking label.
+  - Note: today detection already worked via `makeDay()` → `isToday` field + `[class.today]` binding — only the outline CSS was missing.
+
+### Task 3 — Verify
+- Frontend `npx tsc --noEmit`: 0 errors ✅
+- Frontend `ng build --configuration development`: green ✅
+- Backend `npx tsc --noEmit`: 8 pre-existing errors in unrelated files (routes/index.ts, admin.service.ts, credit.service.ts) — my 3 changed files compile clean ✅
+
+### Key finding: `selectProposal` isUrgent carry-through GAP
+`selectProposal` was NOT copying `isUrgent`/`urgentFee` from `QuoteRequest` to `Booking`. The quote has these fields (Plan 1 schema migration), but `tx.booking.create` never referenced them. Same gap in `dispatch.service.ts`. Without this fix, the calendar would show zero urgent dots regardless of how many urgent bookings exist — because the Booking table never had the flag set. Fixed in both paths.
+
+### Commit
+`feat(servicer): calendar today-emphasis, urgent marker, isUrgent carry-through to booking` (4 files, +54/-7 lines)
+
+---
+
 ## Session 2026-06-12 — SP-5 Servicer Business Profile restructure
 
 **`/servicer/account` rewrite:**

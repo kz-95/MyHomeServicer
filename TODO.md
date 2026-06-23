@@ -55,7 +55,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 
 ### Servicer journey polish (beats 2/5 — added 2026-06-23)
 
-- [ ] **S1. Servicer calendar wired** (demo headline) — `calendar.component.ts` shows
+- [x] **S1. Servicer calendar wired** (demo headline) — `calendar.component.ts` shows
   the servicer's confirmed/in-progress bookings by date + slot. Must agree with the
   dispatch-card slot-load badge (same source): accepting a job appears on the calendar;
   the calendar is how the servicer sees "what's already in this slot". Wire data + nice
