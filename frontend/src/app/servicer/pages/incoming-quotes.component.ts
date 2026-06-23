@@ -6,6 +6,7 @@ import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
 import { CountdownComponent } from '../../shared/countdown-timer.component';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
+import { ModalComponent } from '../../shared/modal.component';
 
 interface IncomingQuote {
   quoteId: string;
@@ -33,6 +34,7 @@ interface IncomingQuote {
   lng?: number | null;
   notes?: string | null;
   descriptions?: string[];
+  images?: string[];
   slotJobs?: { count: number };
 }
 
@@ -44,7 +46,7 @@ interface IncomingQuote {
   selector: 'app-incoming-quotes',
   standalone: true,
   host: { class: 'page-enter page-narrow' },
-  imports: [CommonModule, FormsModule, CountdownComponent, ListToolbarComponent],
+  imports: [CommonModule, FormsModule, CountdownComponent, ListToolbarComponent, ModalComponent],
   template: `
     <h1>Incoming quotes</h1>
     <p class="muted">New requests appear here live. Respond before the deadline.</p>
@@ -125,6 +127,13 @@ interface IncomingQuote {
               <ul class="answers">@for (d of q.descriptions; track d) { <li>{{ d }}</li> }</ul>
             }
             @if (q.notes) { <p class="notes">"{{ q.notes }}"</p> }
+            @if (q.images?.length) {
+              <div class="qimgs">
+                @for (url of q.images; track url) {
+                  <img class="qimg" [src]="url" alt="job photo" (click)="lightbox.set(url); $event.stopPropagation()" />
+                }
+              </div>
+            }
 
             @if (!q.myProposalId) {
               <form class="propose" (ngSubmit)="propose(q)">
@@ -142,6 +151,13 @@ interface IncomingQuote {
     @if (error()) {
       <p class="err">{{ error() }}</p>
     }
+
+    <!-- Image lightbox (top-layer <app-modal>) -->
+    <app-modal [open]="!!lightbox()" title="Photo" (closed)="lightbox.set(null)">
+      @if (lightbox(); as url) {
+        <img [src]="url" alt="" style="width:100%; max-height:70dvh; object-fit:contain;" />
+      }
+    </app-modal>
   `,
   styles: [
     `
@@ -221,8 +237,6 @@ interface IncomingQuote {
         color: var(--color-danger);
       }
       .accept-row { margin-top: 0.6rem; display: flex; }
-      .details { padding: 0.5rem 0; border-top: 1px solid var(--color-border); margin-top: 0.5rem; animation: slide-down 0.18s ease-out both; }
-      .details p { margin: 0 0 0.4rem 0; font-size: 0.88rem; }
       .qimgs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
       .qimg { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius); border: 1px solid var(--color-border); cursor: pointer; transition: transform 0.12s ease; }
       .qimg:hover { transform: scale(1.08); }
@@ -238,6 +252,7 @@ export class IncomingQuotesComponent implements OnInit, OnDestroy {
   expanded = signal<string | null>(null);
   busy = signal(false);
   error = signal('');
+  lightbox = signal<string | null>(null);
 
   search = signal('');
   responseFilter = signal<'all' | 'new' | 'responded'>('all');
