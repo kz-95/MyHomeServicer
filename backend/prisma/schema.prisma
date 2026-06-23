@@ -838,6 +838,9 @@ model QuoteRequest {
   parentQuoteId    String?      @map("parent_quote_id") @db.Uuid
   lat              Float?
   lng              Float?
+  isUrgent         Boolean      @default(false) @map("is_urgent")
+  urgentFee        Decimal?     @db.Decimal(10, 2) @map("urgent_fee")
+  images           String[]     @default([]) @map("images")
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
 
@@ -932,6 +935,8 @@ model Booking {
   tipStatus             TipStatus?          @map("tip_status")
   tipAmount             Decimal?            @map("tip_amount") @db.Decimal(10, 2)
   tipPaidAt             DateTime?           @map("tip_paid_at")
+  isUrgent              Boolean             @default(false) @map("is_urgent")
+  urgentFee             Decimal?            @db.Decimal(10, 2) @map("urgent_fee")
   confirmedAt           DateTime?           @map("confirmed_at")
   arrivedAt             DateTime?           @map("arrived_at")
   travelFee             Decimal?            @map("travel_fee") @db.Decimal(10, 2)
