@@ -14,17 +14,204 @@ import { allowDemo } from '../config/env';
 const execAsync = promisify(exec);
 
 /** Aggregated platform stats for the admin dashboard. */
-export async function getDashboard() {
+/** Raw row shape returned by raw SQL aggregate queries. */
+interface RawSumRow {
+  total: string | number | bigint;
+}
+
+/**
+ * Admin financial dashboard — top-ups, fees, escrow, urgent revenue,
+ * category breakdown, and daily revenue series.
+ */
+export async function getDashboardFinancial(days: number, categoryId?: string) {
+  const start = new Date();
+  start.setDate(start.getDate() - (days - 1));
+  start.setHours(0, 0, 0, 0);
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  // ── totalTopUps — deposit_topup transactions (not linked to bookings, so no category filter) ──
+  const [topUpRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions WHERE type = 'deposit_topup' AND status = 'completed' AND created_at >= $1`,
+    start,
+  );
+  const totalTopUps = Number(topUpRow?.total ?? 0);
+
+  // ── totalFees — platform_fee transactions, optionally filtered by category via booking join ──
+  const feeRows = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'platform_fee' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const totalFees = Number(feeRows[0]?.total ?? 0);
+
+  // ── totalEscrow — escrow_hold transactions, optionally filtered by category ──
+  const escrowRows = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'escrow_hold' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const totalEscrow = Number(escrowRows[0]?.total ?? 0);
+
+  // ── pendingPayouts — escrows still held ──
+  const escrowAgg = await prisma.escrow.aggregate({
+    _sum: { amount: true },
+    where: { status: 'held', releasedAt: null },
+  });
+  const pendingPayouts = Number(escrowAgg._sum.amount ?? 0);
+
+  // ── todayTopUps — deposit_topup today ──
+  const [todayTopUpRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions WHERE type = 'deposit_topup' AND status = 'completed' AND created_at >= $1`,
+    todayStart,
+  );
+  const todayTopUps = Number(todayTopUpRow?.total ?? 0);
+
+  // ── todayFees — platform_fee today ──
+  const todayFeeRows = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'platform_fee' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
+    ...(categoryId ? [todayStart, categoryId] : [todayStart]),
+  );
+  const todayFees = Number(todayFeeRows[0]?.total ?? 0);
+
+  // ── urgentFeeRevenue — sum of Booking.urgentFee where isUrgent=true ──
+  const urgentAgg = await prisma.booking.aggregate({
+    _sum: { urgentFee: true },
+    where: {
+      isUrgent: true,
+      createdAt: { gte: start },
+      ...(categoryId ? { quoteRequest: { categoryId } } : {}),
+    },
+  });
+  const urgentFeeRevenue = Number(urgentAgg._sum.urgentFee ?? 0);
+
+  // ── urgentFeePlatformShare — read platform setting for share percentage ──
+  let urgentFeePlatformShare = 0;
+  try {
+    const setting = await prisma.platformSettings.findUnique({
+      where: { key: 'urgent_same_day_fee' },
+      select: { value: true },
+    });
+    if (setting?.value) {
+      const v = setting.value as Record<string, unknown>;
+      if (typeof v.platform_share === 'number') {
+        urgentFeePlatformShare = Math.round(urgentFeeRevenue * v.platform_share * 100) / 100;
+      }
+    }
+  } catch {
+    // setting missing or unparseable — leave at 0
+  }
+
+  // ── categoryBreakdown — group by category with count, revenue, fees ──
+  const breakdownRows = await prisma.$queryRawUnsafe<
+    Array<{ category_id: string; category_name: string; booking_count: bigint; revenue: string; fees: string }>
+  >(
+    `SELECT
+       c.id AS category_id,
+       c.name AS category_name,
+       COUNT(DISTINCT b.id)::bigint AS booking_count,
+       COALESCE(SUM(COALESCE(b.urgent_fee, 0)), 0)::numeric AS revenue,
+       COALESCE(SUM(ft.amount), 0)::numeric AS fees
+     FROM categories c
+     LEFT JOIN quote_requests qr ON qr.category_id = c.id
+     LEFT JOIN bookings b ON b.quote_request_id = qr.id AND b.created_at >= $1
+     LEFT JOIN transactions ft ON ft.booking_id = b.id AND ft.type = 'platform_fee' AND ft.status = 'completed' AND ft.created_at >= $1
+     WHERE c.deleted_at IS NULL
+       ${categoryId ? 'AND c.id = $2::uuid' : ''}
+     GROUP BY c.id
+     ORDER BY fees DESC`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const categoryBreakdown = breakdownRows.map((r) => ({
+    categoryId: r.category_id,
+    name: r.category_name,
+    count: Number(r.booking_count),
+    revenue: Number(r.revenue),
+    fees: Number(r.fees),
+  }));
+
+  // ── dailyRevenue — daily aggregation of platform_fee transactions ──
+  const dailyRows = await prisma.$queryRawUnsafe<
+    Array<{ day: string; revenue: string; fees: string; booking_count: bigint }>
+  >(
+    `SELECT
+       t.created_at::date::text AS day,
+       COALESCE(SUM(COALESCE(b.urgent_fee, 0)), 0)::numeric AS revenue,
+       COALESCE(SUM(t.amount), 0)::numeric AS fees,
+       COUNT(DISTINCT b.id)::bigint AS booking_count
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'platform_fee' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}
+     GROUP BY t.created_at::date
+     ORDER BY day ASC`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+
+  // Pad with zeros for days with no revenue
+  const dailyMap = new Map<string, { revenue: number; fees: number; count: number }>();
+  for (const r of dailyRows) {
+    dailyMap.set(r.day, {
+      revenue: Number(r.revenue),
+      fees: Number(r.fees),
+      count: Number(r.booking_count),
+    });
+  }
+
+  const dailyRevenue: { date: string; revenue: number; fees: number; count: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const entry = dailyMap.get(key);
+    dailyRevenue.push({
+      date: key,
+      revenue: entry?.revenue ?? 0,
+      fees: entry?.fees ?? 0,
+      count: entry?.count ?? 0,
+    });
+  }
+
+  return {
+    totalTopUps,
+    totalFees,
+    totalEscrow,
+    pendingPayouts,
+    todayTopUps,
+    todayFees,
+    urgentFeeRevenue,
+    urgentFeePlatformShare,
+    categoryBreakdown,
+    dailyRevenue,
+  };
+}
+
+export async function getDashboard(categoryId?: string) {
   const [servicers, bookings, completed, openReports, pendingAppeals, pendingWithdrawals, pendingCatReqs, feeResult] =
     await Promise.all([
-      prisma.servicer.count({ where: { deletedAt: null } }),
-      prisma.booking.count(),
-      prisma.booking.count({ where: { status: 'completed' } }),
-      prisma.report.count({ where: { status: 'open' } }),
+      prisma.servicer.count({ where: { deletedAt: null, ...(categoryId ? { categoryId } : {}) } }),
+      prisma.booking.count({ where: { ...(categoryId ? { quoteRequest: { categoryId } } : {}) } }),
+      prisma.booking.count({ where: { status: 'completed', ...(categoryId ? { quoteRequest: { categoryId } } : {}) } }),
+      prisma.report.count({ where: { status: 'open', ...(categoryId ? { booking: { quoteRequest: { categoryId } } } : {}) } }),
       prisma.penaltyAppeal.count({ where: { status: 'pending' } }),
       prisma.servicerWithdrawal.count({ where: { status: 'pending' } }),
       prisma.categoryRequest.count({ where: { status: 'pending' } }),
-      prisma.invoice.aggregate({ _sum: { platformFee: true } }),
+      prisma.invoice.aggregate({ _sum: { platformFee: true }, where: { ...(categoryId ? { booking: { quoteRequest: { categoryId } } } : {}) } }),
     ]);
 
   return {
@@ -45,26 +232,28 @@ export async function getDashboard() {
  * Returns daily platform revenue (from invoice platformFee) for the last
  * `days` calendar days, padded with zeros for days with no revenue.
  */
-export async function getDashboardRevenue(days = 30): Promise<{ date: string; revenue: number }[]> {
-  type Row = { date: Date; revenue: bigint | number | string };
-  const rows = await prisma.$queryRaw<Row[]>`
-    SELECT
-      DATE("issued_at") AS date,
-      COALESCE(SUM("platform_fee"), 0) AS revenue
-    FROM "invoices"
-    WHERE "issued_at" >= CURRENT_DATE - INTERVAL '1 day' * ${days - 1}
-    GROUP BY DATE("issued_at")
-    ORDER BY date ASC
-  `;
+export async function getDashboardRevenue(days = 30, categoryId?: string): Promise<{ date: string; revenue: number }[]> {
+  // Use Prisma to aggregate daily revenue, optionally filtered by category.
+  const start = new Date();
+  start.setDate(start.getDate() - (days - 1));
+  start.setHours(0, 0, 0, 0);
 
-  // Build a map of date-string → revenue so we can fill gaps.
+  const rows = await prisma.invoice.groupBy({
+    by: ["issuedAt"],
+    _sum: { platformFee: true },
+    where: {
+      issuedAt: { gte: start },
+      ...(categoryId ? { booking: { quoteRequest: { categoryId } } } : {}),
+    },
+    orderBy: { issuedAt: "asc" },
+  });
+
   const map = new Map<string, number>();
   for (const row of rows) {
-    const key = new Date(row.date).toISOString().slice(0, 10);
-    map.set(key, Number(row.revenue));
+    const key = row.issuedAt.toISOString().slice(0, 10);
+    map.set(key, Number(row._sum.platformFee ?? 0));
   }
 
-  // Produce a dense array covering every day in the window.
   const result: { date: string; revenue: number }[] = [];
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date();
@@ -75,142 +264,15 @@ export async function getDashboardRevenue(days = 30): Promise<{ date: string; re
   return result;
 }
 
-/**
- * Wipes and re-seeds the demo database by running `npm run reseed`. A
- * development convenience only — refused when NODE_ENV=production (the seed
- * scripts also refuse independently). The admin's session is invalidated
- * afterwards since accounts are recreated with fresh IDs.
- */
-export async function runReseed(): Promise<{ ok: boolean; durationMs: number }> {
-  if (!allowDemo) {
-    throw forbidden('Reseeding is disabled in production');
-  }
-  const start = Date.now();
-  logger.warn('Admin triggered a database reseed');
-  try {
-    await execAsync('npm run reseed', {
-      cwd: process.cwd(),
-      timeout: 180_000,
-      maxBuffer: 10 * 1024 * 1024,
-    });
-  } catch (err) {
-    logger.error('Reseed failed', { error: (err as Error).message });
-    throw new ApiError('INTERNAL_ERROR', `Reseed failed: ${(err as Error).message}`);
-  }
-  const durationMs = Date.now() - start;
-  logger.info('Reseed complete', { durationMs });
-  return { ok: true, durationMs };
-}
-
-export async function runClear(): Promise<{ ok: boolean; durationMs: number }> {
-  if (!allowDemo) throw forbidden('Clear is disabled in production');
-  const start = Date.now();
-  logger.warn('Admin triggered a content clear — demo accounts preserved');
-  await prisma.chatMessage.deleteMany();
-  await prisma.chatSession.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.auditLog.deleteMany();
-  await prisma.transaction.deleteMany();
-  await prisma.promotionRedemption.deleteMany();
-  await prisma.servicerCreditLog.deleteMany();
-  await prisma.penaltyAppeal.deleteMany();
-  await prisma.penaltyLog.deleteMany();
-  await prisma.invoice.deleteMany();
-  await prisma.escrow.deleteMany();
-  await prisma.report.deleteMany();
-  await prisma.orderHistory.deleteMany();
-  await prisma.booking.deleteMany();
-  await prisma.quoteProposal.deleteMany();
-  await prisma.quoteBroadcast.deleteMany();
-  await prisma.discountCode.deleteMany();
-  await prisma.quoteRequest.deleteMany();
-  await prisma.servicerWithdrawal.deleteMany();
-  await prisma.categoryRequest.deleteMany();
-  await prisma.promotion.deleteMany();
-  await prisma.quotePreset.deleteMany();
-  await prisma.refreshToken.deleteMany();
-  await prisma.otpCode.deleteMany();
-  await prisma.userDevice.deleteMany();
-  await prisma.jobQueue.deleteMany();
-  await prisma.idempotencyFallback.deleteMany();
-  const durationMs = Date.now() - start;
-  logger.info('Clear complete', { durationMs });
-  return { ok: true, durationMs };
-}
-
-/**
- * Clears all transactional content (bookings, quotes, chat, penalties, etc.)
- * while preserving demo account structure: users, servicers, services,
- * deposits, categories, settings, feature flags, FAQ, penalty rules.
- * Requires the admin action PIN for confirmation.
- */
-export async function runClearContent(pin: string): Promise<{ ok: boolean; durationMs: number }> {
-  if (!allowDemo) throw forbidden('Clear content is disabled in production');
-  const admin = await prisma.user.findFirst({ where: { role: 'admin' } });
-  if (!admin?.actionPinHash) throw badRequest('Admin account not found or PIN not set');
-  const pinValid = await bcrypt.compare(pin, admin.actionPinHash);
-  if (!pinValid) throw badRequest('Incorrect PIN');
-
-  const start = Date.now();
-  logger.warn('Admin triggered unplug — removing all demo data');
-
-  await prisma.chatMessage.deleteMany();
-  await prisma.chatSession.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.auditLog.deleteMany();
-  await prisma.llmApiKey.deleteMany({ where: { label: { startsWith: 'Demo ' } } });
-  await prisma.transaction.deleteMany();
-  await prisma.promotionRedemption.deleteMany();
-  await prisma.servicerCreditLog.deleteMany();
-  await prisma.penaltyAppeal.deleteMany();
-  await prisma.penaltyLog.deleteMany();
-  await prisma.invoice.deleteMany();
-  await prisma.escrow.deleteMany();
-  await prisma.report.deleteMany();
-  await prisma.orderHistory.deleteMany();
-  await prisma.booking.deleteMany();
-  await prisma.quoteProposal.deleteMany();
-  await prisma.quoteBroadcast.deleteMany();
-  await prisma.discountCode.deleteMany();
-  await prisma.quoteRequest.deleteMany();
-  await prisma.servicerWithdrawal.deleteMany();
-  await prisma.categoryRequest.deleteMany();
-  await prisma.promotion.deleteMany();
-  await prisma.quotePreset.deleteMany();
-  await prisma.customerPoints.deleteMany();
-  await prisma.pointsTransaction.deleteMany();
-  await prisma.redemption.deleteMany();
-  await prisma.reward.deleteMany();
-  await prisma.loyaltyTier.deleteMany();
-  await prisma.servicerDeposit.deleteMany();
-  await prisma.servicerDocument.deleteMany();
-  await prisma.servicerSchedule.deleteMany();
-  await prisma.servicerProposalPreset.deleteMany();
-  await prisma.servicerService.deleteMany();
-  await prisma.servicer.deleteMany();
-  await prisma.refreshToken.deleteMany();
-  await prisma.otpCode.deleteMany();
-  await prisma.userDevice.deleteMany();
-  await prisma.userAddress.deleteMany();
-  await prisma.user.deleteMany({ where: { id: { not: admin.id } } });
-  await prisma.jobQueue.deleteMany();
-  await prisma.idempotencyFallback.deleteMany();
-
-  const durationMs = Date.now() - start;
-  logger.info('Unplug complete — demo accounts removed', { durationMs });
-  return { ok: true, durationMs };
-}
-
-// ── Servicer management ──────────────────────────────────────────────────────
-
-export async function listServicers(kycStatus?: string) {
+export async function listServicers(kycStatus?: string, categoryId?: string) {
   const servicers = await prisma.servicer.findMany({
     where: {
       deletedAt: null,
       ...(kycStatus ? { kycStatus: kycStatus as 'pending' | 'approved' | 'rejected' } : {}),
+      ...(categoryId ? { categoryId } : {}),
     },
     orderBy: { createdAt: 'desc' },
-    include: { deposit: true },
+    include: { deposit: true, category: { select: { name: true } } },
   });
   return servicers.map((m) => ({
     id: m.id,
@@ -221,6 +283,7 @@ export async function listServicers(kycStatus?: string) {
     isBanned: m.isBanned,
     rating: m.rating,
     depositBalance: m.deposit?.currentBalance ?? 0,
+    categoryName: m.category?.name ?? null,
     creditBalance: m.creditBalance,
     createdAt: m.createdAt,
   }));

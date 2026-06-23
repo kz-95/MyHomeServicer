@@ -293,6 +293,59 @@ Gates: backend tsc 0 (source) / jest 298 pass, 0 fail / frontend tsc 0
 
 ---
 
+## Session 2026-06-23 — Admin Financial Dashboard (Item 6)
+
+**Scope:** TODO.md Item 6 — `GET /admin/dashboard/financial` endpoint. Executed on `feat/sp3-dispatch-cards`.
+
+### New endpoint: `GET /admin/dashboard/financial`
+- **Route:** `admin.routes.ts:64-73` (new route, auth: `requireAuth` + `requireAdmin`)
+- **Service:** `admin.service.ts:22-179` (new `getDashboardFinancial(days, categoryId?)` function)
+- **Query params:** `?days=30` (1–90, default 30), `?categoryId=<uuid>` (optional filter)
+
+### Response shape:
+```json
+{
+  "totalTopUps": 12500.00,
+  "totalFees": 2340.50,
+  "totalEscrow": 8900.00,
+  "pendingPayouts": 2100.00,
+  "todayTopUps": 450.00,
+  "todayFees": 85.00,
+  "urgentFeeRevenue": 600.00,
+  "urgentFeePlatformShare": 120.00,
+  "categoryBreakdown": [
+    { "categoryId": "uuid", "name": "Aircon Service", "count": 12, "revenue": 4500.00, "fees": 900.00 }
+  ],
+  "dailyRevenue": [
+    { "date": "2026-06-23", "revenue": 1500.00, "fees": 300.00, "count": 5 }
+  ]
+}
+```
+
+### Data sources & implementation notes:
+- **totalTopUps / todayTopUps:** `$queryRawUnsafe` — sum of `transactions.amount` where `type='deposit_topup'` + `status='completed'` in date range. No category filter (deposit_topup rows have no `booking_id` link).
+- **totalFees / todayFees:** `$queryRawUnsafe` — sum of `transactions.amount` where `type='platform_fee'` + `status='completed'`, JOINed through `bookings` → `quote_requests` for optional `categoryId` filter.
+- **totalEscrow:** `$queryRawUnsafe` — same join pattern for `type='escrow_hold'`.
+- **pendingPayouts:** Prisma `escrow.aggregate` where `status='held'` AND `releasedAt IS NULL`.
+- **urgentFeeRevenue:** Prisma `booking.aggregate` — sum of `urgentFee` where `isUrgent=true`, in date range, with optional category filter via `quoteRequest.categoryId`.
+- **urgentFeePlatformShare:** Reads `platform_settings` key `urgent_same_day_fee` → `value.platform_share` (default 0.20), computes `Math.round(urgentFeeRevenue * platform_share * 100) / 100`. Falls back to 0 if setting missing.
+- **categoryBreakdown:** `$queryRawUnsafe` — LEFT JOIN from `categories` through `quote_requests` → `bookings` → `transactions` (platform_fee). Groups by `c.id`, returns count/revenue/fees per category.
+- **dailyRevenue:** `$queryRawUnsafe` — daily aggregate of `platform_fee` transactions JOINed through bookings/quote_requests. Padded with zeros for days with no revenue (matching existing `getDashboardRevenue` pattern).
+
+### Design decisions:
+- Used `$queryRawUnsafe` for all Transaction-based queries because the `Transaction` model has no Prisma-level relation to `Booking` (only a raw `booking_id` FK column), making nested Prisma `where` filters impossible.
+- Escrow and Booking queries use Prisma since those models have proper relations through `quoteRequest.categoryId`.
+- All Decimal → Number conversion done at the query boundary. Raw SQL casts with `::numeric`; Prisma aggregates unwrapped via `Number()`.
+
+**Gates:**
+- `rtk proxy npx tsc --noEmit`: 8 pre-existing errors, zero new.
+- `npx jest tests/unit`: 196 pass, 6 fail — all 6 pre-existing (credit.service.ts INSUFFICIENT_CREDIT type drift, merchantCancelJob rename, MerchantService rename, login regression). Zero new failures.
+
+**Commits:**
+1. `feat(admin): add GET /admin/dashboard/financial endpoint` — admin.service.ts + admin.routes.ts
+
+---
+
 ## Quick Index
 | Section | Line |
 |---------|------|

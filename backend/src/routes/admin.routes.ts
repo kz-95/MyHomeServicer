@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { body } from 'express-validator';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -17,6 +17,7 @@ import { recordAudit } from '../services/ledger.service';
 import {
   getDashboard,
   getDashboardRevenue,
+  getDashboardFinancial,
   listServicers,
   getServicerDetail,
   setServicerBan,
@@ -53,12 +54,23 @@ const ip = (req: { ip?: string }) => req.ip;
 const pinTokenStore = new Map<string, { userId: string; expiresAt: number }>();
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
-adminRouter.get('/dashboard', asyncHandler(async (_req, res) => res.json(await getDashboard())));
+adminRouter.get('/dashboard', asyncHandler(async (req, res) => res.json(await getDashboard(req.query.categoryId as string | undefined))));
 adminRouter.get(
   '/dashboard/revenue',
   asyncHandler(async (req, res) => {
     const days = Math.min(90, Math.max(7, Number(req.query.days) || 30));
-    res.json({ data: await getDashboardRevenue(days) });
+    res.json({ data: await getDashboardRevenue(days, req.query.categoryId as string | undefined) });
+  }),
+);
+
+/** GET /admin/dashboard/financial — top-ups, fees, escrow, urgent revenue,
+ *  category breakdown, and daily revenue series. Optional ?days=30&categoryId=<uuid>. */
+adminRouter.get(
+  '/dashboard/financial',
+  asyncHandler(async (req, res) => {
+    const days = Math.min(90, Math.max(1, Number(req.query.days) || 30));
+    const result = await getDashboardFinancial(days, req.query.categoryId as string | undefined);
+    res.json(result);
   }),
 );
 
@@ -75,7 +87,7 @@ adminRouter.post(
 adminRouter.get(
   '/servicers',
   asyncHandler(async (req, res) => {
-    res.json({ data: await listServicers(req.query.kycStatus as string | undefined) });
+    res.json({ data: await listServicers(req.query.kycStatus as string | undefined, req.query.categoryId as string | undefined) });
   }),
 );
 adminRouter.get(
@@ -162,10 +174,12 @@ adminRouter.get(
   asyncHandler(async (req, res) => {
     const status = req.query.status as string | undefined;
     const search = req.query.search as string | undefined;
+    const categoryId = req.query.categoryId as string | undefined;
     const data = await prisma.report.findMany({
       where: {
         ...(status ? { status: status as 'open' | 'resolved' } : {}),
         ...(search ? { subject: { contains: search, mode: 'insensitive' } } : {}),
+        ...(categoryId ? { booking: { quoteRequest: { categoryId } } } : {}),
       },
       orderBy: { createdAt: 'desc' },
     });
