@@ -10,7 +10,8 @@ type Purpose =
   | 'servicer_logo'
   | 'kyc_document'
   | 'banner_image'
-  | 'listing_photo';
+  | 'listing_photo'
+  | 'quote_image';
 
 const PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PURPOSES: Purpose[] = [
@@ -20,6 +21,7 @@ const PURPOSES: Purpose[] = [
   'kyc_document',
   'banner_image',
   'listing_photo',
+  'quote_image',
 ];
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB

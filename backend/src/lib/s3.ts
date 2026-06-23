@@ -28,7 +28,7 @@ export function isS3Configured(): boolean {
 export async function presignUpload(key: string, mimeType: string): Promise<string> {
   if (!s3) {
     logger.warn('S3 not configured — returning local upload URL');
-    return `/api/files/local-upload/${key}`;
+    return `/api/v1/files/local-upload/${key}`;
   }
   const command = new PutObjectCommand({
     Bucket: env.S3_BUCKET,
@@ -40,7 +40,7 @@ export async function presignUpload(key: string, mimeType: string): Promise<stri
 
 /** Generate a pre-signed GET URL for reading a private object. */
 export async function presignDownload(key: string): Promise<string> {
-  if (!s3) return `/api/files/local/${key}`;
+  if (!s3) return `/api/v1/files/local/${key}`;
   const command = new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: key });
   return getSignedUrl(s3, command, { expiresIn: 3600 });
 }
