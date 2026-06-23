@@ -2,6 +2,46 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-23 — Upload Fix + Customer Quote Images (Plan 3)
+
+**Scope:** `docs/superpowers/plans/2026-06-23-upload-fix-quote-images.md` — 6 tasks (3 backend, 2 frontend, 1 verification). Executed on `feat/sp3-dispatch-cards`.
+
+### Task 1 — Fix local-upload URL mismatch
+- `s3.ts:31` (`presignUpload` fallback): `/api/files/local-upload/${key}` → `/api/v1/files/local-upload/${key}`
+- `s3.ts:43` (`presignDownload` fallback): `/api/files/local/${key}` → `/api/v1/files/local/${key}`
+- Route mounted at `/api/v1/files` (app.ts:77 + routes/index.ts:223). The `file.service.ts:75` emitter already returned the correct `/api/v1` prefix; `s3.ts` was the stale one. Fixed both local-upload and local-download URLs.
+- Note: `s3.ts:31` is dead code in local dev (file.service.ts returns the URL directly when S3 is not configured), but fixed for defensive consistency.
+
+### Task 2 — Backend accept + persist quote images
+- `CreateQuoteInput` interface: added `images?: string[];`
+- `prisma.quoteRequest.create` data: added `images: input.images ?? []`
+- `quotes.routes.ts` `createValidators`: added `body('images').optional().isArray({ max: 5 })` + `body('images.*').optional().isString().isLength({ max: 500 })`
+
+### Task 3 — Backend return images on servicer feed
+- `listIncomingQuotes` mapped return: added `images: q.images ?? []` (already present — Plan 2 included it)
+- No code change needed; column already loaded by existing `include`
+
+### Task 4 — Frontend quote-form optional image upload
+- `file.service.ts`: added `quote_image` to Purpose union + PURPOSES allowlist (prevents 400 on presign)
+- `quote-form.component.ts`: added signals (`quoteImages`, `imgUploading`, `imgError`), `onQuoteImage()` method (3-step: presign → PUT → confirm), template upload UI (file input + thumbnails), and `images: this.quoteImages()` in submit payload
+
+### Task 5 — Frontend dispatch card thumbnails + lightbox
+- `incoming-quotes.component.ts`: added `images?: string[]` to `IncomingQuote` interface, image thumbnails in `.details` expander, `lightbox` signal, `<app-modal>` top-layer lightbox (NEVER a position:fixed backdrop — project modal law)
+
+### Task 6 — Verification
+- Backend `rtk proxy npx tsc --noEmit`: 8 pre-existing errors (none from Plan 3)
+- Backend `npx jest tests/unit`: 196 pass, 6 fail (all pre-existing: credit.service.ts INSUFFICIENT_CREDIT type drift, servicer rename leftovers, login regression)
+- Frontend `npx tsc --noEmit`: 0 errors
+- Frontend `ng build`: green (805 KB initial, 24s)
+
+**Gates:** All compile and build gates passed. No new test failures. Manual verification (arrive/done upload, quote-with-images flow, servicer card view) deferred to QA.
+
+**Commits:**
+1. `fix(files): align local-upload URL emitter with mounted route (arrive/done upload)` — s3.ts + file.service.ts
+2. `feat(quote): accept + persist optional customer images` — quote.service.ts + quotes.routes.ts
+3. `feat(quote-form): optional customer image upload` — quote-form.component.ts
+4. `feat(servicer): show customer quote images in dispatch card (top-layer lightbox)` — incoming-quotes.component.ts
+
 ## Session 2026-06-23 — Dispatch Backend Foundation (Plan 1)
 
 **Scope:** `docs/superpowers/plans/2026-06-23-dispatch-backend-foundation.md` — 9 tasks executed in order on `feat/sp3-dispatch-cards`.

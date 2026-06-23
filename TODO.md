@@ -40,7 +40,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   require top-up (no silent bypass); verify PI status/amount/currency before recording;
   unique constraint on `Transaction.stripePaymentIntentId`. **Verify current bypass in
   code before fixing.**
-- [ ] **4. Upload fix + quote images** (beat 4 + Stream D) — route EXISTS
+- [x] **4. Upload fix + quote images** (beat 4 + Stream D) — route EXISTS
   (`files.routes.ts:35` `PUT /local-upload/:fileId`); real bug = URL mismatch:
   `file.service.ts:75` emits `/api/v1/files/local-upload/{file.id}` vs `s3.ts:31`
   `/api/files/local-upload/{key}`; route mounted at `/files`. Verify mount base, align

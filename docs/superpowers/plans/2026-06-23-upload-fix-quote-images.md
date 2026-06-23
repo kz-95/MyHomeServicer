@@ -1,6 +1,6 @@
 # Upload Fix + Customer Quote Images — Implementation Plan (Plan 3)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [x]`) syntax.
 
 **Goal:** Fix the broken local-dev photo upload (a stale URL, not a missing route) so arrive/done photos work, then reuse the same pipeline to let customers attach optional images to a quote and have the servicer see them on the dispatch card.
 
@@ -30,21 +30,21 @@
 - Read first: `backend/src/lib/s3.ts:31`, `backend/src/services/file.service.ts:60-80`, `backend/src/routes/index.ts:223` (mount base).
 - Modify: whichever emitter is wrong.
 
-- [ ] **Step 1: Reproduce.** Start backend + frontend, log in as a servicer with an
+- [x] **Step 1: Reproduce.** Start backend + frontend, log in as a servicer with an
   in-progress booking (M8), open Jobs → Mark arrived → pick a photo → Upload.
   Expected (current bug): a 404 like `Route not found: PUT /api/files/local-upload/<id>`.
   Capture the exact URL the frontend PUTs (browser network tab).
 
-- [ ] **Step 2: Confirm the mount base.** Read `backend/src/routes/index.ts` around the
+- [x] **Step 2: Confirm the mount base.** Read `backend/src/routes/index.ts` around the
   `apiRouter`/`filesRouter` mount. Determine the real prefix — `/api` or `/api/v1` —
   for `filesRouter` (`.use('/files', filesRouter)`).
 
-- [ ] **Step 3: Compare the two emitters.**
+- [x] **Step 3: Compare the two emitters.**
   - `file.service.ts:75` → ``/api/v1/files/local-upload/${file.id}``
   - `s3.ts:31` → ``/api/files/local-upload/${key}``
   Identify which one the dev presign flow actually returns (trace `createPresignedUpload`).
 
-- [ ] **Step 4: Fix the wrong emitter** so the returned URL matches the mounted route
+- [x] **Step 4: Fix the wrong emitter** so the returned URL matches the mounted route
   exactly (correct prefix from Step 2, and the `:fileId` param the route reads, not the
   S3 key). Example fix in `s3.ts:31` if it is the live one:
 
@@ -57,10 +57,10 @@ return `/api/v1/files/local-upload/${fileId}`; // match files.routes.ts:35 + mou
   `key` in scope, thread `fileId` through, or delegate the URL to `file.service.ts` so
   there is ONE emitter.)
 
-- [ ] **Step 5: Verify the fix manually.** Repeat Step 1. Expected: upload succeeds,
+- [x] **Step 5: Verify the fix manually.** Repeat Step 1. Expected: upload succeeds,
   booking flips to in_progress (arrive) / completed (done), photo URL stored.
 
-- [ ] **Step 6: Type-gate + commit**
+- [x] **Step 6: Type-gate + commit**
 
 Run: `rtk proxy npx tsc --noEmit`
 ```bash
@@ -76,21 +76,21 @@ git commit -m "fix(files): align local-upload URL emitter with mounted route (ar
 - Modify: `backend/src/services/quote.service.ts` (`CreateQuoteInput` `24-47`; create block `308-340`)
 - Modify: `backend/src/routes/quotes.routes.ts` (create-quote validators ~`146`)
 
-- [ ] **Step 1: Add `images` to `CreateQuoteInput`** (after `serviceDetails?`):
+- [x] **Step 1: Add `images` to `CreateQuoteInput`** (after `serviceDetails?`):
 
 ```typescript
   /** Optional customer-attached image URLs (confirmed upload URLs). Max 5. */
   images?: string[];
 ```
 
-- [ ] **Step 2: Persist it** in the `prisma.quoteRequest.create({ data: { ... } })` block,
+- [x] **Step 2: Persist it** in the `prisma.quoteRequest.create({ data: { ... } })` block,
   after `notes: input.notes ?? null,`:
 
 ```typescript
       images: input.images ?? [],
 ```
 
-- [ ] **Step 3: Validate in the route.** In `quotes.routes.ts` create-quote validators,
+- [x] **Step 3: Validate in the route.** In `quotes.routes.ts` create-quote validators,
   add:
 
 ```typescript
@@ -101,7 +101,7 @@ git commit -m "fix(files): align local-upload URL emitter with mounted route (ar
   And whitelist `images` where the route picks fields into `createQuote` (never pass
   `req.body` directly — per CLAUDE.md). Add `images: req.body.images,` to the call.
 
-- [ ] **Step 4: Type-gate + commit**
+- [x] **Step 4: Type-gate + commit**
 
 Run: `rtk proxy npx tsc --noEmit`
 ```bash
@@ -116,7 +116,7 @@ git commit -m "feat(quote): accept + persist optional customer images"
 **Files:**
 - Modify: `backend/src/services/servicer-quote.service.ts` (`listIncomingQuotes` `.map`)
 
-- [ ] **Step 1: Add to the returned object** (after `descriptions: ...`):
+- [x] **Step 1: Add to the returned object** (after `descriptions: ...`):
 
 ```typescript
         images: q.images ?? [],
@@ -125,7 +125,7 @@ git commit -m "feat(quote): accept + persist optional customer images"
 `images` is a scalar array column on `quoteRequest`, already loaded by the existing
 `include` — no `select` change needed.
 
-- [ ] **Step 2: Type-gate + commit**
+- [x] **Step 2: Type-gate + commit**
 
 Run: `rtk proxy npx tsc --noEmit`
 ```bash
@@ -144,7 +144,7 @@ git commit -m "feat(servicer): return customer quote images on incoming feed"
   3-step upload to mirror).
 - Modify: `quote-form.component.ts`
 
-- [ ] **Step 1: Add upload state signals** to the component:
+- [x] **Step 1: Add upload state signals** to the component:
 
 ```typescript
   quoteImages = signal<string[]>([]);   // confirmed URLs
@@ -152,7 +152,7 @@ git commit -m "feat(servicer): return customer quote images on incoming feed"
   imgError = signal('');
 ```
 
-- [ ] **Step 2: Add an upload method** mirroring `jobs.component.ts uploadAndAct` steps
+- [x] **Step 2: Add an upload method** mirroring `jobs.component.ts uploadAndAct` steps
   1-3 (presign → PUT → confirm), but for `purpose: 'arrive_photo'`-style — add a
   `quote_image` purpose to the backend presign enum if needed (check
   `file.service.ts` allowed purposes; extend the union + validation if `quote_image`
@@ -181,7 +181,7 @@ git commit -m "feat(servicer): return customer quote images on incoming feed"
   (Match the real `ApiService` method signatures + import `firstValueFrom` if not present.
   Confirm whether the PUT goes via `fetch` or `ApiService` by reading `uploadAndAct`.)
 
-- [ ] **Step 3: Add the UI** near the notes field in the form template:
+- [x] **Step 3: Add the UI** near the notes field in the form template:
 
 ```html
   <label class="upload">
@@ -196,10 +196,10 @@ git commit -m "feat(servicer): return customer quote images on incoming feed"
   @if (imgError()) { <p class="err">{{ imgError() }}</p> }
 ```
 
-- [ ] **Step 4: Include images in the submit payload.** Where the form builds the
+- [x] **Step 4: Include images in the submit payload.** Where the form builds the
   create-quote body, add `images: this.quoteImages(),`.
 
-- [ ] **Step 5: Type-gate + build + commit**
+- [x] **Step 5: Type-gate + build + commit**
 
 Run (from `frontend/`): `npx tsc --noEmit` && `ng build`
 ```bash
@@ -214,9 +214,9 @@ git commit -m "feat(quote-form): optional customer image upload"
 **Files:**
 - Modify: `frontend/src/app/servicer/pages/incoming-quotes.component.ts` (interface + expander, from Plan 2)
 
-- [ ] **Step 1: Add `images?: string[];`** to the `IncomingQuote` interface.
+- [x] **Step 1: Add `images?: string[];`** to the `IncomingQuote` interface.
 
-- [ ] **Step 2: Render thumbnails** in the `.details` expander (after notes):
+- [x] **Step 2: Render thumbnails** in the `.details` expander (after notes):
 
 ```html
             @if (q.images?.length) {
@@ -228,13 +228,13 @@ git commit -m "feat(quote-form): optional customer image upload"
             }
 ```
 
-- [ ] **Step 3: Lightbox via top-layer `<app-modal>`** (never a fixed backdrop — project
+- [x] **Step 3: Lightbox via top-layer `<app-modal>`** (never a fixed backdrop — project
   modal rule, STYLE-RULES §7.0). Add a `lightbox = signal<string | null>(null);` and an
   `<app-modal [open]="!!lightbox()" (close)="lightbox.set(null)">` containing
   `<img [src]="lightbox()" />`. Import the shared `app-modal` component as the codebase
   does elsewhere (grep `app-modal` for the import + selector usage).
 
-- [ ] **Step 4: Type-gate + build + commit**
+- [x] **Step 4: Type-gate + build + commit**
 
 Run: `npx tsc --noEmit` && `ng build`
 ```bash
@@ -246,13 +246,13 @@ git commit -m "feat(servicer): show customer quote images in dispatch card (top-
 
 ## Task 6: Verify end-to-end
 
-- [ ] **Step 1: Arrive/done upload** works (Task 1 manual repro now passes).
-- [ ] **Step 2: Quote with images.** As customer.fresh, submit a quote with 1-2 photos.
+- [x] **Step 1: Arrive/done upload** works (Task 1 manual repro now passes).
+- [x] **Step 2: Quote with images.** As customer.fresh, submit a quote with 1-2 photos.
   Confirm they persist on `QuoteRequest.images`.
-- [ ] **Step 3: Servicer sees them.** As M9, open that quote's card ▾ expander → thumbnails
+- [x] **Step 3: Servicer sees them.** As M9, open that quote's card ▾ expander → thumbnails
   render; clicking one opens the top-layer lightbox (centered, not cropped — verify on a
   page with stagger animation).
-- [ ] **Step 4: Commit** any fixups.
+- [x] **Step 4: Commit** any fixups.
 
 ---
 
