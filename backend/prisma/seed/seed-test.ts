@@ -131,6 +131,7 @@ const platformSettings: { key: string; value: unknown }[] = [
   { key: 'no_show_weekly_threshold', value: { count: 5 } },
   { key: 'servicer_deposit_minimum', value: { amount: 100.0 } },
   { key: 'servicer_credit_withdrawal_minimum', value: { amount: 50.0 } },
+  { key: 'urgent_same_day_fee', value: { amount: 150, platform_share: 0.20 } },
   { key: 'quote_buffer_minutes', value: { minutes: 15 } },
   { key: 'sst_rate', value: { rate: 0.06 } },
   { key: 'noshow_grace_minutes', value: { minutes: 30 } },

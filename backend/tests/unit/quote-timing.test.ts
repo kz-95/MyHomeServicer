@@ -44,3 +44,14 @@ describe('isSameDayMYT', () => {
     expect(isSameDayMYT(a, b)).toBe(false);
   });
 });
+
+import { splitUrgentFee } from '../../src/services/quote-timing.service';
+
+describe('splitUrgentFee', () => {
+  it('splits a fee into platform + servicer shares', () => {
+    expect(splitUrgentFee(150, 0.2)).toEqual({ platform: 30, servicer: 120 });
+  });
+  it('rounds to cents', () => {
+    expect(splitUrgentFee(99.99, 0.2)).toEqual({ platform: 20, servicer: 79.99 });
+  });
+});

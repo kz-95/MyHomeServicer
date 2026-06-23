@@ -75,7 +75,7 @@ export const servicers: SeedServicer[] = [
     showEmailPublic: false, showPhonePublic: true,
     invoicePrefix: IN, invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
     invoiceContent: null, invoiceSuffix: null,
-    area: 'SS2, Petaling Jaya', serviceAreas: ['SS2', 'PJ', 'Petaling Jaya'],
+    area: 'Cyberjaya (near MMU)', serviceAreas: ['Cyberjaya', 'MMU', 'Cyberjaya'],
     rating: 4.6, categorySlug: 'plumber',
     services: [
       {
@@ -630,7 +630,7 @@ export const servicers: SeedServicer[] = [
     showEmailPublic: true, showPhonePublic: true,
     invoicePrefix: 'CCS', invoiceYearFormat: YR, invoiceSeparator: SEP, invoicePadding: PAD,
     invoiceContent: null, invoiceSuffix: null,
-    area: 'Bukit Bintang, KL', serviceAreas: ['Bukit Bintang', 'KLCC', 'KL'],
+    area: 'Cyberjaya (near MMU)', serviceAreas: ['Cyberjaya', 'MMU', 'Cyberjaya'],
     rating: 4.6, categorySlug: 'art-class',
     services: [
       { sku: 'ART-BEGINNER', title: 'Art class - beginner to advanced', basePrice: 60, priceType: 'hourly', duration: 60 },
@@ -2320,7 +2320,7 @@ export const customers: SeedCustomer[] = [
     name: 'Sarah Lim',
     phone: '+60 12-345 6789',
     addresses: [
-      { label: 'Home', address: '12 Jalan Bukit Bintang, Bukit Bintang, KL', propertyType: 'condo', isDefault: true, postcode: '55100', district: 'Bukit Bintang', state: 'Kuala Lumpur' },
+      { label: 'Home', address: 'B-3-5, Tamarind Square, Cyberjaya', propertyType: 'condo', isDefault: true, postcode: '63000', district: 'Cyberjaya', state: 'Selangor' },
     ],
   },
   {

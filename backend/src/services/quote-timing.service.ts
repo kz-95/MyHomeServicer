@@ -1,4 +1,5 @@
 import { TimeSlotValue, slotStartHour } from '../lib/time-slots';
+import { getSetting } from './settings.service';
 
 /** MYT is UTC+8. */
 const MYT_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -30,4 +31,19 @@ export function isSameDayMYT(a: Date, b: Date): boolean {
     am.getUTCMonth() === bm.getUTCMonth() &&
     am.getUTCDate() === bm.getUTCDate()
   );
+}
+
+export interface UrgentFeeConfig { amount: number; platform_share: number; }
+
+/** Reads the admin-configurable urgent fee. Returns null if unset/zero. */
+export async function resolveUrgentFee(): Promise<UrgentFeeConfig | null> {
+  const cfg = await getSetting<UrgentFeeConfig>('urgent_same_day_fee').catch(() => null);
+  if (!cfg || !cfg.amount || cfg.amount <= 0) return null;
+  return cfg;
+}
+
+/** Split a fee into platform + servicer shares, rounded to cents. */
+export function splitUrgentFee(amount: number, platformShare: number): { platform: number; servicer: number } {
+  const platform = Math.round(amount * platformShare * 100) / 100;
+  return { platform, servicer: Math.round((amount - platform) * 100) / 100 };
 }
