@@ -1835,3 +1835,43 @@ won/active job (rendered only when `customerPhone` is present).
 - `da7222b` fix(customer): unify reorder to rebook-same-servicer (drop toast-only path)
 - `7503372` feat(customer): consolidate Order History — MyBookings view + rebook button; retire old OrderHistory
 
+
+## Session 2026-06-23 — Item 5: Chat-assisted direct quote submission
+
+**Scope:** TODO.md Item 5 — demo button for smooth quote submission from chat.
+
+### Changes
+
+**`chat-widget.component.ts`:**
+
+1. **New signals:**
+   - `directSubmitting` — loading indicator for the direct submit button
+   - `directSubmitError` — inline error message display
+   - `directSubmitSuccess` — success confirmation display
+   - `canDirectSubmit` (computed) — true only when all required fields collected: `categoryId`, `preferredDate`, `timeSlot`, address (confirmed), `budgetMax`, `contactName`, `contactNumber`
+
+2. **Template (`quote_prefill` card):**
+   - Added "Submit Quote Directly" primary button — disabled while `directSubmitting` or `!canDirectSubmit()`
+   - Existing "Review & submit" demoted to outline style secondary button via `.btn-outline`
+   - Both buttons wrapped in `.prefill-actions` flex row
+   - Success state (`directSubmitSuccess`): green banner "✅ Quote submitted! Redirecting to My Quotes…"
+   - Error state (`directSubmitError`): red banner with error message
+   - Buttons hidden when success/error shown (replaced by status messages)
+
+3. **`submitQuoteDirectly()` method:**
+   - Builds `/quotes` POST payload from `prefillData`: `categoryId`, `contactName`, `contactNumber`, `timeSlot`, `preferredDate`, `paymentMode: pay_later`, `settlementMethod: cash`, `deadlineMode: fixed_time`, `proposalDeadline` (24h), `agreeTerms`, `budgetMin`/`budgetMax`, structured address fields (`addressNo`/`streetDetails`/`postcode`/`district`/`state`/`propertyType`/`lat`/`lng`), `serviceDetails`, `notes`
+   - Auth customers → `POST /quotes`; guests → `POST /quotes/guest`
+   - On success: sets `directSubmitSuccess`, `prefillSubmitted`; 1.5s delay then navigates to `/customer/quotes`
+   - On error: sets `directSubmitError` with server message
+
+4. **`resetQuoteFlowState()`** — resets all 3 new direct-submit signals
+
+5. **New CSS:** `.prefill-actions` (flex row for dual buttons), `.direct-submit-ok` (success banner), `.direct-submit-err` (error banner)
+
+### Gates
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `npx ng build --configuration development` | ✅ exit 0 |
+
+

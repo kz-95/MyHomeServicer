@@ -1033,12 +1033,37 @@ interface PublicConfig {
                                <p class="muted">
                                  {{ t('reviewSubmitNote') }}
                                </p>
-                               <button
-                                class="btn-primary"
-                                (click)="submitPrefill()"
-                              >
-                                {{ t('reviewSubmit') }}
-                              </button>
+                               @if (directSubmitSuccess()) {
+                                 <div class="direct-submit-ok">
+                                   ✅ Quote submitted! Redirecting to My Quotes…
+                                 </div>
+                               } @else if (directSubmitError()) {
+                                 <div class="direct-submit-err">
+                                   ❌ {{ directSubmitError() }}
+                                 </div>
+                               } @else {
+                                 <div class="prefill-actions">
+                                   <button
+                                     class="btn-primary"
+                                     [disabled]="
+                                       directSubmitting() || !canDirectSubmit()
+                                     "
+                                     (click)="submitQuoteDirectly()"
+                                   >
+                                     {{
+                                       directSubmitting()
+                                         ? 'Submitting…'
+                                         : 'Submit Quote Directly'
+                                     }}
+                                   </button>
+                                   <button
+                                     class="btn-outline"
+                                     (click)="submitPrefill()"
+                                   >
+                                     {{ t('reviewSubmit') }}
+                                   </button>
+                                 </div>
+                               }
                             </div>
                           }
                         }
@@ -1855,6 +1880,35 @@ interface PublicConfig {
         text-align: right;
         max-width: 60%;
         word-break: break-word;
+      }
+      .prefill-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.4rem;
+      }
+      .prefill-actions button {
+        font-size: 0.82rem;
+        padding: 0.625rem 0.8rem;
+      }
+      .direct-submit-ok {
+        color: var(--color-success);
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        padding: 0.4rem 0.6rem;
+        background: var(--color-success-bg, #ecfdf5);
+        border: 1px solid var(--color-success);
+        border-radius: var(--radius);
+      }
+      .direct-submit-err {
+        color: var(--color-danger);
+        font-size: 0.82rem;
+        margin-top: 0.4rem;
+        padding: 0.4rem 0.6rem;
+        background: var(--color-danger-bg, #fef2f2);
+        border: 1px solid var(--color-danger);
+        border-radius: var(--radius);
       }
 
       .addr-validating {
@@ -3166,6 +3220,25 @@ export class ChatWidgetComponent
   /** True once the review card's Submit was tapped — releases the lock the review card holds. */
   readonly prefillSubmitted = signal(false);
 
+  /** Direct quote submit state — bypasses the quote form entirely. */
+  directSubmitting = signal(false);
+  directSubmitError = signal('');
+  directSubmitSuccess = signal(false);
+
+  /** True when all required fields for direct quote submission are collected. */
+  readonly canDirectSubmit = computed(() => {
+    const d = this.widget.prefillData();
+    if (!d['categoryId']) return false;
+    if (!d['preferredDate']) return false;
+    if (!d['timeSlot']) return false;
+    if (!this.addressConfirmed()) return false;
+    const bm = d['budgetMax'];
+    if (bm == null || !bm) return false;
+    if (!d['contactName']) return false;
+    if (!d['contactNumber']) return false;
+    return true;
+  });
+
   /** The action cards from the assistant's most recent turn (the current "batch").
    *  Cards reveal as separate messages, so the batch is the trailing run of assistant
    *  messages since the last user message. */
@@ -4072,6 +4145,81 @@ export class ChatWidgetComponent
     });
   }
 
+  /** Submit the quote directly from chat, bypassing the multi-step quote form. */
+  submitQuoteDirectly(): void {
+    const d = this.widget.prefillData();
+    if (!d['categoryId']) return;
+
+    this.directSubmitting.set(true);
+    this.directSubmitError.set('');
+    this.directSubmitSuccess.set(false);
+
+    const proposalDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const budgetMin = Number(d['budgetMin'] ?? 0);
+    const budgetMax = Number(d['budgetMax'] ?? 0);
+
+    const payload: Record<string, unknown> = {
+      categoryId: d['categoryId'],
+      contactName: String(d['contactName'] ?? ''),
+      contactNumber: String(d['contactNumber'] ?? ''),
+      timeSlot: String(d['timeSlot'] ?? ''),
+      preferredDate: String(d['preferredDate'] ?? ''),
+      paymentMode: 'pay_later',
+      settlementMethod: 'cash',
+      deadlineMode: 'fixed_time',
+      proposalDeadline: proposalDeadline.toISOString(),
+      agreeTerms: true,
+    };
+
+    if (budgetMin > 0) payload['budgetMin'] = budgetMin;
+    if (budgetMax > 0) payload['budgetMax'] = budgetMax;
+
+    // Address: use the structured fields stored by confirmAddress
+    const addrNo = String(d['addressNo'] ?? '').trim();
+    const street = String(d['streetDetails'] ?? '').trim();
+    if (addrNo || street) {
+      payload['address'] = [addrNo, street].filter(Boolean).join(', ');
+    }
+    if (d['postcode']) payload['postcode'] = String(d['postcode']);
+    if (d['district']) payload['district'] = String(d['district']);
+    if (d['state']) payload['state'] = String(d['state']);
+    if (d['propertyType']) payload['propertyType'] = String(d['propertyType']);
+    if (d['lat'] != null) payload['lat'] = Number(d['lat']);
+    if (d['lng'] != null) payload['lng'] = Number(d['lng']);
+
+    // Service question answers
+    if (d['serviceDetails'] && typeof d['serviceDetails'] === 'object') {
+      payload['serviceDetails'] = d['serviceDetails'];
+    }
+
+    // Notes
+    if (d['notes']) payload['notes'] = String(d['notes']);
+
+    const principal = this.auth.principal();
+    const endpoint = principal?.role === 'customer' ? '/quotes' : '/quotes/guest';
+
+    this.api.post<{ id: string }>(endpoint, payload).subscribe({
+      next: (r) => {
+        this.directSubmitting.set(false);
+        this.directSubmitSuccess.set(true);
+        this.prefillSubmitted.set(true);
+        // Navigate authenticated customers to their quotes list
+        if (principal?.role === 'customer') {
+          setTimeout(() => {
+            this.widget.close();
+            this.router.navigate(['/customer/quotes']);
+          }, 1500);
+        }
+      },
+      error: (e) => {
+        this.directSubmitting.set(false);
+        this.directSubmitError.set(
+          e?.message ?? e?.error?.message ?? 'Could not submit quote. Please try again.',
+        );
+      },
+    });
+  }
+
   /** Card language — mirrors the language the customer is currently writing in (scans
    *  the last few user messages so a short "yes" doesn't flip cards back to English). */
   readonly cardLang = computed<CardLang>(() => {
@@ -4607,6 +4755,9 @@ export class ChatWidgetComponent
     this.qQuantity.set({});
     this.qDisplay.set({});
     this.prefillSubmitted.set(false);
+    this.directSubmitting.set(false);
+    this.directSubmitError.set('');
+    this.directSubmitSuccess.set(false);
   }
 
   private loadGuest(): void {

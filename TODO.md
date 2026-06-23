@@ -46,12 +46,11 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   `/api/files/local-upload/{key}`; route mounted at `/files`. Verify mount base, align
   the emitters, then reuse for customer quote images (schema `images[]` in item 1, form
   upload, card thumbnails).
-- [ ] **5. Chat-assisted quote flow** (beat 1) — smooth submission via demo button.
+- [x] **5. Chat-assisted quote flow** (beat 1) — smooth submission via demo button.
 - [ ] **6. Admin financial dashboard** (beat 6) — revenue/fee/escrow cards + 30-day
   chart from the real transaction ledger (not stubbed); urgent-fee line. Quick links,
   date range.
-- [ ] **7. LLM key rotation** (beat 7, optional closer) — provider failover, masked keys,
-  admin AI settings. (use `llm-key-system` skill — copy bundled engine, don't rebuild)
+<!-- Item 7 removed per user request 2026-06-23 -->
 
 ### Servicer journey polish (beats 2/5 — added 2026-06-23)
 
