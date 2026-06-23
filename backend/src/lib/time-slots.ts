@@ -14,3 +14,17 @@
 export const TIME_SLOTS = ['morning', 'noon', 'afternoon', 'evening', 'night'] as const;
 
 export type TimeSlotValue = (typeof TIME_SLOTS)[number];
+
+/** Start hour (MYT, 24h) for each quote time-slot bucket. Mirrors SLOT_END_HOUR
+ *  in booking.service.ts; used to derive a concrete job datetime + response timer. */
+export const SLOT_START_HOUR: Record<TimeSlotValue, number> = {
+  morning: 9,
+  noon: 11,
+  afternoon: 13,
+  evening: 15,
+  night: 17,
+};
+
+export function slotStartHour(slot: TimeSlotValue): number {
+  return SLOT_START_HOUR[slot];
+}
