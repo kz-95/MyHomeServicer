@@ -29,6 +29,15 @@ import {
   requestMutualCancel,
   reportBookingProblem,
 } from '../services/booking.service';
+import { ServicerTaxConfig } from '../lib/money';
+import { OptionPriceMap, ModuleRef } from '../lib/json-schemas';
+import {
+  ModuleLite,
+  ListingForPricing,
+  Answers,
+  computeListingPrice,
+  computeListingDurationMin,
+} from '../services/listing-pricing.service';
 import {
   getServicerProfile,
   updateServicerProfile,
@@ -569,6 +578,101 @@ servicerRouter.patch(
   validate([body('autoAccept').isBoolean()]),
   asyncHandler(async (req, res) => {
     res.json(await configureAutoAccept(req.user!.id, req.params.id, req.body));
+  }),
+);
+
+/**
+ * GET /servicer/me/services/:id/preview — listing price breakdown preview.
+ *
+ * Query: ?answers={"type":"wall","units":{"unit":3}}  (optional JSON string)
+ * Returns: lineItems[], total, subtotal, serviceCharge, sst, durationMin,
+ *          autoAcceptEligible (boolean), autoAcceptReasons (why not, if any)
+ */
+servicerRouter.get(
+  '/me/services/:id/preview',
+  asyncHandler(async (req, res) => {
+    const servicerId = req.user!.id;
+    const serviceId = req.params.id;
+
+    const service = await prisma.servicerService.findFirst({
+      where: { id: serviceId, servicerId, deletedAt: null },
+      select: {
+        id: true, basePrice: true, estimatedDurationMinutes: true, priceType: true,
+        autoAccept: true, modifiers: true, moduleRefs: true,
+      },
+    });
+    if (!service) throw notFound('Listing not found');
+
+    const [servicer, sstRate] = await Promise.all([
+      prisma.servicer.findUnique({
+        where: { id: servicerId },
+        select: {
+          isOnline: true, serviceAreas: true, serviceRadiusKm: true,
+          serviceChargeRate: true, sstRegistered: true, taxInclusive: true,
+        },
+      }),
+      getSstRate(),
+    ]);
+
+    // Parse optional answers from query string.
+    let answersRaw: unknown = {};
+    if (typeof req.query.answers === 'string') {
+      try { answersRaw = JSON.parse(req.query.answers); } catch { /* leave empty */ }
+    }
+
+    // Resolve referenced modules.
+    const moduleRefs: Array<{ moduleId: string }> = [];
+    if (service.moduleRefs) {
+      try {
+        const parsed = JSON.parse(typeof service.moduleRefs === 'string' ? service.moduleRefs : JSON.stringify(service.moduleRefs));
+        if (Array.isArray(parsed)) moduleRefs.push(...(parsed as Array<{ moduleId: string }>));
+      } catch { /* leave empty */ }
+    }
+    const modulesById = new Map<string, ModuleLite>();
+    if (moduleRefs.length > 0) {
+      const rows = await prisma.servicerModule.findMany({
+        where: { id: { in: moduleRefs.map((r) => r.moduleId) } },
+        select: { id: true, name: true, price: true },
+      });
+      for (const m of rows) modulesById.set(m.id, { id: m.id, name: m.name, price: Number(m.price) });
+    }
+
+    const taxConfig: ServicerTaxConfig = {
+      serviceChargeRate: Number(servicer?.serviceChargeRate ?? 0) || 0,
+      sstRegistered: servicer?.sstRegistered ?? false,
+      sstRate,
+      taxInclusive: servicer?.taxInclusive ?? false,
+    };
+
+    const listing: ListingForPricing = {
+      basePrice: Number(service.basePrice),
+      estimatedDurationMinutes: service.estimatedDurationMinutes,
+      modifiers: (service.modifiers ?? null) as OptionPriceMap | null,
+      moduleRefs: moduleRefs.length > 0 ? moduleRefs as ModuleRef[] : null,
+    };
+
+    const breakdown = computeListingPrice(listing, modulesById, answersRaw as Answers, taxConfig, []);
+    const durationMin = computeListingDurationMin(listing, answersRaw as Answers, []);
+
+    // Auto-accept eligibility summary (without quote context — just structural check).
+    const autoAcceptEligible = service.autoAccept && service.priceType === 'fixed';
+    const autoAcceptReasons: string[] = [];
+    if (!service.autoAccept) autoAcceptReasons.push('auto-accept is off');
+    if (service.priceType !== 'fixed') autoAcceptReasons.push(`price type '${service.priceType}' does not auto-accept`);
+
+    res.json({
+      data: {
+        listingId: service.id,
+        basePrice: Number(service.basePrice),
+        priceType: service.priceType,
+        ...breakdown,
+        durationMin,
+        autoAccept: {
+          eligible: autoAcceptEligible,
+          reasons: autoAcceptReasons,
+        },
+      },
+    });
   }),
 );
 
