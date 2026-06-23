@@ -32,6 +32,7 @@ interface CalendarBooking {
   notes: string | null;
   serviceDetails: Record<string, unknown> | null;
   customerName: string;
+  isUrgent?: boolean;
 }
 
 interface CalendarData {
@@ -110,6 +111,7 @@ interface CalendarData {
                            [class.bg-cancelled]="b.status === 'cancelled'">
                         <span class="bk-cat">{{ b.category }}</span>
                         <span class="bk-time">{{ b.timeSlot }}</span>
+                        @if (b.isUrgent) { <span class="dot-urgent"></span> }
                       </div>
                     }
                     @if (day.bookings.length > 3) {
@@ -268,7 +270,7 @@ interface CalendarData {
     }
   `,
     styles: [`
-    :host { display: block; }
+    :host { display: block; max-width: 1000px; margin: 0 auto; }
     h1 { margin-bottom: 0.2rem; }
     .err { color: var(--color-danger); }
 
@@ -396,6 +398,7 @@ interface CalendarData {
     .cal-cell:hover { background: var(--color-surface); }
     .cal-cell:not(.other-month) { cursor: pointer; }
     .cal-cell.other-month { opacity: 0.3; pointer-events: none; }
+    .cal-cell.today { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 
     /* ── Day detail overlay ── */
     .day-modal-list {
@@ -511,6 +514,7 @@ interface CalendarData {
     }
     .bk-cat { font-weight: 600; }
     .bk-time { opacity: 0.85; margin-left: 0.2rem; }
+    .dot-urgent { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--color-danger); margin-left: 3px; flex-shrink: 0; }
     .bk-more { font-size: 0.65rem; color: var(--color-muted); text-align: center; }
 
     .bg-completed { background: #16a34a; }

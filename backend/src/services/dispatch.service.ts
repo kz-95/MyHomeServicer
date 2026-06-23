@@ -163,7 +163,7 @@ export async function handleDispatchAccept(
     where: { id: broadcastId },
     include: {
       quoteRequest: {
-        select: { id: true, categoryId: true, userId: true, budgetMax: true, paymentMode: true, preferredDate: true, timeSlot: true, serviceDetails: true, status: true },
+        select: { id: true, categoryId: true, userId: true, budgetMax: true, paymentMode: true, preferredDate: true, timeSlot: true, serviceDetails: true, status: true, isUrgent: true, urgentFee: true },
       },
       servicer: { select: { id: true, name: true } },
     },
@@ -226,6 +226,8 @@ export async function handleDispatchAccept(
         scheduledDate: qr.preferredDate,
         timeSlot: qr.timeSlot,
         confirmedAt: new Date(),
+        isUrgent: qr.isUrgent ?? false,
+        urgentFee: qr.urgentFee ?? null,
       },
     });
   });

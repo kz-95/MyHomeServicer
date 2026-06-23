@@ -27,6 +27,7 @@ import {
   cashConfirm,
   servicerCancelJob,
   requestMutualCancel,
+  reportBookingProblem,
 } from '../services/booking.service';
 import {
   getServicerProfile,
@@ -794,6 +795,24 @@ servicerRouter.post(
   }),
 );
 
+/** POST /servicer/jobs/:id/report — report a problem with a job. */
+servicerRouter.post(
+  '/jobs/:id/report',
+  validate([
+    body('subject').isString().trim().notEmpty(),
+    body('description').isString().trim().notEmpty(),
+  ]),
+  asyncHandler(async (req, res) => {
+    const report = await reportBookingProblem(
+      req.user!.id,
+      req.params.id,
+      req.body.subject,
+      req.body.description,
+    );
+    res.status(201).json(report);
+  }),
+);
+
 // ── Calendar ─────────────────────────────────────────────────────────────────
 
 /**
@@ -826,6 +845,7 @@ servicerRouter.get(
         price: true,
         paymentMode: true,
         cashConfirmed: true,
+        isUrgent: true,
         quoteRequest: {
           select: {
             category: { select: { name: true } },
@@ -865,6 +885,7 @@ servicerRouter.get(
         notes: b.quoteRequest.notes,
         serviceDetails: b.quoteRequest.serviceDetails,
         customerName: b.quoteRequest.user.name,
+        isUrgent: b.isUrgent,
       });
     }
 

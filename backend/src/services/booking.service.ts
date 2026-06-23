@@ -174,6 +174,8 @@ export async function selectProposal(
         tipStatus: isPayNow ? null : 'pending',
         travelFee: service?.travelFee ?? null,
         isInspection,
+        isUrgent: quote.isUrgent ?? false,
+        urgentFee: quote.urgentFee ?? null,
       },
     });
 
@@ -240,18 +242,36 @@ export async function selectProposal(
           },
         });
       } else if (quote.budgetMax != null) {
-        // Credit was already held at quote creation — refund excess budget.
-        const excess = Number(quote.budgetMax) - escrowTotal;
-        if (excess > 0) {
-          await adjustCredit('user', userId, excess, tx);
+        // Credit was already held at quote creation — refund excess budget
+        // or deduct shortfall if the proposal is more expensive than the budget.
+        const budgetHold = Number(quote.budgetMax);
+        const diff = budgetHold - escrowTotal;
+        if (diff > 0) {
+          await adjustCredit('user', userId, diff, tx);
           await recordTransaction(
             {
               type: 'refund',
-              amount: excess,
+              amount: diff,
               bookingId: created.id,
               userId,
               escrowId: escrow.id,
               reference: 'Budget excess refund on proposal selection',
+            },
+            tx,
+          );
+        } else if (diff < 0) {
+          // Proposal exceeds budget hold — deduct the shortfall from wallet.
+          const shortfall = -diff;
+          await adjustCredit('user', userId, -shortfall, tx);
+          await recordTransaction(
+            {
+              type: 'escrow_hold',
+              amount: shortfall,
+              bookingId: created.id,
+              servicerId: proposal.servicerId,
+              userId,
+              escrowId: escrow.id,
+              reference: 'Shortfall deduction — proposal exceeded budget',
             },
             tx,
           );
