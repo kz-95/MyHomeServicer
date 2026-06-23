@@ -59,9 +59,9 @@ const TAB_STATUSES: Record<TabKey, string[]> = {
 };
 
 const TAB_LABELS: Record<TabKey, string> = {
-  pending: 'Pending',
+  pending: 'Upcoming',
   inProgress: 'In Progress',
-  history: 'History',
+  history: 'Past',
 };
 
 /** Customer booking list with live status updates over Socket.io. */
@@ -70,7 +70,7 @@ const TAB_LABELS: Record<TabKey, string> = {
     host: { class: 'page-enter page-narrow' },
     imports: [CommonModule, FormsModule, ModalComponent, RouterLink, ServicerDetailPopupComponent],
     template: `
-    <h1>My bookings</h1>
+    <h1>Order History</h1>
     @if (loading()) {
       <div class="skeleton-list">
         @for (s of skeletonSlots; track s; let i = $index) {
@@ -96,7 +96,7 @@ const TAB_LABELS: Record<TabKey, string> = {
           <a
             class="subnav-link"
             [class.active]="activeTab() === t.key"
-            [routerLink]="'/customer/bookings/' + t.key"
+            [routerLink]="'/customer/history/' + t.key"
           >
             {{ t.label }} <span class="n">{{ t.count }}</span>
           </a>
@@ -160,8 +160,11 @@ const TAB_LABELS: Record<TabKey, string> = {
               <button class="btn-ghost" (click)="cancel(b)">Cancel</button>
             }
             @if (b.status === 'completed') {
-              <button class="btn-ghost" (click)="reorder(b)">Reorder</button>
+              <button class="btn-ghost" (click)="reorder(b)">Rebook this servicer</button>
               <button class="btn-ghost" (click)="viewInvoice(b)">Invoice</button>
+            }
+            @if (b.status === 'cancelled') {
+              <button class="btn-ghost" (click)="reorder(b)">Rebook this servicer</button>
             }
             <button class="btn-ghost" (click)="reportIssue(b)" [disabled]="reporting()">
               {{ reporting() === b.id ? '…' : 'Report issue' }}
@@ -289,6 +292,29 @@ const TAB_LABELS: Record<TabKey, string> = {
       }
     </app-modal>
 
+    <!-- ── Report issue modal ──────────────────────────────────────── -->
+    <app-modal [open]="reportModalOpen()" title="Report an issue" (closed)="closeReport()">
+      <div class="report-form">
+        <label class="rfl">
+          <span class="rfl-label">Subject</span>
+          <input [(ngModel)]="reportSubject" name="rsubj" placeholder="Brief title for the issue" maxlength="200" />
+        </label>
+        <label class="rfl">
+          <span class="rfl-label">Description</span>
+          <textarea [(ngModel)]="reportDescription" name="rdesc" placeholder="Describe the problem in detail" rows="5" maxlength="2000"></textarea>
+        </label>
+        @if (reportError()) {
+          <p class="err">{{ reportError() }}</p>
+        }
+        <div class="report-actions">
+          <button class="btn-ghost" (click)="closeReport()">Cancel</button>
+          <button class="btn-primary" (click)="submitReport()" [disabled]="reportSubmitting() || !reportSubject().trim() || !reportDescription().trim()">
+            {{ reportSubmitting() ? "Submitting" : "Submit report" }}
+          </button>
+        </div>
+      </div>
+    </app-modal>
+
     <!-- ── Servicer detail popup ──────────────────────────────────────── -->
     <app-servicer-detail-popup [servicerId]="detailServicerId()" (closed)="detailServicerId.set(null)" />
   `,
@@ -340,6 +366,38 @@ const TAB_LABELS: Record<TabKey, string> = {
       .svc-name-btn:hover {
         color: var(--color-primary);
         text-decoration: underline;
+      }
+      .report-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-width: 300px;
+      }
+      .rfl {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+      .rfl-label {
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+      .rfl input,
+      .rfl textarea {
+        padding: 0.5rem 0.7rem;
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        background: var(--color-surface);
+        color: var(--color-text);
+        font: inherit;
+        font-size: 0.85rem;
+        resize: vertical;
+      }
+      .report-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
       }
       .svc-avatar {
         display: inline-flex;
@@ -660,6 +718,12 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   invoiceError = signal('');
   payBooking = signal<Booking | null>(null);
   paying = signal(false);
+  reportModalOpen = signal(false);
+  reportSubject = signal("");
+  reportDescription = signal("");
+  reportError = signal("");
+  reportSubmitting = signal(false);
+  private reportBookingId = signal<string | null>(null);
 
   private subs: Subscription[] = [];
 
@@ -824,29 +888,50 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   }
 
   reorder(b: Booking): void {
-    this.api.post(`/bookings/${b.id}/reorder`, {}).subscribe({
-      next: () => this.toast.info('Reorder shortcut saved - open the quote form to rebook.'),
+    this.api.post<{ prefill: Record<string, unknown> }>(`/bookings/${b.id}/reorder`, {}).subscribe({
+      next: (r) =>
+        this.router.navigate(['/customer/quote/new'], {
+          // rebookServicer locks the quote to this servicer (direct, no broadcast)
+          // and hides the category pickers in the quote form.
+          state: { prefill: r.prefill, rebookServicer: { id: b.servicer.id, name: b.servicer.businessName } },
+        }),
       error: (e) => this.toast.error(e.message ?? 'Could not create reorder'),
     });
   }
 
-  /** Opens a booking-support chat session and navigates to the chat page. */
   reportIssue(b: Booking): void {
-    if (this.reporting()) return;
-    this.reporting.set(b.id);
+    this.reportBookingId.set(b.id);
+    this.reportSubject.set('');
+    this.reportDescription.set('');
+    this.reportError.set('');
+    this.reportModalOpen.set(true);
+  }
+
+  closeReport(): void {
+    this.reportModalOpen.set(false);
+    this.reportBookingId.set(null);
+    this.reportError.set('');
+  }
+
+  submitReport(): void {
+    const bid = this.reportBookingId();
+    if (!bid) return;
+    this.reportSubmitting.set(true);
+    this.reportError.set('');
     this.api
-      .post<{ sessionId: string }>('/chat/session', {
-        contextType: 'booking_support',
-        contextId: b.id,
+      .post(`/bookings/${bid}/report`, {
+        subject: this.reportSubject(),
+        description: this.reportDescription(),
       })
       .subscribe({
         next: () => {
-          this.reporting.set(null);
-          this.widget.openWithQuestion('I need help with this booking.');
+          this.reportSubmitting.set(false);
+          this.toast.success('Issue reported. Our team will review it.');
+          this.closeReport();
         },
         error: (e) => {
-          this.reporting.set(null);
-          this.toast.error(e.message ?? 'Could not open support chat. Please try again.');
+          this.reportSubmitting.set(false);
+          this.reportError.set(e.message ?? 'Could not submit report. Please try again.');
         },
       });
   }
