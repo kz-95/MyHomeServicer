@@ -47,6 +47,8 @@ export interface CreateQuoteInput {
   notes?: string;
   promoCode?: string;
   serviceDetails?: Record<string, string | string[]>;
+  /** Optional customer-attached image URLs (confirmed upload URLs). Max 5. */
+  images?: string[];
   /**
    * Rebook / direct-quote target. When set, the quote is NOT broadcast to all
    * matching servicers — it goes only to this one servicer (locked rebook).
@@ -342,6 +344,7 @@ export async function createQuote(
       isUrgent,
       urgentFee,
       notes: input.notes ?? null,
+      images: input.images ?? [],
       promoCode: input.promoCode ?? null,
       ...(input.serviceDetails
         ? { serviceDetails: input.serviceDetails as Prisma.InputJsonValue }

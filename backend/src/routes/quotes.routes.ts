@@ -255,6 +255,8 @@ const createValidators = [
   body('agreeTerms').isBoolean().custom((v) => v === true).withMessage('You must agree to the terms'),
   body('promoCode').optional({ values: 'null' }).isString().trim(),
   body('serviceDetails').optional({ values: 'null' }).isObject(),
+  body('images').optional().isArray({ max: 5 }),
+  body('images.*').optional().isString().isLength({ max: 500 }),
   // Locked rebook: when present, the quote goes only to this servicer.
   body('targetServicerId').optional({ values: 'null' }).isUUID(),
 ];
