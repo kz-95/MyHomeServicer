@@ -19,11 +19,11 @@
 **Files:**
 - Modify: `frontend/src/app/customer/pages/proposals.component.ts` (interface `13-23`, template `74-77` and `~110`)
 
-- [ ] **Step 1: Confirm the data.** `GET /quotes/:id/proposals` already returns
+- [x] **Step 1: Confirm the data.** `GET /quotes/:id/proposals` already returns
   `servicer.logoUrl` (backend `quote.service.ts:788` selects it, `:795` returns
   `servicer: p.servicer`). No backend change. The interface field exists (line 15).
 
-- [ ] **Step 2: Add an avatar with initials fallback.** In each proposal card header
+- [x] **Step 2: Add an avatar with initials fallback.** In each proposal card header
   (both render sites — lines ~74-77 and ~110), before the business-name button:
 
 ```html
@@ -36,7 +36,7 @@
             </span>
 ```
 
-- [ ] **Step 3: Styles**
+- [x] **Step 3: Styles**
 
 ```css
       .svc-logo { display: inline-flex; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; vertical-align: middle; margin-right: 0.5rem; flex: 0 0 auto; }
@@ -44,7 +44,7 @@
       .svc-initials { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: var(--color-primary); color: #fff; font-weight: 700; font-size: 0.9rem; }
 ```
 
-- [ ] **Step 4: Type-gate + build + commit**
+- [x] **Step 4: Type-gate + build + commit**
 
 Run (from `frontend/`): `npx tsc --noEmit` && `ng build`
 ```bash
@@ -69,12 +69,12 @@ git commit -m "feat(customer): show servicer logo on proposal cards"
 **Files:**
 - Modify: `frontend/src/app/customer/pages/my-bookings.component.ts` (`reorder` `887-892`)
 
-- [ ] **Step 1: Replace the toast-only reorder** with the navigate+prefill behaviour
+- [x] **Step 1: Replace the toast-only reorder** with the navigate+prefill behaviour
   from `order-history.component.ts:299-310`. Read that handler and mirror it: call
   `POST /bookings/:id/reorder`, then `router.navigate(['/customer/quote/new'], { state: { prefill, rebookServicer: { id, name } } })`.
   Inject `Router` if not already.
 
-- [ ] **Step 2: Type-gate + build + commit**
+- [x] **Step 2: Type-gate + build + commit**
 
 Run: `npx tsc --noEmit` && `ng build`
 ```bash
@@ -90,31 +90,31 @@ git commit -m "fix(customer): unify reorder to rebook-same-servicer (drop toast-
 - Remove/retire: `frontend/src/app/customer/pages/order-history.component.ts`
 - Modify: customer shell nav links
 
-- [ ] **Step 1: Point the Order History route at MyBookings.** In `customer.routes.ts`,
+- [x] **Step 1: Point the Order History route at MyBookings.** In `customer.routes.ts`,
   make `/customer/history` (the "Order History" entry) render `MyBookingsComponent`
   instead of `OrderHistoryComponent`. Keep MyBookings' tab logic (pending / in-progress /
   history) — these become Upcoming + Past sections under Order History.
 
-- [ ] **Step 2: Add "Rebook this servicer" to MyBookings History tab.** On each
+- [x] **Step 2: Add "Rebook this servicer" to MyBookings History tab.** On each
   completed/cancelled booking row, show the strong rebook button wired to the navigate+
   prefill handler (already added in Task 2). Label it "Rebook this servicer".
 
-- [ ] **Step 3: Retire `OrderHistoryComponent`.** Remove its route, delete the component
+- [x] **Step 3: Retire `OrderHistoryComponent`.** Remove its route, delete the component
   file (or leave the file but drop all references), and grep `OrderHistoryComponent` +
   `order-history` across `frontend/src` to remove imports/links. Keep the backend
   `GET /user/me/history` only if MyBookings needs it; otherwise leave it unused (don't
   delete backend in this plan).
 
-- [ ] **Step 4: Redirect old deep links** so nothing 404s:
+- [x] **Step 4: Redirect old deep links** so nothing 404s:
 
 ```typescript
   // whatever the old paths were — point them at the unified history view
   { path: 'bookings', redirectTo: 'history', pathMatch: 'prefix' },
 ```
 
-- [ ] **Step 5: Update nav labels** to "Order History" / "Upcoming" / "Past".
+- [x] **Step 5: Update nav labels** to "Order History" / "Upcoming" / "Past".
 
-- [ ] **Step 6: Type-gate + build + commit**
+- [x] **Step 6: Type-gate + build + commit**
 
 Run: `npx tsc --noEmit` && `ng build`
 ```bash

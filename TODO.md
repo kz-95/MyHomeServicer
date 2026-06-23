@@ -63,11 +63,11 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 
 ### Customer journey polish (beats 1/3 — added 2026-06-23)
 
-- [ ] **C1. Proposal cards show servicer image** (beat 3) — `proposals.component.ts`
+- [x] **C1. Proposal cards show servicer image** (beat 3) — `proposals.component.ts`
   has `servicer.logoUrl?` (line 15) but template renders only the name (lines 76/110),
   no `<img>`. Add servicer logo/avatar to each proposal card. Verify the proposals API
   actually sends `logoUrl` (fallback to initials/placeholder when null).
-- [ ] **C2. Customer Order History restructure** — move **Upcoming** + **History**
+- [x] **C2. Customer Order History restructure** — move **Upcoming** + **History**
   under one **Order History** section. Remove the old order-history view; the new
   history keeps only the **"Rebook same servicer"** button per past order. (Supports
   customer.loyal reorder demo; relates to deferred customer route redesign.)

@@ -172,6 +172,7 @@
 | UX/design notes | 29 |
 | Bug Log | 34 |
 | CONTINUE LATER | 39 |
+| **Plan 5: Customer Journey Polish** | **1712** |
 | **Phase 1 P1-FE (Kilo-2)** | **450** |
 | **Money/listing epic step 9 (TASKS A/B/C)** | **544** |
 | **Phase 6 Identity Avatars POST-MVP (P6-FE)** | **650** |
@@ -1784,3 +1785,53 @@ won/active job (rendered only when `customerPhone` is present).
 - `my-bookings.component.ts`: replaced chat-based reportIssue with modal form
 - `queues.component.ts`: added Reports tab
 - `proposals.component.ts`, `quote-form.component.ts`: capture paymentIntentId for gateway flow
+
+## 2026-06-23 — Plan 5: Customer Journey Polish (C1 + C2)
+
+**Scope:** Plan 5 of the demo thread. C1: Servicer logo on proposal cards. C2: Consolidate Order History (MyBookings becomes canonical view, strong reorder, retire old OrderHistoryComponent).
+
+### C1 — Servicer logo on proposal cards
+
+**File:** `frontend/src/app/customer/pages/proposals.component.ts`
+
+- Replaced `<app-icon>` category-icon avatar with servicer logo `<img>` or initials fallback (`.svc-initials`) in both the proposal card row and the confirmation modal.
+- Removed unused `IconComponent` import (was only used for the old avatar, now gone; resolves NG8113 AOT warning).
+- CSS: `.svc-logo` (object-fit:cover), `.svc-initials` (white bold text on primary bg). `.svc-avatar` already styled at 32px circle.
+
+### C2 — Order History consolidation
+
+**Task 2 — Strong reorder (my-bookings.component.ts):**
+- Replaced toast-only `reorder()` (line 887-892) with navigate+prefill from `order-history.component.ts:299-310`.
+- Calls `POST /bookings/:id/reorder`, then `router.navigate(['/customer/quote/new'], { state: { prefill, rebookServicer: { id, name } } })`.
+- Locks quote to this servicer, hides category pickers — full rebook-this-servicer experience.
+
+**Task 3 — Route unification + retirement:**
+
+| File | Change |
+|------|--------|
+| `customer.routes.ts` | `/customer/bookings` → `redirectTo: 'history', pathMatch: 'prefix'`; moved MyBookings children (`pending/inProgress/history`) under `/customer/history`; removed `OrderHistoryComponent` route |
+| `customer-shell.component.ts` | Removed "Upcoming" nav item (now redirects to same place as "Order History") |
+| `my-bookings.component.ts` | Page heading → "Order History"; tab labels: "Pending"→"Upcoming", "History"→"Past"; tab routerLinks → `/customer/history/` prefix; "Reorder"→"Rebook this servicer" button; added rebook to cancelled bookings |
+| `order-history.component.ts` | **DELETED** — retired |
+
+**Route structure after consolidation:**
+```
+/customer/history           → redirects to pending (shows Upcoming tab)
+/customer/history/pending   → MyBookingsComponent (Upcoming: pending_confirm, confirmed)
+/customer/history/inProgress→ MyBookingsComponent (In Progress: in_progress)
+/customer/history/history   → MyBookingsComponent (Past: completed, cancelled)
+/customer/bookings          → redirects to /customer/history (prefix)
+/customer/bookings/*        → all redirect to /customer/history (no 404)
+```
+
+**Gates:**
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `npx ng build --configuration development` | ✅ exit 0, zero warnings |
+
+**Commits:**
+- `f9ec575` feat(customer): show servicer logo on proposal cards
+- `da7222b` fix(customer): unify reorder to rebook-same-servicer (drop toast-only path)
+- `7503372` feat(customer): consolidate Order History — MyBookings view + rebook button; retire old OrderHistory
+
