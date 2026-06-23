@@ -684,53 +684,40 @@ interface Penalty {
         </section>
 
         <!-- Deactivate modals -->
-        @if (deactivateStep() === 1) {
-          <div class="modal-backdrop" (click)="deactivateStep.set(0)">
-            <div class="modal" (click)="$event.stopPropagation()">
-              <h2>Deactivate your account?</h2>
-              <ul>
-                <li>This action cannot be undone</li>
-                <li>You won't be able to log in again</li>
-                <li>Your data will be anonymized</li>
-                <li>Open bookings will be cancelled</li>
-              </ul>
-              <div class="modal-actions">
-                <button class="btn-ghost" (click)="deactivateStep.set(0)">Cancel</button>
-                <button class="btn-primary" (click)="deactivateStep.set(2)">Continue</button>
-              </div>
-            </div>
+        <app-modal [open]="deactivateStep() === 1" title="Deactivate your account?" (closed)="deactivateStep.set(0)">
+          <ul class="deactivate-list">
+            <li>This action cannot be undone</li>
+            <li>You won't be able to log in again</li>
+            <li>Your data will be anonymized</li>
+            <li>Open bookings will be cancelled</li>
+          </ul>
+          <div class="modal-actions">
+            <button class="btn-ghost" (click)="deactivateStep.set(0)">Cancel</button>
+            <button class="btn-primary" (click)="deactivateStep.set(2)">Continue</button>
           </div>
-        }
-        @if (deactivateStep() === 2) {
-          <div class="modal-backdrop" (click)="deactivateStep.set(0)">
-            <div class="modal" (click)="$event.stopPropagation()">
-              <h3>Confirm deactivation</h3>
-              <label>Reason for leaving <span class="err">*</span><textarea [(ngModel)]="deactivateReason" name="dreason" rows="3" required></textarea></label>
-              <label>Enter your PIN to confirm <span class="err">*</span><input type="password" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" [(ngModel)]="deactivatePin" name="dpass" required /></label>
-              @if (deactivateError()) { <p class="err">{{ deactivateError() }}</p> }
-              <div class="modal-actions">
-                <button class="btn-ghost" (click)="deactivateStep.set(0)">Cancel</button>
-                <button class="btn-primary" (click)="deactivateStep2Continue()">Continue</button>
-              </div>
-            </div>
+        </app-modal>
+
+        <app-modal [open]="deactivateStep() === 2" title="Confirm deactivation" (closed)="deactivateStep.set(0)">
+          <label>Reason for leaving <span class="err">*</span><textarea [(ngModel)]="deactivateReason" name="dreason" rows="3" required></textarea></label>
+          <label>Enter your PIN to confirm <span class="err">*</span><input type="password" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" [(ngModel)]="deactivatePin" name="dpass" required /></label>
+          @if (deactivateError()) { <p class="err">{{ deactivateError() }}</p> }
+          <div class="modal-actions">
+            <button class="btn-ghost" (click)="deactivateStep.set(0)">Cancel</button>
+            <button class="btn-primary" (click)="deactivateStep2Continue()">Continue</button>
           </div>
-        }
-        @if (deactivateStep() === 3) {
-          <div class="modal-backdrop" (click)="deactivateStep.set(0)">
-            <div class="modal" (click)="$event.stopPropagation()">
-              <h3>Are you absolutely sure?</h3>
-              <p class="muted">Type <strong>DELETE</strong> to confirm.</p>
-              <label>Type DELETE<input [(ngModel)]="deactivateConfirm" name="dconfirm" placeholder="" /></label>
-              @if (deactivateError()) { <p class="err">{{ deactivateError() }}</p> }
-              <div class="modal-actions">
-                <button class="btn-ghost" (click)="deactivateStep.set(0)">Cancel</button>
-                <button class="btn-danger" (click)="doDeactivate()" [disabled]="deactivating()">
-                  {{ deactivating() ? 'Deactivating…' : 'Deactivate my account' }}
-                </button>
-              </div>
-            </div>
+        </app-modal>
+
+        <app-modal [open]="deactivateStep() === 3" title="Are you absolutely sure?" (closed)="deactivateStep.set(0)">
+          <p class="muted">Type <strong>DELETE</strong> to confirm.</p>
+          <label>Type DELETE<input [(ngModel)]="deactivateConfirm" name="dconfirm" placeholder="" /></label>
+          @if (deactivateError()) { <p class="err">{{ deactivateError() }}</p> }
+          <div class="modal-actions">
+            <button class="btn-ghost" (click)="deactivateStep.set(0)">Cancel</button>
+            <button class="btn-danger" (click)="doDeactivate()" [disabled]="deactivating()">
+              {{ deactivating() ? 'Deactivating…' : 'Deactivate my account' }}
+            </button>
           </div>
-        }
+        </app-modal>
       }
     }
   `,
@@ -852,10 +839,8 @@ interface Penalty {
       .badge[data-status="rejected"] { background: var(--color-status-cancelled-bg); color: var(--color-status-cancelled-text); }
 
       /* Modals */
-      .modal-backdrop { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
-      .modal { background: var(--color-surface); border-radius: var(--radius); padding: 1.5rem; max-width: 440px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 0.7rem; }
-      .modal ul { margin: 0; padding-left: 1.2rem; }
-      .modal ul li { margin-bottom: 0.3rem; font-size: 0.9rem; }
+      .deactivate-list { margin: 0 0 0.7rem; padding-left: 1.2rem; }
+      .deactivate-list li { margin-bottom: 0.3rem; font-size: 0.9rem; }
 
       /* Toolbar */
       .toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid var(--color-border); margin-bottom: 1rem; }

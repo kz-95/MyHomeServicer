@@ -53,6 +53,28 @@ component sits in the tree. `::backdrop` provides the dim.
 | `chat-widget.component.ts` | help chat FAB → panel (bottom-right) | `position:fixed`, z-998/999 | ⚠️ root-mounted (corner panel) |
 | `notification-panel.component.ts` | topbar bell → dropdown | `position:fixed`, z-1400/1401 | ⚠️ root-mounted (corner dropdown) |
 
+## Page-level inline modals (the gap the first audit missed — fixed 2026-06-23)
+
+The first pass only checked shared components, but **feature/page components were
+hand-rolling their own `.modal-backdrop` / `.pg-guard` / `.tp-guard` / `.pv`
+`position: fixed` overlays** — these were the worst offenders because they live
+inside `transform`-animated page wrappers and so cropped/off-center (the
+deactivate-account + "Add preset" screenshots). All migrated to `<app-modal>`:
+
+| Component | Modal(s) | Was | Now |
+|---|---|---|---|
+| `customer/pages/account.component.ts` | Deactivate wizard (3 steps) | `.modal-backdrop` fixed | ✅ `<app-modal>` |
+| `servicer/pages/account.component.ts` | Deactivate wizard (3 steps) | `.modal-backdrop` fixed | ✅ `<app-modal>` |
+| `servicer/pages/jobs.component.ts` | Onboarding-required gate | `.modal-backdrop` fixed | ✅ `<app-modal>` |
+| `customer/pages/quote-form.component.ts` | Top-up (insufficient credit) guard | `.tp-guard` fixed | ✅ `<app-modal>` |
+| `servicer/pages/services-modules.component.ts` | Pricing-module guard | `.pg-guard` fixed | ✅ `<app-modal>` |
+| `servicer/pages/wa-preset-manager.component.ts` | Add/Edit preset | already `<app-modal>` (removed dead `unlockBody()` orphan) | ✅ `<app-modal>` |
+| `servicer/pages/listing-advanced.component.ts` | Customer preview | `.pv` fixed | ✅ `<app-modal>` |
+
+> **Lesson for future audits:** grep the WHOLE `frontend/src/app` for
+> `position: fixed`, `inset: 0`, and `*-backdrop` class names — NOT just shared
+> components. Any centered overlay in a page/feature component is the bug.
+
 ## Remaining (lower priority) migrations
 
 These are mounted at the app root (`shell.component` / persistent widgets), so

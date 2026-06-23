@@ -646,36 +646,25 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
     }
 
     <!-- Top-up prompt guard - insufficient credit overlay -->
-    @if (showTopUp()) {
-      <div class="tp-backdrop"></div>
-      <div class="tp-guard">
-        <div class="tp-header">
-          <strong>Top up your credit</strong>
-          <button class="tp-close" (click)="dismissTopUp()">✕</button>
-        </div>
-        <div class="tp-body">
-          <p class="muted">Your balance: <strong>RM {{ creditBalance().toFixed(2) }}</strong></p>
-          <p class="muted">Hold amount: <strong>RM {{ estimateData()?.holdAmount != null ? estimateData()!.holdAmount!.toFixed(2) : estimatedTotal() !== null ? estimatedTotal()!.toFixed(2) : ' - ' }}</strong></p>
-          <p class="tp-shortfall">
-            You need at least <strong>RM {{ requiredTopUp().toFixed(2) }}</strong> more to submit.
-          </p>
-          <label class="tp-label">
-            Top-up amount (RM) <span class="muted">(minimum RM 10)</span>
-            <input type="number" min="10" [(ngModel)]="topUpAmount" name="topup" class="tp-input" />
-          </label>
-          @if (topUpError()) { <p class="err">{{ topUpError() }}</p> }
-        </div>
-        <div class="tp-footer">
-          <p class="muted sm-note">Demo gives instant credit (dev only). Real payments go through Stripe.</p>
-          <div class="tp-actions">
-            <button class="btn-ghost" (click)="dismissTopUp()">Cancel</button>
-            <button class="btn-primary" (click)="doTopUpRedirect()" [disabled]="toppingUp() || !topUpAmount">
-              {{ toppingUp() ? 'Opening…' : 'Top up' }}
-            </button>
-          </div>
-        </div>
+    <app-modal [open]="showTopUp()" title="Top up your credit" (closed)="dismissTopUp()">
+      <p class="muted">Your balance: <strong>RM {{ creditBalance().toFixed(2) }}</strong></p>
+      <p class="muted">Hold amount: <strong>RM {{ estimateData()?.holdAmount != null ? estimateData()!.holdAmount!.toFixed(2) : estimatedTotal() !== null ? estimatedTotal()!.toFixed(2) : ' - ' }}</strong></p>
+      <p class="tp-shortfall">
+        You need at least <strong>RM {{ requiredTopUp().toFixed(2) }}</strong> more to submit.
+      </p>
+      <label class="tp-label">
+        Top-up amount (RM) <span class="muted">(minimum RM 10)</span>
+        <input type="number" min="10" [(ngModel)]="topUpAmount" name="topup" class="tp-input" />
+      </label>
+      @if (topUpError()) { <p class="err">{{ topUpError() }}</p> }
+      <p class="muted sm-note">Demo gives instant credit (dev only). Real payments go through Stripe.</p>
+      <div class="modal-actions">
+        <button class="btn-ghost" (click)="dismissTopUp()">Cancel</button>
+        <button class="btn-primary" (click)="doTopUpRedirect()" [disabled]="toppingUp() || !topUpAmount">
+          {{ toppingUp() ? 'Opening…' : 'Top up' }}
+        </button>
       </div>
-    }
+    </app-modal>
   `,
     styles: [
         `
@@ -1022,33 +1011,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
         gap: 0.5rem;
         margin-top: 0.5rem;
       }
-      /* Top-up prompt guard - fixed centered overlay */
-      .tp-backdrop {
-        position: fixed; inset: 0; z-index: 9998;
-        background: var(--color-backdrop, rgba(0,0,0,0.45));
-      }
-      .tp-guard {
-        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        z-index: 9999; width: 420px; max-width: 92vw;
-        background: var(--color-bg); border: 1px solid var(--color-border);
-        border-radius: var(--radius); box-shadow: 0 8px 40px rgba(0,0,0,0.25);
-        display: flex; flex-direction: column;
-      }
-      .tp-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 1rem 1.2rem 0.5rem; font-size: 1rem;
-      }
-      .tp-close {
-        background: none; border: none; font-size: 1.1rem;
-        color: var(--color-muted); cursor: pointer; padding: 0.2rem;
-        line-height: 1;
-      }
-      .tp-close:hover { color: var(--color-text); }
-      .tp-body {
-        padding: 0.5rem 1.2rem 0.2rem;
-        max-height: 50vh; overflow-y: auto;
-        overscroll-behavior: contain;
-      }
+      /* Top-up prompt guard - projected content styles */
       .tp-shortfall {
         margin: 0.4rem 0 0.7rem; font-size: 0.9rem;
         color: var(--color-danger, #b91c1c);
@@ -1060,12 +1023,6 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
       }
       .tp-label span { font-weight: 400; }
       .tp-input { padding: 0.45rem 0.6rem; font-size: 0.95rem; }
-      .tp-footer {
-        padding: 0.5rem 1.2rem 1rem;
-      }
-      .tp-actions {
-        display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem;
-      }
       .condo-note {
         margin-top: 0.3rem;
         padding: 0.55rem 0.75rem;
@@ -1084,11 +1041,6 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
       .btn-demo:hover { background: var(--color-primary); color: #fff; }
       .sm-note { font-size: 0.78rem; color: var(--color-muted); border-top: 1px dashed var(--color-border); padding-top: 0.5rem; margin-top: 0.3rem; }
       .card-pay-ok { color: var(--color-success); font-weight: 600; font-size: 0.95rem; }
-      .tp-processing { text-align: center; padding: 1rem 0; }
-      .tp-spinner { font-size: 2rem; margin-bottom: 0.5rem; }
-      .tp-result { text-align: center; padding: 0.8rem 0; font-size: 1.05rem; font-weight: 600; }
-      .tp-result-ok { color: var(--color-success, #16a34a); }
-      .tp-result-fail { color: var(--color-danger, #b91c1c); }
       /* Confirmation state */
       .confirm-card {
         max-width: 520px;

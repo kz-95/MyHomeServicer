@@ -517,23 +517,18 @@ const ACTIVE = ['confirmed', 'in_progress'];
 
 
     <!-- ── Onboarding gate modal ──────────────────────────────────────────── -->
-    @if (onboardingRequired()) {
-      <div class="modal-backdrop" (click)="onboardingRequired.set(false)">
-        <div class="modal" (click)="$event.stopPropagation()">
-          <h3>Complete your profile first</h3>
-          <p>Before you can take jobs, fill in:</p>
-          <ul>
-            @for (item of missingItems(); track item) {
-              <li>• {{ item }}</li>
-            }
-          </ul>
-          <div class="modal-actions">
-            <button class="btn-ghost" (click)="onboardingRequired.set(false)">Cancel</button>
-            <button class="btn-primary" routerLink="/servicer/account">Go to Account Settings</button>
-          </div>
-        </div>
+    <app-modal [open]="onboardingRequired()" title="Complete your profile first" (closed)="onboardingRequired.set(false)">
+      <p>Before you can take jobs, fill in:</p>
+      <ul class="onboarding-list">
+        @for (item of missingItems(); track item) {
+          <li>• {{ item }}</li>
+        }
+      </ul>
+      <div class="modal-actions">
+        <button class="btn-ghost" (click)="onboardingRequired.set(false)">Cancel</button>
+        <button class="btn-primary" routerLink="/servicer/account">Go to Account Settings</button>
       </div>
-    }
+    </app-modal>
 
     <!-- ── Dispatch overlay ───────────────────────────────────────────────── -->
     @if (overlayJobId(); as jobId) {
@@ -1068,20 +1063,8 @@ const ACTIVE = ['confirmed', 'in_progress'];
         font-size: 1rem;
       }
       /* ── Onboarding gate modal ──────────────────────────────────────────── */
-      .modal-backdrop {
-        position: fixed; inset: 0; z-index: 999;
-        background: rgba(0,0,0,0.4); display: flex; align-items: center;
-        justify-content: center;
-      }
-      .modal {
-        background: var(--color-surface); border-radius: var(--radius);
-        padding: 1.5rem; max-width: 440px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-        display: flex; flex-direction: column; gap: 0.7rem;
-      }
-      .modal h3 { margin: 0; }
-      .modal p { margin: 0; font-size: 0.9rem; }
-      .modal ul { margin: 0; padding-left: 1.2rem; }
-      .modal ul li { margin-bottom: 0.3rem; font-size: 0.9rem; }
+      .onboarding-list { margin: 0 0 0.7rem; padding-left: 1.2rem; }
+      .onboarding-list li { margin-bottom: 0.3rem; font-size: 0.9rem; }
       .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
       .section-label {
         font-size: 0.8rem;
