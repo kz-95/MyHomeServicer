@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { verifyPin } from '../middleware/pin';
+import { ApiError } from '../lib/errors';
 import { body } from 'express-validator';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
@@ -248,7 +250,7 @@ const createValidators = [
   body('settlementMethod').optional({ values: 'null' }).isIn(['credit', 'gateway', 'cash']),
   body('tipAmount').optional({ values: 'null' }).isFloat({ min: 0 }),
   body('deadlineMode').isIn(['fcfs', 'fixed_time']),
-  body('proposalDeadline').isISO8601(),
+  body('proposalDeadline').optional().isISO8601(),
   body('notes').optional({ values: 'null' }).isString().isLength({ max: 1000 }),
   body('agreeTerms').isBoolean().custom((v) => v === true).withMessage('You must agree to the terms'),
   body('promoCode').optional({ values: 'null' }).isString().trim(),
@@ -311,12 +313,25 @@ quotesRouter.post(
   }),
 );
 
-/** POST /quotes/:id/cancel — cancel an open quote. */
+/** POST /quotes/:id/cancel — cancel an open quote with reason + PIN. */
 quotesRouter.post(
   '/:id/cancel',
   idempotency,
+  validate([
+    body('reason').isString().trim().notEmpty().withMessage('Cancel reason is required'),
+    body('details').optional().isString().trim(),
+    body('pin').isString().trim().notEmpty().withMessage('PIN is required'),
+  ]),
   asyncHandler(async (req, res) => {
-    await cancelQuote(req.user!.id, req.params.id);
+    // Verify PIN against user's actionPinHash.
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { actionPinHash: true },
+    });
+    if (!user) throw new ApiError('NOT_FOUND', 'User not found');
+    const ok = await verifyPin({ pinHash: user.actionPinHash }, req.body.pin);
+    if (!ok) throw new ApiError('PIN_INVALID', 'Invalid PIN.');
+    await cancelQuote(req.user!.id, req.params.id, req.body.reason, req.body.details);
     res.status(204).send();
   }),
 );
