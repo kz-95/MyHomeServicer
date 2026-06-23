@@ -38,8 +38,9 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
   if (broadcasts.length === 0) return;
 
   const now = new Date();
-  const currentDay = WEEKDAYS[now.getUTCDay()];
-  const currentHour = now.getUTCHours() + 8; // MYT (UTC+8)
+  const mytNow = new Date(now.getTime() + 8 * 3600_000); // MYT (UTC+8) — shift before both day and hour reads
+  const currentDay = WEEKDAYS[mytNow.getUTCDay()];
+  const currentHour = mytNow.getUTCHours();
 
   const eligible: { servicerId: string }[] = [];
   for (const bc of broadcasts) {
