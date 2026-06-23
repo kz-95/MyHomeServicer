@@ -365,6 +365,17 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
         <label><span>Enter Building/Premise Instructions <span class="muted">(optional)</span></span>
           <textarea rows="2" [(ngModel)]="f.notes" name="notes" maxlength="1000" placeholder="Register at guard house, park at visitor lot B, management office open 9am-5pm"></textarea>
         </label>
+        <!-- Image upload -->
+        <label class="upload" style="display:block; margin-bottom:0.75rem;">
+          <span>Add photos <span class="muted">(optional, max 5)</span></span>
+          <input type="file" accept="image/*" (change)="onQuoteImage($event)" [disabled]="imgUploading()" style="display:block; margin-top:0.3rem;" />
+        </label>
+        @if (quoteImages().length) {
+          <div class="thumbs" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+            @for (url of quoteImages(); track url) { <img class="thumb" [src]="url" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--color-border);" /> }
+          </div>
+        }
+        @if (imgError()) { <p class="err" style="margin-bottom:0.5rem;">{{ imgError() }}</p> }
         <!-- Address No + Street Details + Google Maps / GPS -->
         <app-address-fields
           [(addressNo)]="f.addressNo"
@@ -1136,6 +1147,11 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
   confirmCountdown = signal(3);
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
 
+  // ── Quote image upload ─────────────────────────────────────────────────────
+  quoteImages = signal<string[]>([]);
+  imgUploading = signal(false);
+  imgError = signal('');
+
   step = signal(1);
   categories = signal<Category[]>([]);
   addresses = signal<Address[]>([]);
@@ -1326,8 +1342,11 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
           this.categoryId.set(child.id);
           this.loadBudgetRanges(child.id);
           this.applyReorderPrefill();
-          if (chatPrefill) this.applyChatPrefill(chatPrefill);
         }
+        // applyChatPrefill is category-independent (name, phone, address, date, answers) —
+        // must run even when the category doesn't resolve, otherwise all collected fields
+        // are silently dropped and the user sees an empty form.
+        if (chatPrefill) this.applyChatPrefill(chatPrefill);
       },
       error: () => this.loadError.set(true),
     });
@@ -1398,6 +1417,9 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
       if (!this.reorderPrefill) {
         this.reorderPrefill = { budgetMin: p['budgetMin'], budgetMax: p['budgetMax'] };
       }
+    }
+    if (p['serviceDetails'] && typeof p['serviceDetails'] === 'object') {
+      this.answers.set(p['serviceDetails'] as Record<string, string | string[] | Record<string, number> | number | null>);
     }
   }
 
@@ -2061,6 +2083,29 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
   }
 
   // ── Chat assist bridge ─────────────────────────────────────────────────────
+
+  // ── Quote image upload (3-step: presign → PUT → confirm) ─────────────────
+  async onQuoteImage(ev: Event): Promise<void> {
+    const file = (ev.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (this.quoteImages().length >= 5) { this.imgError.set('Max 5 images'); return; }
+    this.imgUploading.set(true); this.imgError.set('');
+    try {
+      // Step 1 — get a presigned upload URL
+      const { uploadUrl, fileId } = await firstValueFrom(
+        this.api.post<{ uploadUrl: string; fileId: string }>('/files/presign',
+          { purpose: 'quote_image', mimeType: file.type, sizeBytes: file.size }));
+      // Step 2 — PUT the file directly
+      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+      // Step 3 — confirm
+      const { fileUrl } = await firstValueFrom(
+        this.api.post<{ fileUrl: string }>(`/files/${fileId}/confirm`, {}));
+      this.quoteImages.update((a) => [...a, fileUrl]);
+    } catch (e: any) {
+      this.imgError.set(e?.message ?? 'Upload failed');
+    } finally { this.imgUploading.set(false); }
+  }
+
   /** Snapshot of the live form for the chat assistant. */
   private buildFormContext(): QuoteFormContext {
     const step = this.step();
@@ -2223,6 +2268,7 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
       if (range.max != null) payload['budgetMax'] = range.max;
     }
     if (this.f.notes.trim()) payload['notes'] = this.f.notes.trim();
+    if (this.quoteImages().length > 0) payload['images'] = this.quoteImages();
     if (this.f.promoCode.trim()) payload['promoCode'] = this.f.promoCode.trim();
     const serviceDetails: Record<string, unknown> = { ...this.answers() };
     if (this.f.extraNotes.trim()) serviceDetails['_extraNotes'] = this.f.extraNotes.trim();
@@ -2247,17 +2293,17 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
       error: (e) => {
         this.submitting.set(false);
         const msg = e?.message ?? '';
-        // Insufficient credit - route to top-up overlay instead of raw error
+        // Insufficient credit - route to top-up overlay instead of raw error.
+        // Show unconditionally when backend says insufficient (the frontend's
+        // creditBalance might be stale — prior booking holds reduce available
+        // credit that the principal snapshot doesn't reflect).
         if (/insufficient credit/i.test(msg) && this.f.paymentTiming === 'pay_now') {
-          const total = this.estimatedTotal();
-          if (total !== null && total > this.creditBalance()) {
-            this.topUpAmount = this.requiredTopUp();
-            this.topUpError.set('');
-            this.showTopUp.set(true);
-            document.body.style.overflow = 'hidden';
-            document.body.style.touchAction = 'none';
-            return;
-          }
+          this.topUpAmount = this.requiredTopUp();
+          this.topUpError.set('');
+          this.showTopUp.set(true);
+          document.body.style.overflow = 'hidden';
+          document.body.style.touchAction = 'none';
+          return;
         }
         this.stepError.set(msg || 'Could not submit quote');
       },
