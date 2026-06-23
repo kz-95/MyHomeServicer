@@ -31,6 +31,11 @@ export const customerRoutes: Routes = [
       },
       {
         path: 'bookings',
+        redirectTo: 'history',
+        pathMatch: 'prefix',
+      },
+      {
+        path: 'history',
         children: [
           { path: '', redirectTo: 'pending', pathMatch: 'full' },
           {
@@ -49,11 +54,6 @@ export const customerRoutes: Routes = [
               import('./pages/my-bookings.component').then((m) => m.MyBookingsComponent),
           },
         ],
-      },
-      {
-        path: 'history',
-        loadComponent: () =>
-          import('./pages/order-history.component').then((m) => m.OrderHistoryComponent),
       },
       {
         path: 'rewards',

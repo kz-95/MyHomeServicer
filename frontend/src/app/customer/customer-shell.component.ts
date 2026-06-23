@@ -14,7 +14,6 @@ export class CustomerShellComponent {
   nav: NavItem[] = [
     { label: 'Find a Service', path: '/customer', icon: 'search', exact: true },
     { label: 'Current Quotes', path: '/customer/quotes', icon: 'clipboard-list' },
-    { label: 'Upcoming', path: '/customer/bookings', icon: 'calendar' },
     { label: 'Order History', path: '/customer/history', icon: 'archive' },
     { label: 'Payments', path: '/customer/transactions', icon: 'credit-card' },
     { label: 'Rewards', path: '/customer/rewards', icon: 'gift' },
