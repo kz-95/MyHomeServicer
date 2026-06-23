@@ -275,6 +275,8 @@ export async function listIncomingQuotes(servicerId: string, status?: string) {
         budgetMin: q.budgetMin,
         budgetMax: q.budgetMax,
         paymentMode: q.paymentMode,
+        isUrgent: q.isUrgent,
+        urgentFee: q.urgentFee != null ? Number(q.urgentFee) : null,
         status: q.status,
         derivedStatus: derived,
         openedAt: b.openedAt,
@@ -333,7 +335,7 @@ export async function listIncomingQuotes(servicerId: string, status?: string) {
 export async function openQuote(
   servicerId: string,
   quoteId: string,
-): Promise<{ proposalPrefill: ProposalPrefill | null; customerAvatarUrl: string | null; customerName: string; lat: number | null; lng: number | null }> {
+): Promise<{ proposalPrefill: ProposalPrefill | null; customerAvatarUrl: string | null; customerName: string; lat: number | null; lng: number | null; budgetMin: number | null; budgetMax: number | null; preferredDate: string | null; timeSlot: string | null }> {
   // 1. Verify the broadcast exists.
   const broadcast = await prisma.quoteBroadcast.findUnique({
     where: { quoteRequestId_servicerId: { quoteRequestId: quoteId, servicerId } },
@@ -358,6 +360,10 @@ export async function openQuote(
       category: { select: { questionSchema: true } },
       categoryId: true,
       lat: true,
+      budgetMin: true,
+      budgetMax: true,
+      preferredDate: true,
+      timeSlot: true,
       lng: true,
       user: { select: { email: true, name: true, avatarUrl: true } },
     },
@@ -386,7 +392,7 @@ export async function openQuote(
   );
 
   logger.info('Quote opened', { quoteId, servicerId, hasPrefill: proposalPrefill !== null });
-  return { proposalPrefill, customerAvatarUrl: quote.user.avatarUrl, customerName: quote.user.name, lat: quote.lat, lng: quote.lng };
+  return { proposalPrefill, customerAvatarUrl: quote.user.avatarUrl, customerName: quote.user.name, lat: quote.lat, lng: quote.lng, budgetMin: quote.budgetMin ? Number(quote.budgetMin) : null, budgetMax: quote.budgetMax ? Number(quote.budgetMax) : null, preferredDate: quote.preferredDate?.toISOString() ?? null, timeSlot: quote.timeSlot ?? null };
 }
 
 export interface ProposeInput {
