@@ -391,7 +391,45 @@ async function handlePaymentIntentSucceeded(pi: StripeWebhookPaymentIntent) {
     return;
   }
 
+  // ── PaymentIntent integrity verification ──────────────────────────────
+  // 1. PI must be in succeeded state
+  if (pi.status && pi.status !== 'succeeded') {
+    logger.warn('Stripe PI webhook received with non-succeeded status — ignoring', {
+      piId: pi.id, status: pi.status,
+    });
+    return;
+  }
+
+  // 2. Currency must be MYR
+  if (pi.currency && pi.currency !== 'myr') {
+    logger.warn('Stripe PI webhook received in non-MYR currency — ignoring', {
+      piId: pi.id, currency: pi.currency,
+    });
+    return;
+  }
+
   const amountMYR = pi.amount / 100; // Convert sen → MYR
+
+  // 3. Cross-check amount against booking's escrow (server-side truth).
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { escrow: { select: { amount: true } } },
+  });
+  if (booking) {
+    const escrowAmount = Number(booking.escrow?.amount ?? 0);
+    if (escrowAmount > 0 && Math.abs(amountMYR - escrowAmount) > 0.5) {
+      logger.error('Stripe PI amount mismatch with booking escrow', {
+        piId: pi.id,
+        bookingId,
+        piAmount: amountMYR,
+        escrowAmount,
+        diff: amountMYR - escrowAmount,
+      });
+      // Do NOT silently accept mismatched amounts — return 200 so Stripe
+      // doesn't retry, but log the discrepancy for manual reconciliation.
+      return;
+    }
+  }
 
   await prisma.$transaction(async (tx) => {
     // Directly create the transaction with Stripe idempotency fields.
@@ -435,10 +473,30 @@ async function handlePaymentIntentSucceeded(pi: StripeWebhookPaymentIntent) {
       logger.info('Invoice marked paid via Stripe webhook', { bookingId, invoiceId: invoice.id });
     }
 
-    // Check for escrow: hold funds for pay_now bookings.
+    // Record escrow_hold for pay_now bookings alongside the gateway_payment.
+    // The escrow record was already created by selectProposal; the webhook
+    // confirms the funds arrived and records the hold transaction.
     const escrow = await tx.escrow.findUnique({ where: { bookingId } });
     if (escrow && escrow.status === 'held') {
-      logger.info('Escrow already held for booking; Stripe payment confirmed', {
+      // Load booking for userId/servicerId needed on the escrow_hold row.
+      const bk = await tx.booking.findUnique({
+        where: { id: bookingId },
+        select: { userId: true, servicerId: true },
+      });
+      if (bk) {
+        await tx.transaction.create({
+          data: {
+            type: 'escrow_hold',
+            amount: amountMYR,
+            bookingId,
+            userId: bk.userId,
+            servicerId: bk.servicerId,
+            escrowId: escrow.id,
+            reference: `Escrow hold via Stripe webhook (PI ${pi.id})`,
+          },
+        });
+      }
+      logger.info('Escrow held for booking; Stripe payment confirmed via webhook', {
         bookingId,
         escrowId: escrow.id,
       });

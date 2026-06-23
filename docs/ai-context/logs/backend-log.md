@@ -2,6 +2,41 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-23 — Escrow Integrity (Item 3)
+
+**Scope:** TODO.md Item 3 — four-part escrow integrity fix on `feat/sp3-dispatch-cards`.
+
+### Task 1 — Add urgent fee as line item in escrow total
+- `booking.service.ts:147-155` (new): After `lineItemsSnapshot` is built, if `quote.isUrgent && quote.urgentFee`, pushes `{ label: 'Urgent Same-Day Fee', amount: Number(quote.urgentFee), taxable: false, serviceChargeable: false }`.
+- This ensures `computeTotal(lineItemsSnapshot, ...)` includes the urgent fee in `escrowTotal`. Previously the urgent fee was stored on the Booking record but never added to `lineItemsSnapshot`, so escrow only held the proposal total (e.g. RM300 instead of RM450).
+
+### Task 2 — Block shortfall with insufficient balance
+- `booking.service.ts:276-284` (new): Before `adjustCredit('user', userId, -shortfall, tx)`, reads the user's `creditBalance`. If `currentBalance < shortfall`, throws `businessRule('Insufficient balance to cover the price difference...')` with a user-facing top-up message.
+- Replaces the old silent-through behaviour where `adjustCredit` would push the wallet negative and then the post-hoc `INSUFFICIENT_CREDIT` check in `credit.service.ts` would fire with a non-standard error code. Matches the pattern already used in `settleBooking` (line 946-948) and `quote.service.ts` (line 309).
+
+### Task 3 — Verify PI before recording (stripe webhook)
+- `stripe.ts:220-221`: Added `status?: string` and `currency?: string` to `StripeWebhookPaymentIntent` interface.
+- `stripe.routes.ts:399-432` (new): Three verification checks before recording:
+  1. PI status must be `'succeeded'` (warn + skip otherwise)
+  2. Currency must be `'myr'` (warn + skip otherwise)
+  3. Cross-check `pi.amount / 100` against booking's escrow amount (±RM 0.50 tolerance); log error + skip on mismatch so Stripe does NOT retry but the discrepancy is flagged for manual reconciliation.
+- All three checks run BEFORE the `stripePaymentIntentId` DB idempotency guard, so a non-compliant PI never creates a transaction.
+
+### Task 4 — Escrow hold at payment time
+- `booking.service.ts:256-269`: In `selectProposal` gateway (card) path, added `escrow_hold` transaction alongside the existing `gateway_payment`. Previously only the credit path recorded `escrow_hold`; the gateway path is now symmetric so `escrow-charged == invoice-total == fee-recorded` holds for both payment methods.
+- `stripe.routes.ts:478-501`: In `handlePaymentIntentSucceeded` webhook handler, replaced the "just log" escrow check with an actual `escrow_hold` transaction creation (loads booking for userId/servicerId, creates the row inside the same `$transaction`).
+- `handleCheckoutSessionCompleted`: Confirmed — handles pay_later (no escrow) and top-ups (deposit_topup, not escrow). No change needed.
+
+**Gates:**
+- `rtk proxy npx tsc --noEmit`: 8 pre-existing errors, zero new.
+- `npx jest tests/unit`: 196 pass, 6 fail — all 6 pre-existing (merchantCancelJob rename, INSUFFICIENT_CREDIT type drift, login regression). Zero new failures.
+
+**Commits:**
+1. `fix(escrow): add urgent fee as line item in escrow total` — booking.service.ts
+2. `fix(escrow): block shortfall deduction when wallet balance insufficient` — booking.service.ts
+3. `fix(escrow): verify PI status, currency, and amount before recording webhook payment` — stripe.routes.ts + stripe.ts
+4. `fix(escrow): record escrow_hold for gateway payments alongside gateway_payment` — booking.service.ts + stripe.routes.ts
+
 ## Session 2026-06-23 — Upload Fix + Customer Quote Images (Plan 3)
 
 **Scope:** `docs/superpowers/plans/2026-06-23-upload-fix-quote-images.md` — 6 tasks (3 backend, 2 frontend, 1 verification). Executed on `feat/sp3-dispatch-cards`.
@@ -227,8 +262,10 @@ Gates: backend tsc 0 (source) / jest 298 pass, 0 fail / frontend tsc 0
 ## Quick Index
 | Section | Line |
 |---------|------|
-| Rules & gates | 14 |
-| Sessions | 19 |
+| Session 2026-06-23 — Escrow Integrity (Item 3) | 5 |
+| Rules & gates | ~14 |
+| Sessions | ~19 |
+| Session 2026-06-23 — Upload Fix + Quote Images | ~53 |
 | API Contracts | ~60 |
 | Schema Changes | ~66 |
 | Bug Log | ~72 |

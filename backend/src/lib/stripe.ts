@@ -219,6 +219,8 @@ export async function retrieveCheckoutSession(
 export interface StripeWebhookPaymentIntent {
   id: string;
   amount: number;
+  status?: string;
+  currency?: string;
   metadata?: Record<string, string>;
   payment_method?: unknown;
 }

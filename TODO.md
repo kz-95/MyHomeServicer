@@ -35,11 +35,11 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   - [ ] Tier 2 (optional): OSM mini-map in expander if `lat/lng` seeded
 - [ ] **2. Auto-accept wiring** (beat 2) — wire `evaluateAutoAcceptGates` into the live
   flow; listing preview endpoint. (SP3 work-stream B; MYT bug fixed in item 1)
-- [ ] **3. Escrow integrity** (beat 3/6) — write `escrow_hold` at payment time; derive
+- [x] **3. Escrow integrity** (beat 3/6) — write `escrow_hold` at payment time; derive
   amount server-side; when accepted/final price (+ urgent fee) > escrow held → BLOCK +
   require top-up (no silent bypass); verify PI status/amount/currency before recording;
   unique constraint on `Transaction.stripePaymentIntentId`. **Verify current bypass in
-  code before fixing.**
+  code before fixing.** ✅ Fixed 2026-06-23 (4 commits: urgent-fee line item, shortfall block, PI verification, escrow_hold for gateway)
 - [x] **4. Upload fix + quote images** (beat 4 + Stream D) — route EXISTS
   (`files.routes.ts:35` `PUT /local-upload/:fileId`); real bug = URL mismatch:
   `file.service.ts:75` emits `/api/v1/files/local-upload/{file.id}` vs `s3.ts:31`

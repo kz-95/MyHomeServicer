@@ -144,6 +144,17 @@ export async function selectProposal(
     ];
   }
 
+  // Add urgent same-day fee as a line item so it flows into the escrow total
+  // (escrow = computeTotal(lineItemsSnapshot) must include urgent fee).
+  if (quote.isUrgent && quote.urgentFee) {
+    lineItemsSnapshot.push({
+      label: 'Urgent Same-Day Fee',
+      amount: Number(quote.urgentFee),
+      taxable: false,
+      serviceChargeable: false,
+    });
+  }
+
   const booking = await prisma.$transaction(async (tx) => {
     // Snapshot the servicer's travel fee + inspection flag onto the booking at
     // creation time so cancellation/refund logic uses the rate at booking time.
@@ -241,6 +252,22 @@ export async function selectProposal(
             },
           },
         });
+
+        // Record escrow_hold alongside gateway_payment so the invariant
+        // escrow-charged == invoice-total == fee-recorded is consistent
+        // across both credit and gateway payment paths.
+        await recordTransaction(
+          {
+            type: 'escrow_hold',
+            amount: escrowTotal,
+            bookingId: created.id,
+            servicerId: proposal.servicerId,
+            userId,
+            escrowId: escrow.id,
+            reference: `Escrow hold via Stripe (PI ${opts.paymentIntentId})`,
+          },
+          tx,
+        );
       } else if (quote.budgetMax != null) {
         // Credit was already held at quote creation — refund excess budget
         // or deduct shortfall if the proposal is more expensive than the budget.
@@ -262,6 +289,16 @@ export async function selectProposal(
         } else if (diff < 0) {
           // Proposal exceeds budget hold — deduct the shortfall from wallet.
           const shortfall = -diff;
+
+          // Block if wallet cannot cover the shortfall (no silent negative balance).
+          const wallet = await tx.user.findUnique({ where: { id: userId }, select: { creditBalance: true } });
+          const currentBalance = Number(wallet?.creditBalance ?? 0);
+          if (currentBalance < shortfall) {
+            throw businessRule(
+              `Insufficient balance to cover the price difference. Need RM${shortfall.toFixed(2)}, have RM${currentBalance.toFixed(2)}. Please top up your wallet.`,
+            );
+          }
+
           await adjustCredit('user', userId, -shortfall, tx);
           await recordTransaction(
             {
