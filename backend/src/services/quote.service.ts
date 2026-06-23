@@ -5,8 +5,9 @@ import { badRequest, conflict, notFound } from '../lib/errors';
 import { pairedServicerIdFromEmail } from '../lib/paired-account';
 import { emitToServicers, emitToUser } from '../socket';
 import { enqueue, JOB_NAMES } from '../lib/queue';
-import { quoteMatchesAutoAccept, computeAutoPrice } from './auto-accept.service';
-import { getSetting, resolveBudgetRanges } from './settings.service';
+import { getSetting, resolveBudgetRanges, getSstRate } from './settings.service';
+import { evaluateAutoAcceptGates, QuoteLite, ListingLite, ServicerLite, ScheduleLite } from './sp3-auto-accept.service';
+import { ModuleLite } from './listing-pricing.service';
 import { submitProposal } from './servicer-quote.service';
 import { requireNoUnpaidInvoice } from './booking.service';
 import { notify } from './notification.service';
@@ -518,37 +519,102 @@ async function dispatchMatches(
     }
   }
 
-  // Auto-accept: auto-submit a proposal for each servicer whose rules match.
+  // Auto-accept: SP-3 4-gate engine (§11). Replaces the legacy quoteMatchesAutoAccept.
+  const sstRate = await getSstRate();
+
+  // Pre-fetch all module refs from all matched services.
+  const allModuleRefs = matches.flatMap((m) =>
+    m.services.flatMap((s) => {
+      if (!s.moduleRefs) return [];
+      try {
+        const parsed = JSON.parse(typeof s.moduleRefs === 'string' ? s.moduleRefs : JSON.stringify(s.moduleRefs));
+        return Array.isArray(parsed) ? (parsed as Array<{ moduleId: string }>).map((r) => r.moduleId) : [];
+      } catch {
+        return [];
+      }
+    }),
+  );
+  const uniqueModuleIds = [...new Set(allModuleRefs)];
+  const moduleRows = uniqueModuleIds.length > 0
+    ? await prisma.servicerModule.findMany({
+        where: { id: { in: uniqueModuleIds } },
+        select: { id: true, name: true, price: true },
+      })
+    : [];
+  const modulesById = new Map<string, ModuleLite>(
+    moduleRows.map((m) => [m.id, { id: m.id, name: m.name, price: Number(m.price) }]),
+  );
+
+  // Pre-fetch schedules for all matched servicers.
+  const servicerIds = matches.map((m) => m.servicer.id);
+  const allSchedules = await prisma.servicerSchedule.findMany({
+    where: { servicerId: { in: servicerIds } },
+    select: { servicerId: true, weekday: true, timeSlot: true, isAvailable: true },
+  });
+  const schedulesByServicer = new Map<string, ScheduleLite[]>();
+  for (const s of allSchedules) {
+    const arr = schedulesByServicer.get(s.servicerId) ?? [];
+    arr.push({ weekday: s.weekday, timeSlot: s.timeSlot, isAvailable: s.isAvailable });
+    schedulesByServicer.set(s.servicerId, arr);
+  }
+
+  const quoteLite: QuoteLite = {
+    budgetMax: quote.budgetMax != null ? Number(quote.budgetMax) : null,
+    lat: quote.lat ?? null,
+    lng: quote.lng ?? null,
+    preferredDate: quote.preferredDate,
+    timeSlot: quote.timeSlot,
+    answers: (quote.serviceDetails ?? {}) as Record<string, unknown>,
+  };
+
   let autoCount = 0;
   for (const { servicer, services } of matches) {
-    const service = services.find((s) => quoteMatchesAutoAccept(quote, s));
-    if (!service) continue;
-    try {
-      const preset = service.autoAcceptPresetId
-        ? await prisma.servicerProposalPreset.findUnique({ where: { id: service.autoAcceptPresetId } })
-        : await prisma.servicerProposalPreset.findFirst({
-            where: { servicerId: servicer.id, isDefault: true },
-          });
-      await prisma.quoteProposal.create({
-        data: {
-          quoteRequestId: quote.id,
+    // Only evaluate listings that have auto-accept enabled.
+    const candidates = services.filter((s) => s.autoAccept);
+    if (candidates.length === 0) continue;
+
+    const servicerLite: ServicerLite = {
+      isOnline: servicer.isOnline,
+      serviceAreas: servicer.serviceAreas,
+      serviceRadiusKm: servicer.serviceRadiusKm ?? 10,
+      serviceChargeRate: Number(servicer.serviceChargeRate ?? 0) || 0,
+      sstRegistered: servicer.sstRegistered ?? false,
+      taxInclusive: servicer.taxInclusive ?? false,
+    };
+    const schedules = schedulesByServicer.get(servicer.id) ?? [];
+
+    for (const service of candidates) {
+      const listingLite: ListingLite = {
+        basePrice: Number(service.basePrice),
+        estimatedDurationMinutes: service.estimatedDurationMinutes,
+        modifiers: (service.modifiers ?? null) as ListingLite['modifiers'],
+        moduleRefs: (service.moduleRefs ?? null) as ListingLite['moduleRefs'],
+        autoAccept: service.autoAccept,
+        priceType: service.priceType,
+      };
+
+      const result = evaluateAutoAcceptGates(quoteLite, listingLite, servicerLite, modulesById, sstRate, schedules);
+      if (!result.pass) continue;
+
+      try {
+        await prisma.quoteProposal.create({
+          data: {
+            quoteRequestId: quote.id,
+            servicerId: servicer.id,
+            proposedPrice: result.total,
+            lineItems: result.lineItems as unknown as Prisma.InputJsonValue,
+            message: service.autoAcceptMessage ?? 'Auto-submitted proposal based on your saved listing.',
+            etaMinutes: result.durationMin,
+            isAuto: true,
+          },
+        });
+        autoCount++;
+      } catch (err) {
+        logger.warn('Auto-accept proposal failed', {
           servicerId: servicer.id,
-          proposedPrice: computeAutoPrice(
-            Number(service.basePrice),
-            preset?.priceOffset ? Number(preset.priceOffset) : 0,
-          ),
-          message: preset?.message ?? 'Auto-submitted proposal based on your saved rules.',
-          etaMinutes: service.estimatedDurationMinutes,
-          presetId: preset?.id ?? null,
-          isAuto: true,
-        },
-      });
-      autoCount++;
-    } catch (err) {
-      logger.warn('Auto-accept proposal failed', {
-        servicerId: servicer.id,
-        error: (err as Error).message,
-      });
+          error: (err as Error).message,
+        });
+      }
     }
   }
 
