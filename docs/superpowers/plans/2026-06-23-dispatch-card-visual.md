@@ -1,6 +1,6 @@
 # Dispatch Card Visual Redesign — Implementation Plan (Plan 2)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [x]`) syntax.
 
 **Goal:** Redesign the servicer incoming-quote card so Price/Time/Place lead, the job's urgency + slot load + estimated duration + taken-status are visible, and the servicer can open the location in Google Maps/Waze — all from data the backend already (or now) sends.
 
@@ -27,7 +27,7 @@
 - Modify: `backend/src/services/servicer-quote.service.ts` (`listIncomingQuotes`, `243-308`)
 - Test: `backend/tests/unit/slot-load.test.ts` (new — pure helper)
 
-- [ ] **Step 1: Write a failing unit test for the slot-collision helper**
+- [x] **Step 1: Write a failing unit test for the slot-collision helper**
 
 ```typescript
 import { countSlotJobs } from '../../src/services/servicer-quote.service';
@@ -49,12 +49,12 @@ describe('countSlotJobs', () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail**
+- [x] **Step 2: Run, verify fail**
 
 Run (from `backend/`): `npx jest tests/unit/slot-load.test.ts`
 Expected: FAIL — `countSlotJobs` not exported.
 
-- [ ] **Step 3: Add the exported helper** to `servicer-quote.service.ts` (near the top, after imports):
+- [x] **Step 3: Add the exported helper** to `servicer-quote.service.ts` (near the top, after imports):
 
 ```typescript
 /** @internal Exported for unit testing. Count a servicer's jobs colliding on the
@@ -75,12 +75,12 @@ export function countSlotJobs(
 }
 ```
 
-- [ ] **Step 4: Run, verify pass**
+- [x] **Step 4: Run, verify pass**
 
 Run: `npx jest tests/unit/slot-load.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Wire it into `listIncomingQuotes`.** After the `broadcasts` query, load the
+- [x] **Step 5: Wire it into `listIncomingQuotes`.** After the `broadcasts` query, load the
   servicer's active bookings once, then compute per quote. Add before the `return broadcasts.map(...)`:
 
 ```typescript
@@ -105,7 +105,7 @@ Expected: PASS.
         slotJobs: countSlotJobs(slotBookings, q.preferredDate, q.timeSlot),
 ```
 
-- [ ] **Step 6: Type-gate + commit**
+- [x] **Step 6: Type-gate + commit**
 
 Run: `rtk proxy npx tsc --noEmit`
 ```bash
@@ -120,7 +120,7 @@ git commit -m "feat(servicer): surface slot-load (jobs+duration) on incoming quo
 **Files:**
 - Modify: `frontend/src/app/servicer/pages/incoming-quotes.component.ts` (interface `10-21`)
 
-- [ ] **Step 1: Replace the interface** with the full set the backend sends:
+- [x] **Step 1: Replace the interface** with the full set the backend sends:
 
 ```typescript
 interface IncomingQuote {
@@ -153,12 +153,12 @@ interface IncomingQuote {
 }
 ```
 
-- [ ] **Step 2: Type-gate**
+- [x] **Step 2: Type-gate**
 
 Run (from `frontend/`): `npx tsc --noEmit`
 Expected: zero errors (the template still references the old subset — fine).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/app/servicer/pages/incoming-quotes.component.ts
@@ -172,7 +172,7 @@ git commit -m "feat(servicer): widen IncomingQuote to backend payload"
 **Files:**
 - Modify: `incoming-quotes.component.ts` (class body, near `expand`/`acceptListing`)
 
-- [ ] **Step 1: Add helper methods** to the component class:
+- [x] **Step 1: Add helper methods** to the component class:
 
 ```typescript
   /** Friendly slot label (matches the customer-facing ranges). */
@@ -203,7 +203,7 @@ git commit -m "feat(servicer): widen IncomingQuote to backend payload"
 
 (Follows the existing `wa-button.component.ts` pattern: `window.open(url, '_blank', 'noopener')`.)
 
-- [ ] **Step 2: Type-gate + commit**
+- [x] **Step 2: Type-gate + commit**
 
 Run: `npx tsc --noEmit`
 ```bash
@@ -218,7 +218,7 @@ git commit -m "feat(servicer): slot-label + maps deep-link helpers"
 **Files:**
 - Modify: `incoming-quotes.component.ts` template (the `@for` card block, `54-98`)
 
-- [ ] **Step 1: Replace the card block** (`<div class="card quote">...`) with the redesigned layout. Replace lines 54-98's card body:
+- [x] **Step 1: Replace the card block** (`<div class="card quote">...`) with the redesigned layout. Replace lines 54-98's card body:
 
 ```html
       @for (q of displayQuotes(); track q.quoteId) {
@@ -290,7 +290,7 @@ git commit -m "feat(servicer): slot-label + maps deep-link helpers"
 
 (Note: the old design split "Accept Job" and an expand-to-propose form. This keeps both — Accept = one-tap, expand reveals customer detail + the manual offer form.)
 
-- [ ] **Step 2: Add styles** to the `styles: [...]` block:
+- [x] **Step 2: Add styles** to the `styles: [...]` block:
 
 ```css
       .quote.urgent { border-left: 3px solid var(--color-danger); }
@@ -312,12 +312,12 @@ git commit -m "feat(servicer): slot-label + maps deep-link helpers"
       .notes { font-size: 0.85rem; font-style: italic; color: var(--color-muted); }
 ```
 
-- [ ] **Step 3: Type-gate + build**
+- [x] **Step 3: Type-gate + build**
 
 Run (from `frontend/`): `npx tsc --noEmit` then `ng build`
 Expected: build succeeds (AOT). Per project memory, run `ng build` — broken AOT can serve a stale `ng serve` bundle and mask errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src/app/servicer/pages/incoming-quotes.component.ts
@@ -331,7 +331,7 @@ git commit -m "feat(servicer): redesign dispatch card — price/time/place, urge
 **Files:**
 - Modify: `incoming-quotes.component.ts` (`ngOnInit` socket subscription, `198-205`)
 
-- [ ] **Step 1: Subscribe to `quote.matched`** alongside the existing `quote.new` sub. In `ngOnInit`:
+- [x] **Step 1: Subscribe to `quote.matched`** alongside the existing `quote.new` sub. In `ngOnInit`:
 
 ```typescript
     this.sub = this.socket.on<{ quoteId: string }>('quote.new').subscribe(() => this.load());
@@ -343,7 +343,7 @@ Declare `private subMatched?: Subscription;` and unsubscribe it in `ngOnDestroy`
 the feed on refresh. (If the backend does not emit `quote.matched`, add the emit in
 `booking.service.ts selectProposal` after the quote flips to `matched`.)
 
-- [ ] **Step 2: Type-gate + build + commit**
+- [x] **Step 2: Type-gate + build + commit**
 
 Run: `npx tsc --noEmit` && `ng build`
 ```bash
@@ -355,13 +355,13 @@ git commit -m "feat(servicer): live-remove taken quotes from incoming feed"
 
 ## Task 6: Manual + e2e verification
 
-- [ ] **Step 1: Manual.** Reseed, log in as M9. Confirm the incoming card shows: bold
+- [x] **Step 1: Manual.** Reseed, log in as M9. Confirm the incoming card shows: bold
   Price + payment, date + slot label, location + `View on map` (opens Google Maps new
   tab), `[Urgent]` tag on a same-day quote, slot-load badge, and the ▾ expander shows
   customer name/answers/notes. Accept still works.
-- [ ] **Step 2: e2e (optional).** In `frontend/e2e/specs/servicer-jobs.spec.ts` add an
+- [x] **Step 2: e2e (optional).** In `frontend/e2e/specs/servicer-jobs.spec.ts` add an
   assertion that an incoming card renders the price and a `View on map` control.
-- [ ] **Step 3: Commit** any e2e additions.
+- [x] **Step 3: Commit** any e2e additions.
 
 ---
 

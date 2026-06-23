@@ -140,6 +140,7 @@
 | **Money/listing epic step 9 (TASKS A/B/C)** | **544** |
 | **Phase 6 Identity Avatars POST-MVP (P6-FE)** | **650** |
 | **Category Thumbnails POST-MVP (§15)** | **701** |
+| **Plan 2 Dispatch Card Visual Redesign** | **1712** |
 
 ---
 
@@ -1701,3 +1702,49 @@ won/active job (rendered only when `customerPhone` is present).
 |------|--------|
 | `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
 | `npx ng build` (AOT) | ✅ 0 errors — bundle generation complete |
+
+
+## 2026-06-23 — Plan 2: Dispatch Card Visual Redesign
+
+**Scope:** Plan 2 of the dispatch card spec (Stream A). Backend slot-load helper + full frontend card redesign.
+
+**Task 1 — Backend slot-load:**
+- Added `countSlotJobs` helper to `servicer-quote.service.ts` — counts servicer's active (confirmed/in_progress) bookings on same MYT date+slot. Uses `scheduledDate` (not `preferredDate`) per Booking model schema.
+- Wired into `listIncomingQuotes` — queries bookings once, computes `slotJobs: { count }` per quote.
+- Unit test: `backend/tests/unit/slot-load.test.ts` — 3 cases, all pass.
+
+**Task 2 — IncomingQuote interface:**
+- Extended `IncomingQuote` with all fields backend already sends: `isUrgent`, `urgentFee`, `customerName`, `customerAvatarUrl`, `address`, `postcode`, `district`, `state`, `lat`, `lng`, `notes`, `descriptions`, `slotJobs`, `paymentMode`.
+
+**Task 3 — Card helpers:**
+- `slotLabel(slot)` — maps slot enum values to friendly labels (Morning 9-11, etc.)
+- `placeLine(q)` — composed district/state or fallback to address
+- `openMap(q, app)` — deep-links to Google Maps or Waze (new tab), prefers lat/lng when available, falls back to address query
+
+**Task 4 — Card template redesign:**
+- New card hierarchy: Price (bold primary) → Time (date + slot label + slot-load badge) → Place (district/state + address). `[Urgent +RM fee]` tag on urgent cards with red left border. `View on map ↗` in chips row with propertyType. ▾ expander shows customer name+avatar, descriptions, notes, and propose form.
+- New CSS: `.quote.urgent`, `.tag-urgent`, `.facts` flex layout, `.chip-static`, `.map-link`, `.details`, `.cust`/`.avatar`, `.answers`, `.notes`.
+
+**Task 5 — Real-time taken-status:**
+- Subscribed to `quote.matched` socket event (already emitted by `dispatch.service.ts`). On match, calls `load()` which filters to open-status only — taken quotes drop off the feed live.
+
+**Gates:**
+
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (backend/) | Pre-existing errors only (admin.service.ts exports) |
+| `npx jest tests/unit/slot-load.test.ts` | ✅ 3/3 pass |
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `npx ng build` (AOT) | ✅ exit 0 — bundle generation complete |
+
+**Commits:**
+- `bb68714` feat(servicer): surface slot-load (job count) on incoming quotes
+- `fd3246b` feat(servicer): redesign dispatch card — price/time/place, urgent, slot-load, map link, taken-status
+
+
+## 2026-06-23 — Proposal card + report modal + payment method cleanup
+- `proposals.component.ts`: removed payment method radio buttons and gateway card form from confirm dialog
+- `shell.component.ts`: added budget, schedule, pricing breakdown, map view to proposal card; dismiss calls collapseExpanded
+- `my-bookings.component.ts`: replaced chat-based reportIssue with modal form
+- `queues.component.ts`: added Reports tab
+- `proposals.component.ts`, `quote-form.component.ts`: capture paymentIntentId for gateway flow
