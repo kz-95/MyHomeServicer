@@ -8,6 +8,20 @@ import { emitToUser } from '../socket';
 import { optionPriceMapSchema, OptionPriceMap, lineItemsSchema, moduleRefsSchema } from '../lib/json-schemas';
 import { resolveListingAccept } from './listing-accept.service';
 
+/** @internal Exported for unit testing. Count a servicer's existing jobs
+ *  colliding on the same MYT calendar day + slot. */
+export function countSlotJobs(
+  bookings: { scheduledDate: Date; timeSlot: string }[],
+  date: Date,
+  slot: string,
+): { count: number } {
+  const MYT = 8 * 60 * 60 * 1000;
+  const day = (d: Date) => new Date(d.getTime() + MYT).toISOString().slice(0, 10);
+  const target = day(date);
+  const hits = bookings.filter((b) => b.timeSlot === slot && day(b.scheduledDate) === target);
+  return { count: hits.length };
+}
+
 /**
  * Require that a servicer has completed onboarding before they can take jobs.
  * Throws ApiError with missing fields and a redirect URL if not yet onboarded.
@@ -261,6 +275,16 @@ export async function listIncomingQuotes(servicerId: string, status?: string) {
     orderBy: { sentAt: 'desc' },
   });
 
+  // Load the servicer's active bookings once to compute slot-load per quote.
+  const myBookings = await prisma.booking.findMany({
+    where: { servicerId, status: { in: ['confirmed', 'in_progress'] } },
+    select: { scheduledDate: true, timeSlot: true },
+  });
+  const slotBookings = myBookings.map((b) => ({
+    scheduledDate: b.scheduledDate,
+    timeSlot: b.timeSlot as string,
+  }));
+
   return broadcasts
     .map((b) => {
       const q = b.quoteRequest;
@@ -297,10 +321,13 @@ export async function listIncomingQuotes(servicerId: string, status?: string) {
         lng: q.lng,
         // Descriptions: free-text notes + readable question-schema answers.
         notes: q.notes,
+        images: q.images ?? [],
         descriptions: formatServiceDetails(
           q.serviceDetails as Record<string, string | string[]> | null,
           q.category.questionSchema as QuestionSchemaItem[] | null,
         ),
+        // Slot-load: servicer's existing jobs on the same MYT day + slot.
+        slotJobs: countSlotJobs(slotBookings, q.preferredDate, q.timeSlot),
       };
     })
     // Pending feed = only quotes still open for proposals. Once a quote is
