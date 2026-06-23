@@ -47,7 +47,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   the emitters, then reuse for customer quote images (schema `images[]` in item 1, form
   upload, card thumbnails).
 - [x] **5. Chat-assisted quote flow** (beat 1) — smooth submission via demo button.
-- [ ] **6. Admin financial dashboard** (beat 6) — revenue/fee/escrow cards + 30-day
+- [x] **6. Admin financial dashboard** (beat 6) — revenue/fee/escrow cards + 30-day
   chart from the real transaction ledger (not stubbed); urgent-fee line. Quick links,
   date range.
 <!-- Item 7 removed per user request 2026-06-23 -->

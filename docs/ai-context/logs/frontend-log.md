@@ -2,6 +2,50 @@
 
 > Single-writer log — only the **Frontend** agent writes here.
 
+## Session 2026-06-23 — Item 6: Admin Financial Dashboard
+
+**Scope:** `TODO.md` item 6 — Admin financial dashboard: stats cards, revenue chart, category breakdown, urgent fee line.
+
+### Work done
+
+**File:** `frontend/src/app/admin/pages/dashboard.component.ts` — full rewrite (~331→~360 lines)
+
+#### 1. Financial stats cards (replaced old stubs)
+- 4 stat cards: Total Revenue (`totalTopUps + totalFees`), Platform Fees (`totalFees`), Escrow Held (`totalEscrow`), Pending Payouts (`pendingPayouts`) — all RM-formatted with `| number:'1.2-2'`.
+- Below: Today card (`todayTopUps + todayFees` with breakdown) + Urgent Fee Revenue card (`urgentFeeRevenue` with platform share `urgentFeePlatformShare`). Urgent card has red left-border accent.
+
+#### 2. Revenue line chart (replaced bar chart)
+- Hand-rolled SVG `<polyline>` chart — no new dependencies (project has zero charting libs).
+- Two overlaid lines: Revenue (solid primary) + Fees (dashed amber `--color-warning`).
+- SVG-inline legend, grid lines at 25/50/75/100% of max, date X-axis labels.
+- Range toggle: 7d / 30d / 90d (was 7d/30d only). Wired to `GET /admin/dashboard/financial?days=` param.
+- Chart total footer: revenue + fees totals.
+
+#### 3. Category breakdown section
+- Mini-table from `categoryBreakdown[]`: Category name, booking count, revenue (RM), fees (RM).
+- Right-aligned numeric columns, uppercase muted headers, border-collapse styling.
+
+#### 4. Category filter chips
+- Existing category chips kept, wired to financial endpoint via `?categoryId=` param.
+- `reloadDashboard()` now calls both `loadDashboard()` (queues) + `loadFinancial()` (financial).
+
+#### 5. Urgent fee line
+- Dedicated card in the Today+Urgent row: "Urgent Fee Revenue: RMxxx (Platform share: RMxxx)".
+- Distinct `urgent-highlight` class with red left-border.
+
+#### Interfaces added
+- `FinancialDashboard`, `CategoryBreakdown`, `DailyRevenuePoint` — match the expected `GET /admin/dashboard/financial` response shape.
+
+#### Retained
+- Pending queues section (withdrawals, appeals, category requests, reports) from old `GET /admin/dashboard`.
+- Category filter chips + dropdown.
+
+### Gates
+- `npx tsc --noEmit` → 0 errors ✅
+- `npx ng build --configuration development` → exit 0 ✅ (pre-existing NG8107 warnings only)
+
+---
+
 ## Session 2026-06-23 — Plan 4: Servicer Calendar Polish + Coherence
 
 **Scope:** `docs/superpowers/plans/2026-06-23-servicer-calendar-polish.md` — 3 tasks.
