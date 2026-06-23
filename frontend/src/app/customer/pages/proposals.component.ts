@@ -2,13 +2,11 @@ import { Component, Input, OnInit, OnDestroy, inject, signal, computed } from '@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { firstValueFrom, Subscription } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
 import { ModalComponent } from '../../shared/modal.component';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
-import { IconComponent } from '../../shared/icon.component';
-import { StripeCardFormComponent } from '../../shared/stripe-card-form.component';
 import { ServicerDetailPopupComponent } from '../../shared/servicer-detail-popup.component';
 
 interface Proposal {
@@ -30,7 +28,7 @@ const STAGGER_MS = 70;
 @Component({
     selector: 'app-proposals',
     host: { class: 'page-enter page-narrow' },
-    imports: [CommonModule, FormsModule, ModalComponent, ListToolbarComponent, IconComponent, StripeCardFormComponent, ServicerDetailPopupComponent],
+    imports: [CommonModule, FormsModule, ModalComponent, ListToolbarComponent, ServicerDetailPopupComponent],
     template: `
     <h1>Proposals</h1>
     <p class="muted">Compare servicer offers and pick one to create a booking.</p>
@@ -73,7 +71,13 @@ const STAGGER_MS = 70;
         <div class="card proposal pp-revealed">
           <div class="info">
             <div class="servicer-head">
-              <span class="svc-avatar"><app-icon [name]="(p.categoryIcon || 'home')" sizeToken="md" stroke="#fff" strokeWidth="1.5" /></span>
+              <span class="svc-avatar">
+                @if (p.servicer.logoUrl) {
+                  <img [src]="p.servicer.logoUrl" [alt]="p.servicer.businessName" class="svc-logo" />
+                } @else {
+                  <span class="svc-initials">{{ initials(p.servicer.businessName) }}</span>
+                }
+              </span>
               <button type="button" class="svc-name-btn" (click)="detailServicerId.set(p.servicer.id)">{{ p.servicer.businessName }}</button>
             </div>
             <span class="muted">★ {{ p.servicer.rating | number: '1.1-1' }}</span>
@@ -108,49 +112,24 @@ const STAGGER_MS = 70;
         (closed)="cancelSelect()">
         <p>
           You're about to book
-          <button type="button" class="svc-name-btn" (click)="detailServicerId.set(p.servicer.id)">{{ p.servicer.businessName }}</button>
+          <span class="servicer-head">
+            <span class="svc-avatar">
+              @if (p.servicer.logoUrl) {
+                <img [src]="p.servicer.logoUrl" [alt]="p.servicer.businessName" class="svc-logo" />
+              } @else {
+                <span class="svc-initials">{{ initials(p.servicer.businessName) }}</span>
+              }
+            </span>
+            <button type="button" class="svc-name-btn" (click)="detailServicerId.set(p.servicer.id)">{{ p.servicer.businessName }}</button>
+          </span>
           for <strong>RM {{ p.proposedPrice | number: '1.2-2' }}</strong>.
         </p>
         <p class="muted">This will create a booking and cannot be undone.</p>
-        @if (paymentMode() === 'pay_now') {
-          <div class="settle-opt">
-            <p class="label">Payment method</p>
-            <label class="opt">
-              <input type="radio" name="payNowMethod" [checked]="selectedSettlementMethod() === 'credit' || (selectedSettlementMethod() !== 'gateway')" (change)="selectedSettlementMethod.set('credit'); cardStep.set('idle')" />
-              Wallet credit
-            </label>
-            <label class="opt">
-              <input type="radio" name="payNowMethod" [checked]="selectedSettlementMethod() === 'gateway'" (change)="selectedSettlementMethod.set('gateway'); initCardPayment(p.proposedPrice)" />
-              Credit / Debit card
-            </label>
-          </div>
-        }
-        @if (paymentMode() === 'pay_now' && selectedSettlementMethod() === 'gateway') {
-          @if (cardStep() === 'intent_loading') {
-            <p class="muted">Preparing payment…</p>
-          } @else if (cardStep() === 'intent_ready' && clientSecret()) {
-            <app-stripe-card-form
-              [clientSecret]="clientSecret()!"
-              [amount]="p.proposedPrice"
-              [loading]="false"
-              (paymentSuccess)="onCardPaymentSuccess()"
-              (paymentError)="onCardPaymentError($event)"
-              (cancel)="cancelCardPayment()"
-            />
-          } @else if (cardStep() === 'success') {
-            <p class="card-pay-ok">✓ Payment successful!</p>
-          } @else if (cardStep() === 'error') {
-            <p class="err">{{ cardErrorMsg() }}</p>
-            <button class="btn-ghost" (click)="initCardPayment(p.proposedPrice)">Try again</button>
-          }
-        }
         <div class="modal-acts">
           <button class="btn-ghost" (click)="cancelSelect()" [disabled]="selecting()">Cancel</button>
-          @if (!(paymentMode() === 'pay_now' && selectedSettlementMethod() === 'gateway')) {
             <button class="btn-primary" (click)="select(p.id)" [disabled]="selecting()">
               {{ selecting() ? 'Confirming…' : 'Confirm - book this servicer' }}
             </button>
-          }
         </div>
       </app-modal>
     }
@@ -207,6 +186,17 @@ const STAGGER_MS = 70;
         border-radius: 999px;
         background: var(--color-primary);
         flex-shrink: 0;
+        overflow: hidden;
+      }
+      .svc-logo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .svc-initials {
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 600;
       }
       .msg {
         margin: 0.4rem 0;
@@ -425,66 +415,12 @@ export class ProposalsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Card payment for gateway pay_now ──────────────────────────────────
-  cardStep = signal<'idle' | 'intent_loading' | 'intent_ready' | 'success' | 'error'>('idle');
-  clientSecret = signal<string | null>(null);
-  paymentIntentId = signal<string | null>(null);
-  cardErrorMsg = signal('');
-  cardPaymentDone = signal(false);
 
-  selectedSettlementMethod = signal<'credit' | 'cash' | 'gateway' | null>(null);
-
-  async initCardPayment(amount: number): Promise<void> {
-    this.cardStep.set('intent_loading');
-    this.cardErrorMsg.set('');
-    this.clientSecret.set(null);
-    this.paymentIntentId.set(null);
-    try {
-      const res = await firstValueFrom(this.api.post<{ clientSecret: string; paymentIntentId: string }>('/stripe/create-payment-intent', { amount }));
-      if (res?.clientSecret) {
-        this.clientSecret.set(res.clientSecret);
-        this.paymentIntentId.set(res.paymentIntentId ?? null);
-        this.cardStep.set('intent_ready');
-      } else {
-        this.cardStep.set('error');
-        this.cardErrorMsg.set('Could not initiate payment. Please try again.');
-      }
-    } catch {
-      this.cardStep.set('error');
-      this.cardErrorMsg.set('Could not initiate payment. Please try again.');
-    }
-  }
-
-  onCardPaymentSuccess(): void {
-    this.cardStep.set('success');
-    this.cardPaymentDone.set(true);
-    // Proceed with booking
-    const p = this.pending();
-    if (p) this.select(p.id);
-  }
-
-  onCardPaymentError(msg: string): void {
-    this.cardErrorMsg.set(msg);
-  }
-
-  cancelCardPayment(): void {
-    this.cardStep.set('idle');
-    this.clientSecret.set(null);
-    this.paymentIntentId.set(null);
-    this.selectedSettlementMethod.set('credit');
-  }
 
   select(proposalId: string): void {
     this.selecting.set(true);
     this.error.set('');
     const body: Record<string, unknown> = { proposalId };
-    // pay_later settlement was chosen at quote-request time and is stored on the
-    // quote — the backend reuses it, so we no longer send it here.
-    if (this.paymentMode() === 'pay_now' && this.selectedSettlementMethod() === 'gateway') {
-      body['settlementMethod'] = 'gateway';
-      const piId = this.paymentIntentId();
-      if (piId) body['paymentIntentId'] = piId;
-    }
     this.api
       .post<{ bookingId: string }>(`/quotes/${this.id}/select`, body)
       .subscribe({
