@@ -148,7 +148,7 @@ interface ModuleLookup {
                     <button (click)="edit(s)">Edit</button>
                     <button (click)="duplicate(s)">Duplicate</button>
                     <button (click)="toggleStatus(s)">{{ s.published ? 'Deactivate' : 'Activate' }}</button>
-                    <button class="danger" (click)="remove(s)">Delete</button>
+                    <button class="danger" (click)="deleteTarget.set(s); menuId.set(null)">Delete</button>
                   </div>
             }
               <div class="ex-acts">
@@ -254,6 +254,21 @@ interface ModuleLookup {
         </div>
       }
     </app-modal>
+
+    <app-modal
+      [open]="deleteTarget() !== null"
+      title="Delete listing"
+      (closed)="deleteTarget.set(null)"
+    >
+      @if (deleteTarget(); as s) {
+        <p>Are you sure you want to delete <strong>{{ s.title }}</strong>?</p>
+        <p class="muted small">This action cannot be undone.</p>
+        <div class="modal-actions">
+          <button class="btn-ghost" (click)="deleteTarget.set(null)">Cancel</button>
+          <button class="btn-danger" (click)="confirmDelete()">Delete listing</button>
+        </div>
+      }
+    </app-modal>
   `,
   styles: [
     `
@@ -280,12 +295,14 @@ interface ModuleLookup {
         background: transparent;
         border: 1px solid var(--color-border);
         border-radius: 999px;
-        padding: 0.2rem 0.65rem;
-        font-size: 0.8rem;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.82rem;
         font-weight: 500;
         color: var(--color-muted);
         cursor: pointer;
         font-family: inherit;
+        line-height: 1.3;
+        white-space: nowrap;
         transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
       }
       .chip:hover {
@@ -314,11 +331,14 @@ interface ModuleLookup {
         background: transparent;
         border: 1px solid var(--color-border);
         border-radius: var(--radius);
-        padding: 0.3rem 0.5rem;
+        padding: 0.45rem 0.6rem;
         cursor: pointer;
         color: var(--color-muted);
-        font-size: 0.85rem;
+        font-size: 0.88rem;
         line-height: 1;
+        font-family: inherit;
+        min-width: 36px;
+        min-height: 36px;
       }
       .sort-dir:hover {
         border-color: var(--color-primary);
@@ -327,7 +347,7 @@ interface ModuleLookup {
 
       .lc {
         margin-bottom: 0.7rem;
-        padding: 0.75rem 0.9rem;
+        padding: 1rem;
       }
       .lc.is-draft {
         border-style: dashed;
@@ -342,7 +362,12 @@ interface ModuleLookup {
         border: none;
         cursor: pointer;
         color: var(--color-muted);
-        padding: 0.25rem;
+        padding: 0.5rem;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         line-height: 1;
         flex-shrink: 0;
       }
@@ -423,14 +448,17 @@ interface ModuleLookup {
         flex-shrink: 0;
       }
       .status-toggle {
-        font-size: 0.72rem;
+        font-size: 0.78rem;
         font-weight: 600;
-        padding: 0.25rem 0.6rem;
+        padding: 0.4rem 0.75rem;
         border-radius: 999px;
         border: 1px solid var(--color-border);
         background: var(--color-bg);
         color: var(--color-muted);
         cursor: pointer;
+        font-family: inherit;
+        line-height: 1.3;
+        white-space: nowrap;
         transition: all 0.15s ease;
       }
       .status-toggle.active {
@@ -452,7 +480,12 @@ interface ModuleLookup {
         line-height: 1;
         cursor: pointer;
         color: var(--color-muted);
-        padding: 0.1rem 0.4rem;
+        padding: 0.5rem;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         border-radius: var(--radius);
       }
       .lc-menu-btn:hover {
@@ -477,12 +510,13 @@ interface ModuleLookup {
         background: transparent;
         border: none;
         text-align: left;
-        padding: 0.45rem 0.6rem;
-        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.88rem;
         color: var(--color-text);
         cursor: pointer;
         border-radius: var(--radius-sm);
         font-family: inherit;
+        line-height: 1.3;
       }
       .menu button:hover {
         background: var(--color-bg);
@@ -557,6 +591,30 @@ interface ModuleLookup {
       .chip-soft { font-size: 0.74rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 999px; padding: 0.05rem 0.5rem; }
       .pv-action { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
       .pv-price { font-size: 1.3rem; font-weight: 700; }
+
+      .modal-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+      .btn-danger {
+        background: var(--color-danger);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius);
+        padding: 0.55rem 1.1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        line-height: 1.3;
+        transition: opacity 0.15s ease;
+      }
+      .btn-danger:hover {
+        opacity: 0.85;
+      }
     `,
   ],
 })
@@ -581,6 +639,7 @@ export class ServicerListingsComponent implements OnInit {
   openIds = signal<Set<string>>(new Set());
   menuId = signal<string | null>(null);
   preview = signal<Service | null>(null);
+  deleteTarget = signal<Service | null>(null);
 
   private moduleData = signal<ModuleLookup[]>([]);
 
@@ -780,19 +839,21 @@ export class ServicerListingsComponent implements OnInit {
     });
   }
 
-  remove(s: Service): void {
-    this.dialog
-      .confirm(`Delete the listing "${s.title}"?`, { confirmLabel: 'Delete listing' })
-      .subscribe((ok) => {
-        this.menuId.set(null);
-        if (!ok) return;
-        this.api.delete(`/servicer/me/services/${s.id}`).subscribe({
-          next: () => {
-            this.toast.success('Listing deleted.');
-            this.load();
-          },
-          error: (e) => this.toast.error(e.message ?? 'Could not delete the listing'),
-        });
-      });
+  confirmDelete(): void {
+    const s = this.deleteTarget();
+    if (!s) return;
+    this.deleteTarget.set(null);
+    this.busyId.set(s.id);
+    this.api.delete(`/servicer/me/services/${s.id}`).subscribe({
+      next: () => {
+        this.busyId.set(null);
+        this.toast.success('Listing deleted.');
+        this.load();
+      },
+      error: (e) => {
+        this.busyId.set(null);
+        this.toast.error(e.message ?? 'Could not delete the listing');
+      },
+    });
   }
 }
