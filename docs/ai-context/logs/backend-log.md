@@ -2,6 +2,56 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-24 20:30 — QA-003 Fix
+
+**Bug:** Platform fee double-recorded per pay_now booking (MEDIUM).
+
+**Root cause:** `selectProposal()` in `booking.service.ts:331-342` created a `platform_fee` reserve transaction at booking time. `handleEscrowRelease()` in `booking.jobs.ts:235-244` created a second `platform_fee` transaction at release time via the FeeRule engine. The admin dashboard query (`admin.service.ts:47`) sums `WHERE type='platform_fee' AND status='completed'` — both transactions defaulted to `'completed'`, inflating reported fees ~2× for pay_now bookings.
+
+**Fix:** Removed the booking-time `platform_fee` reserve entirely from `selectProposal()`:
+- `booking.service.ts:206`: Simplified `Promise.all([getSstRate(), getPlatformFeeRate()])` → `await getSstRate()` — `feeRate` only used by the removed reserve
+- `booking.service.ts:224`: Removed `const platformFee = computePlatformFee(afterPromo, feeRate)` — only consumed by the removed reserve
+- `booking.service.ts:331-342`: Removed the `await recordTransaction(...)` `platform_fee` reserve block
+
+The release-time transaction in `booking.jobs.ts:235-244` is the single authoritative fee event, computed via the FeeRule engine with actual escrow data.
+
+**Gates:** `npx tsc --noEmit` — 0 new errors (2 pre-existing tsconfig deprecation warnings).
+
+**Note:** `dispatch.service.ts:349` has the same `platform_fee` reserve pattern — that's QA-005 (separate CRITICAL ticket, dispatch accept bypasses escrow entirely).
+
+---
+
+## Session 2026-06-24 20:20 — BE-019 Fix
+
+**Bug:** Chat verify-pin token stored indefinitely, never consumed (HIGH).
+
+**Audit findings:**
+1. `recordPinSuccess()` in `pin-cooldown.ts` only ran `DEL` on the cooldown key — no success state was stored at all. No TTL-gated "verified" token existed.
+2. `recordPinFailure()` used the cooldown duration (60s default) as the key TTL — failures were forgotten after 60s, no tracking window.
+3. After `/chat/verify-pin` returned `{ ok: true }`, nothing consumed the verified state — re-verification was unlimited (though PIN must be re-sent each time).
+
+**Fix — three files changed:**
+
+### `backend/src/middleware/pin-cooldown.ts`
+- Added `PIN_SUCCESS_TTL_SECONDS = 600` (10 min) and `PIN_FAILURE_TRACKING_TTL_SECONDS = 1800` (30 min)
+- `recordPinSuccess()`: after deleting the failure counter, now SETs `pin:success:{userId}` = `1` with 10-min TTL — no more indefinite storage
+- `recordPinFailure()`: now sets TWO keys — `pin:cooldown:{userId}` with configured cooldown TTL (lockout) AND `pin:failures:{userId}` with 30-min TTL (audit trail)
+- `checkPinCooldown()`: if `pin:success:{userId}` exists, skips the failure gate (user recently verified)
+- New `consumePinSuccess(userId)`: explicit deletion of the success key for one-shot consumption
+
+### `backend/src/middleware/pin.ts`
+- `requirePin` middleware: after successful verification, listens on `res.on('finish')` to consume the success state — one-shot pattern for admin action-PIN routes
+
+### `backend/src/routes/chat.routes.ts`
+- `/chat/verify-pin`: consumes prior success state before recording fresh verification
+- `/chat/apply-profile` (both servicer and admin branches): consumes success state after profile update
+
+**Gates:** `npx tsc --noEmit` — 0 new errors (2 pre-existing tsconfig deprecation warnings).
+
+**Commit:** `a59ad59` on `feat/sp3-dispatch-cards` — `fix(chat): add TTL and consume guard on verify-pin token state`
+
+---
+
 ## Session 2026-06-24 19:55 — BE-001 Fix
 
 **Bug:** `buildSystemPrompt()` called without `await` in `chat.service.ts:271` → AI received `[object Promise]` as system prompt.
@@ -2384,3 +2434,17 @@ P1 (Wallet model + service) and P5 (CSV export) were already done in the prior f
 | Gate | Result |
 |------|--------|
 | `npx tsc --noEmit` (backend/) | ✅ 0 errors |
+
+---
+
+## Session 2026-06-24 20:16 — BE-013 Fix (Demo-login accepts arbitrary email)
+
+**Bug:** `/dev/demo-login` accepted a `directEmail` field from the request body, allowing anyone to call `login(arbitraryEmail, 'Demo@2026')`. Any account whose password happened to be `Demo@2026` was freely loggable through this endpoint.
+
+**Fix (Option A):** Removed `directEmail` entirely. Only `DEMO_ACCOUNTS[role]` is now used — locked to the 3 known demo emails (`customer.active@demo.local`, `servicer.1@demo.local`, `admin@demo.local`).
+
+**Files changed:** `backend/src/routes/index.ts` — 2 lines changed (lines 258-259).
+
+**Gates:** `npx tsc --noEmit` — 0 new errors.
+
+**Commit:** `5379ff0` on `feat/sp3-dispatch-cards` — `fix(auth): lock demo-login to known demo accounts only`

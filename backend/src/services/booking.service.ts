@@ -203,7 +203,7 @@ export async function selectProposal(
 
       // Resolve servicer tax config for the canonical total.
       const servicer = await tx.servicer.findUnique({ where: { id: proposal.servicerId } });
-      const [sstRate, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
+      const sstRate = await getSstRate();
       const config: ServicerTaxConfig = {
         serviceChargeRate: Number(servicer?.serviceChargeRate ?? 0),
         sstRegistered: servicer?.sstRegistered ?? false,
@@ -221,8 +221,6 @@ export async function selectProposal(
       const totalResult = computeTotal(lineItemsSnapshot, promoDiscount, config, tip);
       const escrowTotal = totalResult.total;
       const afterPromo = totalResult.afterPromo;
-      const platformFee = computePlatformFee(afterPromo, feeRate);
-
       const escrow = await tx.escrow.create({
         data: {
           bookingId: created.id,
@@ -330,18 +328,6 @@ export async function selectProposal(
         );
       }
 
-      // Record the platform fee that will ultimately be taken.
-      await recordTransaction(
-        {
-          type: 'platform_fee',
-          amount: platformFee,
-          bookingId: created.id,
-          servicerId: proposal.servicerId,
-          escrowId: escrow.id,
-          reference: `Platform fee reserve (pay_now, ${(feeRate * 100).toFixed(1)}%)`,
-        },
-        tx,
-      );
     }
 
     return created;
