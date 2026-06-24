@@ -42,6 +42,12 @@ const DEFAULTS: Record<string, unknown> = {
       { label: 'Service details changed', value: 'service_details_changed', sortOrder: 6 },
     ],
   },
+  // Customer rewards program — admin-configurable defaults.
+  points_per_rm: 1,
+  points_per_review: 50,
+  points_per_referral: 200,
+  welcome_points: 500,
+  redemption_rate: 100,
 };
 
 export async function getSetting<T = unknown>(key: string): Promise<T> {

@@ -339,7 +339,7 @@ There is no `DepositTopup` model — top-up requests are tracked as a `PLATFORM_
 | LOYALTY_TIER | Named tiers with point thresholds | `name` unique, `min_points` threshold for achieving tier. `bonus_percent` is the earning bonus (e.g. 10% more points per RM). `badge_color` for UI display. `active` boolean, `sort_order` for rendering order. |
 | CUSTOMER_POINTS | Per-user points ledger | One row per user. `balance` current points, `lifetime_earned` and `lifetime_spent` for tier calculation. `last_rewards_visit` tracks when the user last viewed the rewards page. |
 | POINTS_TRANSACTION | Immutable points movement log | Positive amounts = earned, negative = spent. `type` string: `earn_booking`, `earn_review`, `earn_referral`, `earn_welcome`, `redeem`, `expire`. `balance` is running balance after this transaction. `reference` links to booking/reward ID. Append-only. |
-| REWARD | Redeemable reward catalog | Admin-managed reward offerings. `name`, `description`, `point_cost` (int), `discount_type` (`topup_fixed`, `booking_percent`, `waiver`), `discount_value` (Decimal). `max_discount` caps booking_percent. `min_topup` minimum for topup_fixed. `active` boolean, `sort_order`. |
+| REWARD | Redeemable reward catalog | Admin-managed reward offerings. `name`, `description`, `point_cost` (int), `discount_type` (`topup_fixed`, `booking_percent`, `waiver`, `topup_bonus`), `discount_value` (Decimal). `max_discount` caps booking_percent. `min_topup` minimum for topup_fixed/topup_bonus. `active` boolean, `sort_order`. |
 | REDEMPTION | Per-user reward redemptions | One row per user+reward claim. `voucher_code` unique (auto-generated). `status`: active/used/expired. `used_at`/`expires_at` timestamps. |
 
 ---

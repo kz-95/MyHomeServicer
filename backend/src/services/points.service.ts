@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { badRequest, businessRule, notFound } from '../lib/errors';
+import { getSetting } from './settings.service';
 import type { LoyaltyTier, CustomerPoints, PointsTransaction, Redemption } from '@prisma/client';
 
 export interface TierInfo {
@@ -42,20 +43,63 @@ export function computeTier(lifetimeEarned: number, tiers?: LoyaltyTier[]): Tier
 }
 
 /**
- * Award 50 review points for a completed booking.
+ * Resolve points-config values from platform settings, falling back to defaults.
+ * Cached in module scope for the lifetime of the process; admin changes require a restart
+ * (or you can call invalidatePointsConfigCache() from the admin route).
+ */
+interface PointsConfig {
+  pointsPerRm: number;
+  pointsPerReview: number;
+  pointsPerReferral: number;
+  welcomePoints: number;
+  redemptionRate: number;
+}
+
+let _pointsConfig: PointsConfig | null = null;
+
+export function invalidatePointsConfigCache(): void {
+  _pointsConfig = null;
+}
+
+export async function getPointsConfig(): Promise<PointsConfig> {
+  if (_pointsConfig) return _pointsConfig;
+  const keys = ['points_per_rm', 'points_per_review', 'points_per_referral', 'welcome_points', 'redemption_rate'] as const;
+  const results = await Promise.all(keys.map((k) => getSetting<number>(k)));
+  _pointsConfig = {
+    pointsPerRm: results[0] ?? 1,
+    pointsPerReview: results[1] ?? 50,
+    pointsPerReferral: results[2] ?? 200,
+    welcomePoints: results[3] ?? 500,
+    redemptionRate: results[4] ?? 100,
+  };
+  return _pointsConfig;
+}
+
+/**
+ * Get the tier bonus multiplier for a user (1 + bonusPercent/100), or 1 if no tier.
+ */
+export async function getTierBonusMultiplier(userId: string): Promise<number> {
+  const points = await prisma.customerPoints.findUnique({ where: { userId } });
+  if (!points) return 1;
+  const tiers = await loadTiers();
+  const tier = computeTier(points.lifetimeEarned, tiers);
+  return 1 + tier.bonusPercent / 100;
+}
+
+/**
+ * Award review points for a completed booking.
  * Reference can be the review ID once the review system exists;
  * falls back to booking ID when called from doneJob() before review creation.
  */
-const REVIEW_POINTS = 50;
-
 export async function awardReviewPoints(
   userId: string,
   bookingId: string,
   reviewId?: string,
 ): Promise<CustomerPoints> {
+  const config = await getPointsConfig();
   return awardPoints(
     userId,
-    REVIEW_POINTS,
+    config.pointsPerReview,
     'earn_review',
     reviewId ?? bookingId,
     `Review bonus for booking #${bookingId.slice(-8)}`,

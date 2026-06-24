@@ -2488,6 +2488,12 @@ export const platformSettings: { key: string; value: unknown }[] = [
     ],
   },
   { key: "chat_service_keywords", value: {} },
+  // ── Customer Rewards Program ──────────────────────────────────────────────
+  { key: "points_per_rm", value: 1 },
+  { key: "points_per_review", value: 50 },
+  { key: "points_per_referral", value: 200 },
+  { key: "welcome_points", value: 500 },
+  { key: "redemption_rate", value: 100 },
   // Seeded from DEMO_UNLOCK_PHRASE so the env var is the single source of truth;
   // admins can still override this row live in the DB without a redeploy.
   { key: "demo_unlock_phrase", value: process.env.DEMO_UNLOCK_PHRASE || "unlockdemobar" },

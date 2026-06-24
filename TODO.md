@@ -124,7 +124,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [x] **Route redesign + dead link sweep** — nest admin/customer routes; audit + fix backend
   notification `linkUrl` emitters + Stripe return URLs after C2 rename; servicer dashboard
   quickLinks; chat AI route updates. One pass, all dead links. ✅ Fixed 2026-06-24 (1 dead linkUrl fixed in admin.routes.ts, all 20 linkUrls + 4 Stripe URLs + 60 routerLinks + chat prompts audited)
-- [ ] **Customer rewards / deposit-credit promotions**
+- [x] **Customer rewards / deposit-credit promotions** ✅ Wired 2026-06-24: points engine reads admin-configurable platform settings (points_per_rm, points_per_review, welcome_points), tier bonus multiplier applied on booking completion (Silver +10%, Gold +25%, Platinum +50%), Google OAuth new customers receive welcome points, reward config keys seeded, topup_bonus added to admin CRUD validation
 - [x] **Admin banned-accounts, deactivate-account, customer search/filter** ✅ Verified 2026-06-24 (BannedEmail model + migration, GET/POST/DELETE /admin/banned-emails, POST /user/me/deactivate + /servicer/me/deactivate, deactivate.service.ts with email suffix + auto-ban after 10, admin users page search/role filter, admin settings banned tab, customer/servicer Danger Zone deactivation modals)
 - [x] **Forgot-password + settings refinements + PIN-registration settings** ✅ Built 2026-06-24 (forgot/reset flow already existed; added 4 PIN/password policy platform settings + security tab in admin settings + configurable cooldown middleware)
 - [x] **Cancel reason presets + form validation UX + admin footer wiring** - ✅ Fixed 2026-06-24 (cancel_reasons platform setting, customer booking cancel dropdown, admin footer links)

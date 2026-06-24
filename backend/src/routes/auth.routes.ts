@@ -12,7 +12,7 @@ import { isGoogleConfigured } from '../services/google-auth.service';
 import { env } from '../config/env';
 import { sendEmail } from '../lib/email';
 import { badRequest } from '../lib/errors';
-import { awardPoints } from '../services/points.service';
+import { awardPoints, getPointsConfig } from '../services/points.service';
 import { findAdmin, sendOtpToBackupEmail } from '../services/admin-rescue.service';
 
 /** Authentication endpoints. */
@@ -32,7 +32,13 @@ authRouter.post(
     const banned = await prisma.bannedEmail.findUnique({ where: { email: req.body.email.toLowerCase().trim() } });
     if (banned) throw badRequest('This email has been banned and cannot register.');
     const { user, tokens } = await register(req.body);
-    awardPoints(user.id, 500, 'earn_welcome', undefined, '🎉 Welcome! Here are 500 free points to get started.').catch(() => {});
+    // Award welcome points from admin-configurable platform setting (default 500).
+    getPointsConfig().then((cfg) => {
+      if (cfg.welcomePoints > 0) {
+        awardPoints(user.id, cfg.welcomePoints, 'earn_welcome', undefined,
+          `🎉 Welcome! Here are ${cfg.welcomePoints} free points to get started.`).catch(() => {});
+      }
+    });
     res.status(201).json({
       user: { id: user.id, name: req.body.name, email: user.email, role: user.role, creditBalance: user.creditBalance },
       accessToken: tokens.accessToken,

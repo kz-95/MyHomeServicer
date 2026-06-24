@@ -2115,6 +2115,35 @@ Docs synced: `schema-notes.md` (BOOKING confirmed-on-select), `api-doc.md`
 **Gates:**
 - `rtk proxy npx tsc --noEmit`: 0 errors.
 
+---
+
+## Session 2026-06-24 — REW: Customer Rewards — Wire Platform Settings + Tier Bonus
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task REW. The rewards system (models, endpoints, frontend) was already built; this session wired the admin-configurable platform settings into the points engine, applied tier bonus multipliers, added Google OAuth welcome points, seeded reward config keys, and added `topup_bonus` to admin discount-type validation.
+
+### Changes
+
+1. **`settings.service.ts`** — Added defaults for 5 reward config keys (`points_per_rm: 1`, `points_per_review: 50`, `points_per_referral: 200`, `welcome_points: 500`, `redemption_rate: 100`) to the `DEFAULTS` constant.
+
+2. **`points.service.ts`** — Replaced hardcoded constants with `getPointsConfig()` that reads all 5 keys from platform settings (with fallback defaults). Added `getTierBonusMultiplier(userId)` that computes the earning multiplier from the user's current loyalty tier (1 + bonusPercent/100). Exported `invalidatePointsConfigCache()` for future admin-triggered cache invalidation.
+
+3. **`auth.routes.ts`** — `POST /auth/register` now reads `welcome_points` from `getPointsConfig()` instead of hardcoded 500. If the setting is 0, no welcome points are awarded.
+
+4. **`google-auth.service.ts`** — New customer users created via Google OAuth now receive welcome points (same logic as email registration — reads `welcome_points` from settings, customer-role only, fire-and-forget).
+
+5. **`booking.service.ts`** — `doneJob()` now reads `points_per_rm` from `getPointsConfig()` and applies `getTierBonusMultiplier()`. Example: a Silver-tier customer (10% bonus) spending RM 200 earns `200 * 1 * 1.10 = 220` points instead of 200. The `earn_booking` transaction note includes the tier bonus percentage when > 0.
+
+6. **`rewards.routes.ts`** — Added `topup_bonus` to the `discountType` validation in both `POST /admin/rewards` (create) and `PATCH /admin/rewards/:id` (update). The seed already included a `topup_bonus` reward (#3 in catalog), but admins couldn't create/edit this type via the UI — now they can.
+
+7. **`static.ts`** — Added 5 platform settings rows to the seed: `points_per_rm`, `points_per_review`, `points_per_referral`, `welcome_points`, `redemption_rate`. These populate the DB so the admin money-settings page shows real values immediately after a fresh seed.
+
+8. **`schema-notes.md`** — Updated `discountType` list to include `topup_bonus`.
+
+### Gates
+
+- `rtk proxy npx tsc --noEmit`: 0 errors
+- `npm test`: 366 passed, 39 failed (all 39 are pre-existing `PrismaClientInitializationError` — database connectivity for fintech wallet/dispute test suites, unrelated to rewards changes). 18 of 22 non-DB suites green.
+
 ## Session 2026-06-24 — FINTECH P1 + P5-light (CEO dispatch)
 
 **Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task FINTECH. Spec: `docs/superpowers/specs/2026-06-23-financial-system-consolidated.md`.

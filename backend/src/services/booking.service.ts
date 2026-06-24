@@ -11,7 +11,7 @@ import { computeTotal, computePlatformFee, LineItem, ServicerTaxConfig } from '.
 import { getPlatformFeeRate, getSstRate } from './settings.service';
 import { notify, notifyAdmins } from './notification.service';
 import { generateInvoice } from './invoice.service';
-import { awardPoints, awardReviewPoints } from './points.service';
+import { awardPoints, awardReviewPoints, getPointsConfig, getTierBonusMultiplier } from './points.service';
 import { createBookingPaymentSession } from '../lib/stripe';
 
 /**
@@ -502,14 +502,22 @@ export async function doneJob(servicerId: string, bookingId: string, photoUrl: s
     logger.error('Invoice generation failed in doneJob', { bookingId, error: String(err) }),
   );
 
-  // Award booking points (1 pt per RM spent).
-  const pointsEarned = Math.floor(Number(booking.price));
+  // Award booking points from admin-configurable platform setting (default 1 pt per RM).
+  // Apply tier bonus multiplier (Silver +10%, Gold +25%, Platinum +50%).
+  const [pointsConfig, tierMultiplier] = await Promise.all([
+    getPointsConfig(),
+    getTierBonusMultiplier(booking.userId),
+  ]);
+  const basePoints = Math.floor(Number(booking.price) * pointsConfig.pointsPerRm);
+  const pointsEarned = Math.round(basePoints * tierMultiplier);
   if (pointsEarned > 0) {
-    awardPoints(booking.userId, pointsEarned, 'earn_booking', booking.id, `Earned from booking #${booking.id.slice(-8)}`).catch((err) =>
+    const bonusNote = tierMultiplier > 1 ? ` (${Math.round((tierMultiplier - 1) * 100)}% tier bonus applied)` : '';
+    awardPoints(booking.userId, pointsEarned, 'earn_booking', booking.id,
+      `Earned from booking #${booking.id.slice(-8)}${bonusNote}`).catch((err) =>
       logger.error('Failed to award booking points', { bookingId, error: String(err) }),
     );
   }
-  // Award review bonus points (50 pts per completed booking).
+  // Award review bonus points (admin-configurable setting, default 50 pts).
   // When the review creation system is built, move this call to the
   // review-submission handler so the points are tied to the review ID.
   awardReviewPoints(booking.userId, booking.id).catch((err) =>

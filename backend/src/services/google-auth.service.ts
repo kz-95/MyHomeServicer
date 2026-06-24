@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { env } from '../config/env';
 import { Principal, issueTokens } from './auth.service';
+import { awardPoints, getPointsConfig } from './points.service';
 
 const ADMIN_EMAILS = new Set(
   env.ADMIN_EMAILS.split(',')
@@ -59,6 +60,16 @@ export async function handleGoogleAuth(
       passwordHash: null,
     },
   });
+
+  // Award welcome points for new customers (not admins).
+  if (role === 'customer') {
+    getPointsConfig().then((cfg) => {
+      if (cfg.welcomePoints > 0) {
+        awardPoints(user.id, cfg.welcomePoints, 'earn_welcome', undefined,
+          `🎉 Welcome! Here are ${cfg.welcomePoints} free points to get started.`).catch(() => {});
+      }
+    });
+  }
 
   const principal: Principal = {
     id: user.id,
