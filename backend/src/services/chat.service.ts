@@ -268,7 +268,7 @@ export async function buildAssistantPrompt(
   // (the catalog block already names the locked service) to shrink the prompt mid-flow.
   categoryLocked = false,
 ): Promise<string> {
-  const base = buildSystemPrompt(role);
+  const base = await buildSystemPrompt(role);
   const settings = await prisma.platformSettings.findMany({
     where: {
       key: {
@@ -430,7 +430,23 @@ export async function buildAssistantPrompt(
     extra +=
       "\n- When you mention a service in your text, write its EXACT catalog name in plain words with NO bold, NO asterisks, NO markdown. The app automatically turns service names into clickable links, so never format them yourself.";
     extra +=
-      '\n- NEVER use markdown anywhere: no bullet lists, no "*" or "-" bullets, no "#" headings, no bold/italics. The chat renders plain text, so markdown shows as ugly raw symbols. When you acknowledge a detail the user JUST gave, echo back only THAT one value in a short phrase (e.g. "Got it, Sunday 14 June."). NEVER re-list all the collected fields in prose — the review card shows the full summary.';
+      '\n- NEVER use markdown anywhere: no bullet lists, no "*" or "-" bullets, no "#" headings, no bold/italics. The chat renders plain text, so markdown shows as ugly raw symbols.' +
+      '\n\n## ACKNOWLEDGMENT RULE — one word, never restate the value' +
+      '\nWhen the user gives a detail, acknowledge with EXACTLY ONE word from the pool matching their tone (casual/neutral/formal) and language. NEVER echo the collected value back — restating data ("Got it, 28 June") creates hallucination risk. After your one word, ask the next field naturally. NEVER re-list all collected fields in prose.' +
+      '\nPool (pick the tone that matches the customer this turn):' +
+      '\nEN casual: sure man, ok cool, sure, on it, roger that' +
+      '\nEN neutral: got it, noted, alright, ok, roger' +
+      '\nEN formal: understood, done, captured' +
+      '\nMS casual: baek, settle, cantik' +
+      '\nMS neutral: baik, set, okey, ok, noted, roger' +
+      '\nMS formal: faham, dah catat, terima kasih' +
+      '\nZH casual: 好哦, 喔喔, 好哒, 嗯嗯, 好滴' +
+      '\nZH neutral: 好的, 行, 知道了, ok, 可以' +
+      '\nZH formal: 收到, 明白, 没问题, 了解了, 记下了' +
+      '\nTA casual: சூப்பர், ok' +
+      '\nTA neutral: சரி, புரிந்தது, சரிதான், ஓகே, நல்லது, கிடைத்தது, முடிந்தது, ஆம்' +
+      '\nTA formal: குறித்துக்கொண்டேன்' +
+      '\nPattern: [one pool word] [natural question for next field]. Emit the card right after. Example: "Got it. Which date works?" + emit preferredDate card.';
   }
 
   // --- Reference data below — informative, not action-driving ---
@@ -2496,7 +2512,7 @@ export async function sendToAi(
       }
       systemPrompt +=
         `\nThe user's NEXT message is likely their answer to THIS question. Interpret their words against the question context.` +
-        `\nIf the user gives a valid answer, acknowledge it briefly (ONE warm sentence max) and move on — the app shows the next card.` +
+        `\nIf the user gives a valid answer, acknowledge with ONE word from the ACKNOWLEDGMENT POOL (matching customer tone and language). NEVER state the answer value. Move on — the app shows the next card.` +
         `\nNEVER re-show a question card for a question the user already answered in THIS turn.` +
         (unanswered.length > 1
           ? `\nRemaining after this: ${unanswered.slice(1).map((qq) => `"${pickI18n(qq.label, qq.labelI18n, opts?.lang)}"`).join(", ")}. Do NOT ask these yet — ONE at a time.`
