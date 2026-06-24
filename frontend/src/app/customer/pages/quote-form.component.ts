@@ -142,7 +142,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
     @if (noAddress()) {
       <div class="card warn">
         You don't have a saved address yet, and a quote needs one.
-        <a routerLink="/customer/account">Add an address</a> to continue.
+        <a [routerLink]="[routeFor('customer.account')]">Add an address</a> to continue.
       </div>
     }
 

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { routeFor } from '../../core/route-for';
 import { ApiService } from '../../core/services/api.service';
 import { PinService } from '../../core/services/pin.service';
 import { DialogService } from '../../core/services/dialog.service';
@@ -82,8 +83,8 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
       <!-- Sticky tab + search + filters -->
       <div class="sticky-header">
         <div class="tabs">
-          <a class="tab" routerLink="/admin/users/all" routerLinkActive="active">All Accounts</a>
-          <a class="tab" routerLink="/admin/users/servicers" routerLinkActive="active">Servicer</a>
+          <a class="tab" [routerLink]="[routeFor('admin.users.all')]" routerLinkActive="active">All Accounts</a>
+          <a class="tab" [routerLink]="[routeFor('admin.users.servicers')]" routerLinkActive="active">Servicer</a>
         </div>
         <div class="search-row">
           <input
@@ -557,6 +558,7 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
     ]
 })
 export class AdminUsersComponent implements OnInit, OnDestroy {
+  protected readonly routeFor = routeFor;
   private api = inject(ApiService);
   private pin = inject(PinService);
   private dialog = inject(DialogService);

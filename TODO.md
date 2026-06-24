@@ -151,7 +151,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [x] **Seed reform** — cap each servicer at 3 listings; seed painting/moving/gardening servicers;
   add profile pictures for servicers M97–M105 (currently missing avatar/logoUrl)
   ✅ Already done: all servicers ≤3 listings, M97-M105 seeded with 9 entries across painting/moving/gardening.
-- [ ] **routeFor() relative-path guard** (defense-in-depth)
+- [x] **routeFor() relative-path guard** (defense-in-depth)
 - [ ] **Itemization** — separate "service listing" vs "itemized line items" (parts/labour). Defer
   until SP3-SP4 land.
 

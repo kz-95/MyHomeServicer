@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { routeFor } from '../core/route-for';
 import { ApiService } from '../core/services/api.service';
 import { AuthService } from '../core/services/auth.service';
 import { placeholderUrl } from '../core/category-colors';
@@ -385,12 +386,12 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
 
   pick(cat: Category): void {
     if (this.auth.isLoggedIn()) {
-      this.router.navigate(['/customer/quote'], {
+      this.router.navigate([routeFor('customer.quote')], {
         queryParams: { category: cat.id },
       });
     } else {
       this.auth.enterGuestMode(cat.id);
-      this.router.navigate(['/login'], { queryParams: { intent: 'quote' } });
+      this.router.navigate([routeFor('login')], { queryParams: { intent: 'quote' } });
     }
   }
 }

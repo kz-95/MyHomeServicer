@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { routeFor } from '../../core/route-for';
 import { ApiService } from '../../core/services/api.service';
 
 interface Dashboard {
@@ -106,19 +107,19 @@ interface FinancialDashboard {
     @if (data(); as d) {
       <h2>Pending queues</h2>
       <div class="grid page-child">
-        <a class="card stat" routerLink="/admin/queues" [queryParams]="{tab:'withdrawals'}" title="Review withdrawals">
+        <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'withdrawals'}" title="Review withdrawals">
           <span class="n">{{ d.queues.pendingWithdrawals }}</span>
           <span class="muted">Withdrawals</span>
         </a>
-        <a class="card stat" routerLink="/admin/queues" [queryParams]="{tab:'appeals'}" title="Review appeals">
+        <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'appeals'}" title="Review appeals">
           <span class="n warn">{{ d.queues.pendingAppeals }}</span>
           <span class="muted">Appeals</span>
         </a>
-        <a class="card stat" routerLink="/admin/queues" [queryParams]="{tab:'category'}" title="Review category requests">
+        <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'category'}" title="Review category requests">
           <span class="n">{{ d.queues.pendingCategoryRequests }}</span>
           <span class="muted">Category requests</span>
         </a>
-        <a class="card stat" routerLink="/admin/queues" [queryParams]="{tab:'reports'}" title="View open reports">
+        <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'reports'}" title="View open reports">
           <span class="n warn">{{ d.queues.openReports }}</span>
           <span class="muted">Open reports</span>
         </a>
@@ -407,6 +408,7 @@ interface FinancialDashboard {
   ],
 })
 export class AdminDashboardComponent implements OnInit {
+  protected readonly routeFor = routeFor;
   private api = inject(ApiService);
 
   // ── Old dashboard (queues) ──────────────────────────────────────────

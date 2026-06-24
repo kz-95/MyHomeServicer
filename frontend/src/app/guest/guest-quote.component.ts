@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, inject, isDevMode, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
+import { routeFor } from '../core/route-for';
 import { ApiService } from '../core/services/api.service';
 import { AuthService, GuestQuoteData } from '../core/services/auth.service';
 import { ConfigService } from '../core/services/config.service';
@@ -104,8 +105,8 @@ function emptyForm(): FormState {
         </a>
         <span class="spacer"></span>
         <div class="top-acts">
-          <a class="nav-btn nav-btn--ghost" routerLink="/login">Sign in</a>
-          <a class="nav-btn nav-btn--solid" routerLink="/register">Register</a>
+          <a class="nav-btn nav-btn--ghost" [routerLink]="[routeFor('login')]">Sign in</a>
+          <a class="nav-btn nav-btn--solid" [routerLink]="[routeFor('register')]">Register</a>
         </div>
       </header>
 
@@ -113,7 +114,7 @@ function emptyForm(): FormState {
         <div class="wrap">
           <h1>Request a quote</h1>
           <div class="sub-row">
-            <p class="sub-muted">Your details stay in this browser. <a routerLink="/login">Sign in</a> to save them to your account.</p>
+            <p class="sub-muted">Your details stay in this browser. <a [routerLink]="[routeFor('login')]">Sign in</a> to save them to your account.</p>
             @if (config.hasDemoData && unlock.unlocked()) {
             <div class="demo-autofill">
               <button class="btn-autofill" type="button" (click)="demoAutoFill()">⚡ Demo: Auto-fill</button>
@@ -129,8 +130,8 @@ function emptyForm(): FormState {
               <p class="muted">Want to track your quote and earn rewards? Create an account and your details will be ready for you.</p>
               <p class="muted" style="font-size:0.88rem">Redirecting to home in {{ guestCountdown() }}…</p>
               <div class="success-acts">
-                <a class="btn-primary" routerLink="/register" [queryParams]="{prefill: 'guest'}">Create a free account</a>
-                <a class="btn-ghost" routerLink="/login">Already have an account? Login here</a>
+                <a class="btn-primary" [routerLink]="[routeFor('register')]" [queryParams]="{prefill: 'guest'}">Create a free account</a>
+                <a class="btn-ghost" [routerLink]="[routeFor('login')]">Already have an account? Login here</a>
                 <a class="btn-ghost" routerLink="/">Back to home</a>
               </div>
             </div>
@@ -397,7 +398,7 @@ function emptyForm(): FormState {
                       <span>Cash <span class="muted">(pay servicer directly after job done)</span></span>
                     </label>
                   </div>
-                  <span class="muted hint"><a routerLink="/register">Create an account</a> to pay with wallet credit.</span>
+                  <span class="muted hint"><a [routerLink]="[routeFor('register')]">Create an account</a> to pay with wallet credit.</span>
                 </div>
                 <p class="no-charge-note muted">No charge until a servicer accepts your request.</p>
               }
@@ -647,6 +648,7 @@ function emptyForm(): FormState {
   `]
 })
 export class GuestQuoteComponent implements OnInit, OnDestroy {
+  protected readonly routeFor = routeFor;
   isDevMode = isDevMode;
   config = inject(ConfigService);
   protected readonly unlock = inject(DemoUnlockService);
@@ -1137,7 +1139,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
 
   goHomeNow(): void {
     if (this.guestCountdownTimer) { clearInterval(this.guestCountdownTimer); this.guestCountdownTimer = null; }
-    this.router.navigate(['/']);
+    this.router.navigate([routeFor('home')]);
   }
 
   ngOnDestroy(): void {

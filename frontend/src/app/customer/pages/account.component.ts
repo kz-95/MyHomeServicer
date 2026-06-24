@@ -1,5 +1,6 @@
 import { Component, computed, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
 
+import { routeFor } from '../../core/route-for';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { switchMap, finalize } from 'rxjs';
@@ -1172,7 +1173,7 @@ export class AccountComponent implements OnInit {
       .subscribe({
         next: () => {
           this.auth.logout();
-          this.router.navigate(['/']);
+          this.router.navigate([routeFor('home')]);
           this.toast.success('Account deactivated.');
         },
         error: (e) => {

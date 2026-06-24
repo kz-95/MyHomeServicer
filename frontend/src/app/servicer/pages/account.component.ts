@@ -7,6 +7,7 @@ import {
   signal,
   computed,
 } from "@angular/core";
+import { routeFor } from '../../core/route-for';
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { HttpClient } from "@angular/common/http";
@@ -1472,7 +1473,7 @@ export class ServicerAccountComponent implements OnInit {
     this.api.post('/servicer/me/deactivate', { reason: this.deactivateReason(), pin: this.deactivatePin() })
       .pipe(finalize(() => this.deactivating.set(false)))
       .subscribe({
-        next: () => { this.auth.logout(); this.router.navigate(['/']); this.toast.success('Account deactivated.'); },
+        next: () => { this.auth.logout(); this.router.navigate([routeFor('home')]); this.toast.success('Account deactivated.'); },
         error: (e) => { this.deactivateError.set(e.error?.message ?? e.message ?? 'Could not deactivate account'); },
       });
   }

@@ -488,7 +488,7 @@ export class ListingAdvancedComponent implements OnInit {
     this.step.update((s) => Math.min(3, s + 1) as WizStep);
   }
   goModules(): void {
-    this.router.navigate(['/servicer/services/module']);
+    this.router.navigate([routeFor('servicer.services.modules')]);
   }
 
   onPhoto(event: Event): void {
@@ -596,6 +596,6 @@ export class ListingAdvancedComponent implements OnInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/servicer/services/listings']);
+    this.router.navigate([routeFor('servicer.services.listings')]);
   }
 }

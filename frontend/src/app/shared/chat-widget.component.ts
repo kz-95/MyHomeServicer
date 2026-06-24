@@ -12,6 +12,7 @@ import {
   viewChild,
   SecurityContext,
 } from "@angular/core";
+import { routeFor } from "../core/route-for";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink, NavigationEnd } from "@angular/router";
 import { DomSanitizer } from "@angular/platform-browser";
@@ -418,7 +419,7 @@ interface PublicConfig {
             <span
               >Guest chat isn't saved.
               <a
-                routerLink="/login"
+                [routerLink]="[routeFor('login')]"
                 [queryParams]="{ intent: 'chat' }"
                 (click)="widget.close()"
                 >Sign in</a
@@ -2073,6 +2074,7 @@ interface PublicConfig {
 export class ChatWidgetComponent
   implements OnInit, OnDestroy, AfterViewChecked
 {
+  protected readonly routeFor = routeFor;
   widget = inject(ChatWidgetService);
   auth = inject(AuthService);
   private router = inject(Router);
@@ -2940,7 +2942,7 @@ export class ChatWidgetComponent
         } else {
           lines = ["FORM CHECK: quote form did not load within 8s"];
         }
-        this.router.navigate(["/"]); // back to home for the next run
+        this.router.navigate([routeFor('home')]); // back to home for the next run
         await wait(500);
         return lines;
       },
@@ -3501,7 +3503,7 @@ export class ChatWidgetComponent
 
   runAction(action: string): void {
     if (action === "report_booking") {
-      this.router.navigate(["/customer/bookings/upcoming"]);
+      this.router.navigate([routeFor('customer.bookings.upcoming')]);
       this.widget.close();
     } else if (action === "report_bug") {
       this.injectAssistantMessage(
@@ -4138,9 +4140,9 @@ export class ChatWidgetComponent
     this.prefillSubmitted.set(true);
     // Unicode-safe base64: btoa chokes on Tamil/Chinese characters.
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-    const base =
-      this.auth.principal()?.role === "customer" ? "/customer" : "/guest";
-    this.router.navigate([`${base}/quote/new`], {
+    const baseRoute =
+      this.auth.principal()?.role === "customer" ? routeFor('customer.quote.new') : routeFor('guest.quote.new');
+    this.router.navigate([baseRoute], {
       queryParams: { prefill: encoded },
     });
   }
@@ -4207,7 +4209,7 @@ export class ChatWidgetComponent
         if (principal?.role === 'customer') {
           setTimeout(() => {
             this.widget.close();
-            this.router.navigate(['/customer/quotes']);
+            this.router.navigate([routeFor('customer.quotes')]);
           }, 1500);
         }
       },

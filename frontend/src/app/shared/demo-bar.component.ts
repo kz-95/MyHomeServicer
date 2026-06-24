@@ -579,7 +579,7 @@ export class DemoBarComponent {
         this.notifications.start();
         // SPA navigation so the route guard's demo PIN gate runs BEFORE the URL
         // changes - no redirect into the portal until the PIN is confirmed.
-        this.router.navigate(['/' + (role ?? '')]);
+        this.router.navigate([role === 'admin' ? routeFor('admin') : role === 'servicer' ? routeFor('servicer') : routeFor('customer')]);
       },
       error: () => { this.demoLoggingIn.set(false); },
     });

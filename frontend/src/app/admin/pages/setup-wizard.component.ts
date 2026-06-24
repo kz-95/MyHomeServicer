@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { routeFor } from '../../core/route-for';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
@@ -96,10 +97,10 @@ export class SetupWizardComponent {
     this.http.patch('/api/v1/admin/me/password', { oldPassword: 'Demo@2026', newPassword: this.newPassword }).subscribe({
       next: () => {
         this.auth.refresh().subscribe({
-          next: () => this.router.navigate(['/admin']),
+          next: () => this.router.navigate([routeFor('admin')]),
           error: () => {
             this.auth.logout();
-            this.router.navigate(['/login']);
+            this.router.navigate([routeFor('login')]);
           },
         });
       },

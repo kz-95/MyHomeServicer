@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, ElementRef, ViewChild, effect, 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { routeFor } from '../core/route-for';
 import { ApiService } from '../core/services/api.service';
 import { ToastService } from '../core/services/toast.service';
 import { MapViewComponent } from './map-view.component';
@@ -94,7 +95,7 @@ interface JobDetail {
                         <div class="info-row vis-off">&#x1F4DE; Phone hidden</div>
                       }
                     </div>
-                    <p class="muted small top-gap">Adjust visibility in <a routerLink="/servicer/account">Account Settings</a>.</p>
+                    <p class="muted small top-gap">Adjust visibility in <a [routerLink]="[routeFor('servicer.account')]">Account Settings</a>.</p>
                   </div>
                 }
               </section>
@@ -645,6 +646,7 @@ interface JobDetail {
     ]
 })
 export class DispatchOverlayComponent implements OnInit, OnDestroy {
+  protected readonly routeFor = routeFor;
   @Input({ required: true }) jobId!: string;
   @Input() readOnly = false;
   @Output() closed = new EventEmitter<void>();

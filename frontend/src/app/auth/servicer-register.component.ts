@@ -513,7 +513,7 @@ export class ServicerRegisterComponent implements OnInit {
         ...(pin ? { pin } : {}),
       })
       .subscribe({
-        next: () => this.router.navigate(['/servicer']),
+        next: () => this.router.navigate([routeFor('servicer')]),
         error: (e) => {
           this.error.set(e.message ?? 'Registration failed');
           this.busy.set(false);

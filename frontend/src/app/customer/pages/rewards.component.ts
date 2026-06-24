@@ -2,6 +2,7 @@ import { Component, OnInit, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { routeFor } from '../../core/route-for';
 import { ApiService } from '../../core/services/api.service';
 import { DemoUnlockService } from '../../core/services/demo-unlock.service';
 import { environment } from '../../../environments/environment';
@@ -495,7 +496,7 @@ export class RewardsComponent implements OnInit {
   }
 
   useVoucher(code: string): void {
-    this.router.navigate(['/customer/quote'], { queryParams: { promoCode: code } });
+    this.router.navigate([routeFor('customer.quote')], { queryParams: { promoCode: code } });
   }
 
   tier = computed(() => this.pointsData()?.tier ?? null);

@@ -2064,7 +2064,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   /** The logo title navigates to dashboard when logged in, home page otherwise. */
   goHome(): void {
     const role = this.auth.principal()?.role;
-    const path = role === 'admin' ? routeFor('admin') : role === 'servicer' ? routeFor('servicer') : role === 'customer' ? '/customer' : routeFor('home');
+    const path = role === 'admin' ? routeFor('admin') : role === 'servicer' ? routeFor('servicer') : role === 'customer' ? routeFor('customer') : routeFor('home');
     window.location.href = path;
   }
 
@@ -2125,7 +2125,7 @@ export class ShellComponent implements OnInit, OnDestroy {
       this.auth.switchToCustomerMode().subscribe({
         next: () => {
           this.switchingMode.set(false);
-          this.router.navigate(["/customer"]);
+          this.router.navigate([routeFor('customer')]);
         },
         error: (e) => {
           this.switchingMode.set(false);
