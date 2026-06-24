@@ -66,10 +66,15 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   has `servicer.logoUrl?` (line 15) but template renders only the name (lines 76/110),
   no `<img>`. Add servicer logo/avatar to each proposal card. Verify the proposals API
   actually sends `logoUrl` (fallback to initials/placeholder when null).
-- [x] **C2. Customer Order History restructure** — move **Upcoming** + **History**
-  under one **Order History** section. Remove the old order-history view; the new
-  history keeps only the **"Rebook same servicer"** button per past order. (Supports
-  customer.loyal reorder demo; relates to deferred customer route redesign.)
+- [ ] **C2. Customer route restructure** (corrected 2026-06-23 — first attempt merged
+  everything into one Order History, which was wrong). Target tree: `/customer/findService`
+  (rename from browse `''`), `/customer/quote` (rename from `quote/new`), `/customer/quotes`,
+  `/customer/bookings/{upcoming,inProgress}` (active — SEPARATE from history),
+  `/customer/history` (past, with "Rebook this servicer"), `/customer/transactions`,
+  `/rewards`, `/notifications`, `/account`. Full path rename WITH redirects from old paths.
+  See Plan 5 Task 3 (revised).
+- [ ] **C3. Quote photos above Extra Details** — move the quote-form "Add photos" upload
+  block above the "Extra Details:" label on the first page (currently below it). Plan 5 Task 4.
 
 ---
 

@@ -82,61 +82,103 @@ git add frontend/src/app/customer/pages/my-bookings.component.ts
 git commit -m "fix(customer): unify reorder to rebook-same-servicer (drop toast-only path)"
 ```
 
-### Task 3: Make MyBookings the Order History view; retire the old one
+### Task 3 — REVISED 2026-06-23: Customer route restructure (NOT a single Order History)
+
+> **Correction:** the earlier "consolidate everything into one Order History" was a
+> misunderstanding. The user wants **bookings (active) SEPARATE from history (past)**,
+> plus a full customer nav, and the browse/quote paths renamed. Target tree:
+>
+> ```
+> /customer/findService          (rename from '' → BrowseComponent)
+> /customer/quote                (rename from quote/new → QuoteFormComponent)
+> /customer/quotes               (my-quotes — keep)
+> /customer/quotes/:id/proposals (keep)
+> /customer/bookings
+>   /upcoming                    (MyBookings — pending + confirmed)
+>   /inProgress                  (MyBookings — in_progress)
+> /customer/history              (MyBookings — completed + cancelled; "Rebook this servicer")
+> /customer/transactions         (keep)
+> /customer/rewards              (keep)
+> /customer/notifications        (keep)
+> /customer/account              (keep)
+> ```
 
 **Files:**
-- Modify: `frontend/src/app/customer/customer.routes.ts` (`33-56`)
-- Modify: `frontend/src/app/customer/pages/my-bookings.component.ts` (add "Rebook this servicer")
-- Remove/retire: `frontend/src/app/customer/pages/order-history.component.ts`
-- Modify: customer shell nav links
+- Modify: `frontend/src/app/customer/customer.routes.ts`
+- Modify: `frontend/src/app/customer/pages/my-bookings.component.ts` (segment → status filter for upcoming/inProgress/history; keep "Rebook this servicer" on history)
+- Modify: every internal link to `/customer/quote/new` and to browse (`''`) — grep + update
+- Modify: customer shell nav links/labels
 
-- [x] **Step 1: Point the Order History route at MyBookings.** In `customer.routes.ts`,
-  make `/customer/history` (the "Order History" entry) render `MyBookingsComponent`
-  instead of `OrderHistoryComponent`. Keep MyBookings' tab logic (pending / in-progress /
-  history) — these become Upcoming + Past sections under Order History.
+- [ ] **Step 1: Rename browse + quote paths.** `''` → `findService` (BrowseComponent),
+  `quote/new` → `quote` (QuoteFormComponent). Add a default redirect (`'' → findService`)
+  so the portal root still lands on browse.
 
-- [x] **Step 2: Add "Rebook this servicer" to MyBookings History tab.** On each
-  completed/cancelled booking row, show the strong rebook button wired to the navigate+
-  prefill handler (already added in Task 2). Label it "Rebook this servicer".
+- [ ] **Step 2: Split bookings from history.** Replace the current `bookings → history`
+  redirect with a real `bookings` parent: `bookings/upcoming` + `bookings/inProgress`
+  (both `MyBookingsComponent`, reading the segment to filter pending+confirmed vs
+  in_progress). Make `history` its own top-level route (`MyBookingsComponent` filtered to
+  completed+cancelled) — the "Rebook this servicer" button stays here.
 
-- [x] **Step 3: Retire `OrderHistoryComponent`.** Remove its route, delete the component
-  file (or leave the file but drop all references), and grep `OrderHistoryComponent` +
-  `order-history` across `frontend/src` to remove imports/links. Keep the backend
-  `GET /user/me/history` only if MyBookings needs it; otherwise leave it unused (don't
-  delete backend in this plan).
+- [ ] **Step 3: Update MyBookings segment logic.** Its `729-736` tab detection maps
+  route segment → status filter: `upcoming` = pending+confirmed, `inProgress` =
+  in_progress, `history` = completed+cancelled. Verify labels read Upcoming / In Progress
+  / History.
 
-- [x] **Step 4: Redirect old deep links** so nothing 404s:
+- [ ] **Step 4: Redirect old paths (safety).** Keep redirects so old links don't 404:
 
 ```typescript
-  // whatever the old paths were — point them at the unified history view
-  { path: 'bookings', redirectTo: 'history', pathMatch: 'prefix' },
+  { path: 'quote/new', redirectTo: 'quote', pathMatch: 'full' },
+  { path: 'history/pending', redirectTo: 'bookings/upcoming', pathMatch: 'full' },
+  { path: 'history/inProgress', redirectTo: 'bookings/inProgress', pathMatch: 'full' },
 ```
 
-- [x] **Step 5: Update nav labels** to "Order History" / "Upcoming" / "Past".
+- [ ] **Step 5: Update internal links.** Grep `frontend/src` for `quote/new` and browse
+  links; repoint to `/customer/quote` and `/customer/findService`. Update the customer
+  shell nav to list: Find Service, My Quotes, Bookings (Upcoming/In Progress), History,
+  Transactions, Rewards, Notifications, Account.
 
-- [x] **Step 6: Type-gate + build + commit**
+- [ ] **Step 6: Type-gate + build + commit**
 
 Run: `npx tsc --noEmit` && `ng build`
 ```bash
 git add frontend/src/app/customer
-git commit -m "feat(customer): MyBookings view becomes Order History + rebook-this-servicer; retire old order-history"
+git commit -m "feat(customer): restructure routes — findService/quote rename, bookings split from history"
 ```
 
-### Task 4: Verify
+### Task 4 — Move quote photos above "Extra Details:" (first page)
 
-- [ ] **Step 1:** As customer.loyal: one "Order History" nav entry; Upcoming shows
-  pending/in-progress, Past shows completed/cancelled; each past order has a working
-  "Rebook same servicer" that lands on a prefilled, servicer-locked quote form.
-- [ ] **Step 2:** Old `/customer/bookings/*` and `/customer/history` links redirect, no 404.
+**Files:**
+- Modify: `frontend/src/app/customer/pages/quote-form.component.ts` (photos block ~`369-377`, "Extra Details:" label ~`259`)
+
+- [ ] **Step 1:** Move the "Add photos (optional, max 5)" upload block + thumbnails so it
+  renders **above** the "Extra Details:" label on the first form page (currently it sits
+  below it). Keep the same `onQuoteImage`/`quoteImages` wiring — template move only.
+
+- [ ] **Step 2: Build + commit**
+
+Run: `npx tsc --noEmit` && `ng build`
+```bash
+git add frontend/src/app/customer/pages/quote-form.component.ts
+git commit -m "feat(quote-form): move photo upload above Extra Details on first page"
+```
+
+### Task 5: Verify
+
+- [ ] As a customer: nav shows Find Service / My Quotes / Bookings (Upcoming, In Progress)
+  / History / Transactions / Rewards / Notifications / Account. Bookings shows active jobs,
+  History shows past with "Rebook this servicer". Old `/customer/quote/new` redirects.
+- [ ] Quote form shows the photo upload above Extra Details.
 
 ---
 
-## Resolved decisions (2026-06-23)
+## Resolved decisions (2026-06-23, corrected)
 
-- C2 route shape: **MyBookings view wins** — it becomes the Order History content;
-  `OrderHistoryComponent` is retired; "Rebook this servicer" button added to MyBookings.
-- "Remove the old one" = retire the duplicate OrderHistory view + drop the toast-only
-  reorder. NOT a data deletion.
+- **Customer routes = the explicit tree above** (findService, quote, bookings/upcoming,
+  bookings/inProgress, history, transactions, rewards, notifications, account). Bookings
+  (active) and History (past) are SEPARATE — the earlier single-Order-History merge was
+  wrong and is replaced by this.
+- Full path rename (`''→findService`, `quote/new→quote`) WITH redirects from old paths.
+- Quote photo upload goes above "Extra Details:" on the first page.
 
 ## Self-Review notes
 
