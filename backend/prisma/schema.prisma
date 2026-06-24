@@ -149,6 +149,7 @@ enum TransactionType {
   deposit
   discount
   platform_fee
+  urgent_fee
   promo_payback
   withdrawal
   gateway_payment

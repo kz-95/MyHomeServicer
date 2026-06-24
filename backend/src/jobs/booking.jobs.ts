@@ -7,6 +7,7 @@ import { registerJob } from './index';
 import { recordTransaction } from '../services/ledger.service';
 import { adjustCredit } from '../services/credit.service';
 import { notify } from '../services/notification.service';
+import { resolveUrgentFee, splitUrgentFee } from '../services/quote-timing.service';
 import { emitToUser } from '../socket';
 
 const noshowPayload = z.object({
@@ -223,14 +224,31 @@ async function handleEscrowRelease(job: Job): Promise<void> {
   const { computeFees } = await import('../services/fee-engine.service');
   const categoryId = booking.quoteRequest?.categoryId ?? undefined;
   const platformFee = await computeFees(feeBase, 'booking', categoryId);
-  const servicerPayout = amount - platformFee + tip;
+
+  // ── Urgent fee 20/80 split (QA-004) ────────────────────────────────────
+  // The urgent_same_day_fee.platform_share (default 20%) is the platform's
+  // cut of the urgent fee.  splitUrgentFee() computes { platform, servicer }
+  // rounded to cents; we deduct the platform share from the servicer payout
+  // and record a separate urgent_fee transaction so the dashboard can source
+  // the real ledger instead of deriving from settings.
+  let urgentPlatformShare = 0;
+  if (booking.isUrgent && booking.urgentFee) {
+    const urgentCfg = await resolveUrgentFee();
+    if (urgentCfg && urgentCfg.platform_share > 0) {
+      const split = splitUrgentFee(Number(booking.urgentFee), urgentCfg.platform_share);
+      urgentPlatformShare = split.platform;
+    }
+  }
+
+  const servicerPayout = amount - platformFee + tip - urgentPlatformShare;
 
   await prisma.$transaction(async (tx) => {
     await tx.escrow.update({
       where: { id: escrowId },
       data: { status: 'released', releasedAt: new Date() },
     });
-    // Credit the servicer's wallet with their payout (price minus platform fee, plus tip).
+    // Credit the servicer's wallet with their payout (price minus platform fee, plus tip,
+    // minus platform's urgent-fee share).
     await adjustCredit('servicer', booking.servicerId, servicerPayout, tx);
     await recordTransaction(
       {
@@ -242,6 +260,21 @@ async function handleEscrowRelease(job: Job): Promise<void> {
       },
       tx,
     );
+    // Record the platform's urgent-fee share as a separate transaction type
+    // so the admin dashboard can source urgentFeePlatformShare from the real
+    // ledger instead of deriving it from settings (QA-004).
+    if (urgentPlatformShare > 0) {
+      await recordTransaction(
+        {
+          type: 'urgent_fee',
+          amount: urgentPlatformShare,
+          bookingId,
+          servicerId: booking.servicerId,
+          reference: `Urgent fee platform share (20/80 split)`,
+        },
+        tx,
+      );
+    }
     await recordTransaction(
       {
         type: 'escrow_release',

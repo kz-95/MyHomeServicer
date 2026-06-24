@@ -2,6 +2,32 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-24 20:38 — QA-004 Fix
+
+**Bug:** `splitUrgentFee()` never called — 20/80 split display-only (MEDIUM).
+
+**Root cause:** `splitUrgentFee()` at `quote-timing.service.ts:46-49` existed but had zero callers. The 20% platform / 80% servicer split from `urgent_same_day_fee.platform_share` was computed at dashboard time (`admin.service.ts:102-117`) but never enforced in money movement. The servicer got the full urgent fee in escrow (minus only the standard 5% platform fee).
+
+**Fix — three files changed:**
+
+### Schema
+- Added `urgent_fee` to `TransactionType` Prisma enum in `schema.prisma`
+- Migration: `20260624124223_add_urgent_fee_transaction_type`
+
+### `backend/src/jobs/booking.jobs.ts` — `handleEscrowRelease()`
+- Imported `resolveUrgentFee`, `splitUrgentFee` from `quote-timing.service`
+- After computing `platformFee`: if `booking.isUrgent && booking.urgentFee`, calls `resolveUrgentFee()` to get config, then `splitUrgentFee()` to compute `{ platform, servicer }`
+- Deducts `urgentPlatformShare` from servicer payout: `amount - platformFee + tip - urgentPlatformShare`
+- Records a separate `urgent_fee` transaction for the platform's share, inside the same `$transaction`
+
+### `backend/src/services/admin.service.ts` — `getDashboardFinancial()`
+- Added raw SQL query summing `urgent_fee` transactions for the period as the primary source for `urgentFeePlatformShare`
+- Kept the settings-based derivation as fallback (for pre-fix bookings or unreleased escrows)
+
+**Gates:** `npx tsc --noEmit` — 0 new errors (2 pre-existing tsconfig deprecation warnings).
+
+---
+
 ## Session 2026-06-24 20:30 — QA-003 Fix
 
 **Bug:** Platform fee double-recorded per pay_now booking (MEDIUM).

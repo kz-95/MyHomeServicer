@@ -99,21 +99,39 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   });
   const urgentFeeRevenue = Number(urgentAgg._sum.urgentFee ?? 0);
 
-  // ── urgentFeePlatformShare — read platform setting for share percentage ──
-  let urgentFeePlatformShare = 0;
-  try {
-    const setting = await prisma.platformSettings.findUnique({
-      where: { key: 'urgent_same_day_fee' },
-      select: { value: true },
-    });
-    if (setting?.value) {
-      const v = setting.value as Record<string, unknown>;
-      if (typeof v.platform_share === 'number') {
-        urgentFeePlatformShare = Math.round(urgentFeeRevenue * v.platform_share * 100) / 100;
+  // ── urgentFeePlatformShare — source from the real transaction ledger (QA-004) ──
+  // Primary: SUM of urgent_fee transactions for the period (the actual money collected).
+  // Fallback: settings-based derivation (urgentFeeRevenue × platform_share) for
+  // bookings whose escrow hasn't been released yet or pre-fix bookings.
+  const urgentFeeLedgerRows = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'urgent_fee' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const urgentFeePlatformShareLedger = Number(urgentFeeLedgerRows[0]?.total ?? 0);
+
+  let urgentFeePlatformShare = urgentFeePlatformShareLedger;
+  // Fallback: if no ledger entries exist yet (pre-fix bookings or unreleased escrows),
+  // derive from the urgent_same_day_fee platform setting for display consistency.
+  if (urgentFeePlatformShare === 0 && urgentFeeRevenue > 0) {
+    try {
+      const setting = await prisma.platformSettings.findUnique({
+        where: { key: 'urgent_same_day_fee' },
+        select: { value: true },
+      });
+      if (setting?.value) {
+        const v = setting.value as Record<string, unknown>;
+        if (typeof v.platform_share === 'number') {
+          urgentFeePlatformShare = Math.round(urgentFeeRevenue * v.platform_share * 100) / 100;
+        }
       }
+    } catch {
+      // setting missing or unparseable — leave at 0
     }
-  } catch {
-    // setting missing or unparseable — leave at 0
   }
 
   // ── categoryBreakdown — group by category with count, revenue, fees ──
@@ -475,12 +493,12 @@ export async function listUsers(params: { search?: string; role?: string; skip: 
     ...(params.role && params.role !== 'servicer'
       ? { role: params.role as 'customer' | 'admin' }
       : {}),
-    ...(search ? { OR: [{ email: ci(search) }, { name: ci(search) }] } : {}),
+    ...(search ? { OR: [{ email: ci(search) }, { name: ci(search) }, { phone: ci(search) }] } : {}),
   };
   const servicerWhere = {
     deletedAt: null,
     ...(search
-      ? { OR: [{ email: ci(search) }, { name: ci(search) }, { businessName: ci(search) }] }
+      ? { OR: [{ email: ci(search) }, { name: ci(search) }, { businessName: ci(search) }, { phone: ci(search) }] }
       : {}),
   };
 
@@ -501,6 +519,8 @@ export async function listUsers(params: { search?: string; role?: string; skip: 
       email: u.email,
       phone: u.phone,
       role: u.role as string,
+      active: u.active,
+      deactivatedAt: u.deactivatedAt,
       createdAt: u.createdAt,
     })),
     ...servicers.map((m) => ({
@@ -510,6 +530,8 @@ export async function listUsers(params: { search?: string; role?: string; skip: 
       email: m.email,
       phone: m.phone,
       role: 'servicer',
+      active: m.active,
+      deactivatedAt: m.deactivatedAt,
       createdAt: m.createdAt,
     })),
   ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
