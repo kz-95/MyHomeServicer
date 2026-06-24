@@ -96,10 +96,11 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
   });
   if (!quote) return;
 
-  await sendDispatchPrompt(firstBc.id, first.servicerId, quote);
-
   const timeoutSetting = await getSetting<{ seconds: number }>('dispatch_prompt_timeout_seconds');
   const timeout = timeoutSetting.seconds;
+
+  await sendDispatchPrompt(firstBc.id, first.servicerId, quote, timeout);
+
   await enqueue(
     JOB_NAMES.DISPATCH_ROTATION,
     { broadcastId: firstBc.id, quoteRequestId },
@@ -129,6 +130,7 @@ async function sendDispatchPrompt(
     address: { address: string; lat: number | null; lng: number | null; district: string | null; state: string | null } | null;
     serviceDetails: unknown;
   },
+  timeoutSeconds: number,
 ): Promise<void> {
   emitToServicer(servicerId, 'dispatch.prompt', {
     broadcastId,
@@ -146,6 +148,7 @@ async function sendDispatchPrompt(
     lng: quote.address?.lng ?? null,
     area: quote.address?.district ? `${quote.address.district}, ${quote.address.state}` : null,
     questions: quote.serviceDetails,
+    timeoutSeconds,
   });
 
   await notify({
@@ -454,10 +457,11 @@ export async function handleDispatchDecline(
         },
       });
       if (quote) {
-        await sendDispatchPrompt(nextBroadcast.id, nextServicerId, quote);
-
         const timeoutSetting = await getSetting<{ seconds: number }>('dispatch_prompt_timeout_seconds');
         const timeout = timeoutSetting.seconds;
+
+        await sendDispatchPrompt(nextBroadcast.id, nextServicerId, quote, timeout);
+
         await enqueue(
           JOB_NAMES.DISPATCH_ROTATION,
           { broadcastId: nextBroadcast.id, quoteRequestId: broadcast.quoteRequestId },

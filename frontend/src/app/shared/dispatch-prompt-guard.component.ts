@@ -25,6 +25,7 @@ interface DispatchPrompt {
   lng: number | null;
   area: string | null;
   questions: unknown;
+  timeoutSeconds?: number;
 }
 
 @Component({
@@ -307,7 +308,7 @@ export class DispatchPromptGuardComponent implements OnInit, OnDestroy {
     this.prompt.set(data);
     this.error.set('');
     this.actioning.set(false);
-    this.countdownSecs.set(10);
+    this.countdownSecs.set(data.timeoutSeconds ?? 10);
     this.startTimer();
   }
 
