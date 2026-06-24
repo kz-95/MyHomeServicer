@@ -114,7 +114,8 @@ No-show counter increment happened outside the `$transaction` block. If the tran
 **Severity:** 🔴 HIGH | **Source:** Bug-dump (2026-05-31)
 **File:** `backend/src/services/auth.service.ts`
 In dev mode (NODE_ENV !== 'production'), demo login accepts ANY email as long as the account exists and matches the demo password. An attacker who knows the demo password can log in as any seeded user.
-**Fix:** Guard demo-login to only accept known demo email domains (e.g., `*@demo.servicer.local`) or disable in production.
+**Fix (initial):** `5379ff0` — removed `directEmail`, locked to `DEMO_ACCOUNTS` map only (3 accounts).
+**Fix (regression):** Over-hardened — broke frontend's email-based demo login for 80+ accounts. Re-fixed 2026-06-25: accept both `role` + `email`; email gated to `@demo.local` domain.
 
 ### BE-019 — Chat verify-pin token stored indefinitely, never consumed
 **Severity:** 🔴 HIGH | **Source:** Bug-dump (2026-05-31)

@@ -71,6 +71,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   - [x] 🔴 **BE-008** — Double-refund in `quote.no_response`. → ✅ Fixed `75e008c` ($transaction + idempotency guard).
   - [x] 🔴 **BE-011** — No-show counter outside `$transaction`. → ✅ Fixed `e04b29d` (moved inside $transaction).
   - [x] 🟡 **BE-013** — Demo-login accepts arbitrary email. → ✅ Fixed `5379ff0` (locked to DEMO_ACCOUNTS map).
+  - ⚠ **BE-013 regression:** `5379ff0` over-hardened — broke all email-based demo logins (80+ accounts). Frontend sends `{ email }` but backend only read `role`. → ✅ Fixed (accept both `role` + `email`; email gated to `@demo.local` domain).
   - [x] 🟡 **BE-019** — Chat verify-pin token leak. → ✅ Fixed `a59ad59` (TTL + consume guard).
 
 ### Servicer journey polish (beats 2/5 — added 2026-06-23)

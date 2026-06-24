@@ -241,23 +241,43 @@ apiRouter.use('/notifications', notificationsRouter);
 apiRouter.use('/stripe', stripeRouter);
 
 /**
- * POST /dev/demo-login — instant login as a demo account by role.
+ * POST /dev/demo-login — instant login as a demo account by role or email.
  * Skips the rate limiter and lockout check for the known demo accounts.
  * Hard-blocked in production.
+ *
+ * Accepts either:
+ *   { role: 'customer' | 'servicer' | 'admin' }  — maps to 3 canonical accounts
+ *   { email: '...@demo.local' }                   — any seeded demo account
+ *
+ * Email is guarded to @demo.local domain only (BE-013 hardening).
  */
 const DEMO_ACCOUNTS: Record<string, string> = {
   customer: 'customer.active@demo.local',
   servicer: 'servicer.1@demo.local',
   admin: 'admin@demo.local',
 };
+const DEMO_EMAIL_SUFFIX = '@demo.local';
 
 apiRouter.post(
   '/dev/demo-login',
   asyncHandler(async (req, res) => {
     if (!allowDemo) throw badRequest('Demo login is disabled in production');
-    const { role } = req.body ?? {};
-    const email = DEMO_ACCOUNTS[role as string];
-    if (!email) throw notFound(`No demo account for role "${role}"`);
+    const { role, email: rawEmail } = req.body ?? {};
+    let email: string | undefined;
+
+    if (rawEmail) {
+      // Email-based login: restrict to @demo.local domain only
+      if (typeof rawEmail !== 'string' || !rawEmail.endsWith(DEMO_EMAIL_SUFFIX)) {
+        throw badRequest('Only demo accounts (@demo.local) can use demo login');
+      }
+      email = rawEmail;
+    } else if (role) {
+      email = DEMO_ACCOUNTS[role as string];
+      if (!email) throw notFound(`No demo account for role "${role}"`);
+    } else {
+      throw badRequest('Provide either "role" or "email"');
+    }
+
     const { user, tokens } = await login(email, 'Demo@2026');
     const u: Record<string, unknown> = { id: user.id, email: user.email, role: user.role, creditBalance: user.creditBalance, isDemo: user.isDemo };
     if (user.depositBalance !== undefined) u['depositBalance'] = user.depositBalance;

@@ -2464,3 +2464,26 @@ P1 (Wallet model + service) and P5 (CSV export) were already done in the prior f
 **Gates:** `npx tsc --noEmit` — 0 new errors.
 
 **Commit:** `5379ff0` on `feat/sp3-dispatch-cards` — `fix(auth): lock demo-login to known demo accounts only`
+
+---
+
+## Session 2026-06-25 00:42 — Demobar login broken (BE-013 over-hardening)
+
+**Bug:** The BE-013 fix (`5379ff0`) over-hardened `/dev/demo-login` by removing the `email` field entirely. The endpoint only accepted `{ role }` mapping to 3 hardcoded accounts (`customer.active@demo.local`, `servicer.1@demo.local`, `admin@demo.local`). But the frontend `DemoBarComponent.demoLoginEmail()` sends `{ email }` for each specific demo account (e.g. `sarah.lim2@demo.local`), which the backend ignored -- `role` was `undefined`, `DEMO_ACCOUNTS[undefined]` was `undefined`, and it threw `notFound`.
+
+**Root cause:** The BE-013 fix correctly blocked arbitrary email injection but was too restrictive -- it dropped the legitimate email-based login flow that the demo-bar dropdowns use for 80+ demo accounts.
+
+**Fix:** Accept both `{ role }` and `{ email }` from the request body:
+- If `email` is provided, validate it ends with `@demo.local` (malformed/non-demo rejected with `badRequest`).
+- If `role` is provided, use the existing `DEMO_ACCOUNTS` map (backward compatible).
+- If neither, throw `badRequest`.
+
+The `@demo.local` suffix guard prevents the original BE-013 attack (arbitrary email with known password) while restoring the full demo account selection UI.
+
+**Files changed:** `backend/src/routes/index.ts` (expanded `/dev/demo-login` handler).
+
+**Gates:**
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (backend/) | ✅ 0 new errors |
+| `jest tests/unit` | ✅ 286 pass (pre-existing 19 failures unrelated -- Prisma DB access / mock setup)
