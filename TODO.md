@@ -54,7 +54,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   code-path verification pass completed 2026-06-24 (Task 7-QA). All 7 tests PASS:
   quote→dispatch rotation, servicer prompt with overlay UI, accept→booking,
   decline→rotation, timeout→auto-decline, offline exclusion, working-hours gating.
-   Two low-severity polish gaps filed:
+   Two low-severity polish gaps filed and fixed:
    - [x] 🟢 **QA-001** (LOW) — Frontend countdown hardcoded to 10s. `dispatch.prompt` socket payload omits `timeoutSeconds`. → ✅ Fixed `777cffb` (backend + frontend sync).
    - [x] 🟢 **QA-002** (LOW) — No per-servicer skip log. → ✅ Fixed `3e558d9` (logger.info for offline and out-of-hours).
 - [x] **8. Finance engine — proper end-to-end** (beats 3/6, demo-critical) — verify the
@@ -82,7 +82,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   layout (day/week, slot rows). Likely its own plan (Plan 4).
 - [x] **S2. Distance in km on dispatch card** — show "~X km away" on the card face.
   Needs: (1) `lat`/`lng` on Servicer model, (2) seed coordinates, (3) backend Haversine
-  calc in feed, (4) frontend render. ✅ All backend pieces in place (schema, migration, haversine lib, service wiring, seed coords via areaCoords). Frontend render pending (S2-FE).
+  calc in feed, (4) frontend render. ✅ All pieces done: schema migration + haversine lib + service wiring + seed coords via areaCoords (`f8b04c9`), frontend render (`8702a65`).
 
 ### Customer journey polish (beats 1/3 — added 2026-06-23)
 
@@ -127,8 +127,8 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   Spec: `2026-05-30-live-order-accept-dispatch-design.md`.
   ✅ Backend done (isOnline gate, schedule gating, configurable timer, decline→rotate, timeout→rotate, HTTP routes).
   ✅ Frontend overlay done (dispatch-prompt-guard.component.ts with native `<dialog>`, countdown, map preview, accept/decline buttons, timeout auto-decline). Verified QA 2026-06-24.
-- [ ] **S2. Distance in km on dispatch card** — add `lat`/`lng` to Servicer model, seed coords,
-  backend Haversine calc in feed, frontend "~X km away" render.
+- [x] **S2. Distance in km on dispatch card** — add `lat`/`lng` to Servicer model, seed coords,
+  backend Haversine calc in feed, frontend "~X km away" render. ✅ All done `f8b04c9` + `8702a65`.
 - [x] **Estimated duration on dispatch card face** — show "~90 min" per quote (from listing
   prefill `estimatedDurationMin`); currently only in the propose flow. ✅ Committed `8702a65`.
 - [x] **Navigation — Maps/Waze on confirmed booking** — job-detail "Open in Google Maps / Waze"
