@@ -50,18 +50,25 @@ interface InvoiceDetail {
 const SKELETON_COUNT = 5;
 const STAGGER_MS = 70;
 
-type TabKey = 'pending' | 'inProgress' | 'history';
+type TabKey = 'upcoming' | 'inProgress' | 'history';
 
 const TAB_STATUSES: Record<TabKey, string[]> = {
-  pending: ['pending_confirm', 'confirmed'],
+  upcoming: ['pending_confirm', 'confirmed'],
   inProgress: ['in_progress'],
   history: ['completed', 'cancelled'],
 };
 
 const TAB_LABELS: Record<TabKey, string> = {
-  pending: 'Upcoming',
+  upcoming: 'Upcoming',
   inProgress: 'In Progress',
-  history: 'Past',
+  history: 'History',
+};
+
+/** Route a tab key to its full customer path (bookings vs history live on different roots). */
+const TAB_ROUTES: Record<TabKey, string> = {
+  upcoming: '/customer/bookings/upcoming',
+  inProgress: '/customer/bookings/inProgress',
+  history: '/customer/history',
 };
 
 /** Customer booking list with live status updates over Socket.io. */
@@ -70,7 +77,7 @@ const TAB_LABELS: Record<TabKey, string> = {
     host: { class: 'page-enter page-narrow' },
     imports: [CommonModule, FormsModule, ModalComponent, RouterLink, ServicerDetailPopupComponent],
     template: `
-    <h1>Order History</h1>
+    <h1>{{ activeTab() === 'history' ? 'History' : 'Bookings' }}</h1>
     @if (loading()) {
       <div class="skeleton-list">
         @for (s of skeletonSlots; track s; let i = $index) {
@@ -88,7 +95,7 @@ const TAB_LABELS: Record<TabKey, string> = {
     } @else if (bookings().length === 0) {
       <div class="card empty-card">
         <p>No bookings yet.</p>
-        <a routerLink="/customer" class="btn-primary">Find a service →</a>
+        <a routerLink="/customer/findService" class="btn-primary">Find a service →</a>
       </div>
     } @else {
       <nav class="subnav">
@@ -96,7 +103,7 @@ const TAB_LABELS: Record<TabKey, string> = {
           <a
             class="subnav-link"
             [class.active]="activeTab() === t.key"
-            [routerLink]="'/customer/history/' + t.key"
+            [routerLink]="TAB_ROUTES[t.key]"
           >
             {{ t.label }} <span class="n">{{ t.count }}</span>
           </a>
@@ -671,8 +678,9 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   reverseSort = signal(false);
 
   /** Derived from the active route's last segment. */
-  activeTab = signal<TabKey>('pending');
+  activeTab = signal<TabKey>('upcoming');
   readonly TAB_LABELS = TAB_LABELS;
+  readonly TAB_ROUTES = TAB_ROUTES;
 
   tabs = computed(() => {
     const all = this.bookings();
@@ -734,7 +742,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
         if (last && last in TAB_STATUSES) {
           this.activeTab.set(last);
         } else {
-          this.activeTab.set('pending');
+          this.activeTab.set('upcoming');
         }
       }),
     );
@@ -890,7 +898,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   reorder(b: Booking): void {
     this.api.post<{ prefill: Record<string, unknown> }>(`/bookings/${b.id}/reorder`, {}).subscribe({
       next: (r) =>
-        this.router.navigate(['/customer/quote/new'], {
+        this.router.navigate(['/customer/quote'], {
           // rebookServicer locks the quote to this servicer (direct, no broadcast)
           // and hides the category pickers in the quote form.
           state: { prefill: r.prefill, rebookServicer: { id: b.servicer.id, name: b.servicer.businessName } },

@@ -424,7 +424,7 @@ export class ProposalsComponent implements OnInit, OnDestroy {
     this.api
       .post<{ bookingId: string }>(`/quotes/${this.id}/select`, body)
       .subscribe({
-        next: (r) => this.router.navigate(['/customer/bookings'], { queryParams: { id: r.bookingId } }),
+        next: (r) => this.router.navigate(['/customer/bookings/upcoming'], { queryParams: { id: r.bookingId } }),
         error: (e) => {
           this.error.set(e.message ?? 'Could not select proposal');
           this.selecting.set(false);

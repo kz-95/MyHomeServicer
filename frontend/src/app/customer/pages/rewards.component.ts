@@ -495,7 +495,7 @@ export class RewardsComponent implements OnInit {
   }
 
   useVoucher(code: string): void {
-    this.router.navigate(['/customer/quote/new'], { queryParams: { promoCode: code } });
+    this.router.navigate(['/customer/quote'], { queryParams: { promoCode: code } });
   }
 
   tier = computed(() => this.pointsData()?.tier ?? null);

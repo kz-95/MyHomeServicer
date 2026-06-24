@@ -1705,7 +1705,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (this.auth.isLoggedIn()) {
       const params: Record<string, string> = {};
       if (categoryId) params["category"] = categoryId;
-      this.router.navigate(["/customer/quote/new"], { queryParams: params });
+      this.router.navigate(["/customer/quote"], { queryParams: params });
     } else {
       this.auth.enterGuestMode(categoryId);
       this.router.navigate(["/login"], { queryParams: { intent: "quote" } });

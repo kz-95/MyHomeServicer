@@ -2,8 +2,22 @@ import { Routes } from '@angular/router';
 import { CustomerShellComponent } from './customer-shell.component';
 
 /**
- * Customer portal routes. Phase 1: shell + Browse. Phase 2: quote form,
- * my-quotes, proposals. Phases 3-4 add bookings, history, chat.
+ * Customer portal routes.
+ *
+ * Route tree (2026-06-23 restructure):
+ *   findService                     → Browse (portal landing)
+ *   ''                              → redirect to findService
+ *   quote                           → quote form
+ *   quote/new                       → redirect to quote (old-path safety)
+ *   quotes                          → my-quotes
+ *   quotes/:id/proposals            → proposals
+ *   bookings/upcoming               → MyBookings (pending + confirmed)
+ *   bookings/inProgress             → MyBookings (in_progress)
+ *   bookings                        → redirect to bookings/upcoming
+ *   history                         → MyBookings (completed + cancelled; "Rebook this servicer")
+ *   history/pending                 → redirect to bookings/upcoming (old-path safety)
+ *   history/inProgress              → redirect to bookings/inProgress (old-path safety)
+ *   transactions / rewards / notifications / account / notification-settings
  */
 export const customerRoutes: Routes = [
   {
@@ -12,12 +26,22 @@ export const customerRoutes: Routes = [
     children: [
       {
         path: '',
+        redirectTo: 'findService',
+        pathMatch: 'full',
+      },
+      {
+        path: 'findService',
         loadComponent: () => import('./pages/browse.component').then((m) => m.BrowseComponent),
       },
       {
-        path: 'quote/new',
+        path: 'quote',
         loadComponent: () =>
           import('./pages/quote-form.component').then((m) => m.QuoteFormComponent),
+      },
+      {
+        path: 'quote/new',
+        redirectTo: 'quote',
+        pathMatch: 'full',
       },
       {
         path: 'quotes',
@@ -31,15 +55,10 @@ export const customerRoutes: Routes = [
       },
       {
         path: 'bookings',
-        redirectTo: 'history',
-        pathMatch: 'prefix',
-      },
-      {
-        path: 'history',
         children: [
-          { path: '', redirectTo: 'pending', pathMatch: 'full' },
+          { path: '', redirectTo: 'upcoming', pathMatch: 'full' },
           {
-            path: 'pending',
+            path: 'upcoming',
             loadComponent: () =>
               import('./pages/my-bookings.component').then((m) => m.MyBookingsComponent),
           },
@@ -48,12 +67,22 @@ export const customerRoutes: Routes = [
             loadComponent: () =>
               import('./pages/my-bookings.component').then((m) => m.MyBookingsComponent),
           },
-          {
-            path: 'history',
-            loadComponent: () =>
-              import('./pages/my-bookings.component').then((m) => m.MyBookingsComponent),
-          },
         ],
+      },
+      {
+        path: 'history',
+        loadComponent: () =>
+          import('./pages/my-bookings.component').then((m) => m.MyBookingsComponent),
+      },
+      {
+        path: 'history/pending',
+        redirectTo: 'bookings/upcoming',
+        pathMatch: 'full',
+      },
+      {
+        path: 'history/inProgress',
+        redirectTo: 'bookings/inProgress',
+        pathMatch: 'full',
       },
       {
         path: 'rewards',

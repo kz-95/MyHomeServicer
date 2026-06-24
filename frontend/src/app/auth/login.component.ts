@@ -334,7 +334,7 @@ export class LoginComponent implements OnInit {
         } else if (hasGuestData && res.user.role === 'customer') {
           const catId = this.auth.getGuestData()?.categoryId;
           this.auth.exitGuestMode();
-          this.router.navigate(['/customer/quote/new'], catId ? { queryParams: { category: catId } } : {});
+          this.router.navigate(['/customer/quote'], catId ? { queryParams: { category: catId } } : {});
         } else {
           this.router.navigate([`/${res.user.role}`]);
         }

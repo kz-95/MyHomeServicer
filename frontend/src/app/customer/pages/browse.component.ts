@@ -74,7 +74,7 @@ const SKELETON_COUNT = 34;
                   [class.bw-revealed]="cat.revealed"
                   [class.bw-skeleton]="!cat.revealed"
                   [style.--spawn-delay.ms]="i * 50"
-                  routerLink="/customer/quote/new"
+                  routerLink="/customer/quote"
                   [queryParams]="cat.id ? { category: cat.id } : {}"
                   [style]="cat.id ? {'--cat-color': cat.cardColor || 'var(--color-primary)'} : {}"
                 >

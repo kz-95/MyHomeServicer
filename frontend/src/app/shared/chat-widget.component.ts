@@ -3501,7 +3501,7 @@ export class ChatWidgetComponent
 
   runAction(action: string): void {
     if (action === "report_booking") {
-      this.router.navigate(["/customer/bookings"]);
+      this.router.navigate(["/customer/bookings/upcoming"]);
       this.widget.close();
     } else if (action === "report_bug") {
       this.injectAssistantMessage(

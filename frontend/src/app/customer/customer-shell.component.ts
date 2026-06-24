@@ -12,9 +12,11 @@ import { ShellComponent, NavItem } from '../shared/shell.component';
 })
 export class CustomerShellComponent {
   nav: NavItem[] = [
-    { label: 'Find a Service', path: '/customer', icon: 'search', exact: true },
-    { label: 'Current Quotes', path: '/customer/quotes', icon: 'clipboard-list' },
-    { label: 'Order History', path: '/customer/history', icon: 'archive' },
+    { label: 'Find a Service', path: '/customer/findService', icon: 'search' },
+    { label: 'My Quotes', path: '/customer/quotes', icon: 'clipboard-list' },
+    { label: 'Upcoming', path: '/customer/bookings/upcoming', icon: 'calendar-clock' },
+    { label: 'In Progress', path: '/customer/bookings/inProgress', icon: 'loader' },
+    { label: 'History', path: '/customer/history', icon: 'archive' },
     { label: 'Payments', path: '/customer/transactions', icon: 'credit-card' },
     { label: 'Rewards', path: '/customer/rewards', icon: 'gift' },
     { label: 'Notifications', path: '/customer/notifications', icon: 'bell' },

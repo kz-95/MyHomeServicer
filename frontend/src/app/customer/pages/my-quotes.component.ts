@@ -50,7 +50,7 @@ interface Address {
     } @else if (quotes().length === 0) {
       <div class="card empty-card">
         <p>No quotes yet.</p>
-        <a routerLink="/customer/quote/new" class="btn-primary">Request your first quote →</a>
+        <a routerLink="/customer/quote" class="btn-primary">Request your first quote →</a>
       </div>
     } @else {
       <div class="toolbar">
@@ -101,16 +101,51 @@ interface Address {
       }
     }
 
-    <!-- Cancel confirmation -->
+    <!-- Cancel confirmation with reason + PIN -->
     @if (cancelling(); as q) {
-      <app-modal [open]="true" title="Cancel this quote?" (closed)="cancelling.set(null)">
+      <app-modal [open]="true" title="Cancel this quote?" (closed)="resetCancel()">
         <p>
           Are you sure you want to cancel the <strong>{{ q.category.name }}</strong> quote?
         </p>
         <p class="muted">This cannot be undone. Any servicers who have already responded will be notified.</p>
+        <div class="cancel-form">
+          <label>
+            Reason <span class="req">*</span>
+            <select [(ngModel)]="cancelReason" name="cr" (blur)="cancelReasonTouched = true">
+              <option value="">Select a reason</option>
+              <option value="Found another servicer">Found another servicer</option>
+              <option value="Changed my mind">Changed my mind</option>
+              <option value="Too expensive">Too expensive</option>
+              <option value="No longer needed">No longer needed</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          @if (cancelReasonTouched && !cancelReason) {
+            <p class="field-err">Please select a reason.</p>
+          }
+          @if (cancelReason === 'Other') {
+            <label>
+              Tell us more <span class="req">*</span>
+              <textarea [(ngModel)]="cancelDetails" name="cd" rows="2" placeholder="Describe the issue…" (blur)="cancelDetailsTouched = true"></textarea>
+            </label>
+            @if (cancelDetailsTouched && !cancelDetails.trim()) {
+              <p class="field-err">Please provide details.</p>
+            }
+          }
+          <label>
+            Enter your PIN <span class="req">*</span>
+            <input type="password" [(ngModel)]="cancelPin" name="cpin" placeholder="••••" (blur)="cancelPinTouched = true" />
+          </label>
+          @if (cancelPinTouched && !cancelPin.trim()) {
+            <p class="field-err">PIN is required to cancel.</p>
+          }
+          @if (cancelError()) {
+            <p class="err">{{ cancelError() }}</p>
+          }
+        </div>
         <div class="modal-actions">
-          <button class="btn-ghost" (click)="cancelling.set(null)" [disabled]="cancellingBusy()">Keep it</button>
-          <button class="btn-primary" (click)="doCancel(q.id)" [disabled]="cancellingBusy()">
+          <button class="btn-ghost" (click)="resetCancel()" [disabled]="cancellingBusy()">Keep it</button>
+          <button class="btn-primary" (click)="doCancel(q.id)" [disabled]="cancellingBusy() || !cancelReason || !cancelPin.trim() || (cancelReason === 'Other' && !cancelDetails.trim())">
             {{ cancellingBusy() ? 'Cancelling…' : 'Yes, cancel it' }}
           </button>
         </div>
@@ -290,6 +325,11 @@ interface Address {
       margin-top: 0.8rem;
     }
     .err { color: var(--color-danger); }
+    .field-err { color: var(--color-danger); font-size: 0.78rem; margin-top: 0.15rem; }
+    .cancel-form { display: flex; flex-direction: column; gap: 0.7rem; margin: 0.5rem 0; }
+    .cancel-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.88rem; font-weight: 500; }
+    .cancel-form select, .cancel-form input, .cancel-form textarea { padding: 0.45rem 0.6rem; border: 1px solid var(--color-border); border-radius: 8px; font: inherit; font-size: 0.88rem; background: var(--color-surface); color: var(--color-text); }
+    .req { color: var(--color-danger); margin-left: 0.15rem; }
     .toolbar {
       display: flex;
       flex-wrap: wrap;
@@ -422,6 +462,14 @@ export class MyQuotesComponent implements OnInit {
 
   cancelling = signal<Quote | null>(null);
   cancellingBusy = signal(false);
+  cancelError = signal('');
+  // Cancel form fields (plain, not signals — used with [(ngModel)])
+  cancelReason = '';
+  cancelDetails = '';
+  cancelPin = '';
+  cancelReasonTouched = false;
+  cancelDetailsTouched = false;
+  cancelPinTouched = false;
 
   editing = signal<Quote | null>(null);
   editBusy = signal(false);
@@ -467,12 +515,39 @@ export class MyQuotesComponent implements OnInit {
   }
 
   confirmCancel(q: Quote): void {
+    this.cancelReason = '';
+    this.cancelDetails = '';
+    this.cancelPin = '';
+    this.cancelError.set('');
+    this.cancelReasonTouched = false;
+    this.cancelDetailsTouched = false;
+    this.cancelPinTouched = false;
     this.cancelling.set(q);
   }
 
+  resetCancel(): void {
+    this.cancelling.set(null);
+    this.cancelError.set('');
+  }
+
   doCancel(quoteId: string): void {
+    // Touch all fields to show validation
+    this.cancelReasonTouched = true;
+    this.cancelDetailsTouched = true;
+    this.cancelPinTouched = true;
+
+    if (!this.cancelReason) return;
+    if (this.cancelReason === 'Other' && !this.cancelDetails.trim()) return;
+    if (!this.cancelPin.trim()) return;
+
     this.cancellingBusy.set(true);
-    this.api.post(`/quotes/${quoteId}/cancel`, {}).subscribe({
+    this.cancelError.set('');
+    const details = this.cancelReason === 'Other' ? this.cancelDetails.trim() : undefined;
+    this.api.post(`/quotes/${quoteId}/cancel`, {
+      reason: this.cancelReason,
+      details,
+      pin: this.cancelPin.trim(),
+    }).subscribe({
       next: () => {
         this.cancellingBusy.set(false);
         this.cancelling.set(null);
@@ -481,7 +556,7 @@ export class MyQuotesComponent implements OnInit {
       },
       error: (e) => {
         this.cancellingBusy.set(false);
-        this.toast.error(e.message ?? 'Could not cancel quote');
+        this.cancelError.set(e.message ?? 'Could not cancel quote');
       },
     });
   }

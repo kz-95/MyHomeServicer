@@ -204,7 +204,7 @@ interface PromoValidationResult {
       @if (idleBannerVisible()) {
         <div class="idle-banner">
           <span>It's been a while! 🏠 Need help around the house?</span>
-          <a routerLink="/customer/quote/new" (click)="dismissIdleBanner()">Request a Quote</a>
+          <a routerLink="/customer/quote" (click)="dismissIdleBanner()">Request a Quote</a>
           <button (click)="dismissIdleBanner()" aria-label="Dismiss">×</button>
         </div>
       }
@@ -2108,7 +2108,7 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   /** Start a quote request with no category pre-selected. */
   newQuote(): void {
-    this.router.navigate(["/customer/quote/new"]);
+    this.router.navigate(["/customer/quote"]);
   }
 
   /** Open the chat widget overlay. */

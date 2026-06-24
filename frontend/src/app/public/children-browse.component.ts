@@ -385,7 +385,7 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
 
   pick(cat: Category): void {
     if (this.auth.isLoggedIn()) {
-      this.router.navigate(['/customer/quote/new'], {
+      this.router.navigate(['/customer/quote'], {
         queryParams: { category: cat.id },
       });
     } else {
