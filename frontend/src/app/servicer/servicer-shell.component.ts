@@ -5,7 +5,7 @@ import { routeFor } from '../core/route-for';
 @Component({
     selector: 'app-servicer-shell',
     imports: [ShellComponent],
-    template: `<app-shell portalTitle="Servicer" [navItems]="nav" />`
+    template: `<app-shell portalTitle="Servicer" [navItems]="nav" [narrow]="true" />`
 })
 export class ServicerShellComponent {
   nav: NavItem[] = [

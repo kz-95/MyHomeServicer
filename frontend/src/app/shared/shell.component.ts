@@ -215,7 +215,7 @@ interface PromoValidationResult {
       <div class="body">
         <app-shell-nav [navItems]="navItems" />
         <main class="content" appPullToRefresh #contentEl>
-          <div class="content-main">
+          <div class="content-main" [class.narrow]="narrow">
             <router-outlet />
           </div>
           <app-site-footer />
@@ -895,6 +895,11 @@ interface PromoValidationResult {
       }
       .content-main {
         flex: 1 0 auto;
+      }
+      .content-main.narrow {
+        max-width: 720px;
+        margin: 0 auto;
+        width: 100%;
       }
 
       .ptr-spin-host {
@@ -1611,6 +1616,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   protected readonly config = inject(ConfigService);
   @Input() portalTitle = "Portal";
   @Input() navItems: NavItem[] = [];
+  @Input() narrow = false;
 
   widget = inject(ChatWidgetService);
   auth = inject(AuthService);
