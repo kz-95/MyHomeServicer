@@ -74,7 +74,7 @@ interface Promotion {
   `,
     styles: [
         `
-      :host { display: block; }
+      :host { display: block; max-width: 720px; width: 100%; }
       .toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid var(--color-border); margin-bottom: 1rem; }
       .search { min-width: 180px; max-width: 260px; border-radius: 999px; padding: 0.45rem 0.85rem; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font-size: 0.88rem; outline: none; }
       .search:focus { border-color: var(--color-primary); }

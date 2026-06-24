@@ -554,7 +554,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
   `,
     styles: [
         `
-      :host { display: block; }
+      :host { display: block; max-width: 720px; width: 100%; }
       .tabs {
         display: flex;
         justify-content: center;

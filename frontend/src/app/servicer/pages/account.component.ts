@@ -723,7 +723,7 @@ interface Penalty {
     }
   `,
     styles: [`
-      :host { display: block; }
+      :host { display: block; max-width: 720px; width: 100%; }
       section { margin-bottom: 1.4rem; transition: box-shadow var(--transition), transform var(--transition); }
       section:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07); transform: translateY(-1px); }
       h2 { margin-top: 0; font-size: 1.05rem; }

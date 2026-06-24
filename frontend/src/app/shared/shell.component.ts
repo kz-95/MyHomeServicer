@@ -897,8 +897,11 @@ interface PromoValidationResult {
         flex: 1 0 auto;
       }
       .content-main.narrow {
-        max-width: 720px;
-        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .content-main.narrow > * {
         width: 100%;
       }
 

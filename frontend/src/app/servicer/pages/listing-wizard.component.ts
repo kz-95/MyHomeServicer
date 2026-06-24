@@ -392,7 +392,7 @@ type WizardStep = 1 | 2 | 3 | 4;
     </div>
   `,
   styles: [`
-    :host { display: block; max-width: 800px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    :host { display: block; max-width: 720px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
     .wiz-hd { margin-bottom: 1.5rem; }
     .wiz-hd h1 { margin: 0.3rem 0 0; font-size: 1.4rem; }
     .wiz-body { min-height: 300px; }

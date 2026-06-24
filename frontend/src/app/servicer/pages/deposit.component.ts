@@ -307,7 +307,7 @@ interface VoucherInfo {
   `,
     styles: [
         `
-      :host { display: block; }
+      :host { display: block; max-width: 720px; width: 100%; }
       section { margin-bottom: 1.4rem; }
       h3 { margin-top: 0; font-size: 1.05rem; }
 

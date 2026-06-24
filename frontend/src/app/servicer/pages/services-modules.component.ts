@@ -139,7 +139,7 @@ interface ServicerModule {
   styles: [
     `
       :host {
-        display: block;
+        display: block; max-width: 720px; width: 100%;
       }
       .head {
         display: flex;
