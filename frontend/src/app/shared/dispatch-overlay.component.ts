@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ElementRef, ViewChild, effect, signal, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ElementRef, viewChild, effect, signal, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -652,10 +652,10 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
   @Output() closed = new EventEmitter<void>();
   @Output() actionPerformed = new EventEmitter<void>();
 
-  @ViewChild('mainDlg') private mainDlg?: ElementRef<HTMLDialogElement>;
-  @ViewChild('qrDlg') private qrDlg?: ElementRef<HTMLDialogElement>;
-  @ViewChild('reportDlg') private reportDlg?: ElementRef<HTMLDialogElement>;
-  @ViewChild('cancelDlg') private cancelDlg?: ElementRef<HTMLDialogElement>;
+  private mainDlg = viewChild<ElementRef<HTMLDialogElement>>('mainDlg');
+  private qrDlg = viewChild<ElementRef<HTMLDialogElement>>('qrDlg');
+  private reportDlg = viewChild<ElementRef<HTMLDialogElement>>('reportDlg');
+  private cancelDlg = viewChild<ElementRef<HTMLDialogElement>>('cancelDlg');
 
   private api = inject(ApiService);
   private toast = inject(ToastService);
@@ -666,10 +666,13 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
 
   constructor() {
     // Keep each native top-layer dialog in step with its signal.
-    effect(() => this.toggle(this.mainDlg, this.open()));
-    effect(() => this.toggle(this.qrDlg, this.showQr()));
-    effect(() => this.toggle(this.reportDlg, this.showReportModal()));
-    effect(() => this.toggle(this.cancelDlg, this.showCancelModal()));
+    // viewChild() returns a signal so the effect re-runs when the element
+    // resolves — critical: @ViewChild (non-signal) would be undefined on
+    // first effect run and never re-run.
+    effect(() => this.toggle(this.mainDlg(), this.open()));
+    effect(() => this.toggle(this.qrDlg(), this.showQr()));
+    effect(() => this.toggle(this.reportDlg(), this.showReportModal()));
+    effect(() => this.toggle(this.cancelDlg(), this.showCancelModal()));
   }
 
   private toggle(ref: ElementRef<HTMLDialogElement> | undefined, want: boolean): void {
@@ -695,7 +698,7 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    for (const ref of [this.mainDlg, this.qrDlg, this.reportDlg, this.cancelDlg]) {
+    for (const ref of [this.mainDlg(), this.qrDlg(), this.reportDlg(), this.cancelDlg()]) {
       const dlg = ref?.nativeElement;
       if (dlg?.open) dlg.close();
     }
