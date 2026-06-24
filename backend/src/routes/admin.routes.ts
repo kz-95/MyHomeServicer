@@ -43,6 +43,7 @@ import {
   getAdminBackupEmail,
 } from '../services/admin.service';
 import { listIdentityChangeRequests, updateIdentityChangeRequest } from '../services/identity-change.service';
+import { notify } from '../services/notification.service';
 
 /** Admin panel router (`/admin/*`). Settings-mutating routes also require PIN. */
 export const adminRouter = Router();
@@ -182,6 +183,15 @@ adminRouter.get(
         ...(categoryId ? { booking: { quoteRequest: { categoryId } } } : {}),
       },
       orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, name: true, email: true, role: true } },
+        booking: {
+          select: {
+            id: true,
+            quoteRequest: { select: { category: { select: { name: true } } } },
+          },
+        },
+      },
     });
     res.json({ data });
   }),
@@ -210,6 +220,17 @@ adminRouter.patch(
       newValue: { status: req.body.status },
       ipAddress: ip(req),
     });
+
+    // Notify the reporter when their report is resolved
+    if (req.body.status === 'resolved') {
+      notify({
+        type: 'queues',
+        userId: report.userId,
+        message: `Your report "${report.subject}" has been resolved by an admin.`,
+        linkUrl: report.bookingId ? `/customer/bookings` : undefined,
+      }).catch(() => {});
+    }
+
     res.json(updated);
   }),
 );
