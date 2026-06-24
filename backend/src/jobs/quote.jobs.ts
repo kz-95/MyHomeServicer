@@ -81,22 +81,47 @@ async function handleNoResponse(job: Job): Promise<void> {
   }
 
   // Zero proposals — expire the quote and issue a sorry discount code.
-  await prisma.quoteRequest.update({
-    where: { id: quoteRequestId },
-    data: { status: 'expired' },
+  // BE-008: wrap status update + refund in a $transaction with a conditional
+  // update guard to prevent double-refund on concurrent BullMQ retries.
+  const didExpire = await prisma.$transaction(async (tx) => {
+    // Atomic conditional update — only succeeds if still 'open'. On retry
+    // the row is already 'expired' so updateMany returns count=0 → bail.
+    const updated = await tx.quoteRequest.updateMany({
+      where: { id: quoteRequestId, status: 'open' },
+      data: { status: 'expired' },
+    });
+    if (updated.count === 0) {
+      logger.info('quote.no_response — already expired by another worker', { quoteRequestId });
+      return false;
+    }
+
+    // Refund any credit held at quote creation time (pay_now with budgetMax).
+    if (quote.paymentMode === 'pay_now' && quote.budgetMax != null) {
+      // Idempotency guard — check for existing refund before issuing
+      const existingRefund = await tx.transaction.findFirst({
+        where: {
+          userId: quote.userId,
+          type: 'refund',
+          reference: { contains: quoteRequestId },
+        },
+      });
+      if (existingRefund) {
+        logger.info('quote.no_response — refund already processed, skipping', { quoteRequestId });
+      } else {
+        const refundAmount = Number(quote.budgetMax) + Number(quote.tipAmount ?? 0);
+        await adjustCredit('user', quote.userId, refundAmount, tx);
+        await recordTransaction({
+          type: 'refund',
+          amount: refundAmount,
+          userId: quote.userId,
+          reference: `Refund — quote ${quoteRequestId} expired with no proposals`,
+        }, tx);
+      }
+    }
+    return true;
   });
 
-  // Refund any credit held at quote creation time (pay_now with budgetMax).
-  if (quote.paymentMode === 'pay_now' && quote.budgetMax != null) {
-    const refundAmount = Number(quote.budgetMax) + Number(quote.tipAmount ?? 0);
-    await adjustCredit('user', quote.userId, refundAmount);
-    await recordTransaction({
-      type: 'refund',
-      amount: refundAmount,
-      userId: quote.userId,
-      reference: `Refund — quote ${quoteRequestId} expired with no proposals`,
-    });
-  }
+  if (!didExpire) return;
 
   const existing = await prisma.discountCode.findUnique({ where: { quoteRequestId } });
   if (existing) {
