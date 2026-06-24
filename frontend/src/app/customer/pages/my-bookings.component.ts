@@ -24,6 +24,9 @@ interface Booking {
   tipStatus?: string;
   servicer: { id: string; businessName: string; logoUrl?: string; rating: number };
   quoteRequest: { category: { name: string; icon?: string } };
+  lat?: number | null;
+  lng?: number | null;
+  address?: string | null;
 }
 
 interface InvoiceDetail {
@@ -160,6 +163,10 @@ const TAB_ROUTES: Record<TabKey, string> = {
           </div>
           <div class="right">
             <span class="status" [class]="b.status">{{ statusLabel(b.status) }}</span>
+            @if (b.lat != null && b.lng != null && ['confirmed', 'in_progress', 'completed'].includes(b.status)) {
+              <button class="map-link" (click)="openJobMap(b, 'google')">Maps</button>
+              <button class="map-link" (click)="openJobMap(b, 'waze')">Waze</button>
+            }
             @if (b.status === 'completed' && b.paymentMode === 'pay_later' && b.tipStatus !== 'paid') {
               <button class="btn-ghost" (click)="addTip(b)">Add tip</button>
             }
@@ -495,6 +502,17 @@ const TAB_ROUTES: Record<TabKey, string> = {
         background: var(--color-status-cancelled-bg);
         color: var(--color-status-cancelled-text);
       }
+      .map-link {
+        background: none;
+        border: none;
+        color: var(--color-primary);
+        cursor: pointer;
+        font-size: 0.82rem;
+        padding: 0;
+        text-decoration: underline;
+        font-family: inherit;
+      }
+      .map-link:hover { color: var(--color-text); }
       .err {
         color: var(--color-danger);
       }
@@ -959,6 +977,15 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
         }),
       error: (e) => this.toast.error(e.message ?? 'Could not create reorder'),
     });
+  }
+
+  openJobMap(b: Booking, app: 'google' | 'waze'): void {
+    const hasCoords = b.lat != null && b.lng != null;
+    if (!hasCoords) return;
+    const url = app === 'waze'
+      ? `https://waze.com/ul?ll=${b.lat},${b.lng}&navigate=yes`
+      : `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}`;
+    window.open(url, '_blank', 'noopener');
   }
 
   reportIssue(b: Booking): void {
