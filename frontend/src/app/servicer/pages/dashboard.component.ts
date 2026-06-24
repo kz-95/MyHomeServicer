@@ -114,7 +114,7 @@ interface WeekDay {
   `,
     styles: [
         `
-      :host { display: block; max-width: 900px; margin: 0 auto; }
+      :host { display: block; max-width: 900px; width: 100%; margin: 0 auto; }
       h2 {
         margin-top: 1.8rem;
       }

@@ -901,9 +901,6 @@ interface PromoValidationResult {
         flex-direction: column;
         align-items: center;
       }
-      .content-main.narrow > * {
-        width: 100%;
-      }
 
       .ptr-spin-host {
         position: sticky;

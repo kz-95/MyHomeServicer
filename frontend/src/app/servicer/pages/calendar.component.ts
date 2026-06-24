@@ -130,7 +130,7 @@ interface CalendarData {
 
     <!-- ───────────── WORK HOURS TAB ───────────── -->
     @if (activeTab() === 'workhours') {
-      <div class="tab-body">
+      <div class="tab-body wh-body">
         <p class="muted wh-desc">Toggle the time slots you are available to accept bookings.</p>
 
         @if (loadingSchedule()) {
@@ -271,7 +271,7 @@ interface CalendarData {
     }
   `,
     styles: [`
-    :host { display: block; max-width: 1000px; margin: 0 auto; }
+    :host { display: block; max-width: 1200px; width: 100%; margin: 0 auto; }
     h1 { margin-bottom: 0.2rem; }
     .err { color: var(--color-danger); }
 
@@ -302,6 +302,7 @@ interface CalendarData {
     .tab:hover:not(.active) { color: var(--color-text); background: var(--color-bg); }
 
     .tab-body { margin-top: 1.25rem; }
+    .wh-body { max-width: 720px; width: 100%; margin: 0 auto; }
 
     /* ── Calendar ── */
     .cal-nav {
