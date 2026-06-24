@@ -46,8 +46,10 @@ flow). **No sub-category.**
 ## 6. IA — `/servicer/services` → 2 tabs
 
 Route restructure mirroring the existing jobs tabs:
+- **`/servicer/services/module`** — Title + [Add] · search · [filter] · sort + reverse · card grid. **Default tab** (redirect from `/servicer/services`).
 - **`/servicer/services/listings`** — Title + [Add] · search · [Status filter] · sort + reverse · card grid.
-- **`/servicer/services/module`** — Title + [Add] · search · [filter] · sort + reverse · card grid.
+
+> **2026-06-25:** Tab order swapped. Modules is now the first/default tab because the logical flow is: create modules first → then attach them when creating a listing. Redirect from `/servicer/services` changed from `listings` to `module`.
 
 ### 6.1 Listings tab — card (3-line collapsed + expand)
 - Collapsed (3 lines): photo · title · short desc · `RM price · duration · N modules ·
@@ -177,3 +179,52 @@ When auto-accept is ON, all four enforced (not individually toggleable):
   breakdown + add-on tick recompute → booking captures add-ons; auto-accept fires only
   when all gates pass.
 - Gates: backend + frontend `tsc --noEmit`; `ng build` AOT; migration committed.
+
+---
+
+## 17. 2026-06-25 Redesign — Module-First Listing Form
+
+> **Status:** DESIGN — 2026-06-25
+> **Supersedes:** §6 tab order, §10 Simple/Advanced split, §7 module model (extended)
+
+### 17.1 No Simple/Advanced split
+
+Removed. One unified listing form. No mode chooser. The old `listing-wizard.component.ts`, `service-wizard.component.ts`, `listing-create.component.ts`, `listing-simple.component.ts`, and `listing-advanced.component.ts` are all scrapped.
+
+### 17.2 Listing Form Fields
+
+| Field | Required | Audience | Notes |
+|-------|:---:|------|-------|
+| **Label** | ✅ | Servicer only | Internal reference to identify their own listing |
+| **Title** | ✅ | Customer-facing | Shown on proposals, browse cards |
+| **Description** | — | Servicer only | Internal notes |
+| **Proposal Preset** | ✅ | Auto-accept + manual | Auto-accept fires this message; manual can load + edit it |
+| **Enable Auto** | — | System | Toggle. When ON, auto-accept gates run on matching quotes |
+
+### 17.3 Modules (min 1 required)
+
+Each module is a priced option that maps a category question answer to a price, duration, and SKU:
+
+| Field | Required | Description |
+|-------|:---:|------|
+| **Question Key** | ✅ | Which category question this module answers (e.g. `aircon_service`) |
+| **Option Value** | ✅ | Which answer triggers it (e.g. `chemical_wash`) |
+| **Price (RM)** | ✅ | Added to total when customer's answer matches |
+| **Duration (min)** | ✅ | Added to estimated job time on match |
+| **SKU** | — | Optional identifier |
+
+When a customer's quote has `questionKey = optionValue`, that module's price + duration are included in the proposal breakdown.
+
+### 17.4 Match Making (Three Paths)
+
+| Path | Gate | Behavior |
+|------|------|----------|
+| **Broadcast** | Category match only | All servicers in same category get notification |
+| **Manual accept** | Category match only | Servicer reviews, proposes manually (no Q-match check) |
+| **Auto-accept** | Category + Modules Q-match + Budget + Availability + Coverage + Cap | All gates pass → auto-proposal fires with preset message + computed total |
+
+### 17.5 Seeding Requirement
+
+Every priced question option across all 32 categories must be covered by at least 1-3 auto-accept listings. When any customer orders any service, an auto-proposal fires. Exception: M1 (Ahmad Plumber) — manual only, no auto-accept.
+
+See companion seeding plan: `docs/superpowers/plans/2026-06-25-sp3-seeding-coverage.md`.

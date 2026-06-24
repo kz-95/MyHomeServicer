@@ -13,8 +13,8 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
   template: `
     <div class="page-enter">
       <div class="tabs">
-        <a class="tab" routerLink="listings" routerLinkActive="active">Listings</a>
         <a class="tab" routerLink="module" routerLinkActive="active">Modules</a>
+        <a class="tab" routerLink="listings" routerLinkActive="active">Listings</a>
       </div>
       <router-outlet />
     </div>

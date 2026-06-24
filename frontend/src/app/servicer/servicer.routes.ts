@@ -71,7 +71,7 @@ export const servicerRoutes: Routes = [
         loadComponent: () =>
           import('./pages/services.component').then((m) => m.ServicerServicesComponent),
         children: [
-          { path: '', redirectTo: 'listings', pathMatch: 'full' },
+          { path: '', redirectTo: 'module', pathMatch: 'full' },
           {
             path: 'listings',
             loadComponent: () =>
