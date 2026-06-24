@@ -474,23 +474,11 @@ Gates: backend tsc 0 (source) / jest 298 pass, 0 fail / frontend tsc 0
 ## Quick Index
 | Section | Line |
 |---------|------|
-| Session 2026-06-24 20:07 — BE-011 Fix | 1 |
-| Session 2026-06-24 19:55 — BE-001 Fix | 5 |
-| Rules & gates | ~14 |
-| Sessions | ~19 |
-| Session 2026-06-23 — Escrow Integrity (Item 3) | ~74 |
-| API Contracts | ~60 |
-| Schema Changes | ~66 |
-| Bug Log | ~72 |
-| Open Items | ~74 |
-| CONTINUE LATER | ~76 |
-| Session 2026-05-27 — Pricing+Identity | ~548 |
-| Session 2026-05-27 — Steps 5-6 Accept + Settlement | ~614 |
-| Session 2026-05-27 — Seed revenue + invoices | ~540 |
-| Session 2026-05-27 — Invoice generation | ~555 |
-| Session 2026-05-28 — Phase 6 Identity Avatars (P6-BE) | ~669 |
-| Session 2026-05-28 — Card Thumbnails (POST-MVP §15) | ~691 |
-| Session 2026-06-02 — Money Epic: line items + soft enforcement | ~708 |
+| Session 2026-06-24 20:38 — QA-004 Fix (urgent fee 20/80 split) | 5 |
+| Session 2026-06-24 20:30 — QA-003 Fix (platform fee double-record) | 31 |
+| Session 2026-06-24 20:20 — BE-019 Fix (chat PIN token leak) | 50 |
+| Session 2026-06-24 20:07 — BE-011 Fix (no-show counter drift) | ~initial |
+| Rules & gates | ~496 |
 
 ---
 
@@ -987,17 +975,19 @@ actions, and 11-category seed update.
 
 ## CONTINUE LATER
 
-No backend code tasks remain. All TODO.md tasks are complete.
+**QA-004 complete.** Push to `feat/sp3-dispatch-cards`, commit `8cb084d`.
 
-The only outstanding work is runtime-environment verification (requires a
-live Docker stack) — DevOps/QA scope:
+Remaining backend bugs from BUGS-TO-FIX.md (next session):
+- QA-005 (CRITICAL) — dispatch accept bypasses escrow
+- BE-007 (CRITICAL) — service-area filter neutered by `|| true`
+- BE-001 (CRITICAL) — `buildSystemPrompt()` unawaited
+- BE-008 (CRITICAL) — `quote.no_response` double-refund
+- BE-013 (HIGH) — demo-login accepts arbitrary email
+- BE-019 (HIGH) — chat verify-pin token (DONE 2026-06-24)
+- QA-003 (MEDIUM) — platform fee double-recorded (DONE 2026-06-24)
+- QA-004 (MEDIUM) — urgent fee 20/80 split (DONE 2026-06-24)
 
-- `npm run reseed` — confirm seed completes cleanly
-- Socket.io live event verification (QA + Backend pair)
-- Dify chatbot connectivity (QA + Backend pair)
-
-At next session start: read README.md + TODO.md to confirm nothing new has
-been added.
+At next session start: read `docs/ai-context/BUGS-TO-FIX.md` then pick the top remaining CRITICAL.
 
 ---
 
