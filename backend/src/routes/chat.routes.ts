@@ -9,7 +9,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { verifyPin } from '../middleware/pin';
-import { checkPinCooldown, recordPinFailure, recordPinSuccess } from '../middleware/pin-cooldown';
+import { checkPinCooldown, recordPinFailure, recordPinSuccess, consumePinSuccess } from '../middleware/pin-cooldown';
 import { chatLimiter, chatDailyLimiter } from '../middleware/rate-limit';
 import { badRequest, notFound, forbidden } from '../lib/errors';
 import { sendToAi, judgeConversation } from '../services/chat.service';
@@ -310,6 +310,9 @@ chatRouter.post(
       await recordPinFailure(userId);
       throw badRequest('Incorrect PIN');
     }
+    // Consume any prior success state first so this verification is fresh,
+    // then record the new success with TTL (BE-019 fix: state expires).
+    await consumePinSuccess(userId);
     await recordPinSuccess(userId);
     res.json({ ok: true });
   }),
@@ -349,6 +352,7 @@ chatRouter.post(
 
       await updateServicerProfile(userId, { [field]: value });
       await recordPinSuccess(userId);
+      await consumePinSuccess(userId);
       res.json({ ok: true, message: `${field} updated` });
     } else if (req.user!.role === 'admin') {
       const admin = await prisma.user.findUnique({ where: { id: userId } });
@@ -368,6 +372,7 @@ chatRouter.post(
 
       await updateServicerProfile(req.body.servicerId, { [field]: value });
       await recordPinSuccess(userId);
+      await consumePinSuccess(userId);
       res.json({ ok: true, message: `${field} updated` });
     } else {
       throw forbidden('PIN-gated profile editing requires servicer or admin role');

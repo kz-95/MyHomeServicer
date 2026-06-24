@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { ApiError } from '../lib/errors';
 import { asyncHandler } from '../lib/async-handler';
-import { checkPinCooldown, recordPinFailure, recordPinSuccess } from './pin-cooldown';
+import { checkPinCooldown, recordPinFailure, recordPinSuccess, consumePinSuccess } from './pin-cooldown';
 
 /**
  * Verify a PIN against an entity (Servicer or User). A null/absent `pinHash`
@@ -53,6 +53,11 @@ export const requirePin = asyncHandler(
     }
 
     await recordPinSuccess(userId);
+    // Consume the verified state after the response finishes so a subsequent
+    // PIN-gated request must re-verify (one-shot consumption — BE-019).
+    _res.on('finish', () => {
+      consumePinSuccess(userId).catch(() => {});
+    });
     req.pinVerified = true;
     next();
   },
