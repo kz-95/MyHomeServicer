@@ -17,6 +17,7 @@ import {
   RouterLink,
   Router,
 } from "@angular/router";
+import { routeFor } from "../core/route-for";
 import { Subscription } from "rxjs";
 import { AuthService } from "../core/services/auth.service";
 import { ApiService } from "../core/services/api.service";
@@ -46,6 +47,8 @@ interface OpenedQuoteDetail extends IncomingQuoteSummary {
   customerName: string;
   customerAvatarUrl: string | null;
   estimatedPrice: number;
+  estimatedDurationMin?: number;
+  descriptions?: string[];
 }
 
 export interface NavItem {
@@ -172,7 +175,7 @@ interface PromoValidationResult {
             </button>
           </span>
         } @else if (auth.principal()?.role === "customer") {
-          <a class="btn-pro" routerLink="/register/servicer">Sign up as pro</a>
+          <a class="btn-pro" [routerLink]="[routeFor('register.servicer')]">Sign up as pro</a>
         }
 
         <button
@@ -204,7 +207,7 @@ interface PromoValidationResult {
       @if (idleBannerVisible()) {
         <div class="idle-banner">
           <span>It's been a while! 🏠 Need help around the house?</span>
-          <a routerLink="/customer/quote" (click)="dismissIdleBanner()">Request a Quote</a>
+          <a [routerLink]="[routeFor('customer.quote')]" (click)="dismissIdleBanner()">Request a Quote</a>
           <button (click)="dismissIdleBanner()" aria-label="Dismiss">×</button>
         </div>
       }
@@ -268,7 +271,7 @@ interface PromoValidationResult {
     @if (rewardsPromptVisible()) {
       <div class="rewards-banner" role="alert">
         <span>💎 You have points waiting! Redeem them for top-up discounts and save on your next booking.</span>
-        <a routerLink="/customer/rewards" (click)="dismissRewardsPrompt()">Check rewards →</a>
+        <a [routerLink]="[routeFor('customer.rewards')]" (click)="dismissRewardsPrompt()">Check rewards →</a>
         <button (click)="dismissRewardsPrompt()">×</button>
       </div>
     }
@@ -309,6 +312,13 @@ interface PromoValidationResult {
               <button class="qp-dismiss" (click)="dismissQuotePrompt()" aria-label="Dismiss">×</button>
             </div>
             <div class="qp-form-body">
+              @if (expandedQuote()!.descriptions?.length) {
+                <div class="qp-details">
+                  @for (d of expandedQuote()!.descriptions; track d) {
+                    <span class="qp-chip">{{ d }}</span>
+                  }
+                </div>
+              }
               <label class="qp-field">
                 <span>Your price</span>
                 <div class="qp-price-wrap">
@@ -323,6 +333,18 @@ interface PromoValidationResult {
                     class="qp-price-input"
                   />
                 </div>
+              </label>
+              <label class="qp-field">
+                <span>ETA <span class="qp-optional">(min)</span></span>
+                <input
+                  type="number"
+                  min="1"
+                  step="5"
+                  [(ngModel)]="proposalEta"
+                  name="proposalEta"
+                  placeholder="60"
+                  class="qp-eta-input"
+                />
               </label>
               <label class="qp-field">
                 <span>Description <span class="qp-optional">(optional)</span></span>
@@ -1509,6 +1531,10 @@ interface PromoValidationResult {
         box-sizing: border-box;
       }
       .qp-textarea:focus { border-color: var(--color-primary); box-shadow: var(--focus-ring); }
+      .qp-eta-input { width: 80px; padding: 0.45rem 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 0.95rem; background: var(--color-surface); color: var(--color-text); outline: none; box-sizing: border-box; }
+      .qp-eta-input:focus { border-color: var(--color-primary); box-shadow: var(--focus-ring); }
+      .qp-details { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
+      .qp-chip { font-size: 0.75rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 999px; padding: 0.1rem 0.5rem; color: var(--color-muted); }
       .qp-error { color: var(--color-danger); font-size: 0.82rem; margin: 0; }
       .qp-form-actions { display: flex; align-items: center; gap: 0.5rem; }
       .qp-btn-primary {
@@ -1581,6 +1607,7 @@ interface PromoValidationResult {
 })
 export class ShellComponent implements OnInit, OnDestroy {
   protected readonly isDevMode = isDevMode;
+  protected readonly routeFor = routeFor;
   protected readonly config = inject(ConfigService);
   @Input() portalTitle = "Portal";
   @Input() navItems: NavItem[] = [];
@@ -1657,6 +1684,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   loadingExpand = signal(false);
   proposalError = signal('');
   proposalPrice: number | null = null;
+  proposalEta: number | null = null;
   proposalDesc = '';
   quotePromptVisible = computed(() => this.pendingQuotes().length > 0);
   quotePromptCount = computed(() => this.pendingQuotes().length);
@@ -1828,7 +1856,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     if (!q || this.loadingExpand()) return;
     this.loadingExpand.set(true);
     this.proposalError.set('');
-    this.api.post<{ customerName: string; customerAvatarUrl: string | null; proposalPrefill: { defaultTotal: number } | null }>(
+    this.api.post<{ customerName: string; customerAvatarUrl: string | null; proposalPrefill: { defaultTotal: number; estimatedDurationMin?: number } | null; descriptions?: string[] }>(
       `/servicer/quotes/${q.quoteId}/open`, {}
     ).subscribe({
       next: (data) => {
@@ -1838,8 +1866,11 @@ export class ShellComponent implements OnInit, OnDestroy {
           customerName: data.customerName,
           customerAvatarUrl: data.customerAvatarUrl,
           estimatedPrice: data.proposalPrefill?.defaultTotal ?? 0,
+          estimatedDurationMin: data.proposalPrefill?.estimatedDurationMin,
+          descriptions: data.descriptions ?? [],
         });
         this.proposalPrice = data.proposalPrefill?.defaultTotal ?? null;
+        this.proposalEta = data.proposalPrefill?.estimatedDurationMin ?? null;
         this.proposalDesc = '';
       },
       error: () => {
@@ -1861,6 +1892,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.proposalError.set('');
     this.api.post(`/servicer/quotes/${q.quoteId}/propose`, {
       proposedPrice: price,
+      etaMinutes: this.proposalEta || undefined,
       message: this.proposalDesc || undefined,
     }).subscribe({
       next: () => {
@@ -1870,6 +1902,7 @@ export class ShellComponent implements OnInit, OnDestroy {
         this.expandedQuote.set(null);
         this.proposalDesc = '';
         this.proposalPrice = null;
+        this.proposalEta = null;
       },
       error: (e: { message?: string }) => {
         this.submitting.set(false);
@@ -2023,7 +2056,7 @@ export class ShellComponent implements OnInit, OnDestroy {
               "Signed out on this device, but we couldn't reach the server to end the session everywhere. Sign out again when you're back online.",
             );
           }
-          this.router.navigate(["/"]);
+          this.router.navigate([routeFor('home')]);
         });
       });
   }
@@ -2031,7 +2064,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   /** The logo title navigates to dashboard when logged in, home page otherwise. */
   goHome(): void {
     const role = this.auth.principal()?.role;
-    const path = role === 'admin' ? '/admin' : role === 'servicer' ? '/servicer' : role === 'customer' ? '/customer' : '/';
+    const path = role === 'admin' ? routeFor('admin') : role === 'servicer' ? routeFor('servicer') : role === 'customer' ? '/customer' : routeFor('home');
     window.location.href = path;
   }
 
@@ -2102,13 +2135,13 @@ export class ShellComponent implements OnInit, OnDestroy {
       });
     } else {
       this.auth.switchToServicerMode();
-      this.router.navigate(["/servicer"]);
+      this.router.navigate([routeFor('servicer')]);
     }
   }
 
   /** Start a quote request with no category pre-selected. */
   newQuote(): void {
-    this.router.navigate(["/customer/quote"]);
+    this.router.navigate([routeFor('customer.quote')]);
   }
 
   /** Open the chat widget overlay. */

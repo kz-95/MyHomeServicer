@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
+import { routeFor } from '../../core/route-for';
 
 interface EarningsToday {
   date: string;
@@ -90,7 +91,7 @@ interface WeekDay {
           <span class="muted">{{ sd.key }}: <strong>RM {{ sd.earnings | number: '1.2-2' }}</strong></span>
           <div class="day-info-actions">
             <button class="range-btn" (click)="selectedDay.set(null)">× Clear</button>
-            <a class="range-btn on" [routerLink]="['/servicer/jobs/history']">View history →</a>
+            <a class="range-btn on" [routerLink]="[routeFor('servicer.jobs.history')]">View history →</a>
           </div>
         </div>
       }
@@ -113,7 +114,7 @@ interface WeekDay {
   `,
     styles: [
         `
-      :host { display: block; }
+      :host { display: block; max-width: 900px; margin: 0 auto; }
       h2 {
         margin-top: 1.8rem;
       }
@@ -269,6 +270,7 @@ interface WeekDay {
     ]
 })
 export class ServicerDashboardComponent implements OnInit {
+  protected readonly routeFor = routeFor;
   private api = inject(ApiService);
 
   earnings = signal<EarningsToday | null>(null);
@@ -290,13 +292,13 @@ export class ServicerDashboardComponent implements OnInit {
   }
 
   readonly quickLinks = [
-    { label: 'Pending Requests', path: '/servicer/jobs/pending', icon: '📨', detail: 'Incoming quotes to respond to' },
-    { label: 'Active Jobs', path: '/servicer/jobs/active', icon: '🔧', detail: 'Jobs in progress' },
-    { label: 'History', path: '/servicer/jobs/history', icon: '🗂️', detail: 'Past & completed jobs' },
-    { label: 'Invoices', path: '/servicer/invoices', icon: '🧾', detail: 'View and download invoices' },
-    { label: 'Service Listings', path: '/servicer/services', icon: '📋', detail: 'Manage your services' },
-    { label: 'Deposit', path: '/servicer/deposit', icon: '💳', detail: 'Manage your security deposit' },
-    { label: 'Account', path: '/servicer/account', icon: '⚙️', detail: 'Profile, logo and penalties' },
+    { label: 'Pending Requests', path: routeFor('servicer.jobs.pending'), icon: '📨', detail: 'Incoming quotes to respond to' },
+    { label: 'Active Jobs', path: routeFor('servicer.jobs.active'), icon: '🔧', detail: 'Jobs in progress' },
+    { label: 'History', path: routeFor('servicer.jobs.history'), icon: '🗂️', detail: 'Past & completed jobs' },
+    { label: 'Invoices', path: routeFor('servicer.invoices'), icon: '🧾', detail: 'View and download invoices' },
+    { label: 'Service Listings', path: routeFor('servicer.services'), icon: '📋', detail: 'Manage your services' },
+    { label: 'Deposit', path: routeFor('servicer.deposit'), icon: '💳', detail: 'Manage your security deposit' },
+    { label: 'Account', path: routeFor('servicer.account'), icon: '⚙️', detail: 'Profile, logo and penalties' },
   ];
 
   ngOnInit(): void {

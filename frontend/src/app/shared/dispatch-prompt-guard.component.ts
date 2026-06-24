@@ -1,8 +1,9 @@
-import { Component, ElementRef, OnInit, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
+﻿import { Component, ElementRef, OnInit, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/services/api.service';
 import { AuthService } from '../core/services/auth.service';
+import { ConfigService } from '../core/services/config.service';
 import { SocketService } from '../core/services/socket.service';
 import { ToastService } from '../core/services/toast.service';
 import { IconComponent } from './icon.component';
@@ -84,7 +85,7 @@ interface DispatchPrompt {
                 </div>
                 <div class="dp-detail-item">
                   <span class="dp-label">Budget</span>
-                  <span>RM {{ p.budgetMin }} – RM {{ p.budgetMax }}</span>
+                  <span>RM {{ p.budgetMin }} â€“ RM {{ p.budgetMax }}</span>
                 </div>
                 @if (p.propertyType) {
                   <div class="dp-detail-item">
@@ -104,11 +105,14 @@ interface DispatchPrompt {
             <!-- Map preview (when coordinates available) -->
             @if (p.lat != null && p.lng != null) {
               <div class="dp-section">
-                <div class="dp-map-placeholder" (click)="openMaps(p.lat!, p.lng!)">
-                  <app-icon name="map-pinned" sizeToken="xl" stroke="var(--color-primary)" />
-                  <span>📍 Navigate to location</span>
-                  <span class="muted small">View on Google Maps / Waze</span>
-                </div>
+                <label class="map-label">ðŸ“ Job Location</label>
+                <img
+                  class="map-preview"
+                  [src]="staticMapUrl(p.lat!, p.lng!)"
+                  alt="Job location on map"
+                  loading="lazy"
+                  (click)="openMaps(p.lat!, p.lng!)"
+                />
               </div>
             }
           </div>
@@ -117,7 +121,7 @@ interface DispatchPrompt {
           <div class="dp-actions">
             <button class="btn-primary dp-btn-accept" (click)="accept()" [disabled]="actioning()">
               <app-icon name="check-circle" sizeToken="sm" />
-              {{ actioning() ? 'Processing…' : 'Accept job' }}
+              {{ actioning() ? 'Processingâ€¦' : 'Accept job' }}
             </button>
             <button class="btn-ghost dp-btn-decline" (click)="decline()" [disabled]="actioning()">
               <app-icon name="x-circle" sizeToken="sm" />
@@ -134,7 +138,7 @@ interface DispatchPrompt {
   `,
   styles: [`
     :host { display: contents; }
-    /* Native <dialog> + showModal() renders in the top layer — immune to
+    /* Native <dialog> + showModal() renders in the top layer â€” immune to
        ancestor transform/overflow clipping and always viewport-centered.
        See frontend/STYLE-RULES.md "Overlays & modals". Do NOT revert to a
        position:fixed backdrop. */
@@ -226,16 +230,9 @@ interface DispatchPrompt {
     .dp-full { grid-column: 1 / -1; }
     .dp-label { font-size: 0.7rem; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.03em; }
 
-    .dp-map-placeholder {
-      display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
-      padding: 1.5rem;
-      background: var(--color-bg);
-      border: 1px dashed var(--color-border);
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: border-color 0.15s ease, background 0.15s ease;
-    }
-    .dp-map-placeholder:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+    .map-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--color-muted); margin-bottom: 0.4rem; }
+    .map-preview { width: 100%; max-width: 400px; border-radius: var(--radius); border: 1px solid var(--color-border); cursor: pointer; }
+    .map-preview:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
 
     .dp-actions {
       display: flex; gap: 0.75rem;
@@ -261,6 +258,7 @@ export class DispatchPromptGuardComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private socket = inject(SocketService);
   private toast = inject(ToastService);
+  private config = inject(ConfigService);
 
   @ViewChild('dlg') private dlgRef?: ElementRef<HTMLDialogElement>;
 
@@ -388,6 +386,12 @@ export class DispatchPromptGuardComponent implements OnInit, OnDestroy {
         this.error.set(e.message ?? 'Failed to decline job');
       },
     });
+  }
+
+  staticMapUrl(lat: number, lng: number): string {
+    const key = this.config.googleMapsApiKey;
+    if (!key) return '';
+    return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=400x200&markers=color:red%7C${lat},${lng}&key=${key}`;
   }
 
   openMaps(lat: number, lng: number): void {

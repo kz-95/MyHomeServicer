@@ -32,10 +32,12 @@ interface IncomingQuote {
   state?: string | null;
   lat?: number | null;
   lng?: number | null;
+  distanceKm?: number | null;
   notes?: string | null;
   descriptions?: string[];
   images?: string[];
   slotJobs?: { count: number };
+  estimatedDurationMin?: number;
 }
 
 /**
@@ -91,6 +93,7 @@ interface IncomingQuote {
         <div class="facts">
           <div class="fact price">RM {{ q.budgetMin ?? '—' }} – {{ q.budgetMax ?? '—' }}
             @if (q.paymentMode) { <span class="pay">· {{ q.paymentMode === 'pay_now' ? 'Pay now' : (q.paymentMode === 'cash' ? 'Cash' : 'Pay later') }}</span> }
+            @if (q.estimatedDurationMin && q.estimatedDurationMin > 0) { <span class="duration-badge">~{{ q.estimatedDurationMin }} min</span> }
           </div>
           <div class="fact time">{{ q.preferredDate | date: 'EEE, MMM d' }} · {{ slotLabel(q.timeSlot) }}
             @if (q.slotJobs && q.slotJobs.count > 0) {
@@ -101,6 +104,7 @@ interface IncomingQuote {
           </div>
           <div class="fact place">{{ placeLine(q) }}
             @if (q.address) { <div class="addr muted">{{ q.address }}</div> }
+            @if (q.distanceKm != null) { <span class="distance-badge">~{{ q.distanceKm }} km away</span> }
           </div>
         </div>
 
@@ -137,9 +141,21 @@ interface IncomingQuote {
 
             @if (!q.myProposalId) {
               <form class="propose" (ngSubmit)="propose(q)">
-                <input type="number" placeholder="Price (RM)" [(ngModel)]="price" name="price" />
-                <input type="number" placeholder="ETA (min)" [(ngModel)]="eta" name="eta" />
-                <input placeholder="Message" [(ngModel)]="message" name="message" />
+                <label>
+                  Your price
+                  <span class="rm-prefix">RM</span>
+                  <input type="number" [(ngModel)]="price" name="price" min="0" step="0.01" />
+                </label>
+                <label>
+                  ETA (min)
+                  <span class="muted">(optional)</span>
+                  <input type="number" [(ngModel)]="eta" name="eta" min="1" />
+                </label>
+                <label>
+                  Description
+                  <span class="muted">(optional)</span>
+                  <input [(ngModel)]="message" name="message" placeholder="Brief message…" />
+                </label>
                 <button class="btn-primary" type="submit" [disabled]="busy()">Send proposal</button>
               </form>
             }
@@ -208,6 +224,8 @@ interface IncomingQuote {
       .fact .pay, .fact .slot-load, .fact .slot-free { font-size: 0.8rem; font-weight: 500; margin-left: 0.4rem; }
       .slot-load { color: var(--color-muted); }
       .slot-free { color: var(--color-success); }
+      .duration-badge { font-size: 0.8rem; color: var(--color-muted); }
+      .distance-badge { font-size: 0.8rem; color: var(--color-muted); }
       .addr { font-size: 0.8rem; font-weight: 400; }
       .chips-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.4rem 0; }
       .chip-static { font-size: 0.75rem; border: 1px solid var(--color-border); border-radius: 999px; padding: 0.15rem 0.5rem; color: var(--color-muted); }
@@ -220,11 +238,38 @@ interface IncomingQuote {
       .notes { font-size: 0.85rem; font-style: italic; color: var(--color-muted); }
       .propose {
         display: flex;
+        flex-direction: column;
         gap: 0.5rem;
         margin-top: 0.8rem;
-        flex-wrap: wrap;
         animation: slide-down 0.18s ease-out both;
       }
+      .propose label {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--color-text);
+      }
+      .propose label .muted { font-weight: 400; font-size: 0.78rem; }
+      .propose input {
+        margin-left: auto;
+        width: 140px;
+        padding: 0.35rem 0.5rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        font-size: 0.85rem;
+        background: var(--color-surface);
+        color: var(--color-text);
+        outline: none;
+      }
+      .propose input:focus { border-color: var(--color-primary); }
+      .rm-prefix {
+        font-weight: 600;
+        color: var(--color-primary);
+        margin-right: 0.15rem;
+      }
+      .propose .btn-primary { align-self: flex-end; }
       @keyframes slide-down {
         from { opacity: 0; transform: translateY(-6px); }
         to   { opacity: 1; transform: translateY(0); }
