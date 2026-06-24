@@ -112,10 +112,10 @@ export async function findMatchingServicers(
       }
 
       // No coordinate-based areas — substring matching against a free-text
-      // address is brittle. If no area matches, serve anyway (false positive
-      // is better than a missed quote).
+      // address. The servicer must have at least one service area that
+      // matches the address text to be included.
       const haystack = addressText.toLowerCase();
-      return m.serviceAreas.some((a) => haystack.includes(a.toLowerCase())) || true;
+      return m.serviceAreas.some((a) => haystack.includes(a.toLowerCase()));
     }).map((m) => ({ servicer: m, services: m.services }));
   }
 

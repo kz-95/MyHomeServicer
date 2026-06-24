@@ -2,6 +2,27 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-24 — E2E QA Harness Task 4
+
+**Scope:** Group A Task 4 of `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` — DB check helpers for Prisma assertions. Executed on `feat/sp3-dispatch-cards`.
+
+### New file: `tests/e2e/helpers/db-check.ts`
+
+Created the DB check helper module with these exports:
+
+- `getBooking(bookingId)` — fetch booking with quoteRequest + servicer includes
+- `getTransactions(bookingId)` — fetch transactions for a booking ordered by createdAt
+- `getCustomerBalance(userId)` — fetch user creditBalance as Number
+- `getInvoice(bookingId)` — fetch first invoice for a booking
+- `getBookingCount()` — count all bookings
+- `getCategoryCount()` — count all categories
+- `verifyEscrowIntegrity(bookingId, log)` — check escrow hold/release/fee invariant (drift < RM0.02 tolerance), logs root cause analysis on failure
+- `disconnect()` — Prisma client disconnect
+
+**Verification:** File created at `tests/e2e/helpers/db-check.ts` (2722 bytes). No TypeScript compilation run — `@prisma/client` is in the backend directory and this file lives under `tests/e2e/` which has a separate tsconfig or is meant to be run via the E2E test runner. No commit made per user instructions.
+
+**Issues:** None.
+
 ## Session 2026-06-23 — Auto-Accept Wiring + Listing Preview (Item 2)
 
 **Scope:** TODO.md Item 2 — wire `evaluateAutoAcceptGates` into the live auto-accept flow, create listing preview endpoint, fix MYT `getUTCDay` bug in dispatch.service.ts. Executed on `feat/sp3-dispatch-cards`.
@@ -1192,6 +1213,24 @@ The schema `avatarUrl String? @map("avatar_url")` was already present on the Use
 
 (End of file — updated 2026-05-28)
 
+## Session 2026-06-24 — E2E QA Harness Task 2 (Group A)
+
+**Scope:** Build plan `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` Task 2 — Build StepLogger. Executed on `feat/sp3-dispatch-cards`.
+
+### Task 2 — Build StepLogger (incremental, crash-proof)
+
+- Created directory `tests/e2e/helpers/` (did not previously exist).
+- Created `tests/e2e/helpers/step-logger.ts` with the exact content from the build plan (lines 113-222).
+  - `StepLogger` class with incremental crash-proof logging: opens a file descriptor per scenario, fsyncs after every write, cleans up on exit/SIGINT/SIGTERM.
+  - Auto-increments run IDs: scans `logs/` for existing `e2e-qa-harness_*` directories, pads to 5 digits.
+  - Methods: `step`, `ok`, `fail`, `warn`, `info`, `network`, `consoleError`, `db`, `screenshot`, `rootCause`, `summary`.
+- Verified TypeScript compilation: `npx tsc --noEmit --strict --target ES2020 --moduleResolution node --module commonjs --skipLibCheck tests/e2e/helpers/step-logger.ts` — **zero type errors**. Only output was a deprecation warning (TS5107: moduleResolution=node10 deprecated), not a code error.
+- **Not committed** per instructions. No push.
+
+**Gates:**
+- TypeScript compilation: ✅ zero errors.
+- File created at correct path: ✅ `tests/e2e/helpers/step-logger.ts`.
+
 ---
 
 ### Session 2026-05-29 — Non-demo admin seed for clean runs
@@ -2238,3 +2277,81 @@ Docs synced: `schema-notes.md` (BOOKING confirmed-on-select), `api-doc.md`
 
 **Gates:**
 - `rtk proxy npx tsc --noEmit`: 0 errors.
+
+---
+
+## Session 2026-06-24 — Task FINTECH: P2-P4 service logic + routes (completes fintech roadmap)
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task FINTECH. Spec: `docs/superpowers/specs/2026-06-23-admin-dashboard-financial-redesign.md` §Fintech roadmap.
+
+P1 (Wallet model + service) and P5 (CSV export) were already done in the prior fintech session. This session delivered P2-P4 service logic and routes that were deferred.
+
+### P2 — Fee Engine (service logic + admin routes)
+
+**New files:**
+- `backend/src/services/fee-engine.service.ts` — FeeRule CRUD (`listFeeRules`, `createFeeRule`, `updateFeeRule`, `deleteFeeRule`) + `getApplicableFeeRules(appliesTo, categoryId?)` + `computeFees(baseAmount, appliesTo, categoryId?)`. The `computeFees` function stacks active FeeRules by priority, supports flat/percentage/tiered types, applies min/max/cap per rule, and falls back to legacy `platform_fee_rate` setting when no rules are configured.
+
+**New routes (admin, PIN-gated for write):**
+- `GET /admin/fee-rules` — list all fee rules
+- `POST /admin/fee-rules` — create fee rule
+- `PUT /admin/fee-rules/:id` — update fee rule
+- `DELETE /admin/fee-rules/:id` — delete fee rule
+
+**Wiring:**
+- `credit.service.ts` (`computeFee`): Now delegates to `computeFees(amount, 'booking', categoryId?)` from the FeeRule engine instead of hardcoded `computePlatformFee`.
+- `booking.jobs.ts` (`handleEscrowRelease`): Uses `computeFees(feeBase, 'booking', categoryId)` with category context from the booking's quoteRequest. Added open Dispute check alongside existing open Report check before escrow release.
+
+### P3 — Saved Payment Methods (CRUD routes)
+
+**New file:** `backend/src/services/saved-payment.service.ts` — CRUD operations (`listPaymentMethods`, `getPaymentMethod`, `createPaymentMethod`, `updatePaymentMethod`, `deletePaymentMethod`) with user-scoped ownership checks and atomic default-card unsetting.
+
+**New routes (customer):**
+- `GET /user/me/payment-methods` — list saved cards
+- `POST /user/me/payment-methods` — save a card (stripePaymentMethodId, brand, last4, expMonth, expYear, isDefault)
+- `PUT /user/me/payment-methods/:id` — update card (set default, update expiry)
+- `DELETE /user/me/payment-methods/:id` — delete saved card
+
+### P4 — Disputes (CRUD + resolution + escrow gating)
+
+**New file:** `backend/src/services/dispute.service.ts` — CRUD + status machine: `listDisputes`, `getDispute`, `openDispute` (block duplicate), `reviewDispute` (open→under_review), `resolveDispute` (under_review→resolved with resolution), `dismissDispute` (open/under_review→dismissed).
+
+**New routes:**
+- `POST /bookings/:id/dispute` — customer opens a dispute
+- `GET /admin/disputes` — admin list all (filterable by status, openedBy)
+- `GET /admin/disputes/:id` — admin detail
+- `PUT /admin/disputes/:id/review` — admin mark under review (PIN-gated)
+- `PUT /admin/disputes/:id/resolve` — admin resolve (PIN-gated, requires resolution type)
+- `PUT /admin/disputes/:id/dismiss` — admin dismiss (PIN-gated)
+
+**Escrow gating:** `booking.jobs.ts` `handleEscrowRelease` now queries `prisma.dispute.findFirst` for open/under_review disputes before releasing funds, retrying after 1 hour if blocked.
+
+### P5 — Verified
+- `GET /admin/financial/export?days=30` already exists — no changes needed.
+
+### Tests
+- `backend/tests/unit/fintech.test.ts` — 20 unit tests covering Wallet (5), Fee Engine (5), Saved Payments (5), Disputes (5). All Prisma calls mocked.
+
+**Gates:**
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (backend/) | ✅ 0 errors |
+| `npx jest tests/unit/fintech.test.ts` | ✅ 20/20 pass |
+
+## Session 2026-06-24 — BE-007 Fix: Service-Area Filter Neutered by `|| true`
+
+**Scope:** BUGS-TO-FIX.md BE-007 (CRITICAL #2). Fix the `|| true` guard in `findMatchingServicers()` that made every servicer pass the area filter regardless of their service areas.
+
+**Branch:** `feat/sp3-dispatch-cards`
+
+### Change
+
+- **`backend/src/services/quote.service.ts:118`** — Removed `|| true` from the substring-based area match return statement.
+  - Before: `return m.serviceAreas.some(...) || true;`
+  - After: `return m.serviceAreas.some(...);`
+  - Updated comment to reflect the new behavior (no longer claims "serve anyway").
+- Verified no similar `|| true` pattern in `servicer-quote.service.ts` (grep — single match, already fixed).
+
+**Gates:**
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (backend/) | ✅ 0 errors |
