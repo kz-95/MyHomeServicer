@@ -33,7 +33,7 @@ const mockPrisma = {
   penaltyRule: {
     findFirst: jest.fn(),
   },
-  merchantDeposit: {
+  servicerDeposit: {
     findUnique: jest.fn(),
     update: jest.fn(),
   },
@@ -93,7 +93,7 @@ function makeBooking(overrides: Record<string, unknown> = {}) {
   return {
     id: '00000000-0000-0000-0000-000000000001',
     userId: '00000000-0000-0000-0000-000000000003',
-    merchantId: '00000000-0000-0000-0000-000000000002',
+    servicerId: '00000000-0000-0000-0000-000000000002',
     quoteRequestId: '00000000-0000-0000-0000-000000000004',
     status: 'confirmed',
     paymentMode: 'pay_now',
@@ -119,7 +119,7 @@ function makeEscrow(overrides: Record<string, unknown> = {}) {
 // ── noshow.detect ─────────────────────────────────────────────────────────────
 
 describe('noshow.detect handler', () => {
-  const JOB = { bookingId: '00000000-0000-0000-0000-000000000001', merchantId: '00000000-0000-0000-0000-000000000002' };
+  const JOB = { bookingId: '00000000-0000-0000-0000-000000000001', servicerId: '00000000-0000-0000-0000-000000000002' };
 
   beforeEach(() => {
     mockPrisma.$transaction.mockImplementation(
@@ -254,16 +254,16 @@ describe('noshow.detect handler', () => {
 // ── penalty.deduct ────────────────────────────────────────────────────────────
 
 describe('penalty.deduct handler', () => {
-  const JOB_NOSHOW = { bookingId: '00000000-0000-0000-0000-000000000001', merchantId: '00000000-0000-0000-0000-000000000002', penaltyType: 'noshow' };
-  const JOB_CANCEL = { bookingId: '00000000-0000-0000-0000-000000000001', merchantId: '00000000-0000-0000-0000-000000000002', penaltyType: 'cancel' };
+  const JOB_NOSHOW = { bookingId: '00000000-0000-0000-0000-000000000001', servicerId: '00000000-0000-0000-0000-000000000002', penaltyType: 'noshow' };
+  const JOB_CANCEL = { bookingId: '00000000-0000-0000-0000-000000000001', servicerId: '00000000-0000-0000-0000-000000000002', penaltyType: 'cancel' };
 
   beforeEach(() => {
     mockPrisma.$transaction.mockImplementation(
       async (cb: (tx: typeof mockPrisma) => Promise<unknown>) => cb(mockPrisma),
     );
-    mockPrisma.merchantDeposit.findUnique.mockResolvedValue({
+    mockPrisma.servicerDeposit.findUnique.mockResolvedValue({
       id: 'dep-1',
-      merchantId: '00000000-0000-0000-0000-000000000002',
+      servicerId: '00000000-0000-0000-0000-000000000002',
       currentBalance: 500,
     });
     mockPrisma.penaltyLog.create.mockResolvedValue({});
@@ -275,7 +275,7 @@ describe('penalty.deduct handler', () => {
     const handler = getHandler('penalty.deduct');
     await handler(makeJob(JOB_NOSHOW));
 
-    expect(mockPrisma.merchantDeposit.update).not.toHaveBeenCalled();
+    expect(mockPrisma.servicerDeposit.update).not.toHaveBeenCalled();
     expect(mockPrisma.penaltyLog.create).not.toHaveBeenCalled();
   });
 
@@ -286,7 +286,7 @@ describe('penalty.deduct handler', () => {
     const handler = getHandler('penalty.deduct');
     await handler(makeJob(JOB_NOSHOW));
 
-    expect(mockPrisma.merchantDeposit.update).not.toHaveBeenCalled();
+    expect(mockPrisma.servicerDeposit.update).not.toHaveBeenCalled();
   });
 
   it('deducts a flat amount for calcMode="flat"', async () => {
@@ -303,7 +303,7 @@ describe('penalty.deduct handler', () => {
     const handler = getHandler('penalty.deduct');
     await handler(makeJob(JOB_NOSHOW));
 
-    expect(mockPrisma.merchantDeposit.update).toHaveBeenCalledWith(
+    expect(mockPrisma.servicerDeposit.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { currentBalance: { decrement: 50 } },
       }),
@@ -325,7 +325,7 @@ describe('penalty.deduct handler', () => {
     await handler(makeJob(JOB_CANCEL));
 
     // Math.round(120 * 10) / 100 = 12
-    expect(mockPrisma.merchantDeposit.update).toHaveBeenCalledWith(
+    expect(mockPrisma.servicerDeposit.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { currentBalance: { decrement: 12 } },
       }),
@@ -350,7 +350,7 @@ describe('penalty.deduct handler', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           bookingId: '00000000-0000-0000-0000-000000000001',
-          merchantId: '00000000-0000-0000-0000-000000000002',
+          servicerId: '00000000-0000-0000-0000-000000000002',
           type: 'noshow',
           amountDeducted: 30,
         }),

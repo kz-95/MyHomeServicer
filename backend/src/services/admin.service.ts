@@ -264,6 +264,132 @@ export async function getDashboardRevenue(days = 30, categoryId?: string): Promi
   return result;
 }
 
+/**
+ * Wipes and re-seeds the demo database by running `npm run reseed`. A
+ * development convenience only — refused when NODE_ENV=production (the seed
+ * scripts also refuse independently). The admin's session is invalidated
+ * afterwards since accounts are recreated with fresh IDs.
+ */
+export async function runReseed(): Promise<{ ok: boolean; durationMs: number }> {
+  if (!allowDemo) {
+    throw forbidden('Reseeding is disabled in production');
+  }
+  const start = Date.now();
+  logger.warn('Admin triggered a database reseed');
+  try {
+    await execAsync('npm run reseed', {
+      cwd: process.cwd(),
+      timeout: 180_000,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+  } catch (err) {
+    logger.error('Reseed failed', { error: (err as Error).message });
+    throw new ApiError('INTERNAL_ERROR', `Reseed failed: ${(err as Error).message}`);
+  }
+  const durationMs = Date.now() - start;
+  logger.info('Reseed complete', { durationMs });
+  return { ok: true, durationMs };
+}
+
+export async function runClear(): Promise<{ ok: boolean; durationMs: number }> {
+  if (!allowDemo) throw forbidden('Clear is disabled in production');
+  const start = Date.now();
+  logger.warn('Admin triggered a content clear — demo accounts preserved');
+  await prisma.chatMessage.deleteMany();
+  await prisma.chatSession.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.transaction.deleteMany();
+  await prisma.promotionRedemption.deleteMany();
+  await prisma.servicerCreditLog.deleteMany();
+  await prisma.penaltyAppeal.deleteMany();
+  await prisma.penaltyLog.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.escrow.deleteMany();
+  await prisma.report.deleteMany();
+  await prisma.orderHistory.deleteMany();
+  await prisma.booking.deleteMany();
+  await prisma.quoteProposal.deleteMany();
+  await prisma.quoteBroadcast.deleteMany();
+  await prisma.discountCode.deleteMany();
+  await prisma.quoteRequest.deleteMany();
+  await prisma.servicerWithdrawal.deleteMany();
+  await prisma.categoryRequest.deleteMany();
+  await prisma.promotion.deleteMany();
+  await prisma.quotePreset.deleteMany();
+  await prisma.refreshToken.deleteMany();
+  await prisma.otpCode.deleteMany();
+  await prisma.userDevice.deleteMany();
+  await prisma.jobQueue.deleteMany();
+  await prisma.idempotencyFallback.deleteMany();
+  const durationMs = Date.now() - start;
+  logger.info('Clear complete', { durationMs });
+  return { ok: true, durationMs };
+}
+
+/**
+ * Clears all transactional content (bookings, quotes, chat, penalties, etc.)
+ * while preserving demo account structure: users, servicers, services,
+ * deposits, categories, settings, feature flags, FAQ, penalty rules.
+ * Requires the admin action PIN for confirmation.
+ */
+export async function runClearContent(pin: string): Promise<{ ok: boolean; durationMs: number }> {
+  if (!allowDemo) throw forbidden('Clear content is disabled in production');
+  const admin = await prisma.user.findFirst({ where: { role: 'admin' } });
+  if (!admin?.actionPinHash) throw badRequest('Admin account not found or PIN not set');
+  const pinValid = await bcrypt.compare(pin, admin.actionPinHash);
+  if (!pinValid) throw badRequest('Incorrect PIN');
+
+  const start = Date.now();
+  logger.warn('Admin triggered unplug — removing all demo data');
+
+  await prisma.chatMessage.deleteMany();
+  await prisma.chatSession.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.llmApiKey.deleteMany({ where: { label: { startsWith: 'Demo ' } } });
+  await prisma.transaction.deleteMany();
+  await prisma.promotionRedemption.deleteMany();
+  await prisma.servicerCreditLog.deleteMany();
+  await prisma.penaltyAppeal.deleteMany();
+  await prisma.penaltyLog.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.escrow.deleteMany();
+  await prisma.report.deleteMany();
+  await prisma.orderHistory.deleteMany();
+  await prisma.booking.deleteMany();
+  await prisma.quoteProposal.deleteMany();
+  await prisma.quoteBroadcast.deleteMany();
+  await prisma.discountCode.deleteMany();
+  await prisma.quoteRequest.deleteMany();
+  await prisma.servicerWithdrawal.deleteMany();
+  await prisma.categoryRequest.deleteMany();
+  await prisma.promotion.deleteMany();
+  await prisma.quotePreset.deleteMany();
+  await prisma.customerPoints.deleteMany();
+  await prisma.pointsTransaction.deleteMany();
+  await prisma.redemption.deleteMany();
+  await prisma.reward.deleteMany();
+  await prisma.loyaltyTier.deleteMany();
+  await prisma.servicerDeposit.deleteMany();
+  await prisma.servicerDocument.deleteMany();
+  await prisma.servicerSchedule.deleteMany();
+  await prisma.servicerProposalPreset.deleteMany();
+  await prisma.servicerService.deleteMany();
+  await prisma.servicer.deleteMany();
+  await prisma.refreshToken.deleteMany();
+  await prisma.otpCode.deleteMany();
+  await prisma.userDevice.deleteMany();
+  await prisma.userAddress.deleteMany();
+  await prisma.user.deleteMany({ where: { id: { not: admin.id } } });
+  await prisma.jobQueue.deleteMany();
+  await prisma.idempotencyFallback.deleteMany();
+
+  const durationMs = Date.now() - start;
+  logger.info('Unplug complete — demo accounts removed', { durationMs });
+  return { ok: true, durationMs };
+}
+
 export async function listServicers(kycStatus?: string, categoryId?: string) {
   const servicers = await prisma.servicer.findMany({
     where: {

@@ -43,7 +43,7 @@ jest.mock('../../src/lib/prisma', () => ({
       updateMany: jest.fn(),
     },
     category: { findFirst: jest.fn() },
-    merchantDeposit: {
+    servicerDeposit: {
       findUnique: jest.fn().mockResolvedValue({ currentBalance: 500 }),
     },
     $queryRaw: jest.fn(),

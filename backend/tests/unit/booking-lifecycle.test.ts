@@ -36,7 +36,8 @@ jest.mock('../../src/lib/prisma', () => ({
 
 jest.mock('../../src/socket', () => ({
   emitToUser: jest.fn(),
-  emitToMerchant: jest.fn(),
+  emitToServicer: jest.fn(),
+  emitToServicers: jest.fn(),
 }));
 
 jest.mock('../../src/lib/queue', () => ({
@@ -72,7 +73,7 @@ import {
   arriveJob,
   doneJob,
   cashConfirm,
-  merchantCancelJob,
+  servicerCancelJob,
   addTip,
   customerCancelBooking,
 } from '../../src/services/booking.service';
@@ -317,19 +318,19 @@ describe('cashConfirm', () => {
   });
 });
 
-// ── merchantCancelJob guards ──────────────────────────────────────────────────
+// ── servicerCancelJob guards ──────────────────────────────────────────────────
 
-describe('merchantCancelJob', () => {
+describe('servicerCancelJob', () => {
   it('throws BUSINESS_RULE_VIOLATION on a completed booking', async () => {
     mockFindFirst.mockResolvedValue(makeBooking({ status: 'completed' }));
-    await expect(merchantCancelJob('merchant-1', 'booking-1', 'changed mind')).rejects.toMatchObject(
+    await expect(servicerCancelJob('merchant-1', 'booking-1', 'changed mind')).rejects.toMatchObject(
       { code: 'BUSINESS_RULE_VIOLATION' },
     );
   });
 
   it('throws BUSINESS_RULE_VIOLATION on an already-cancelled booking', async () => {
     mockFindFirst.mockResolvedValue(makeBooking({ status: 'cancelled' }));
-    await expect(merchantCancelJob('merchant-1', 'booking-1', 'changed mind')).rejects.toMatchObject(
+    await expect(servicerCancelJob('merchant-1', 'booking-1', 'changed mind')).rejects.toMatchObject(
       { code: 'BUSINESS_RULE_VIOLATION' },
     );
   });
@@ -337,7 +338,7 @@ describe('merchantCancelJob', () => {
   it('enqueues PENALTY_DEDUCT on a valid cancel', async () => {
     mockFindFirst.mockResolvedValue(makeBooking({ status: 'confirmed' }));
     mockUpdate.mockResolvedValue(makeBooking({ status: 'cancelled' }));
-    await merchantCancelJob('merchant-1', 'booking-1', 'changed mind');
+    await servicerCancelJob('merchant-1', 'booking-1', 'changed mind');
     expect(enqueue).toHaveBeenCalledWith(
       'penalty.deduct',
       expect.objectContaining({ penaltyType: 'cancel' }),
