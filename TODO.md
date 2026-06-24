@@ -25,7 +25,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 > - Plan 2 — `docs/superpowers/plans/2026-06-23-dispatch-card-visual.md` (card redesign + slot-load + map deep-link + taken-status)
 > - Plan 3 — `docs/superpowers/plans/2026-06-23-upload-fix-quote-images.md` (fix local-upload URL mismatch + quote images)
 > - Plan 4 — `docs/superpowers/plans/2026-06-23-servicer-calendar-polish.md` (calendar already wired; coherence + polish, item S1)
-> - Plan 5 — `docs/superpowers/plans/2026-06-23-customer-journey-polish.md` (C1 proposal logo + C2 Order History consolidation; C2 has open route-shape question — confirm before its Task 3)
+> - Plan 5 — `docs/superpowers/plans/2026-06-23-customer-journey-polish.md` (C1 proposal logo ✓; C2 CORRECTED to full customer route restructure — findService/quote rename + bookings split from history ✓; C3 quote photos above Extra Details ✓)
 
 - [ ] **1. Dispatch card spec — build top-down** (beat 2). Per the spec, in order:
   - [x] Schema migration: `QuoteRequest.isUrgent/urgentFee/images`, Booking carry-through, seed `urgent_same_day_fee` setting
@@ -47,10 +47,22 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   the emitters, then reuse for customer quote images (schema `images[]` in item 1, form
   upload, card thumbnails).
 - [x] **5. Chat-assisted quote flow** (beat 1) — smooth submission via demo button.
-- [x] **6. Admin financial dashboard** (beat 6) — revenue/fee/escrow cards + 30-day
-  chart from the real transaction ledger (not stubbed); urgent-fee line. Quick links,
-  date range.
-<!-- Item 7 removed per user request 2026-06-23 -->
+- [x] **6. Admin dashboard redesign** (beat 6) — revenue/fee/escrow cards + 30-day
+  line chart from the real transaction ledger (not stubbed); category breakdown; urgent-fee
+  line; quick links; date range. Spec: `docs/superpowers/specs/2026-06-23-admin-dashboard-financial-redesign.md`.
+- [ ] **7. Live dispatch overlay — VERIFY for demo** (beat 2, demo-critical) — the
+  real-time order-accept flow: a quote rotates to servicers one at a time and pops the
+  **accept-now overlay** with a countdown. Built (`backend/src/services/dispatch.service.ts`
+  `startDispatchRotation`, `dispatch.jobs.ts`, `frontend/.../shared/dispatch-overlay.component.ts`,
+  `dispatch-prompt-guard.component.ts`; specs `2026-05-28-dispatch-overlay.md`,
+  `2026-05-30-live-order-accept-dispatch-design.md`) but NOT walked end-to-end this phase.
+  Verify: broadcast → overlay prompt fires live → accept/decline → next servicer on timeout
+  → online/offline guard. This is the money-shot of beat 2 alongside the dispatch card.
+- [ ] **8. Finance engine — proper end-to-end** (beats 3/6, demo-critical) — verify the
+  whole money path reconciles with REAL numbers for the demo: `escrow_hold` at payment →
+  `escrow_release` + platform fee on completion → urgent-fee 20/80 split → all surfacing
+  correctly on the admin dashboard. Items 3 (escrow integrity) + 6 (dashboard) are the
+  pieces; this is the end-to-end reconciliation check. Full Wallet/Fee-engine build = STRETCH.
 
 ### Servicer journey polish (beats 2/5 — added 2026-06-23)
 
@@ -66,22 +78,22 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   has `servicer.logoUrl?` (line 15) but template renders only the name (lines 76/110),
   no `<img>`. Add servicer logo/avatar to each proposal card. Verify the proposals API
   actually sends `logoUrl` (fallback to initials/placeholder when null).
-- [ ] **C2. Customer route restructure** (corrected 2026-06-23 — first attempt merged
+- [x] **C2. Customer route restructure** (corrected 2026-06-23 — first attempt merged
   everything into one Order History, which was wrong). Target tree: `/customer/findService`
   (rename from browse `''`), `/customer/quote` (rename from `quote/new`), `/customer/quotes`,
   `/customer/bookings/{upcoming,inProgress}` (active — SEPARATE from history),
   `/customer/history` (past, with "Rebook this servicer"), `/customer/transactions`,
   `/rewards`, `/notifications`, `/account`. Full path rename WITH redirects from old paths.
-  See Plan 5 Task 3 (revised).
-- [ ] **C3. Quote photos above Extra Details** — move the quote-form "Add photos" upload
-  block above the "Extra Details:" label on the first page (currently below it). Plan 5 Task 4.
+  See Plan 5 Task 3 (revised). ✅ Fixed 2026-06-24 (2 nav items, context-aware tabs, redirects)
+- [x] **C3. Quote photos above Extra Details** — move the quote-form "Add photos" upload
+  block above the "Extra Details:" label on the first page. Plan 5 Task 4. ✅ Already in correct order in source; ticked
 
 ---
 
 ## STRETCH (after the demo thread holds)
 
 - [ ] Full fintech P1-P5 — Wallet model, Fee engine, Payment methods, Escrow automation,
-  Reporting. (admin dashboard "proper"; demo only needs items 3 + 6 above)
+  Reporting. (demo needs items 3 + 6 + 8 only; full Wallet/Fee-engine build deferred here)
 
 ---
 
@@ -98,6 +110,17 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [ ] IDOR audit on :id routes; Decimal-as-string coercion; global-search fields
 - [ ] QA harness follow-ups; re-seed + backfill-translations; FAQ knowledge base
 - [ ] Customer Support role (schema + middleware + portal)
+- [ ] **Servicer report button** (Active + History + dispatch overlay) — report a customer/job
+- [ ] **Admin reports list polish** — card rendering, category data, notifications
+- [ ] **Post-rename link sweep** — after the customer route rename (findService/quote, bookings/upcoming),
+  audit backend notification `linkUrl` emitters + Stripe return URLs (old `/bookings/active`,
+  `/customer/quote/new`) → repoint to new routes. Redirects cover most, but emitters should be clean.
+- [ ] **Notification service route emitters** — linkReorder, linkUrl correctness across all emitters
+- [ ] **Servicer dashboard quickLinks fix**
+- [ ] **Chat AI prompt route updates** + fix dead links (/customer/chat, /contact, /admin/dashboard)
+- [ ] **Code simplifier tracking** (TODO-CS.md, session log, Playwright spec)
+- [ ] **Prose hallucination in QA harness** (needs log to reproduce)
+- [ ] **routeFor() relative-path guard** (defense-in-depth)
 
 ---
 
