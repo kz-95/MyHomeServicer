@@ -255,8 +255,8 @@ apiRouter.post(
   '/dev/demo-login',
   asyncHandler(async (req, res) => {
     if (!allowDemo) throw badRequest('Demo login is disabled in production');
-    const { role, email: directEmail } = req.body ?? {};
-    const email = directEmail || DEMO_ACCOUNTS[role as string];
+    const { role } = req.body ?? {};
+    const email = DEMO_ACCOUNTS[role as string];
     if (!email) throw notFound(`No demo account for role "${role}"`);
     const { user, tokens } = await login(email, 'Demo@2026');
     const u: Record<string, unknown> = { id: user.id, email: user.email, role: user.role, creditBalance: user.creditBalance, isDemo: user.isDemo };
