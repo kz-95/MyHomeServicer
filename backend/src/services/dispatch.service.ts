@@ -1,11 +1,14 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
-import { badRequest, conflict, notFound } from '../lib/errors';
+import { badRequest, businessRule, conflict, notFound } from '../lib/errors';
+import { computeTotal, computePlatformFee, LineItem, ServicerTaxConfig } from '../lib/money';
 import { enqueue, JOB_NAMES, jobQueue } from '../lib/queue';
 import { emitToServicer, emitToServicers, emitToUser } from '../socket';
 import { notify } from './notification.service';
-import { getSetting } from './settings.service';
+import { getPlatformFeeRate, getSetting, getSstRate } from './settings.service';
+import { adjustCredit } from './credit.service';
+import { recordTransaction } from './ledger.service';
 import { resolveListingAccept } from './listing-accept.service';
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
@@ -215,7 +218,20 @@ export async function handleDispatchAccept(
       },
     });
 
-    return tx.booking.create({
+    // Build line-items snapshot (spec: single service line + urgent fee).
+    const lineItemsSnapshot: LineItem[] = [
+      { label: 'Service', amount: Number(accept.price), taxable: true, serviceChargeable: true },
+    ];
+    if (qr.isUrgent && qr.urgentFee) {
+      lineItemsSnapshot.push({
+        label: 'Urgent Same-Day Fee',
+        amount: Number(qr.urgentFee),
+        taxable: false,
+        serviceChargeable: false,
+      });
+    }
+
+    const created = await tx.booking.create({
       data: {
         quoteRequestId: qr.id,
         servicerId,
@@ -229,8 +245,114 @@ export async function handleDispatchAccept(
         confirmedAt: new Date(),
         isUrgent: qr.isUrgent ?? false,
         urgentFee: qr.urgentFee ?? null,
+        lineItems: lineItemsSnapshot as any,
       },
     });
+
+    // ── Pay-now: charge canonical total → escrow ─────────────────
+    if (qr.paymentMode === 'pay_now') {
+      const servicer = await tx.servicer.findUnique({ where: { id: servicerId } });
+      const [sstRate, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
+      const config: ServicerTaxConfig = {
+        serviceChargeRate: Number(servicer?.serviceChargeRate ?? 0),
+        sstRegistered: servicer?.sstRegistered ?? false,
+        sstRate,
+        taxInclusive: servicer?.taxInclusive ?? false,
+      };
+
+      const totalResult = computeTotal(lineItemsSnapshot, 0, config, 0);
+      const escrowTotal = totalResult.total;
+      const afterPromo = totalResult.afterPromo;
+      const platformFee = computePlatformFee(afterPromo, feeRate);
+
+      const escrow = await tx.escrow.create({
+        data: {
+          bookingId: created.id,
+          amount: escrowTotal,
+          platformFeeBase: afterPromo,
+          tipAmount: 0,
+        },
+      });
+
+      const budgetMax = qr.budgetMax != null ? Number(qr.budgetMax) : null;
+
+      if (budgetMax != null) {
+        // Credit was held at quote creation — compare with escrow total.
+        const diff = budgetMax - escrowTotal;
+        if (diff > 0) {
+          // Refund excess budget hold back to customer.
+          await adjustCredit('user', qr.userId, diff, tx);
+          await recordTransaction(
+            {
+              type: 'refund',
+              amount: diff,
+              bookingId: created.id,
+              userId: qr.userId,
+              escrowId: escrow.id,
+              reference: 'Budget excess refund on dispatch accept',
+            },
+            tx,
+          );
+        } else if (diff < 0) {
+          // Proposal exceeds budget hold — deduct the shortfall from wallet.
+          const shortfall = -diff;
+          const wallet = await tx.user.findUnique({
+            where: { id: qr.userId },
+            select: { creditBalance: true },
+          });
+          const currentBalance = Number(wallet?.creditBalance ?? 0);
+          if (currentBalance < shortfall) {
+            throw businessRule(
+              `Insufficient balance to cover the price difference. Need RM${shortfall.toFixed(2)}, have RM${currentBalance.toFixed(2)}. Please top up your wallet.`,
+            );
+          }
+          await adjustCredit('user', qr.userId, -shortfall, tx);
+          await recordTransaction(
+            {
+              type: 'escrow_hold',
+              amount: shortfall,
+              bookingId: created.id,
+              servicerId,
+              userId: qr.userId,
+              escrowId: escrow.id,
+              reference: 'Shortfall deduction — dispatch price exceeded budget',
+            },
+            tx,
+          );
+        }
+        // diff === 0: budget hold exactly matches escrow — no adjustment needed.
+      } else {
+        // No prior hold (open-ended budget) — deduct total now.
+        await adjustCredit('user', qr.userId, -escrowTotal, tx);
+        await recordTransaction(
+          {
+            type: 'escrow_hold',
+            amount: escrowTotal,
+            bookingId: created.id,
+            servicerId,
+            userId: qr.userId,
+            escrowId: escrow.id,
+            reference: 'Escrow hold on dispatch accept',
+          },
+          tx,
+        );
+      }
+
+      // Record the platform fee that will ultimately be taken.
+      await recordTransaction(
+        {
+          type: 'platform_fee',
+          amount: platformFee,
+          bookingId: created.id,
+          servicerId,
+          escrowId: escrow.id,
+          reference: `Platform fee reserve (pay_now, ${(feeRate * 100).toFixed(1)}%)`,
+        },
+        tx,
+      );
+    }
+
+    return created;
   });
 
   // Mark broadcast metadata.
