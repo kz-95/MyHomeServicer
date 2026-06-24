@@ -3,12 +3,14 @@ import { StepLogger } from '../helpers/step-logger';
 import { loginAs, getScreenshotPath } from '../helpers/auth-helpers';
 import { disconnect } from '../helpers/db-check';
 
-const SCENARIO_ID = 22;
+const SCENARIO_ID = 8;
 let log: StepLogger;
 let contextC: BrowserContext;
 let contextS1: BrowserContext;
+let contextS2: BrowserContext;
 let pageC: Page;
 let pageS1: Page;
+let pageS2: Page;
 
 const BACKEND = 'http://localhost:3000/api/v1';
 
@@ -49,21 +51,25 @@ async function setupServicerBeforeLogin(page: Page, email: string): Promise<void
   log.ok(`Pre-login setup`, `${email} online + ${weekday}/${timeSlot}`);
 }
 
-test.describe('Scenario 2b - Dispatch Decline + Rotation', () => {
+test.describe('Scenario 8 - Rotation (Decline on S1, Accept on S2)', () => {
   test.beforeAll(async ({ browser }) => {
-    log = new StepLogger('02b');
-    log.info('DB', 'test seed (8 servicers). Only 1 plumber (M1). Rotation to M37 (hairul) not possible without full seed.');
-    log.info('NOTE', 'Full rotation test requires full seed with 3 plumbers (M1, M37, M67).');
+    log = new StepLogger('08');
+    log.info('DB', 'assuming already seeded with M1 and M2 both qualifying for plumbing');
 
     contextC = await browser.newContext();
     contextS1 = await browser.newContext();
+    contextS2 = await browser.newContext();
     pageC = await contextC.newPage();
     pageS1 = await contextS1.newPage();
+    pageS2 = await contextS2.newPage();
 
     pageC.on('console', (msg) => {
       if (msg.type() === 'error') log.consoleError(msg.text(), msg.location().url);
     });
     pageS1.on('console', (msg) => {
+      if (msg.type() === 'error') log.consoleError(msg.text(), msg.location().url);
+    });
+    pageS2.on('console', (msg) => {
       if (msg.type() === 'error') log.consoleError(msg.text(), msg.location().url);
     });
   });
@@ -73,30 +79,23 @@ test.describe('Scenario 2b - Dispatch Decline + Rotation', () => {
     await disconnect();
     await contextC?.close();
     await contextS1?.close();
+    await contextS2?.close();
   });
 
-  test('2b.1 - Setup S1 + login', async () => {
-    log.step('Set isOnline + schedule for M1_ANAS BEFORE login');
+  test('8.1 - Setup both servicers online + schedule', async () => {
+    log.step('Setup both servicers');
 
     await pageC.goto('http://localhost:4200/login');
     await pageC.waitForTimeout(500);
+
     await setupServicerBeforeLogin(pageC, 'ahmad.bin.ismail@demo.local');
+    await setupServicerBeforeLogin(pageC, 'kumar.selvam@demo.local');
 
-    log.step('Login S1: M1_ANAS (Ahmad, plumber)');
-    await loginAs(pageS1, 'M1_ANAS', log);
-    await pageS1.goto('http://localhost:4200/servicer/jobs');
-    await pageS1.waitForTimeout(1000);
-    await pageS1.waitForFunction(
-      () => !!(window as any).__SOCKET__?.connected,
-      { timeout: 10000 },
-    ).catch(() => log.warn('S1 Socket', 'timed out'));
-
-    log.ok('S1 ready for dispatch');
-    await pageS1.screenshot({ path: getScreenshotPath(SCENARIO_ID, 1) });
+    log.ok('Both servicers online with schedule');
   });
 
-  test('2b.2 - Customer creates plumbing quote, S1 declines', async () => {
-    log.step('Customer creates plumbing quote');
+  test('8.2 - Login C_FRESH and submit plumbing quote', async () => {
+    log.step('Login C_FRESH');
     await loginAs(pageC, 'C_FRESH', log);
 
     await pageC.goto('http://localhost:4200/customer/findService');
@@ -109,7 +108,7 @@ test.describe('Scenario 2b - Dispatch Decline + Rotation', () => {
     await pageC.waitForSelector('.stepper', { timeout: 10000 });
 
     const budgetSlider = pageC.locator('input[name="budgetRange"]');
-    if (await budgetSlider.count() > 0) await budgetSlider.fill('1');
+    if (await budgetSlider.count() > 0) await budgetSlider.fill('2');
 
     const nextBtn1 = pageC.locator('button:has-text("Next: Contact")').first();
     if (await nextBtn1.count() > 0) await nextBtn1.click();
@@ -165,9 +164,23 @@ test.describe('Scenario 2b - Dispatch Decline + Rotation', () => {
     await pageC.waitForSelector('.confirm-card', { timeout: 15000 }).catch(() => {
       log.warn('Confirmation card', 'not visible');
     });
+    log.ok('Customer confirmation visible');
+    await pageC.screenshot({ path: getScreenshotPath(SCENARIO_ID, 1) });
+    log.screenshot('Plumbing quote submitted', null);
+  });
 
-    // Wait for overlay on S1
-    log.step('Waiting for dispatch overlay on S1');
+  test('8.3 - Login M1_ANAS, wait for dispatch overlay, decline', async () => {
+    log.step('Login S1: M1_ANAS');
+    await loginAs(pageS1, 'M1_ANAS', log);
+
+    await pageS1.goto('http://localhost:4200/servicer/jobs');
+    await pageS1.waitForTimeout(1000);
+    await pageS1.waitForFunction(
+      () => !!(window as any).__SOCKET__?.connected,
+      { timeout: 10000 },
+    ).catch(() => log.warn('S1 Socket', 'timed out'));
+
+    log.step('Wait for dispatch overlay on S1');
     await pageS1.bringToFront();
 
     const overlayS1 = pageS1.locator('app-dispatch-prompt-guard dialog[open]');
@@ -182,22 +195,15 @@ test.describe('Scenario 2b - Dispatch Decline + Rotation', () => {
 
     await pageS1.waitForTimeout(500);
 
-    // Verify category
     const catText = pageS1.locator('app-dispatch-prompt-guard strong').first();
     if (await catText.count() > 0) {
-      log.ok('Category', (await catText.textContent()) ?? '');
+      log.ok('Category on S1', (await catText.textContent()) ?? '');
     }
 
-    const countdown = pageS1.locator('.dp-countdown');
-    if (await countdown.count() > 0) {
-      log.ok('Countdown visible');
-    }
-
-    // Click Decline
     const declineBtn = pageS1.locator('.dp-btn-decline');
     await expect(declineBtn).toBeVisible({ timeout: 3000 });
     await declineBtn.click();
-    log.ok('S1 clicked Decline');
+    log.ok('S1 declined dispatch');
 
     await pageS1.waitForTimeout(2000);
     const stillOpen = await pageS1.locator('app-dispatch-prompt-guard dialog[open]').count();
@@ -208,21 +214,91 @@ test.describe('Scenario 2b - Dispatch Decline + Rotation', () => {
     }
 
     await pageS1.screenshot({ path: getScreenshotPath(SCENARIO_ID, 2) });
+    log.screenshot('S1 declined', null);
   });
 
-  test('2b.3 - Verify rotation attempt (S2 unavailable in test seed)', async () => {
-    log.step('Rotation verification');
+  test('8.4 - Login M2_WEI, wait for rotation dispatch overlay, accept', async () => {
+    log.step('Login S2: M2_WEI');
+    await loginAs(pageS2, 'M2_WEI', log);
 
-    // With test seed (only 1 plumber), rotation stops after M1 declines.
-    // The quote remains open for manual proposal in the pending queue.
-    // Full rotation test requires full seed (M37: hairul.azmi, M67: suhaimi.ghazali).
+    await pageS2.goto('http://localhost:4200/servicer/jobs');
+    await pageS2.waitForTimeout(1000);
+    await pageS2.waitForFunction(
+      () => !!(window as any).__SOCKET__?.connected,
+      { timeout: 10000 },
+    ).catch(() => log.warn('S2 Socket', 'timed out'));
 
-    await pageC.goto('http://localhost:4200/customer/quotes');
+    log.step('Wait for dispatch overlay on S2 (rotation)');
+    await pageS2.bringToFront();
+
+    const overlayS2 = pageS2.locator('app-dispatch-prompt-guard dialog[open]');
+    try {
+      await expect(overlayS2).toBeVisible({ timeout: 25000 });
+      log.ok('Dispatch overlay appeared on S2 - rotation working');
+    } catch {
+      log.fail('S2 overlay', 'not found - rotation may not have occurred');
+      await pageS2.screenshot({ path: getScreenshotPath(SCENARIO_ID, 3) });
+      return;
+    }
+
+    await pageS2.waitForTimeout(500);
+
+    const catText = pageS2.locator('app-dispatch-prompt-guard strong').first();
+    if (await catText.count() > 0) {
+      log.ok('Category on S2', (await catText.textContent()) ?? '');
+    }
+
+    const acceptBtn = pageS2.locator('.dp-btn-accept');
+    await expect(acceptBtn).toBeVisible({ timeout: 3000 });
+    await acceptBtn.click();
+    log.ok('S2 accepted dispatch');
+
+    await pageS2.waitForTimeout(2500);
+    const stillOpen = await pageS2.locator('app-dispatch-prompt-guard dialog[open]').count();
+    if (stillOpen === 0) {
+      log.ok('Overlay closed on S2 after accept');
+    } else {
+      log.warn('S2 overlay', 'still open after accept');
+    }
+
+    await pageS2.screenshot({ path: getScreenshotPath(SCENARIO_ID, 3) });
+    log.screenshot('S2 accepted rotation', null);
+  });
+
+  test('8.5 - Verify booking created', async () => {
+    log.step('Verify booking was created');
+
+    await pageC.goto('http://localhost:4200/customer/bookings');
     await pageC.waitForTimeout(2000);
 
-    // Quote should be in "open" status (no one accepted)
-    log.ok('Quote remains open (no second plumber to accept)');
+    const bookingCards = pageC.locator('.card.booking, .card.item, [class*="booking"]');
+    const count = await bookingCards.count();
+    if (count > 0) {
+      log.ok('Booking visible', `${count} booking(s) found`);
+    } else {
+      log.warn('Booking', 'none visible in customer bookings');
+    }
 
-    await pageC.screenshot({ path: getScreenshotPath(SCENARIO_ID, 3) });
+    try {
+      const bookingsResp = await pageC.evaluate(async () => {
+        const res = await fetch('http://localhost:3000/api/bookings', {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        return res.json();
+      });
+
+      const bookings = bookingsResp?.data ?? [];
+      if (bookings.length > 0) {
+        const latest = bookings[0];
+        log.ok('Booking in DB', `status: ${latest.status}, ID: ${latest.id}`);
+      } else {
+        log.fail('No bookings', 'found in DB');
+      }
+    } catch (e: any) {
+      log.warn('Booking query', `API call failed: ${e?.message ?? e}`);
+    }
+
+    await pageC.screenshot({ path: getScreenshotPath(SCENARIO_ID, 4) });
+    log.screenshot('Booking verified after rotation', null);
   });
 });

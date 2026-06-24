@@ -738,8 +738,12 @@ export async function listBookings(userId: string, status?: string) {
   return rows.map((b) => {
     const { invoice, quoteRequest, ...rest } = b as any;
     const addr = quoteRequest?.address ?? {};
+    const categoryName = quoteRequest?.category?.name ?? null;
+    const categoryIcon = quoteRequest?.category?.icon ?? null;
     return {
       ...rest,
+      categoryName,
+      categoryIcon,
       orderId: formatOrderId(b.orderNumber, b.createdAt),
       invoiceNumber: invoice?.invoiceNumber ?? null,
       address: addr.address ?? null,

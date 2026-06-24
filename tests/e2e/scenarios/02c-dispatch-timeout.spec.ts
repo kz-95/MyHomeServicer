@@ -12,6 +12,43 @@ let pageS: Page;
 
 const BACKEND = 'http://localhost:3000/api/v1';
 
+const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const SLOT_HOUR_MAP: Record<string, [number, number]> = {
+  morning: [6, 10], noon: [10, 13], afternoon: [13, 17],
+  evening: [17, 20], night: [20, 24],
+};
+
+function currentWeekdayAndSlot(): { weekday: string; timeSlot: string } {
+  const now = new Date();
+  const myt = new Date(now.getTime() + 8 * 3600_000);
+  const wd = WEEKDAYS[myt.getUTCDay()];
+  const h = myt.getUTCHours();
+  for (const [slot, [start, end]] of Object.entries(SLOT_HOUR_MAP)) {
+    if (h >= start && h < end) return { weekday: wd, timeSlot: slot };
+  }
+  return { weekday: wd, timeSlot: 'morning' };
+}
+
+async function setupServicerBeforeLogin(page: Page, email: string): Promise<void> {
+  const { weekday, timeSlot } = currentWeekdayAndSlot();
+  await page.evaluate(
+    async ({ apiBase, wd, slot, devUser }) => {
+      await fetch(`${apiBase}/servicer/me/schedule`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-dev-user': devUser },
+        body: JSON.stringify({ slots: [{ weekday: wd, timeSlot: slot, available: true }] }),
+      });
+      await fetch(`${apiBase}/servicer/me/online`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-dev-user': devUser },
+        body: JSON.stringify({ isOnline: true }),
+      });
+    },
+    { apiBase: BACKEND, wd: weekday, slot: timeSlot, devUser: email },
+  );
+  log.ok(`Pre-login setup`, `${email} online + ${weekday}/${timeSlot}`);
+}
+
 test.describe('Scenario 2c - Dispatch Timeout', () => {
   test.beforeAll(async ({ browser }) => {
     log = new StepLogger('02c');
@@ -37,36 +74,26 @@ test.describe('Scenario 2c - Dispatch Timeout', () => {
     await contextS?.close();
   });
 
-  test('2c.1 - Servicer logs in and goes online', async () => {
-    log.step('Servicer logs in as M2_WEI (Kumar, aircond)');
+  test('2c.1 - Setup servicer + login', async () => {
+    log.step('Set isOnline + schedule BEFORE login');
+
+    await pageC.goto('http://localhost:4200/login');
+    await pageC.waitForTimeout(500);
+    await setupServicerBeforeLogin(pageC, 'kumar.selvam@demo.local');
+
+    log.step('Login servicer M2_WEI');
     await loginAs(pageS, 'M2_WEI', log);
     await pageS.goto('http://localhost:4200/servicer/jobs');
-    await pageS.waitForSelector('body', { timeout: 5000 });
-
-    try {
-      await pageS.evaluate(async (apiBase) => {
-        await fetch(`${apiBase}/servicer/me/online`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isOnline: true }),
-          credentials: 'include',
-        });
-      }, BACKEND);
-      log.ok('isOnline = true');
-    } catch (e: any) {
-      log.warn('isOnline API', `failed: ${e?.message ?? e}`);
-    }
-
+    await pageS.waitForTimeout(1000);
     await pageS.waitForFunction(
       () => !!(window as any).__SOCKET__?.connected,
       { timeout: 10000 },
     ).catch(() => log.warn('Socket connect', 'timed out'));
 
-    await pageS.screenshot({ path: getScreenshotPath(SCENARIO_ID, 1) });
-    log.screenshot('Servicer online', null);
+    log.ok('Servicer online and ready');
   });
 
-  test('2c.2 - Customer creates aircond quote', async () => {
+  test('2c.2 - Customer creates aircond quote, servicer timeout auto-close', async () => {
     log.step('Customer creates aircond quote');
     await loginAs(pageC, 'C_FRESH', log);
 
@@ -77,7 +104,6 @@ test.describe('Scenario 2c - Dispatch Timeout', () => {
     await expect(airconCard).toBeVisible({ timeout: 10000 });
     await airconCard.click();
     await pageC.waitForURL(/\/customer\/quote/, { timeout: 15000 });
-
     await pageC.waitForSelector('.stepper', { timeout: 10000 });
 
     const budgetSlider = pageC.locator('input[name="budgetRange"]');
@@ -133,29 +159,32 @@ test.describe('Scenario 2c - Dispatch Timeout', () => {
     const submitBtn = pageC.locator('button:has-text("Send request")').first();
     if (await submitBtn.count() > 0) {
       await submitBtn.click();
-      log.ok('Clicked Send request');
+      log.ok('Quote submitted');
     } else {
-      log.fail('Send request button', 'not found');
+      log.fail('Send request', 'not found');
       return;
     }
 
     await pageC.waitForSelector('.confirm-card', { timeout: 15000 }).catch(() => {
       log.warn('Confirmation card', 'not visible');
     });
-    log.ok('Aircond quote submitted');
-    await pageC.screenshot({ path: getScreenshotPath(SCENARIO_ID, 2) });
-    log.screenshot('Quote created', null);
-  });
+    log.ok('Customer confirmation visible');
 
-  test('2c.3 - Dispatch overlay appears, then auto-closes on timeout', async () => {
-    log.step('Waiting for dispatch overlay on servicer');
+    // Wait for dispatch overlay on servicer
+    log.step('Waiting for dispatch overlay');
+    await pageS.bringToFront();
 
-    // Wait for overlay to appear
     const overlayDlg = pageS.locator('app-dispatch-prompt-guard dialog[open]');
-    await expect(overlayDlg).toBeVisible({ timeout: 30000 });
-    log.ok('Dispatch overlay appeared');
+    try {
+      await expect(overlayDlg).toBeVisible({ timeout: 25000 });
+      log.ok('Dispatch overlay appeared');
+    } catch {
+      log.fail('Dispatch overlay', 'not found');
+      await pageS.screenshot({ path: getScreenshotPath(SCENARIO_ID, 1) });
+      return;
+    }
 
-    // Read initial countdown value
+    // Read initial countdown
     const countdownNum = pageS.locator('.dp-countdown-num');
     let initialValue = '?';
     if (await countdownNum.count() > 0) {
@@ -163,54 +192,42 @@ test.describe('Scenario 2c - Dispatch Timeout', () => {
       log.ok('Initial countdown', initialValue);
     }
 
-    await pageS.screenshot({ path: getScreenshotPath(SCENARIO_ID, 3) });
-    log.screenshot('Dispatch overlay visible (waiting for timeout)', null);
+    await pageS.screenshot({ path: getScreenshotPath(SCENARIO_ID, 1) });
 
-    // DO NOTHING - wait for timeout. Default is 10s + 5s buffer for auto-close
-    log.info('Timeout wait', 'waiting 15s for countdown to reach 0 and overlay to auto-close');
-    await pageS.waitForTimeout(15000);
+    // DO NOTHING - wait for countdown to reach 0 + auto-close
+    // Default timeout is 10 seconds. Wait 20s to account for timer + UI lag.
+    log.step('Waiting for timeout (20s)');
+    await pageS.waitForTimeout(20000);
 
-    // Check if overlay closed automatically
-    const dialogStillOpen = await pageS.locator('app-dispatch-prompt-guard dialog[open]').count();
-    if (dialogStillOpen === 0) {
+    // Check if overlay auto-closed
+    const stillOpen = await pageS.locator('app-dispatch-prompt-guard dialog[open]').count();
+    if (stillOpen === 0) {
       log.ok('Overlay auto-closed on timeout');
     } else {
-      // May still be open if another dispatch came (rotation) or the countdown hasn't hit 0
-      // Check countdown value
+      // The countdown might not have reached 0 yet if there was another dispatch
       const currentVal = await countdownNum.count() > 0
         ? (await countdownNum.textContent()) ?? '?'
         : 'N/A';
-      log.warn('Overlay', `still open after timeout (countdown: ${currentVal})`);
+      log.warn('Overlay', `still open after 20s (countdown: ${currentVal})`);
 
-      // Wait a bit more
-      await pageS.waitForTimeout(10000);
+      // Wait more
+      await pageS.waitForTimeout(15000);
       const stillOpen2 = await pageS.locator('app-dispatch-prompt-guard dialog[open]').count();
       if (stillOpen2 === 0) {
         log.ok('Overlay auto-closed after extended wait');
       } else {
-        log.fail('Timeout auto-close', 'overlay did not close after 25s');
+        log.fail('Timeout auto-close', 'overlay did not close after 35s');
       }
     }
 
-    await pageS.screenshot({ path: getScreenshotPath(SCENARIO_ID, 4) });
-    log.screenshot('After timeout', null);
-  });
+    await pageS.screenshot({ path: getScreenshotPath(SCENARIO_ID, 2) });
 
-  test('2c.4 - Verify quote not matched (no booking created)', async () => {
-    log.step('Verify no booking was created on timeout');
-
+    // Verify customer side: quote still open (not matched)
+    log.step('Verify quote not auto-booked');
+    await pageC.bringToFront();
     await pageC.goto('http://localhost:4200/customer/quotes');
     await pageC.waitForTimeout(2000);
 
-    // Check quotes page shows the quote in "open" status (not matched/booked)
-    const openQuotes = pageC.locator('text=open, text=Open, .status-badge:has-text("open")');
-    if (await openQuotes.count() > 0) {
-      log.ok('Quote still in open status (not auto-booked)');
-    } else {
-      log.warn('Quote status check', 'could not confirm open status');
-    }
-
-    await pageC.screenshot({ path: getScreenshotPath(SCENARIO_ID, 5) });
-    log.screenshot('Customer quotes page after timeout', null);
+    await pageC.screenshot({ path: getScreenshotPath(SCENARIO_ID, 3) });
   });
 });

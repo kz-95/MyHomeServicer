@@ -24,7 +24,8 @@ interface Booking {
   timeSlot: string;
   tipStatus?: string;
   servicer: { id: string; businessName: string; logoUrl?: string; rating: number };
-  quoteRequest: { category: { name: string; icon?: string } };
+  categoryName: string | null;
+  categoryIcon: string | null;
   lat?: number | null;
   lng?: number | null;
   address?: string | null;
@@ -150,7 +151,7 @@ const TAB_ROUTES: Record<TabKey, string> = {
               </span>
               <button type="button" class="svc-name-btn" (click)="detailServicerId.set(b.servicer.id)">{{ b.servicer.businessName }}</button>
             </span>
-            <span class="muted">· {{ b.quoteRequest.category.name }}</span>
+            <span class="muted">· {{ b.categoryName }}</span>
             <div class="muted">
               RM {{ b.price | number: '1.2-2' }} · {{ b.paymentMode }} ·
               {{ b.scheduledDate | date: 'mediumDate' }} {{ b.timeSlot }}
@@ -752,7 +753,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
     if (q) {
       list = list.filter((b) => {
         if (b.servicer.businessName.toLowerCase().includes(q)) return true;
-        if (b.quoteRequest.category.name.toLowerCase().includes(q)) return true;
+        if (b.categoryName?.toLowerCase().includes(q)) return true;
         if (b.orderId?.toLowerCase().includes(q)) return true;
         if (b.invoiceNumber?.toLowerCase().includes(q)) return true;
         if (b.scheduledDate && new Date(b.scheduledDate).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' }).toLowerCase().includes(q)) return true;
