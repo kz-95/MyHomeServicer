@@ -68,7 +68,7 @@ interface AdminPromotion {
   createdAt: string;
 }
 
-type Tab = 'general' | 'categories' | 'servicer' | 'location' | 'thumbnails' | 'banned' | 'promotions';
+type Tab = 'general' | 'categories' | 'servicer' | 'location' | 'thumbnails' | 'banned' | 'promotions' | 'security';
 
 interface NumSetting {
   key: string;
@@ -92,6 +92,11 @@ const NUM_SETTINGS: NumSetting[] = [
   { key: 'quote_buffer_minutes', label: 'Quote buffer', hint: 'Minutes between the servicer deadline and the customer deadline.', tab: 'general', prop: 'minutes', kind: 'minutes' },
   { key: 'sst_rate', label: 'SST rate', hint: 'Malaysian SST applied where relevant.', tab: 'general', prop: 'rate', kind: 'percent' },
   { key: 'registered_customer_discount', label: 'Registered customer discount', hint: 'Discount automatically applied for all registered (non-guest) customers. 15% of the 20% platform charge - servicers see the full 20% deducted; 15% funds the customer discount and 5% is platform net revenue.', tab: 'general', prop: 'rate', kind: 'percent' },
+  // ── Security ──
+  { key: 'pin_min_length', label: 'PIN minimum length', hint: 'Minimum number of digits required for action PINs (admin and servicer).', tab: 'security', prop: 'length', kind: 'count' },
+  { key: 'pin_max_attempts', label: 'PIN max attempts', hint: 'Consecutive wrong PIN attempts before a cooldown is triggered.', tab: 'security', prop: 'attempts', kind: 'count' },
+  { key: 'pin_lockout_duration_seconds', label: 'PIN cooldown duration', hint: 'Seconds to wait after exceeding max wrong PIN attempts.', tab: 'security', prop: 'seconds', kind: 'count' },
+  { key: 'password_min_length', label: 'Password minimum length', hint: 'Minimum number of characters required for account passwords.', tab: 'security', prop: 'length', kind: 'count' },
 ];
 
 const POSTCODES_PER_PAGE = 20;
@@ -111,6 +116,7 @@ const POSTCODES_PER_PAGE = 20;
       <button class="tab" [class.active]="tab() === 'thumbnails'" (click)="tab.set('thumbnails')">Thumbnails</button>
       <button class="tab" [class.active]="tab() === 'banned'" (click)="tab.set('banned')">Banned</button>
       <button class="tab" [class.active]="tab() === 'promotions'" (click)="tab.set('promotions'); loadPromotions()">Promotions</button>
+      <button class="tab" [class.active]="tab() === 'security'" (click)="tab.set('security')">Security</button>
     </div>
 
     @if (loading()) {
@@ -739,6 +745,29 @@ const POSTCODES_PER_PAGE = 20;
             </form>
           </app-modal>
         }
+      }
+
+      <!-- ════════ SECURITY ════════ -->
+      @if (tab() === 'security') {
+        <section class="card page-child">
+          <h2>PIN &amp; Password Policy</h2>
+          <p class="muted">Security settings for action PINs and account passwords.</p>
+          @for (s of settingsFor('security'); track s.key) {
+            <div class="set-row">
+              <div class="set-info">
+                <strong>{{ s.label }}</strong>
+                <span class="muted">{{ s.hint }}</span>
+              </div>
+              <div class="set-edit">
+                <input type="number" min="0" [(ngModel)]="numModel[s.key]" [name]="s.key" />
+                <button class="btn-primary" (click)="saveNum(s)" [disabled]="savingKey() === s.key">
+                  {{ savingKey() === s.key ? '…' : 'Save' }}
+                </button>
+              </div>
+              @if (msg(); as m) { @if (m.key === s.key) { <span [class.err]="m.error" class="row-msg">{{ m.text }}</span> } }
+            </div>
+          }
+        </section>
       }
 
       <!-- ── Ban email modal ── -->

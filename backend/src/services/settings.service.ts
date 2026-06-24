@@ -25,6 +25,12 @@ const DEFAULTS: Record<string, unknown> = {
       { min: 350, max: null },
     ],
   },
+  // PIN security settings — used by pin-cooldown middleware and admin settings.
+  pin_max_attempts: { attempts: 3 },
+  pin_lockout_duration_seconds: { seconds: 60 },
+  pin_min_length: { length: 6 },
+  // Password policy settings.
+  password_min_length: { length: 8 },
 };
 
 export async function getSetting<T = unknown>(key: string): Promise<T> {
