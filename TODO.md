@@ -32,7 +32,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   - [x] Stream B — timing rework: job datetime from `preferredDate`+bucket (morning 9 / noon 11 / afternoon 13 / evening 15 / night 17 MYT — matches UI ranges); timer = now→job time; reject past bookings; fix MYT `getUTCDay` bug; drop customer deadline picker
   - [x] Stream C — urgent same-day: admin-configurable RM150 fee (20% platform / 80% servicer), customer warning hint, line-item + escrow split, admin-dashboard urgent-fee line
   - [x] Stream A — card visual: Price→Time→Place bold hierarchy, address, `[Urgent]` tag, propertyType chip, `View on map` deep-link (Google/Waze, new tab), ▾ expander (name/avatar/answers/notes). Frontend-only. File: `frontend/src/app/servicer/pages/incoming-quotes.component.ts`
-  - [ ] Tier 2 (optional): OSM mini-map in expander if `lat/lng` seeded
+  - [~] Tier 2 OSM mini-map — skipped; Google Maps deep-link covers demo need
 - [x] **2. Auto-accept wiring** (beat 2) — wire `evaluateAutoAcceptGates` into the live
   flow; listing preview endpoint. (SP3 work-stream B; MYT bug fixed in item 1)
 - [x] **3. Escrow integrity** (beat 3/6) — write `escrow_hold` at payment time; derive
@@ -58,6 +58,9 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   `2026-05-30-live-order-accept-dispatch-design.md`) but NOT walked end-to-end this phase.
   Verify: broadcast → overlay prompt fires live → accept/decline → next servicer on timeout
   → online/offline guard. This is the money-shot of beat 2 alongside the dispatch card.
+  **DEMO RISK:** the overlay only fires live if servicer `isOnline` presence + working-hours
+  availability gating are actually wired (SP4 — see brainstorm section). If presence isn't
+  live, the rotation/overlay won't trigger in the demo — verify/​wire this first.
 - [ ] **8. Finance engine — proper end-to-end** (beats 3/6, demo-critical) — verify the
   whole money path reconciles with REAL numbers for the demo: `escrow_hold` at payment →
   `escrow_release` + platform fee on completion → urgent-fee 20/80 split → all surfacing
@@ -71,6 +74,9 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   dispatch-card slot-load badge (same source): accepting a job appears on the calendar;
   the calendar is how the servicer sees "what's already in this slot". Wire data + nice
   layout (day/week, slot rows). Likely its own plan (Plan 4).
+- [ ] **S2. Distance in km on dispatch card** — show "~X km away" on the card face.
+  Needs: (1) `lat`/`lng` on Servicer model, (2) seed coordinates, (3) backend Haversine
+  calc in feed, (4) frontend render. Currently: `QuoteRequest` has coords, `Servicer` doesn't.
 
 ### Customer journey polish (beats 1/3 — added 2026-06-23)
 
@@ -97,7 +103,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 
 ---
 
-## DEFERRED (off the demo thread — do not touch this phase)
+## PLATFORM POLISH (post-demo — build now)
 
 - [ ] SP-3 work-streams A/C/E/F (schema rework, proposal redesign, module migration, tests)
 - [ ] Route redesign (nest admin/customer routes); fix remaining dead links
@@ -106,10 +112,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [ ] Forgot-password, settings refinements, PIN-registration settings
 - [ ] Cancel reason presets; form validation UX on all forms; admin footer wiring
 - [ ] No servicers seeded for painting/moving/gardening (browse shows 0)
-- [ ] CI/CD: set Meta WhatsApp secrets, delete old security.yml/ci.yml
 - [ ] IDOR audit on :id routes; Decimal-as-string coercion; global-search fields
-- [ ] QA harness follow-ups; re-seed + backfill-translations; FAQ knowledge base
-- [ ] Customer Support role (schema + middleware + portal)
 - [ ] **Servicer report button** (Active + History + dispatch overlay) — report a customer/job
 - [ ] **Admin reports list polish** — card rendering, category data, notifications
 - [ ] **Post-rename link sweep** — after the customer route rename (findService/quote, bookings/upcoming),
@@ -118,9 +121,43 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [ ] **Notification service route emitters** — linkReorder, linkUrl correctness across all emitters
 - [ ] **Servicer dashboard quickLinks fix**
 - [ ] **Chat AI prompt route updates** + fix dead links (/customer/chat, /contact, /admin/dashboard)
-- [ ] **Code simplifier tracking** (TODO-CS.md, session log, Playwright spec)
-- [ ] **Prose hallucination in QA harness** (needs log to reproduce)
 - [ ] **routeFor() relative-path guard** (defense-in-depth)
+
+---
+
+## DEFERRED
+
+- [ ] Customer Support role (schema + middleware + portal)
+- [ ] Code simplifier tracking (TODO-CS.md, session log, Playwright spec)
+- [ ] Prose hallucination in QA harness (needs log to reproduce)
+
+---
+
+## DISCUSSED / BRAINSTORMED (parked — from prior CEO sessions + repo specs, captured so nothing is lost)
+
+> These were discussed in CEO brainstorms (see memory) but are off the demo thread. Not lost.
+
+- [ ] **Servicer listing wizard** (the "SP3-wizard" initiative — distinct from the dispatch-card
+  spec's SP-3 streams) — rework `services.component.ts` (1151-line monolith) into a 4-step wizard
+  (basics / pricing / tax-modules / accept), create-then-PATCH save, routes `/services/new` +
+  `/:id/edit`, priced grid active-aware. 7 decisions locked (memory `project-sp3-wizard-design`);
+  full spec NOT written (stub in `2026-05-30-category-settings-question-schema-design.md`).
+- [ ] **Full SP4 live-dispatch design** (beyond item 7's overlay verify) — real `isOnline`
+  presence wiring; availability gating = online + working hours (`ServicerSchedule`);
+  admin-configurable rotation timer; decline → rotate → async fallback; Google Map preview in
+  the accept prompt. Spec: `2026-05-30-live-order-accept-dispatch-design.md`. (Item 7 depends on
+  the presence/availability part to fire live.)
+- [ ] **Navigation — Maps/Waze on confirmed booking** — job-detail "Open in Google Maps / Waze"
+  deep-link buttons once a booking is confirmed/in_progress/completed (separate from the
+  dispatch-card View-on-map). Memory `project-navigation-brainstorm`.
+- [ ] **In-app map debug** — the embedded `app-map-view` component is broken (API-key load / init
+  timing); fix before relying on embedded map previews. (Tier-2 OSM mini-map was skipped for demo.)
+- [ ] **Seed reform** — cap each servicer at 3 service listings (currently over-seeded). Lowest
+  priority, do last. Memory `project-seed-brainstorm`.
+- [ ] **Itemization** — separate "service listing" (the offering) vs "itemized line items"
+  (parts/labour breakdown within it). Deferred until SP2-SP4 land, then judge fit.
+- [ ] **Estimated duration on dispatch card face** — show "~90 min" per quote (from listing
+  prefill `estimatedDurationMin`); discussed in the dispatch spec, currently only in the propose flow.
 
 ---
 
