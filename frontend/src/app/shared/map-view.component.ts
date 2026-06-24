@@ -102,6 +102,11 @@ export class MapViewComponent implements OnInit, OnDestroy {
   private marker: google.maps.Marker | null = null;
   private scriptTag: HTMLScriptElement | null = null;
 
+  /** Max retries for key resolution (50 * 200ms = 10 seconds). */
+  private static readonly KEY_RETRY_MAX = 50;
+  private keyRetries = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+
   /** Fallback link to open in Google Maps. */
   mapsUrl(): string {
     if (this.lat != null && this.lng != null) {
@@ -115,6 +120,10 @@ export class MapViewComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
     if (this.scriptTag && this.scriptTag.parentNode) {
       this.scriptTag.parentNode.removeChild(this.scriptTag);
     }
@@ -128,10 +137,17 @@ export class MapViewComponent implements OnInit, OnDestroy {
   private loadMapsApi(): void {
     const key = this.config.googleMapsApiKey;
     if (!key) {
+      if (this.keyRetries < MapViewComponent.KEY_RETRY_MAX) {
+        this.keyRetries++;
+        this.retryTimer = setTimeout(() => this.loadMapsApi(), 200);
+        return;
+      }
       this.loaded.set(true);
       this.loadError.set(true);
       return;
     }
+    // Reset retries on success path
+    this.keyRetries = 0;
 
     if (typeof google !== 'undefined' && google.maps) {
       this.loaded.set(true);
