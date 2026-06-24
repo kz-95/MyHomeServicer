@@ -10,7 +10,19 @@ export interface FailureInfo {
   fixSuggestion: string;
 }
 
+/**
+ * UI DESIGN GUARDRAIL — categories that match visual/layout failures.
+ * When the root cause is one of these, the fixer must NOT revert component
+ * code — only update the test expectations.
+ */
+const DESIGN_SENSITIVE_CATEGORIES = new Set([
+  'SCREENSHOT_DIFF', 'SNAPSHOT_MISMATCH', 'LAYOUT', 'DIMENSION',
+  'VISUAL_REGRESSION',
+]);
+
 const KNOWN_PATTERNS: { re: RegExp; category: string; suggestion: string }[] = [
+  { re: /Screenshot|snapshot.*diff|image.*comparison/i, category: 'SCREENSHOT_DIFF', suggestion: 'Screenshot comparison failed — the rendered UI differs from the reference. If the change is intentional, re-generate snapshots with --update-snapshots. Do NOT revert the component code.' },
+  { re: /layout|dimension|width|height|scroll|overflow|position/i, category: 'LAYOUT', suggestion: 'A layout/dimension assertion failed. The UI may have been intentionally redesigned. Update the test to match the current design, do NOT revert the component.' },
   { re: /Timeout.*\b(\d+ms)\b/, category: 'TIMEOUT', suggestion: 'Increase timeout or check if the page/component loaded. The selector may be incorrect or the DOM structure changed.' },
   { re: /locator\s*:\s*["'](.+?)["']/i, category: 'SELECTOR', suggestion: 'The selector did not match any element. Inspect the DOM at the failure point. Update the selector to match the current template.' },
   { re: /has-text\(["'](.+?)["']\)/, category: 'TEXT_SELECTOR', suggestion: 'The button/label text may differ from expected. Check the rendered HTML for the exact text content (including whitespace, arrow chars, emoji).' },
@@ -92,6 +104,23 @@ export function parseFailureLog(logPath: string): FailureInfo | null {
 }
 
 export function formatFixerPrompt(failure: FailureInfo): string {
+  const isDesignSensitive = DESIGN_SENSITIVE_CATEGORIES.has(failure.errorType);
+  const designGuardrail = isDesignSensitive
+    ? [
+        '',
+        '### ⚠ UI DESIGN GUARDRAIL',
+        '',
+        'This failure is a visual/layout mismatch. The current UI may have been',
+        'intentionally redesigned. Do NOT revert the component code to match',
+        'outdated test expectations. Instead:',
+        '- Update selectors, expected text, or snapshot references in the test.',
+        '- For screenshot tests, run `npx playwright test --update-snapshots`.',
+        '- Only touch component code if it is a proven functional bug (broken',
+        '  interaction, missing data, crash), not a style/layout choice.',
+        '',
+      ]
+    : [];
+
   return [
     `## Fixer Task: Scenario ${failure.scenarioId}`,
     '',
@@ -112,6 +141,7 @@ export function formatFixerPrompt(failure: FailureInfo): string {
     '5. Re-run the failing scenario.',
     '6. If it passes, commit with the scenario ID in the message.',
     '',
+    ...designGuardrail,
   ].filter(Boolean).join('\n');
 }
 

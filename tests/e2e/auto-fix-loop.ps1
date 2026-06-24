@@ -65,6 +65,15 @@ Common issues:
 - API field missing → check response shape, update test or backend
 - Dispatch event not received → check isOnline/schedule setup
 - Dialog not found → check component uses native `<dialog>`
+
+UI DESIGN GUARDRAIL — DO NOT REVERT INTENTIONAL DESIGN
+If the failure is a visual/layout mismatch (screenshot diff, wrong dimensions,
+wrong text position, wrong button order):
+- The current UI may have been intentionally redesigned.
+- Do NOT revert the component code to match outdated test expectations.
+- Update the test (selector, snapshot reference, expected text/order) instead.
+- Only touch component code if it's a proven functional bug (broken interaction,
+  missing data, crash), not a style/layout choice.
 "
   $prompt | Out-File -FilePath $FixerPromptFile -Encoding utf8
   return $FixerPromptFile

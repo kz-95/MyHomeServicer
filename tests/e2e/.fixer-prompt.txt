@@ -19,6 +19,14 @@ You are an E2E test fixer. Your task is to fix a failing Playwright scenario.
 - **Dialog not found:** Component may use custom overlay not native `<dialog>`. Check the template and adjust selector.
 - **Timeout:** Increase timeout or add waitForSelector before the action.
 
+## UI DESIGN GUARDRAIL — DO NOT REVERT INTENTIONAL DESIGN
+
+If the failure is a visual/layout mismatch (screenshot diff, wrong dimensions, wrong text position):
+- The current UI may have been **intentionally redesigned**. Do NOT revert the code to match outdated test expectations.
+- Instead: **update the test** (selector, snapshot reference, or expected text) to match the current design.
+- Exception: only touch the component code if you can prove it's a functional bug (broken interaction, missing data, crash), not a style/layout choice.
+- Screenshot tests (`readme-screenshots.spec.ts`): re-generate snapshots with `npx playwright test --update-snapshots`.
+
 ## Steps
 
 1. Read the log file and find the FAIL line.

@@ -1109,6 +1109,14 @@ FIXER AGENT RULES (read before ANY action):
    If <50% confident: write "NEEDS INVESTIGATION" with what you checked and where
    to look next. Do NOT apply code changes.
 
+4b. UI DESIGN GUARDRAIL — If the failure is visual/layout (screenshot diff,
+    wrong selector, wrong text position, wrong dimensions), the current UI may
+    have been intentionally redesigned. Do NOT revert component code to match
+    outdated test expectations. Update the test (selector, snapshot, expected
+    text) to match the current design. Only touch component code for proven
+    functional bugs (broken interaction, crash, missing data). Screenshot tests:
+    re-generate with `npx playwright test --update-snapshots`.
+
 5. ONE FIX PER FAILURE — Each failure gets its own analysis. Don't batch
    unrelated fixes together. Each commit fixes one root cause.
 
@@ -1156,7 +1164,11 @@ export function formatFixerPrompt(report: FailureReport): string {
     '     value accounts for: promo discounts, urgent fees, tax, tip.',
     '□ 4. TRACE the data flow from source to assertion. Confirm the',
     '     money/variable actually goes missing where the analysis claims.',
-    '□ 5. DECIDE:',
+    '□ 5. Is this a VISUAL/LAYOUT failure? If yes:',
+    '     → The UI may have been intentionally redesigned.',
+    '     → Update the test (selector, snapshot, expected text).',
+    '     → Do NOT revert component code for style/layout mismatches.',
+    '□ 6. DECIDE:',
     '     ≥90% sure → APPLY FIX, commit, push',
     '     50-89% sure → TENTATIVE FIX with reasoning, do NOT push',
     '     <50% sure → NEEDS INVESTIGATION report, do NOT change code',
