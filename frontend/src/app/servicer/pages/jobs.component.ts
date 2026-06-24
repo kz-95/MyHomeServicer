@@ -67,6 +67,9 @@ interface Job {
   cashConfirmed: boolean;
   etaMinutes?: number | null;
   orderId?: string;
+  lat?: number | null;
+  lng?: number | null;
+  address?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
   quoteRequest: { category: { name: string } };
@@ -362,6 +365,10 @@ const ACTIVE = ['confirmed', 'in_progress'];
                     ></app-wa-button>
                   }
                   <button class="btn-ghost" (click)="cancel(j)">Cancel</button>
+                  @if (j.lat != null && j.lng != null) {
+                    <button class="map-link" (click)="openJobMap(j, 'google')">Maps</button>
+                    <button class="map-link" (click)="openJobMap(j, 'waze')">Waze</button>
+                  }
                 </div>
                 <button class="btn-ghost small-btn" (click)="openOverlay(j.id)">
                   View details
@@ -407,6 +414,10 @@ const ACTIVE = ['confirmed', 'in_progress'];
                       <button class="btn-primary btn-cash" (click)="$event.stopPropagation(); cashConfirm(j)">Confirm cash</button>
                     }
                     <button class="btn-ghost btn-sm" (click)="$event.stopPropagation(); openInvoice(j)"><app-icon name="file-text" sizeToken="sm" /> Invoice</button>
+                    @if (j.status === 'completed' && j.lat != null && j.lng != null) {
+                      <button class="map-link" (click)="$event.stopPropagation(); openJobMap(j, 'google')">Maps</button>
+                      <button class="map-link" (click)="$event.stopPropagation(); openJobMap(j, 'waze')">Waze</button>
+                    }
                   </div>
                 </div>
               </div>
@@ -753,6 +764,17 @@ const ACTIVE = ['confirmed', 'in_progress'];
       }
       .pq-addr { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
       .pq-map-btn { font-size: 0.75rem; padding: 0.25rem 0.7rem; flex-shrink: 0; }
+      .map-link {
+        background: none;
+        border: none;
+        color: var(--color-primary);
+        cursor: pointer;
+        font-size: 0.82rem;
+        padding: 0;
+        text-decoration: underline;
+        font-family: inherit;
+      }
+      .map-link:hover { color: var(--color-text); }
       .pq-foot {
         display: flex;
         align-items: flex-start;
@@ -1242,6 +1264,14 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     this.photoTargetPurpose === 'arrive_photo' ? 'Upload arrival photo' : 'Upload completion photo',
   );
 
+  // ── Report modal state ──────────────────────────────────────────────────
+  reportModalOpen = signal(false);
+  reportSubject = signal('');
+  reportDescription = signal('');
+  reportError = signal('');
+  reportSubmitting = signal(false);
+  private reportTargetJobId = signal<string | null>(null);
+
   // ── Invoice modal state ─────────────────────────────────────────────────
   invoiceModalOpen = signal(false);
   invoiceData = signal<{ invoiceNumber: string; total: number; issuedAt: string; paidAt: string | null; pdfUrl: string | null } | null>(null);
@@ -1662,6 +1692,16 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     this.act(`/servicer/jobs/${j.id}/cash-confirm`, {}, 'Cash confirmed.');
   }
 
+  /** Open job location in Google Maps or Waze in a new tab. */
+  openJobMap(j: Job, app: 'google' | 'waze'): void {
+    const hasCoords = j.lat != null && j.lng != null;
+    if (!hasCoords) return;
+    const url = app === 'waze'
+      ? `https://waze.com/ul?ll=${j.lat},${j.lng}&navigate=yes`
+      : `https://www.google.com/maps/dir/?api=1&destination=${j.lat},${j.lng}`;
+    window.open(url, '_blank', 'noopener');
+  }
+
   cancel(j: Job): void {
     this.dialog
       .prompt('Reason for cancelling?', {
@@ -1769,5 +1809,41 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
           this.photoError.set(e.message ?? 'Upload failed - please try again.');
         },
       });
+  }
+
+  // ── Report issue ──────────────────────────────────────────────────────────
+  openReportModal(jobId: string, event: MouseEvent): void {
+    event.stopPropagation();
+    this.reportTargetJobId.set(jobId);
+    this.reportSubject.set('');
+    this.reportDescription.set('');
+    this.reportError.set('');
+    this.reportModalOpen.set(true);
+  }
+
+  closeReportModal(): void {
+    this.reportModalOpen.set(false);
+    this.reportError.set('');
+  }
+
+  submitReport(): void {
+    const jobId = this.reportTargetJobId();
+    if (!jobId) return;
+    const subject = this.reportSubject()?.trim();
+    const desc = this.reportDescription()?.trim();
+    if (!subject) { this.reportError.set('Please enter a subject.'); return; }
+    if (!desc) { this.reportError.set('Please enter a description.'); return; }
+    this.reportSubmitting.set(true);
+    this.api.post(`/servicer/jobs/${jobId}/report`, { subject, description: desc }).subscribe({
+      next: () => {
+        this.reportSubmitting.set(false);
+        this.reportModalOpen.set(false);
+        this.toast.success('Report submitted. Admin will review it.');
+      },
+      error: (e) => {
+        this.reportSubmitting.set(false);
+        this.reportError.set(e.message ?? 'Failed to submit report');
+      },
+    });
   }
 }

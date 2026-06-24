@@ -181,8 +181,8 @@ interface JobDetail {
 
             </div>
 
-            @if (!readOnly) {
-              <div class="dispatch-actions">
+            <div class="dispatch-actions">
+              @if (!readOnly) {
                 @if (isStatus('confirmed')) {
                   <button class="btn-primary" (click)="markArrived()">&#x1F4F8; Mark Arrived</button>
                 }
@@ -192,8 +192,9 @@ interface JobDetail {
                 @if (isStatus('pending_confirm', 'confirmed')) {
                   <button class="btn-ghost" (click)="openCancelModal()">&#x1F6AB; Cancel</button>
                 }
-              </div>
-            }
+              }
+              <button class="btn-ghost report-btn" (click)="openReportModal()">&#x1F6A8; Report Issue</button>
+            </div>
             }
           }
         </div>
@@ -211,6 +212,24 @@ interface JobDetail {
           </div>
           <p class="muted">Opens Google Maps or Waze</p>
           <button class="btn-ghost" (click)="showQr.set(false)">&larr; Back to job</button>
+        </div>
+      }
+    </dialog>
+
+    <dialog #reportDlg class="dispatch-dialog" (mousedown)="onDown($event)" (mouseup)="onUp($event, 'report')" (cancel)="$event.preventDefault(); closeReportModal()">
+      @if (showReportModal()) {
+        <div class="dispatch-cancel">
+          <h3>&#x1F6A8; Report an issue</h3>
+          <p class="muted small">Describe the problem with this booking.</p>
+          <form (ngSubmit)="submitReport()">
+            <label>Subject *<input type="text" [(ngModel)]="reportSubject" name="rsubject" placeholder="Brief summary" required /></label>
+            <label>Description *<textarea [(ngModel)]="reportDescription" name="rdesc" rows="3" placeholder="Details about the issue" required></textarea></label>
+            @if (reportError()) { <p class="err">{{ reportError() }}</p> }
+            <div class="cancel-actions">
+              <button type="submit" class="btn-primary" [disabled]="reportSubmitting()">{{ reportSubmitting() ? 'Submitting\u2026' : 'Submit report' }}</button>
+              <button type="button" class="btn-ghost" (click)="closeReportModal()">Cancel</button>
+            </div>
+          </form>
         </div>
       }
     </dialog>
@@ -633,6 +652,7 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
 
   @ViewChild('mainDlg') private mainDlg?: ElementRef<HTMLDialogElement>;
   @ViewChild('qrDlg') private qrDlg?: ElementRef<HTMLDialogElement>;
+  @ViewChild('reportDlg') private reportDlg?: ElementRef<HTMLDialogElement>;
   @ViewChild('cancelDlg') private cancelDlg?: ElementRef<HTMLDialogElement>;
 
   private api = inject(ApiService);
@@ -646,6 +666,7 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
     // Keep each native top-layer dialog in step with its signal.
     effect(() => this.toggle(this.mainDlg, this.open()));
     effect(() => this.toggle(this.qrDlg, this.showQr()));
+    effect(() => this.toggle(this.reportDlg, this.showReportModal()));
     effect(() => this.toggle(this.cancelDlg, this.showCancelModal()));
   }
 
@@ -660,18 +681,19 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
     this.downTarget = event.target;
   }
 
-  onUp(event: MouseEvent, which: 'main' | 'qr' | 'cancel'): void {
+  onUp(event: MouseEvent, which: 'main' | 'qr' | 'report' | 'cancel'): void {
     const onBackdrop =
       event.target === event.currentTarget && this.downTarget === event.currentTarget;
     this.downTarget = null;
     if (!onBackdrop) return;
     if (which === 'main') this.close();
     else if (which === 'qr') this.showQr.set(false);
+    else if (which === 'report') this.closeReportModal();
     else this.cancelModalClose();
   }
 
   ngOnDestroy(): void {
-    for (const ref of [this.mainDlg, this.qrDlg, this.cancelDlg]) {
+    for (const ref of [this.mainDlg, this.qrDlg, this.reportDlg, this.cancelDlg]) {
       const dlg = ref?.nativeElement;
       if (dlg?.open) dlg.close();
     }
@@ -685,6 +707,12 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
   showQr = signal(false);
   qrDataUrl = signal('');
   navOpen = signal(false);
+
+  showReportModal = signal(false);
+  reportSubject = signal('');
+  reportDescription = signal('');
+  reportError = signal('');
+  reportSubmitting = signal(false);
 
   showCancelModal = signal(false);
   cancelReason = signal('');
@@ -823,6 +851,37 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.cancelError.set('Could not verify PIN. Try again.');
+      },
+    });
+  }
+
+  openReportModal(): void {
+    this.reportSubject.set('');
+    this.reportDescription.set('');
+    this.reportError.set('');
+    this.showReportModal.set(true);
+  }
+
+  closeReportModal(): void {
+    this.showReportModal.set(false);
+    this.reportError.set('');
+  }
+
+  submitReport(): void {
+    const subject = this.reportSubject()?.trim();
+    const desc = this.reportDescription()?.trim();
+    if (!subject) { this.reportError.set('Please enter a subject.'); return; }
+    if (!desc) { this.reportError.set('Please enter a description.'); return; }
+    this.reportSubmitting.set(true);
+    this.api.post(`/servicer/jobs/${this.jobId}/report`, { subject, description: desc }).subscribe({
+      next: () => {
+        this.reportSubmitting.set(false);
+        this.showReportModal.set(false);
+        this.toast.success('Report submitted. Admin will review it.');
+      },
+      error: (e) => {
+        this.reportSubmitting.set(false);
+        this.reportError.set(e.message ?? 'Failed to submit report');
       },
     });
   }

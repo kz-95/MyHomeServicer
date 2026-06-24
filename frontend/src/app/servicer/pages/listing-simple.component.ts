@@ -24,7 +24,7 @@ interface CategoryQuestion {
 @Component({
   selector: 'app-listing-simple',
   standalone: true,
-  imports: [FormsModule, IconComponent],
+  imports: [FormsModule],
   template: `
     <div class="page-enter wrap">
       <button class="btn-ghost back" (click)="cancel()">← Back</button>
@@ -39,34 +39,6 @@ interface CategoryQuestion {
       }
 
       <div class="card form">
-        <!-- Photo -->
-        <div class="photo-row">
-          <div class="photo-frame">
-            @if (f.imageUrl) {
-              <img [src]="f.imageUrl" alt="Listing photo" />
-            } @else {
-              <span class="ph"><app-icon name="image" sizeToken="lg" strokeWidth="1.5" /></span>
-            }
-          </div>
-          <div class="photo-ctl">
-            <label class="btn-ghost file-btn">
-              {{ uploading() ? uploadStatus() : f.imageUrl ? 'Replace photo' : 'Add photo (optional)' }}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                (change)="onPhoto($event)"
-                [disabled]="uploading()"
-                hidden
-              />
-            </label>
-            @if (f.imageUrl) {
-              <button class="btn-ghost small" (click)="f.imageUrl = null" [disabled]="uploading()">Remove</button>
-            }
-            @if (photoError()) {
-              <span class="err">{{ photoError() }}</span>
-            }
-          </div>
-        </div>
 
         <label>
           <span>Title<span class="req"> *</span></span>

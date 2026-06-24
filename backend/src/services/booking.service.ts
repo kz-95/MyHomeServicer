@@ -9,7 +9,7 @@ import { recordTransaction } from './ledger.service';
 import { adjustCredit, computeFee } from './credit.service';
 import { computeTotal, computePlatformFee, LineItem, ServicerTaxConfig } from '../lib/money';
 import { getPlatformFeeRate, getSstRate } from './settings.service';
-import { notify } from './notification.service';
+import { notify, notifyAdmins } from './notification.service';
 import { generateInvoice } from './invoice.service';
 import { awardPoints, awardReviewPoints } from './points.service';
 import { createBookingPaymentSession } from '../lib/stripe';
@@ -666,7 +666,7 @@ export async function listServicerJobs(servicerId: string, status?: string) {
     where: { servicerId, ...(filter ? { status: filter } : {}) },
     orderBy: { createdAt: 'desc' },
     include: {
-      quoteRequest: { select: { category: { select: { name: true } } } },
+      quoteRequest: { select: { category: { select: { name: true } }, address: true } },
       proposal: { select: { etaMinutes: true } },
       // Customer contact for the active-job WhatsApp button. Only surfaced for
       // confirmed/in-progress/completed jobs below (not pending_confirm).
@@ -737,13 +737,21 @@ export async function listBookings(userId: string, status?: string) {
     orderBy: { createdAt: 'desc' },
     include: {
       servicer: { select: { id: true, businessName: true, logoUrl: true, rating: true } },
-      quoteRequest: { select: { category: { select: { name: true, icon: true } } } },
+      quoteRequest: { select: { category: { select: { name: true, icon: true } }, address: true } },
       invoice: { select: { invoiceNumber: true } },
     },
   });
   return rows.map((b) => {
-    const { invoice, ...rest } = b as any;
-    return { ...rest, orderId: formatOrderId(b.orderNumber, b.createdAt), invoiceNumber: invoice?.invoiceNumber ?? null };
+    const { invoice, quoteRequest, ...rest } = b as any;
+    const addr = quoteRequest?.address ?? {};
+    return {
+      ...rest,
+      orderId: formatOrderId(b.orderNumber, b.createdAt),
+      invoiceNumber: invoice?.invoiceNumber ?? null,
+      address: addr.address ?? null,
+      lat: addr.lat ?? null,
+      lng: addr.lng ?? null,
+    };
   });
 }
 
@@ -875,9 +883,15 @@ export async function reportBookingProblem(
 ) {
   const booking = await prisma.booking.findFirst({ where: { id: bookingId, userId } });
   if (!booking) throw notFound('Booking not found');
-  return prisma.report.create({
+  const report = await prisma.report.create({
     data: { bookingId, userId, subject, description },
   });
+  notifyAdmins({
+    type: 'queues',
+    message: `New report: "${subject}"`,
+    linkUrl: '/admin/queues?tab=reports',
+  }).catch(() => {});
+  return report;
 }
 
 // ── Settlement ────────────────────────────────────────────────────────────────
@@ -1251,9 +1265,15 @@ export async function createBugReport(
   subject: string,
   description: string,
 ) {
-  return prisma.report.create({
+  const report = await prisma.report.create({
     data: { bookingId: null, userId, subject, description },
   });
+  notifyAdmins({
+    type: 'queues',
+    message: `New bug report: "${subject}"`,
+    linkUrl: '/admin/queues?tab=reports',
+  }).catch(() => {});
+  return report;
 }
 
 /**

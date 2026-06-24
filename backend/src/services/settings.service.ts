@@ -31,6 +31,17 @@ const DEFAULTS: Record<string, unknown> = {
   pin_min_length: { length: 6 },
   // Password policy settings.
   password_min_length: { length: 8 },
+  // Cancel reason presets shown as dropdown when cancelling bookings.
+  cancel_reasons: {
+    reasons: [
+      { label: 'Found another servicer', value: 'found_another_servicer', sortOrder: 1 },
+      { label: 'Changed my mind', value: 'changed_my_mind', sortOrder: 2 },
+      { label: 'Too expensive', value: 'too_expensive', sortOrder: 3 },
+      { label: 'No longer needed', value: 'no_longer_needed', sortOrder: 4 },
+      { label: 'Scheduling conflict', value: 'scheduling_conflict', sortOrder: 5 },
+      { label: 'Service details changed', value: 'service_details_changed', sortOrder: 6 },
+    ],
+  },
 };
 
 export async function getSetting<T = unknown>(key: string): Promise<T> {

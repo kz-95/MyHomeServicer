@@ -2089,3 +2089,123 @@ Docs synced: `schema-notes.md` (BOOKING confirmed-on-select), `api-doc.md`
 - `quotes.routes.ts`: accepts `paymentIntentId` in `/:id/select`
 - `booking.service.ts`: `selectProposal` handles gateway paymentIntentId — skips wallet deduction, records gateway_payment transaction
 - `booking.service.ts`: servicer job notifications link to `/servicer/jobs/active` (confirmed) and `/servicer/jobs/history` (cancelled)
+
+## Session 2026-06-24 — S2-BE + SP4-BE Verification (CEO dispatch)
+
+**Scope:** Verified existing implementation per `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Group 1 Step 1.1 + 1.2. Both tasks already implemented. No code changes needed.
+
+### S2-BE — lat/lng + Haversine + distanceKm
+- **Schema:** `lat` (Float? @DoublePrecision) and `lng` (Float? @DoublePrecision) on Servicer model — lines 469-470 of schema.prisma.
+- **Migration:** `20260624065325_add_servicer_coords` already applied.
+- **Haversine:** `backend/src/lib/haversine.ts` — correct Haversine formula, returns km rounded to 2 decimals, handles null/NaN inputs (returns 0).
+- **Service wiring:** `servicer-quote.service.ts:10` imports `haversineKm`, lines 324-326 compute `distanceKm` in mapped response. Servicer select includes `lat`, `lng` at line 267.
+- **Seed coordinates:** `seed.ts:45-74` `areaCoords()` derives lat/lng from area string (11 KL/PJ patterns). Lines 545-546 fallback to `m.lat ?? areaCoords(m.area).lat`.
+- **Exist usage:** `sp3-auto-accept.service.ts:81`, `proposal-view.service.ts:114`, `quote.service.ts:109` all import `haversineKm` from `../lib/distance` (separate copy in `lib/distance.ts:24`).
+
+### SP4-BE — isOnline + schedule gating + rotation timer + decline→rotate
+- **isOnline gate:** `dispatch.service.ts:48` — `if (!m.isOnline) continue;` filters offline servicers.
+- **Working-hours gate:** Lines 50-58 — queries `ServicerSchedule` by `weekday` + `isAvailable`, checks `currentHour` against `slotHourRange()`.
+- **Configurable timer:** Lines 98-99 — `getSetting<{ seconds: number }>('dispatch_prompt_timeout_seconds')`, defaults read from platform settings.
+- **Decline→Rotate:** `handleDispatchDecline()` lines 273-358 — marks declined, cancel rotation job, find next servicer from rotation order, check next isOnline, send new prompt, enqueue new timeout. Pool exhaustion logged at line 355.
+- **Timeout→Rotate:** `handleDispatchTimeout()` lines 363-388 — marks timed-out broadcast as declined, calls `handleDispatchDecline` to rotate.
+- **HTTP routes:** `servicer.routes.ts:1006-1025` — `POST /servicer/dispatch/:broadcastId/accept` (+idempotency) and `POST .../decline`.
+- **BullMQ:** `dispatch.jobs.ts:10-19` registers `DISPATCH_ROTATION` handler, dynamically imports `handleDispatchTimeout`.
+- **MYT fix:** `startDispatchRotation` line 41 computes `mytNow` before deriving both `currentDay` and `currentHour` (same fix applied in session 2026-06-23).
+
+**Gates:**
+- `rtk proxy npx tsc --noEmit`: 0 errors.
+
+## Session 2026-06-24 — FINTECH P1 + P5-light (CEO dispatch)
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task FINTECH. Spec: `docs/superpowers/specs/2026-06-23-financial-system-consolidated.md`.
+
+### P1 — Wallet model + BalanceCheckpoint
+- **Schema:** Added `Wallet` (ownerId/ownerType polymorphic, balance/available/pending, @@unique composite), `BalanceCheckpoint` (wallet FK, delta/before/after, optional transactionId), `FeeRule` (name/type/rate/min/max/cap/appliesTo/categoryId/priority), `SavedPaymentMethod` (userId/Stripe PM id/brand/last4/expiry/isDefault), `Dispute` (bookingId/escrowId/openedBy/reason/status/resolution).
+- **Reverse relations:** Added `transactions Transaction[]` on User, Servicer, Booking, Escrow. Added `feeRules FeeRule[]` on Category. Added `savedPayments SavedPaymentMethod[]` on User. Added `disputes Dispute[]` on Booking and Escrow. Added `checkpoints BalanceCheckpoint[]` on Transaction.
+- **Migrations:** `20260624072731_add_fintech_wallet_fee_dispute` (6 new tables) + `20260624073246_fix_transaction_relations` (restored Transaction.updatedAt + FK constraints after accidental schema edit damage).
+- **Service:** `src/services/wallet.service.ts` — `getOrCreateWallet(ownerId, ownerType)` idempotent lookup/create, `adjustWalletBalance(walletId, delta, { transactionId?, reason? })` atomic update with checkpoint recording + negative-balance guard.
+
+### P5-light — Financial CSV export
+- **Endpoint:** `GET /admin/financial/export?days=30` — exports transaction ledger as CSV (date, type, amount, currency, user, servicer, booking, reference, Stripe PI ID). Uses existing `csvCell()` helper. Max 365 days.
+
+### P2-P4 (deferred)
+- FeeRule, SavedPaymentMethod, Dispute models defined in schema but no service logic yet. Fee engine (`computePlatformFee` → FeeRule lookup) and escrow auto-release are deferred until the existing hardcoded flow needs replacement.
+
+**Gates:**
+- `rtk proxy npx tsc --noEmit`: 0 errors.
+- `npx prisma generate`: regenerated client with new models.
+- Migrations applied successfully via `prisma migrate deploy`.
+
+---
+
+## Session 2026-06-24 — Task LINK: Dead link sweep (backend)
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task LINK — audit and fix backend linkUrl/return_url emitters.
+
+### Work done
+
+**File:** `backend/src/routes/admin.routes.ts`
+
+1. **Fixed dead linkUrl:** `/customer/bookings/${report.bookingId}` → `/customer/bookings` (no `:id` route exists for customer bookings).
+
+### Audit summary (no changes needed)
+- `booking.service.ts`: 7 linkUrls — all valid
+- `quote.service.ts`: 4 linkUrls — all valid
+- `stripe.routes.ts`: 4 success/cancel URLs — all valid
+- `dispatch.service.ts`: 2 linkUrls — all valid
+- `chat.service.ts`: system prompt route references — all match current tree
+
+### Gates
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (backend/) | ✅ 0 errors |
+
+---
+
+## Session 2026-06-24 — Task PW: PIN/password policy settings (backend)
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task PW — backend platform settings for security policies.
+
+### Work done
+
+1. **`backend/src/services/settings.service.ts`:** Added 4 new platform setting defaults:
+   - `pin_min_length` (4)
+   - `pin_max_attempts` (5)
+   - `pin_lockout_duration_seconds` (300)
+   - `password_min_length` (8)
+
+2. **`backend/src/middleware/pin-cooldown.ts`:** Refactored to read `pin_max_attempts` and `pin_lockout_duration_seconds` from platform settings via `getSetting()`, with 5-minute in-memory cache. Falls back to hardcoded defaults if DB unavailable.
+
+### Already existed (no changes needed)
+- `POST /auth/forgot-password` (auth.routes.ts) — generates token, emails reset link via Nodemailer
+- `POST /auth/reset-password` — validates token expiry, hashes new password
+- `resetToken`/`resetTokenExpiry` on User & Servicer (schema.prisma)
+- `backend/src/lib/email.ts` — Nodemailer + SMTP config already wired
+
+### Gates
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (backend/) | ✅ 0 errors |
+- `npm test`: All 19 suites pass.
+
+## Session 2026-06-24 — SEC: IDOR Audit + Decimal + Global Search
+
+**Scope:** Security audit per `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` SEC task. 1 fix applied.
+
+### IDOR Audit
+- Audited all `:id` routes across customer, servicer, admin, and file routes.
+- **Result:** All customer/servicer routes properly check ownership via `req.user!.id` in Prisma `where` clauses or delegate to service-layer functions.
+- **FIXED:** `PUT /files/local-upload/:fileId` (files.routes.ts:36-51) — added ownership check. Now verifies `uploaderUserId` or `uploaderServicerId` matches `req.user!.id` before allowing raw upload. Previously any authenticated user could write to arbitrary file records.
+
+### Decimal Serialization
+- Prisma PostgreSQL Decimal serializes to plain string (e.g. `"150.00"`) via built-in `toJSON()`. No `{ "$numberDecimal" }` patterns found.
+- No fixes needed. Service layer already uses `Number()` extensively on return values.
+- Template literals like `` `RM${j.price}` `` work correctly — Decimal's `toString()` produces the numeric string.
+
+### Global Search
+- **Exists:** `GET /api/v1/search?q=...` (index.ts:377-457), auth required, min 2 chars, max 15 results.
+- **Coverage by role:** Servicer (services, jobs, invoices), Customer (quotes, bookings), Admin (servicers by businessName).
+- **Gaps documented:** Does not search by content (notes, messages, service details), users, categories, reports, promotions, or FAQ items. No full-text index — all Prisma `contains` mode.
+
+**Gates:**
+- `rtk proxy npx tsc --noEmit`: 0 errors.

@@ -39,6 +39,13 @@ filesRouter.put(
     const file = await prisma.file.findUnique({ where: { id: req.params.fileId } });
     if (!file) throw notFound('File not found');
 
+    // Ownership check: only the uploader (user or servicer) may write to this file.
+    const principal = req.user!;
+    const isOwner =
+      (principal.kind === 'user' && file.uploaderUserId === principal.id) ||
+      (principal.kind === 'servicer' && file.uploaderServicerId === principal.id);
+    if (!isOwner) throw notFound('File not found');
+
     const chunks: Uint8Array[] = [];
     for await (const chunk of req) {
       chunks.push(new Uint8Array(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));

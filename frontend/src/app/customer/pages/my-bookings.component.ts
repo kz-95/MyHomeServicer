@@ -322,7 +322,41 @@ const TAB_ROUTES: Record<TabKey, string> = {
       </div>
     </app-modal>
 
-    <!-- ── Servicer detail popup ──────────────────────────────────────── -->
+    <!-- Cancel booking modal -->
+    <app-modal [open]="cancelModalOpen()" title="Cancel booking" (closed)="cancelModalOpen.set(false)">
+      <div class="report-form">
+        <label class="rfl">
+          <span class="rfl-label">Reason *</span>
+          <select [(ngModel)]="cancelReason" name="cancelreason" class="form-select">
+            <option value="">Select a reason</option>
+            <option value="found_another_servicer">Found another servicer</option>
+            <option value="changed_my_mind">Changed my mind</option>
+            <option value="too_expensive">Too expensive</option>
+            <option value="no_longer_needed">No longer needed</option>
+            <option value="scheduling_conflict">Scheduling conflict</option>
+            <option value="service_details_changed">Service details changed</option>
+            <option value="other">Other (describe below)</option>
+          </select>
+        </label>
+        @if (cancelReason() === 'other') {
+          <label class="rfl">
+            <span class="rfl-label">Describe the issue</span>
+            <textarea [(ngModel)]="cancelDetails" name="canceldetails" rows="3" placeholder="Additional details..."></textarea>
+          </label>
+        }
+        @if (cancelError()) {
+          <p class="err">{{ cancelError() }}</p>
+        }
+        <div class="report-actions">
+          <button class="btn-ghost" (click)="cancelModalOpen.set(false)">Keep booking</button>
+          <button class="btn-primary" (click)="doCancel()" [disabled]="cancellingBusy()">
+            {{ cancellingBusy() ? 'Cancelling...' : 'Yes, cancel booking' }}
+          </button>
+        </div>
+      </div>
+    </app-modal>
+
+    <!-- Servicer detail popup -->
     <app-servicer-detail-popup [servicerId]="detailServicerId()" (closed)="detailServicerId.set(null)" />
   `,
     styles: [
@@ -731,6 +765,13 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   reportDescription = signal("");
   reportError = signal("");
   reportSubmitting = signal(false);
+
+  cancelModalOpen = signal(false);
+  cancelReason = signal('');
+  cancelDetails = signal('');
+  cancellingBusy = signal(false);
+  cancelError = signal('');
+  private cancelTargetBooking: Booking | null = null;
   private reportBookingId = signal<string | null>(null);
 
   private subs: Subscription[] = [];
@@ -878,21 +919,34 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   }
 
   cancel(b: Booking): void {
-    this.dialog
-      .prompt('Reason for cancelling?', {
-        placeholder: 'Enter a reason…',
-        confirmLabel: 'Cancel booking',
-      })
-      .subscribe((reason) => {
-        if (!reason) return;
-        this.api.post(`/bookings/${b.id}/cancel`, { reason }).subscribe({
-          next: () => {
-            this.toast.success('Booking cancelled.');
-            this.load();
-          },
-          error: (e) => this.toast.error(e.message ?? 'Could not cancel booking'),
-        });
-      });
+    this.cancelTargetBooking = b;
+    this.cancelReason.set('');
+    this.cancelDetails.set('');
+    this.cancelError.set('');
+    this.cancelModalOpen.set(true);
+  }
+
+  doCancel(): void {
+    const b = this.cancelTargetBooking;
+    if (!b) return;
+    const reason = this.cancelReason();
+    if (!reason) { this.cancelError.set('Please select a reason.'); return; }
+    const detail = reason === 'other' ? this.cancelDetails().trim() : '';
+    if (reason === 'other' && !detail) { this.cancelError.set('Please describe the issue.'); return; }
+    const displayReason = reason === 'other' ? detail : reason.replace(/_/g, ' ');
+    this.cancellingBusy.set(true);
+    this.api.post(`/bookings/${b.id}/cancel`, { reason: displayReason }).subscribe({
+      next: () => {
+        this.cancellingBusy.set(false);
+        this.cancelModalOpen.set(false);
+        this.toast.success('Booking cancelled.');
+        this.load();
+      },
+      error: (e) => {
+        this.cancellingBusy.set(false);
+        this.cancelError.set(e.message ?? 'Could not cancel booking');
+      },
+    });
   }
 
   reorder(b: Booking): void {

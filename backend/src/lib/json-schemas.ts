@@ -165,6 +165,15 @@ export const settingsSchemas: Record<string, z.ZodTypeAny> = {
   chat_service_keywords: chatServiceKeywordsSchema,
   chat_banned_words: z.array(z.string().min(1)).max(200),
   dispatch_prompt_timeout_seconds: z.object({ seconds: z.number().int().positive() }),
+  cancel_reasons: z.object({
+    reasons: z.array(
+      z.object({
+        label: z.string().min(1).max(200),
+        value: z.string().min(1).max(100),
+        sortOrder: z.number().int().nonnegative(),
+      }),
+    ),
+  }),
 };
 
 /**

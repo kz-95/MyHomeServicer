@@ -1461,7 +1461,47 @@ adminRouter.delete(
   }),
 );
 
+// ── Financial CSV export ────────────────────────────────────────────────────
 
+/** GET /admin/financial/export — export transaction ledger as CSV. */
+adminRouter.get(
+  '/financial/export',
+  asyncHandler(async (req, res) => {
+    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
+    const since = new Date(Date.now() - days * 86_400_000);
+
+    const transactions = await prisma.transaction.findMany({
+      where: { createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { name: true, email: true } },
+        servicer: { select: { businessName: true, email: true } },
+        booking: { select: { id: true } },
+      },
+    });
+
+    const header = ['Date', 'Type', 'Amount (MYR)', 'Currency', 'User', 'Servicer', 'Booking ID', 'Reference', 'Stripe PI ID'];
+    const rows = transactions.map((t) => [
+      t.createdAt.toISOString().slice(0, 10),
+      t.type,
+      Number(t.amount).toFixed(2),
+      t.currency,
+      [t.user?.name, t.user?.email].filter(Boolean).join(' ') || '-',
+      [t.servicer?.businessName, t.servicer?.email].filter(Boolean).join(' ') || '-',
+      t.bookingId ?? '-',
+      t.reference ?? '-',
+      t.stripePaymentIntentId ?? '-',
+    ].map((v) => csvCell(String(v))));
+
+    const csv = [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="financial-export-${days}d.csv"`);
+    res.send(csv);
+  }),
+);
+
+// ── Helper functions ──────────────────────────────────────────────────────────
 function csvCell(value: string): string {
   if (value.includes(',') || value.includes('"') || value.includes('\n')) {
     return `"${value.replace(/"/g, '""')}"`;

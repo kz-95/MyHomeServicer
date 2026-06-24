@@ -1,3 +1,16 @@
+interface Report {
+  id: string;
+  subject: string;
+  description: string;
+  status: 'open' | 'resolved';
+  createdAt: string;
+  adminNote?: string | null;
+  resolvedAt?: string | null;
+  bookingId?: string | null;
+  user?: { id: string; name: string; email: string; role: string } | null;
+  booking?: { id: string; quoteRequest?: { category?: { name?: string } } } | null;
+}
+
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -28,6 +41,9 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
       </button>
       <button class="tab" [class.active]="activeTab() === 'category'" (click)="activeTab.set('category')">
         Categories {{ categoryRequests().length ? '(' + categoryRequests().length + ')' : '' }}
+      </button>
+      <button class="tab" [class.active]="activeTab() === 'reports'" (click)="activeTab.set('reports'); loadReports()">
+        Reports {{ openReportCount() ? '(' + openReportCount() + ')' : '' }}
       </button>
       <button class="tab" [class.active]="activeTab() === 'account'" (click)="activeTab.set('account')">
         Account Changes {{ identityRequests().length ? '(' + identityRequests().length + ')' : '' }}
@@ -134,7 +150,59 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
       </div>
     }
 
-    @if (activeTab() === 'account') {
+    @if (activeTab() === "reports") {
+      <app-list-toolbar>
+        <input class="q" type="text" placeholder="Search reports by subject" [(ngModel)]="rQuery" name="rrq" toolbar-search />
+        <div class="chips" toolbar-filters>
+          <button class="chip" [class.on]="rFilter() === 'all'" (click)="rFilter.set('all')">All</button>
+          <button class="chip" [class.on]="rFilter() === 'open'" (click)="rFilter.set('open'); loadReports()">Open</button>
+          <button class="chip" [class.on]="rFilter() === 'resolved'" (click)="rFilter.set('resolved'); loadReports()">Resolved</button>
+      <select [(ngModel)]="reportCategoryId" name="rpcat" (change)="loadReports()" toolbar-sort>
+        <option value="">All categories</option>
+        @for (cat of reportCategories(); track cat.id) {
+          <option [value]="cat.id">{{ cat.name }}</option>
+        }
+      </select>
+        </div>
+      </app-list-toolbar>
+      @if (rLoading()) {
+        <p class="muted">Loading reports</p>
+      } @else if (reports().length === 0) {
+        <p class="muted">No reports.</p>
+      } @else {
+        <div class="reports-grid">
+          @for (r of reports(); track r.id) {
+            <div class="card report-card">
+              <div class="report-head">
+                <span class="report-icon">{{ reportCategoryIcon(r) }}</span>
+                <strong>{{ r.subject }}</strong>
+                <span class="report-badge" [class.open]="r.status === 'open'" [class.resolved]="r.status === 'resolved'">{{ r.status }}</span>
+              </div>
+              <div class="report-meta">
+                @if (r.user) {
+                  <span class="report-reporter">by {{ r.user.name || r.user.email }}</span>
+                }
+                @if (r.booking?.quoteRequest?.category?.name) {
+                  <span class="report-cat">&#x1F3F7; {{ r.booking.quoteRequest.category.name }}</span>
+                }
+                <span class="report-date">{{ r.createdAt | date:"medium" }}</span>
+              </div>
+              <details class="report-details">
+                <summary>{{ (r.description ?? "").slice(0, 100) }}{{ r.description?.length > 100 ? "..." : "" }}</summary>
+                <p class="report-full-desc">{{ r.description }}</p>
+              </details>
+              <div class="report-actions">
+                @if (r.status === "open") {
+                  <button class="btn-primary btn-sm" (click)="resolveReport(r)">Resolve</button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    @if (activeTab() === "account") {
       <app-list-toolbar>
       <input
         class="q"
@@ -394,6 +462,95 @@ import { ListToolbarComponent } from '../../shared/list-toolbar.component';
       .id-props span {
         font-size: 0.82rem;
       }
+      /* ── Report card styles ────────────────────────────────────────────── */
+      .reports-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+      }
+      .report-card {
+        padding: 0.9rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        transition: box-shadow var(--transition), transform var(--transition);
+      }
+      .report-card:hover {
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
+        transform: translateY(-1px);
+      }
+      .report-head {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .report-icon {
+        font-size: 1.1rem;
+        flex-shrink: 0;
+      }
+      .report-badge {
+        margin-left: auto;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 0.15rem 0.55rem;
+        border-radius: 999px;
+        text-transform: capitalize;
+        flex-shrink: 0;
+      }
+      .report-badge.open {
+        background: var(--color-status-open-bg, #fef3c7);
+        color: var(--color-status-open-text, #92400e);
+        border: 1px solid var(--color-status-open-border, #fcd34d);
+      }
+      .report-badge.resolved {
+        background: var(--color-status-done-bg, #d1fae5);
+        color: var(--color-status-done-text, #065f46);
+        border: 1px solid var(--color-status-done-border, #6ee7b7);
+      }
+      .report-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.8rem;
+        font-size: 0.78rem;
+        color: var(--color-muted);
+      }
+      .report-reporter {
+        font-weight: 500;
+      }
+      .report-cat {
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        padding: 0.1rem 0.5rem;
+        font-size: 0.72rem;
+      }
+      .report-date {
+        color: var(--color-muted);
+      }
+      .report-details {
+        font-size: 0.85rem;
+        color: var(--color-text);
+      }
+      .report-details summary {
+        cursor: pointer;
+        color: var(--color-muted);
+        font-style: italic;
+        padding: 0.15rem 0;
+      }
+      .report-details summary:hover {
+        color: var(--color-text);
+      }
+      .report-full-desc {
+        margin: 0.35rem 0 0;
+        white-space: pre-wrap;
+        color: var(--color-text);
+        font-style: normal;
+      }
+      .report-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+
       /* Mobile: stack acts below info */
       @media (max-width: 580px) {
         .row {
@@ -416,7 +573,7 @@ export class AdminQueuesComponent implements OnInit {
   appeals = signal<any[]>([]);
   categoryRequests = signal<any[]>([]);
   identityRequests = signal<any[]>([]);
-  activeTab = signal<'withdrawals' | 'appeals' | 'category' | 'account'>('withdrawals');
+activeTab = signal<'withdrawals' | 'appeals' | 'category' | 'account' | 'reports'>('withdrawals');
   message = signal('');
   isError = signal(false);
 
@@ -440,6 +597,14 @@ export class AdminQueuesComponent implements OnInit {
   iFilter = signal<'all' | 'pending' | 'approved' | 'rejected'>('all');
   iSort = signal<'date' | 'name'>('date');
 
+  reports = signal<any[]>([]);
+  openReportCount = computed(() => this.reports().filter((r: any) => r.status === 'open').length);
+  rQuery = signal('');
+  rFilter = signal<'all' | 'open' | 'resolved'>('all');
+  rLoading = signal(false);
+  reportCategories = signal<{ id: string; name: string; parentCategoryId: string | null }[]>([]);
+  topReportCategories = computed(() => this.reportCategories().filter((c) => !c.parentCategoryId));
+  reportCategoryId = signal('');
   private match(haystack: unknown[], q: string): boolean {
     const needle = q.trim().toLowerCase();
     if (!needle) return true;
@@ -511,7 +676,7 @@ export class AdminQueuesComponent implements OnInit {
 
   ngOnInit(): void {
     const tab = this.route.snapshot.queryParamMap.get('tab');
-    if (tab === 'appeals' || tab === 'category' || tab === 'account') this.activeTab.set(tab as any);
+    if (tab === 'appeals' || tab === 'category' || tab === 'account' || tab === 'reports') this.activeTab.set(tab as any);
     this.load();
   }
 
@@ -638,6 +803,48 @@ export class AdminQueuesComponent implements OnInit {
         });
     });
   }
+
+  loadReports(): void {
+    if (this.reportCategories().length === 0) {
+      this.api.get<{ data: { id: string; name: string; parentCategoryId: string | null }[] }>('/admin/categories').subscribe({
+        next: (res) => this.reportCategories.set(res.data),
+      });
+    }
+    this.rLoading.set(true);
+    const p: Record<string, string> = {};
+    if (this.rFilter() !== 'all') p['status'] = this.rFilter();
+    if (this.rQuery().trim()) p['search'] = this.rQuery().trim();
+    if (this.reportCategoryId()) p['categoryId'] = this.reportCategoryId();
+    this.api.get<{ data: any[] }>('/admin/reports', p).subscribe({
+      next: (res) => { this.reports.set(res.data); this.rLoading.set(false); },
+      error: () => { this.reports.set([]); this.rLoading.set(false); },
+    });
+  }
+
+  resolveReport(r: any): void {
+    this.pin.requirePin().subscribe((pin) => {
+      if (!pin) return;
+      this.api.patch('/admin/reports/' + r.id, { status: 'resolved' }, { 'x-action-pin': pin }).subscribe({
+        next: () => { this.loadReports(); },
+        error: () => {},
+      });
+    });
+  }
+
+  reportCategoryIcon(r: any): string {
+    if (!r.bookingId) return '\u{1F4AC}'; // chat/bug report
+    const cat = r.booking?.quoteRequest?.category?.name?.toLowerCase() ?? '';
+    if (cat.includes('plumb')) return '\u{1F6B0}';
+    if (cat.includes('electric')) return '\u{26A1}';
+    if (cat.includes('clean')) return '\u{1F9F9}';
+    if (cat.includes('paint')) return '\u{1F3A8}';
+    if (cat.includes('aircond') || cat.includes('ac ')) return '\u{2744}';
+    if (cat.includes('garden') || cat.includes('landscap')) return '\u{1F33F}';
+    if (cat.includes('move') || cat.includes('relocat')) return '\u{1F4E6}';
+    if (cat.includes('pest')) return '\u{1F41B}';
+    return '\u{1F527}'; // default wrench
+  }
+
 
   /** Returns true when a proposed object has at least one non-empty field. */
   hasAnyProposed(r: any): boolean {
