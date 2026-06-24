@@ -6,8 +6,6 @@ import { JOB_NAMES, enqueue } from '../lib/queue';
 import { registerJob } from './index';
 import { recordTransaction } from '../services/ledger.service';
 import { adjustCredit } from '../services/credit.service';
-import { computePlatformFee } from '../lib/money';
-import { getPlatformFeeRate } from '../services/settings.service';
 import { notify } from '../services/notification.service';
 import { emitToUser } from '../socket';
 
@@ -52,6 +50,11 @@ async function handleNoshowDetect(job: Job): Promise<void> {
   if (booking.status === 'cancelled') return;
 
   // Confirmed but never arrived → no-show.
+  // BE-011: all DB writes now share a single $transaction.
+  // Previously the counter increment + auto-ban ran outside the transaction,
+  // so a failure there would silently desync the counters while the booking
+  // was already cancelled (the cancelled guard at line 50 would then block
+  // BullMQ retries from ever correcting the drift).
   await prisma.$transaction(async (tx) => {
     await tx.booking.update({
       where: { id: bookingId },
@@ -83,21 +86,22 @@ async function handleNoshowDetect(job: Job): Promise<void> {
         tx,
       );
     }
-  });
 
-  const servicer = await prisma.servicer.update({
-    where: { id: servicerId },
-    data: { consecutiveNoshow: { increment: 1 }, weeklyNoshow: { increment: 1 } },
-  });
+    // Increment no-show counters atomically with booking cancellation + escrow refund.
+    const servicer = await tx.servicer.update({
+      where: { id: servicerId },
+      data: { consecutiveNoshow: { increment: 1 }, weeklyNoshow: { increment: 1 } },
+    });
 
-  // Auto-ban on threshold breach (schema-notes.md §No-show penalty system).
-  if (
-    servicer.consecutiveNoshow >= CONSECUTIVE_BAN_THRESHOLD ||
-    servicer.weeklyNoshow >= WEEKLY_BAN_THRESHOLD
-  ) {
-    await prisma.servicer.update({ where: { id: servicerId }, data: { isBanned: true } });
-    logger.warn('Servicer auto-banned for repeated no-shows', { servicerId });
-  }
+    // Auto-ban on threshold breach (schema-notes.md §No-show penalty system).
+    if (
+      servicer.consecutiveNoshow >= CONSECUTIVE_BAN_THRESHOLD ||
+      servicer.weeklyNoshow >= WEEKLY_BAN_THRESHOLD
+    ) {
+      await tx.servicer.update({ where: { id: servicerId }, data: { isBanned: true } });
+      logger.warn('Servicer auto-banned for repeated no-shows', { servicerId });
+    }
+  });
 
   emitToUser(booking.userId, 'booking.cancelled', {
     bookingId,
@@ -182,7 +186,8 @@ async function handlePenaltyDeduct(job: Job): Promise<void> {
 
 /**
  * escrow.release — releases held funds to the servicer once a job is done and
- * no report is open. The platform fee is split off; tips pass through whole.
+ * no report or dispute is open. The platform fee is split off; tips pass through whole.
+ * Uses the FeeRule engine (P2) with fallback to legacy platform_fee_rate.
  */
 async function handleEscrowRelease(job: Job): Promise<void> {
   const { bookingId, escrowId } = escrowPayload.parse(job.data);
@@ -192,14 +197,19 @@ async function handleEscrowRelease(job: Job): Promise<void> {
     return;
   }
 
+  // Hold release if an open report or dispute exists (P4 dispute gating)
   const openReport = await prisma.report.findFirst({ where: { bookingId, status: 'open' } });
-  if (openReport) {
-    logger.info('escrow.release — held: open report, retrying later', { bookingId });
+  const openDispute = await prisma.dispute.findFirst({ where: { bookingId, status: { in: ['open', 'under_review'] } } });
+  if (openReport || openDispute) {
+    logger.info('escrow.release — held: open report or dispute, retrying later', { bookingId });
     await enqueue(JOB_NAMES.ESCROW_RELEASE, { bookingId, escrowId }, { delay: 60 * 60_000 });
     return;
   }
 
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { quoteRequest: { select: { categoryId: true } } },
+  });
   if (!booking) return;
 
   const amount = Number(escrow.amount);
@@ -208,8 +218,11 @@ async function handleEscrowRelease(job: Job): Promise<void> {
   // Platform fee on afterPromo only (stored in escrow.platformFeeBase).
   // Fall back to compute on amount for legacy rows where platformFeeBase is null.
   const feeBase = escrow.platformFeeBase != null ? Number(escrow.platformFeeBase) : amount;
-  const feeRate = await getPlatformFeeRate();
-  const platformFee = computePlatformFee(feeBase, feeRate);
+
+  // Use FeeRule engine (P2) with category scope, fall back to legacy rate
+  const { computeFees } = await import('../services/fee-engine.service');
+  const categoryId = booking.quoteRequest?.categoryId ?? undefined;
+  const platformFee = await computeFees(feeBase, 'booking', categoryId);
   const servicerPayout = amount - platformFee + tip;
 
   await prisma.$transaction(async (tx) => {

@@ -2,6 +2,20 @@
 
 > Single-writer log — only the **Backend** agent writes here.
 
+## Session 2026-06-24 19:55 — BE-001 Fix
+
+**Bug:** `buildSystemPrompt()` called without `await` in `chat.service.ts:271` → AI received `[object Promise]` as system prompt.
+
+**Fix:** Added `await` before `buildSystemPrompt(role)` in `buildAssistantPrompt()`.
+
+**Files changed:** `backend/src/services/chat.service.ts` — 1 line changed.
+
+**Gates:** `npx tsc --noEmit` — 0 new errors (2 pre-existing tsconfig deprecation warnings).
+
+**Commit:** `c094f18` on `feat/sp3-dispatch-cards` — `fix(chat): await buildSystemPrompt to prevent [object Promise] in AI context`
+
+---
+
 ## Session 2026-06-24 — E2E QA Harness Task 4
 
 **Scope:** Group A Task 4 of `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` — DB check helpers for Prisma assertions. Executed on `feat/sp3-dispatch-cards`.
@@ -367,13 +381,28 @@ Gates: backend tsc 0 (source) / jest 298 pass, 0 fail / frontend tsc 0
 
 ---
 
+## Session 2026-06-24 20:07 — BE-011 Fix
+
+**Bug:** No-show counter increment in `handleNoshowDetect()` ran outside the `$transaction` block. If `prisma.$transaction` succeeded (booking cancelled + escrow refunded) but the subsequent `prisma.servicer.update` (counter increment) failed, the counters silently desynced. On BullMQ retry, the guard `if (booking.status === 'cancelled') return` blocked re-processing → permanent counter drift. Auto-ban check at lines 92-98 had the same vulnerability.
+
+**Fix:** Moved the `tx.servicer.update` (counter increment) and auto-ban check inside the `$transaction` block so they succeed or fail atomically with the booking cancellation and escrow refund.
+
+**Files changed:** `backend/src/jobs/booking.jobs.ts` — 34 insertions, 21 deletions (refactored `handleNoshowDetect`).
+
+**Gates:** `npx tsc --noEmit` — zero errors.
+
+**Commit:** TBD on `feat/sp3-dispatch-cards`
+
+---
+
 ## Quick Index
 | Section | Line |
 |---------|------|
-| Session 2026-06-23 — Escrow Integrity (Item 3) | 5 |
+| Session 2026-06-24 20:07 — BE-011 Fix | 1 |
+| Session 2026-06-24 19:55 — BE-001 Fix | 5 |
 | Rules & gates | ~14 |
 | Sessions | ~19 |
-| Session 2026-06-23 — Upload Fix + Quote Images | ~53 |
+| Session 2026-06-23 — Escrow Integrity (Item 3) | ~74 |
 | API Contracts | ~60 |
 | Schema Changes | ~66 |
 | Bug Log | ~72 |
