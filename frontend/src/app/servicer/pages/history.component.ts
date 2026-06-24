@@ -35,7 +35,7 @@ interface EarningsSummary {
 @Component({
   selector: 'app-servicer-history',
   standalone: true,
-  host: { class: 'page-enter' },
+  host: { class: 'page-enter page-narrow' },
   imports: [CommonModule, FormsModule, ListToolbarComponent],
   template: `
     <h1>Job history</h1>

@@ -21,6 +21,7 @@ export type RouteKey =
   | 'terms'
   | 'public.services'
   // Customer
+  | 'customer'
   | 'customer.findService'
   | 'customer.quote'
   | 'customer.quote.new'          // redirect
@@ -88,6 +89,7 @@ export const ROUTES: Record<RouteKey, string> = {
   'public.services':        '/services/:parentSlug',
 
   // ── Customer ───────────────────────────────────────────────────────────
+  customer:                           '/customer',
   'customer.findService':              '/customer/findService',
   'customer.quote':                    '/customer/quote',
   'customer.quote.new':                '/customer/quote/new',

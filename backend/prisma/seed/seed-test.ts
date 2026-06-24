@@ -193,6 +193,7 @@ interface TestServicerData {
   ref: string; email: string; name: string; businessName: string;
   phone: string; categorySlug: string; area: string; serviceAreas: string[];
   rating: number; isCompany: boolean;
+  lat?: number; lng?: number;
   services: { sku: string | null; title: string; basePrice: number; priceType: string; duration: number }[];
 }
 
@@ -203,7 +204,7 @@ const testServicers: TestServicerData[] = [
     phone: '+60 12-300 0001',
     categorySlug: 'plumber',
     area: 'SS2, Petaling Jaya', serviceAreas: ['SS2', 'PJ', 'Petaling Jaya'],
-    rating: 4.6, isCompany: false,
+    rating: 4.6, isCompany: false, lat: 3.08, lng: 101.65,
     services: [
       { sku: 'PLB-001', title: 'Leaking pipe repair', basePrice: 80, priceType: 'fixed', duration: 60 },
       { sku: 'PLB-002', title: 'Bathroom plumbing service', basePrice: 150, priceType: 'hourly', duration: 120 },
@@ -215,7 +216,7 @@ const testServicers: TestServicerData[] = [
     phone: '+60 12-300 0002',
     categorySlug: 'aircond-servicer',
     area: 'Cheras, KL', serviceAreas: ['Cheras', 'KL'],
-    rating: 4.4, isCompany: true,
+    rating: 4.4, isCompany: true, lat: 3.10, lng: 101.72,
     services: [
       { sku: 'CB-CLEAN', title: 'Aircon chemical wash', basePrice: 110, priceType: 'fixed', duration: 75 },
       { sku: 'CB-GAS', title: 'Gas top-up & leak check', basePrice: 160, priceType: 'fixed', duration: 90 },
@@ -227,7 +228,7 @@ const testServicers: TestServicerData[] = [
     phone: '+60 12-300 0003',
     categorySlug: 'electrical-wiring',
     area: 'Cheras, KL', serviceAreas: ['Cheras', 'KL'],
-    rating: 4.5, isCompany: false,
+    rating: 4.5, isCompany: false, lat: 3.11, lng: 101.73,
     services: [
       { sku: 'EL-WIRE', title: 'Wiring & socket repair', basePrice: 80, priceType: 'fixed', duration: 60 },
       { sku: 'EL-LIGHT', title: 'Light & fan installation', basePrice: 65, priceType: 'fixed', duration: 45 },
@@ -239,7 +240,7 @@ const testServicers: TestServicerData[] = [
     phone: '+60 12-300 0004',
     categorySlug: 'home-cleaning',
     area: 'Bukit Bintang, KL', serviceAreas: ['Bukit Bintang', 'KLCC', 'KL'],
-    rating: 4.5, isCompany: false,
+    rating: 4.5, isCompany: false, lat: 3.15, lng: 101.70,
     services: [
       { sku: 'CLN-STD', title: 'Standard home cleaning', basePrice: 60, priceType: 'hourly', duration: 120 },
       { sku: 'CLN-DEEP', title: 'Deep cleaning', basePrice: 140, priceType: 'fixed', duration: 240 },
@@ -251,7 +252,7 @@ const testServicers: TestServicerData[] = [
     phone: '+60 12-300 0009',
     categorySlug: 'catering',
     area: 'Cyberjaya', serviceAreas: ['Cyberjaya', 'MMU', 'KL'],
-    rating: 4.8, isCompany: false,
+    rating: 4.8, isCompany: false, lat: 2.99, lng: 101.65,
     services: [
       { sku: 'AM-DAILY', title: 'Daily meal set delivery', basePrice: 50, priceType: 'fixed', duration: 180 },
       { sku: 'AM-PARTY', title: 'Event catering service', basePrice: 200, priceType: 'quote', duration: 240 },
@@ -263,7 +264,7 @@ const testServicers: TestServicerData[] = [
     phone: '+60 12-300 0027',
     categorySlug: 'home-tutoring',
     area: 'SS2, Petaling Jaya', serviceAreas: ['SS2', 'PJ', 'Petaling Jaya'],
-    rating: 4.9, isCompany: false,
+    rating: 4.9, isCompany: false, lat: 3.07, lng: 101.64,
     services: [
       { sku: 'TU-HOME', title: 'Home tuition (all subjects)', basePrice: 60, priceType: 'hourly', duration: 60 },
     ],
@@ -274,7 +275,7 @@ const testServicers: TestServicerData[] = [
     phone: '+60 12-300 0030',
     categorySlug: '3d-modeling-class',
     area: 'Cyberjaya', serviceAreas: ['Cyberjaya', 'Putrajaya', 'KL'],
-    rating: 4.7, isCompany: false,
+    rating: 4.7, isCompany: false, lat: 3.00, lng: 101.66,
     services: [
       { sku: '3D-FUSION-PROD', title: 'Product design with Fusion 360', basePrice: 150, priceType: 'hourly', duration: 90 },
       { sku: '3D-FUSION-PRINT', title: '3D printing prep with Fusion 360', basePrice: 120, priceType: 'hourly', duration: 90 },
@@ -286,7 +287,7 @@ const testServicers: TestServicerData[] = [
     phone: '+60 12-300 0008',
     categorySlug: 'event-planner',
     area: 'KLCC, KL', serviceAreas: ['KLCC', 'Bukit Bintang', 'KL'],
-    rating: 4.8, isCompany: true,
+    rating: 4.8, isCompany: true, lat: 3.16, lng: 101.71,
     services: [
       { sku: 'WD-FULL', title: 'Full wedding planning', basePrice: 1000, priceType: 'quote', duration: 300 },
     ],
@@ -310,8 +311,8 @@ async function main() {
   for (const p of parentCategories) {
     const cat = await prisma.category.upsert({
       where: { slug: p.slug },
-      update: { name: p.name, icon: p.icon, defaultPriceSuggestion: 0, defaultEstimatedDurationMinutes: 60 },
-      create: { name: p.name, slug: p.slug, icon: p.icon, defaultPriceSuggestion: 0, defaultEstimatedDurationMinutes: 60 },
+      update: { name: p.name, icon: p.icon, defaultPriceSuggestion: 0, defaultEstimatedDurationMinutes: 60, published: true },
+      create: { name: p.name, slug: p.slug, icon: p.icon, defaultPriceSuggestion: 0, defaultEstimatedDurationMinutes: 60, published: true },
     });
     parentIdBySlug[p.slug] = cat.id;
   }
@@ -324,11 +325,13 @@ async function main() {
         name: c.name, icon: c.icon, parentCategoryId: parentIdBySlug[c.parentSlug],
         defaultPriceSuggestion: c.price, defaultEstimatedDurationMinutes: c.duration,
         ...(c.questions ? { questionSchema: c.questions } : {}),
+        published: true,
       },
       create: {
         name: c.name, slug: c.slug, icon: c.icon, parentCategoryId: parentIdBySlug[c.parentSlug],
         defaultPriceSuggestion: c.price, defaultEstimatedDurationMinutes: c.duration,
         ...(c.questions ? { questionSchema: c.questions } : {}),
+        published: true,
       },
     });
     childIdBySlug[c.slug] = cat.id;
@@ -411,7 +414,7 @@ async function main() {
         businessName: m.businessName, bio: `${m.businessName} - based in ${m.area}.`,
         logoUrl: `https://picsum.photos/seed/servicer${m.ref}/200/200`,
         categoryId: childIdBySlug[m.categorySlug], isCompany: m.isCompany,
-        serviceAreas: m.serviceAreas, rating: m.rating, isDemo: true,
+        serviceAreas: m.serviceAreas, lat: m.lat, lng: m.lng, rating: m.rating, isDemo: true,
       },
     });
     await prisma.servicerDeposit.create({

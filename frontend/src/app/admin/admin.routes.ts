@@ -28,6 +28,16 @@ export const adminRoutes: Routes = [
         loadComponent: () => import('./pages/users.component').then((m) => m.AdminUsersComponent),
       },
       {
+        path: 'users/all',
+        canActivate: [adminActionPinGuard],
+        loadComponent: () => import('./pages/users.component').then((m) => m.AdminUsersComponent),
+      },
+      {
+        path: 'users/servicers',
+        canActivate: [adminActionPinGuard],
+        loadComponent: () => import('./pages/users.component').then((m) => m.AdminUsersComponent),
+      },
+      {
         path: 'queues',
         canActivate: [adminActionPinGuard],
         loadComponent: () =>

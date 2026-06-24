@@ -60,6 +60,7 @@ export async function resolveListingAccept(
         estimatedDurationMinutes: true,
         modifiers: true,
         moduleRefs: true,
+        autoAcceptMessage: true,
       },
       orderBy: { createdAt: 'asc' },
     }),
@@ -114,6 +115,6 @@ export async function resolveListingAccept(
   return {
     price: breakdown.total,
     durationMin,
-    message: null,
+    message: service?.autoAcceptMessage ?? null,
   };
 }

@@ -169,7 +169,7 @@ There is no `DepositTopup` model — top-up requests are tracked as a `PLATFORM_
 
 | Table | What it stores | Key notes |
 |---|---|---|
-| USER | All platform users | Single table for customers and admins — `role` field tells them apart. `contact_name` / `contact_number` separate from `name` / `phone`. `preferred_time_slot` pre-fill the quote form. `action_pin_hash` only set for admin accounts. `credit_balance` is the customer's prepaid wallet (topbar Top-Up panel). `avatar_url` (String?) stores the customer's profile photo URL; most users won't have one — fall back to initials on the frontend. `is_demo` flag bypasses password complexity (V1 seed data) but blocked in production. `chat_banned` and `chat_strike_count` track prompt-injection violations — 3 strikes = auto-ban from the AI chatbot. `google_id` set for accounts created via Google OAuth. `password_hash` is nullable — null for Google-only accounts. `reset_token` / `reset_token_expiry` store password reset state (UUID, 1h TTL). `deleted_at` soft-deletes without orphaning booking history. A servicer's "customer mode" lazily creates a paired USER row here with a synthetic email. |
+| USER | All platform users | Single table for customers and admins — `role` field tells them apart. `contact_name` / `contact_number` separate from `name` / `phone`. `preferred_time_slot` pre-fill the quote form. `action_pin_hash` only set for admin accounts. `credit_balance` is the customer's prepaid wallet (topbar Top-Up panel). `avatar_url` (String?) stores the customer's profile photo URL; most users won't have one — fall back to initials on the frontend. `is_demo` flag bypasses password complexity (V1 seed data) but blocked in production. `chat_banned` and `chat_strike_count` track prompt-injection violations — 3 strikes = auto-ban from the AI chatbot. `google_id` set for accounts created via Google OAuth. `password_hash` is nullable — null for Google-only accounts. `reset_token` / `reset_token_expiry` store password reset state (UUID, 1h TTL). `active` (bool, default true) and `deactivatedAt` (DateTime?) gate login — deactivated users are blocked with "Account deactivated". `deactivationCount` tracks how many times the account was deactivated; 10 or more auto-bans the email. `deleted_at` soft-deletes without orphaning booking history. A servicer's "customer mode" lazily creates a paired USER row here with a synthetic email. |
 | USER_ADDRESS | Saved addresses per user | Multiple addresses per user, one flagged as default. `lat` / `lng` for future radius matching. Pre-filled into the quote form when a saved address is selected. |
 | USER_DEVICE | Push notification targets | One row per device per user. Stores FCM/APNS device token and platform (ios/android/web). `is_active` flips false on logout or token revocation. |
 | REFRESH_TOKEN | JWT session management | Access tokens expire in 15 min. Refresh tokens stored as a hash — `revoked_at` set on logout. Supports multiple active sessions, one per device. |
@@ -392,6 +392,102 @@ There is no `DepositTopup` model — top-up requests are tracked as a `PLATFORM_
 | `ServicerDocument` / KYC flow | `servicer_kyc` feature flag | Schema exists, upload + admin review routes exist. Needs manual review UI. |
 | Payment gateway webhook handler | `payment_gateway` feature flag | `TRANSACTION` and `ESCROW` models are ready. Webhook routes under `/webhooks/...`. |
 | Subcategory display | Admin decision | `Category.parentCategoryId` self-relation already in schema. Frontend category browse needs update. |
+
+---
+
+## Fintech models (P1-P4 — 2026-06-24)
+
+### Wallet
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | UUID | Primary key |
+| ownerId | UUID | Polymorphic owner (user/servicer/platform). Unique with ownerType. |
+| ownerType | String | `user`, `servicer`, or `platform` |
+| currency | String | Always `MYR` |
+| balance | Decimal(12,2) | Total balance |
+| available | Decimal(12,2) | Available (not pending) |
+| pending | Decimal(12,2) | Pending hold amount |
+
+### BalanceCheckpoint
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | UUID | Primary key |
+| walletId | UUID | FK → Wallet |
+| delta | Decimal(12,2) | Change amount (+ credit, − debit) |
+| balanceBefore | Decimal(12,2) | Balance before this delta |
+| balanceAfter | Decimal(12,2) | Balance after this delta |
+| transactionId | UUID? | FK → Transaction (optional) |
+| reason | String? | Human-readable reason |
+
+### FeeRule
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | UUID | Primary key |
+| name | String | Display name |
+| description | String? | Optional description |
+| type | String | `flat`, `percentage`, or `tiered` |
+| rate | Decimal(6,4) | Rate value (flat amount or percentage as decimal) |
+| minAmount | Decimal(10,2)? | Minimum fee floor |
+| maxAmount | Decimal(10,2)? | Maximum fee ceiling |
+| capAmount | Decimal(10,2)? | Absolute cap per transaction |
+| appliesTo | String | `booking`, `withdrawal`, or `topup` |
+| categoryId | UUID? | FK → Category (optional scope) |
+| active | Boolean | Whether rule is active |
+| priority | Int | Execution order (lowest first) |
+| activeFrom | DateTime? | Optional start date |
+| activeTo | DateTime? | Optional end date |
+
+**Service:** `backend/src/services/fee-engine.service.ts` — CRUD + `computeFees(baseAmount, appliesTo, categoryId?)` engine. Falls back to legacy `platform_fee_rate` setting when no FeeRules configured. Wired into `credit.service.ts` (`computeFee`) and `booking.jobs.ts` (`handleEscrowRelease`).
+
+### SavedPaymentMethod
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | UUID | Primary key |
+| userId | UUID | FK → User |
+| stripePaymentMethodId | String | Stripe PM id (unique per user) |
+| brand | String | `visa`, `mastercard`, `amex` |
+| last4 | String | Last 4 digits |
+| expMonth | Int | Expiry month (1-12) |
+| expYear | Int | Expiry year |
+| isDefault | Boolean | Whether this is the default card |
+
+**Routes:** `GET/POST/PUT/DELETE /user/me/payment-methods` in `user.routes.ts`. Service: `backend/src/services/saved-payment.service.ts`.
+
+### Dispute
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | UUID | Primary key |
+| bookingId | UUID | FK → Booking |
+| escrowId | UUID? | FK → Escrow (optional) |
+| openedById | UUID | Who opened the dispute |
+| openedBy | String | `customer`, `servicer`, or `admin` |
+| reason | String | Reason text |
+| status | String | `open`, `under_review`, `resolved`, `dismissed` |
+| resolution | String? | `refund_customer`, `release_servicer`, `partial` (on resolve) |
+| resolvedAt | DateTime? | When resolved/dismissed |
+
+**Routes:** `POST /bookings/:id/dispute` (customer opens), `GET /admin/disputes`, `GET /admin/disputes/:id`, `PUT /admin/disputes/:id/review|resolve|dismiss`. Service: `backend/src/services/dispute.service.ts`. Escrow auto-release gated by open disputes in `booking.jobs.ts` (`handleEscrowRelease`).
+
+### Escrow auto-release (P4)
+
+The `escrow.release` BullMQ job now checks for open `Dispute` rows (status `open` or `under_review`) alongside existing open `Report` checks before releasing funds. Uses the FeeRule engine for platform fee calculation instead of the hardcoded `platform_fee_rate` setting.
+
+---
+
+## Update 2026-06-24 — Fintech P1-P5
+
+- **P1:** Wallet + BalanceCheckpoint models, `wallet.service.ts` (getOrCreateWallet, adjustWalletBalance with atomic checkpoint recording + negative balance guard).
+- **P2:** FeeRule model, `fee-engine.service.ts` (CRUD + computeFees engine with flat/percentage/tiered rules, appliesTo+categoryId scoping, fallback to legacy rate). Admin routes: `GET/POST/PUT/DELETE /admin/fee-rules`. Wired into `credit.service.ts` and `booking.jobs.ts` escrow release.
+- **P3:** SavedPaymentMethod model, `saved-payment.service.ts` CRUD, routes: `GET/POST/PUT/DELETE /user/me/payment-methods`.
+- **P4:** Dispute model, `dispute.service.ts` (open/review/resolve/dismiss), routes: `POST /bookings/:id/dispute`, admin dispute CRUD. Escrow auto-release dispute gating.
+- **P5:** CSV export endpoint `GET /admin/financial/export?days=30` already existed.
+
+---
 
 ## Update 2026-05-31 — Category taxonomy + fields
 - **Category is now 2-level** via `parentCategoryId` self-relation: 7 parents (grouping) + 34 children (quotable services). Children carry `questionSchema`, `defaultPriceSuggestion`, `defaultEstimatedDurationMinutes`. Slugs/list in `category-taxonomy.md`.

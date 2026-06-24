@@ -2,6 +2,51 @@
 
 > Single-writer log — only the **Frontend** agent writes here.
 
+## Session 2026-06-24 — E2E QA Harness Task 3
+
+**Scope:** `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` lines 252–314 — Group A, Task 3: Build auth helpers.
+
+### Work done
+
+1. Created directory `tests/e2e/helpers/` (did not exist previously).
+2. Created `tests/e2e/helpers/auth-helpers.ts` (2023 bytes, 46 lines):
+   - `DEMO_USERS` record: 8 demo accounts (3 customers, 4 servicers, 1 admin) with email + role.
+   - `loginAs(page, userKey, log)` — fills email/password, submits, waits for redirect away from `/login`.
+   - `logout(page)` — navigates to `/login`, clicks logout button if present.
+   - `getScreenshotPath(scenarioId, stepNum)` — zero-padded path under `E2E_RUN_DIR` or `logs/e2e-default`.
+
+### Issues
+- None. File created successfully.
+
+### Commit
+- Not committed (as instructed — do not commit).
+
+## Session 2026-06-24 — Task NAV: Maps/Waze on confirmed booking (customer side)
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Group 2, Task NAV.
+
+### Work done
+
+**File:** `frontend/src/app/customer/pages/my-bookings.component.ts`
+
+1. **Booking interface** — added `lat?: number | null`, `lng?: number | null`, `address?: string | null` fields (data already returned by backend `listBookings()`).
+
+2. **`openJobMap()` method** — generates Google Maps directions or Waze navigate URL from `b.lat`/`b.lng`, opens in new tab with `noopener`.
+
+3. **Template** — Maps + Waze buttons rendered in the `right` div after the status badge for `confirmed`, `in_progress`, `completed` bookings when coords are present.
+
+4. **CSS** — `.map-link` style: inline-looking link button using `var(--color-primary)`, underline, no padding/background, hover → `var(--color-text)`.
+
+### Gates
+- `npx tsc --noEmit` → EXIT 0 ✅
+- `npx ng build --configuration development` → EXIT 0 ✅
+
+### Commit
+- `feat(booking): add Maps/Waze deep-link buttons to customer booking detail`
+- Pushed to `feat/sp3-dispatch-cards`
+
+---
+
 ## Session 2026-06-23 — Item 6: Admin Financial Dashboard
 
 **Scope:** `TODO.md` item 6 — Admin financial dashboard: stats cards, revenue chart, category breakdown, urgent fee line.
@@ -222,6 +267,7 @@
 | **Phase 6 Identity Avatars POST-MVP (P6-FE)** | **650** |
 | **Category Thumbnails POST-MVP (§15)** | **701** |
 | **Plan 2 Dispatch Card Visual Redesign** | **1712** |
+| **Task RFG — routeFor() typed path helper** | **2020** |
 
 ---
 
@@ -1918,4 +1964,165 @@ won/active job (rendered only when `customerPhone` is present).
 | `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
 | `npx ng build --configuration development` | ✅ exit 0 |
 
+---
 
+## Session 2026-06-24 — Task MAP: Fix app-map-view component
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task MAP — defer Google Maps init until API key resolves.
+
+### Work done
+
+**File:** `frontend/src/app/shared/map-view.component.ts`
+
+1. **Retry guard in `loadMapsApi()`:** Replaced immediate-fail on empty key with retry loop using existing `keyRetries` field + `KEY_RETRY_MAX = 50` constant. Polls every 200ms up to 50 retries (10s). Resets counter on success.
+
+2. **Timer cleanup in `ngOnDestroy()`:** Added `clearTimeout(this.retryTimer)` to prevent pending retry from firing after component destruction.
+
+### Gates
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `npx ng build --configuration development` | ✅ exit 0 |
+
+---
+
+## Session 2026-06-24 — Task NAV: Google Maps + Waze deep-link buttons
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task NAV — add navigation deep-link buttons to confirmed booking detail views.
+
+### Work done
+
+**Files:** `frontend/src/app/customer/pages/my-bookings.component.ts`, `frontend/src/app/servicer/pages/jobs.component.ts`
+
+1. **Booking interface extended:** Added `lat?`, `lng?`, `address?` fields to both `Booking` (customer) and `Job` (servicer) interfaces.
+
+2. **Customer bookings (`my-bookings.component.ts`):**
+   - Map link buttons ("Maps" / "Waze") added to booking card `.right` section for `confirmed`, `in_progress`, `completed` statuses.
+   - GUARD: only shown when `b.lat != null && b.lng != null`.
+   - `openMap(b, app)` method: Google Maps URL = `https://www.google.com/maps/dir/?api=1&destination={lat},{lng}`, Waze URL = `https://waze.com/ul?ll={lat},{lng}&navigate=yes`. Opens in new tab.
+   - `.map-link` CSS: underlined primary-color text, hover → text color, no border/background.
+
+3. **Servicer jobs (`jobs.component.ts`):**
+   - Map link buttons added to active jobs `.actions` div (after Cancel button) for confirmed/in_progress jobs with coords.
+   - Map link buttons added to history `.jr-actions` div (after Invoice button) for completed jobs with coords.
+   - `openJobMap(j, app)` method — same URL pattern as customer side.
+   - `.map-link` CSS — identical style.
+
+4. **Pattern reused** from `incoming-quotes.component.ts` (`openMap()` method) — adapted URLs per task spec.
+
+### Gates
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `npx ng build --configuration development` | ✅ exit 0 (pre-existing NG8113 warning only) |
+
+### Issues encountered
+- `jobs.component.ts` had unstable state during editing due to concurrent prior work adding report-modal methods. Required re-reading and re-applying edits after file stabilized. Final file is consistent: report methods present + map methods added.
+
+---
+
+## Session 2026-06-24 — Task PW: Admin security settings tab
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task PW — add PIN/password policy settings UI.
+
+### Work done
+
+**File:** `frontend/src/app/admin/pages/settings.component.ts`
+
+1. **Security tab:** Added `'security'` tab to the existing settings tabs.
+2. **4 policy settings rendered:** `pin_min_length`, `pin_max_attempts`, `pin_lockout_duration_seconds`, `password_min_length` using the existing `NUM_SETTINGS` pattern.
+
+### Gates
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `npx ng build --configuration development` | ✅ exit 0 |
+
+---
+
+## Session 2026-06-24 — Task RFG: routeFor() typed path helper
+
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task RFG — Create typed `routeFor()` path helper and sweep all magic string routes.
+
+### Work done
+
+**Created/Updated:**
+- `frontend/src/app/core/route-for.ts` — Added `'customer'` RouteKey to the union type and `customer: '/customer'` to the ROUTES map for dynamic role-based redirects.
+
+**Files changed (22 files):**
+
+| File | Changes |
+|------|---------|
+| `core/route-for.ts` | Added `customer` route key + path |
+| `servicer/servicer-shell.component.ts` | 8 nav paths → routeFor |
+| `admin/admin-footer.component.ts` | 3 routerLinks → routeFor + class prop |
+| `shared/not-found.component.ts` | 1 routerLink → routeFor + class prop |
+| `auth/forgot-password.component.ts` | 1 routerLink → routeFor + import + class prop |
+| `auth/reset-password.component.ts` | 2 routerLinks → routeFor + import + class prop |
+| `auth/login.component.ts` | 3 routerLinks + 4 navigates → routeFor + import + class prop |
+| `auth/register.component.ts` | 3 routerLinks + 1 navigate → routeFor + import + class prop |
+| `auth/servicer-register.component.ts` | 3 routerLinks + import + class prop |
+| `auth/auth-callback.component.ts` | 3 navigates → routeFor + import |
+| `servicer/pages/jobs.component.ts` | 4 routerLinks → routeFor + import + class prop |
+| `servicer/pages/service-wizard.component.ts` | 3 navigates → routeFor + import |
+| `servicer/pages/listing-simple.component.ts` | 2 navigates → routeFor + import |
+| `servicer/pages/listing-create.component.ts` | 3 navigates → routeFor + import |
+| `servicer/pages/services-listings.component.ts` | 2 navigates → routeFor + import |
+| `servicer/pages/listing-advanced.component.ts` | 1 import added (2 navigates locked) |
+| `servicer/pages/listing-wizard.component.ts` | 3 navigates → routeFor + import |
+| `servicer/pages/calendar.component.ts` | 2 navigates → routeFor + import |
+| `home/home.component.ts` | 6 routerLinks + 5 navigates → routeFor + import + class prop |
+| `customer/pages/my-bookings.component.ts` | 1 routerLink + 1 navigate + TAB_ROUTES → routeFor + import + class prop |
+| `customer/pages/my-quotes.component.ts` | 4 routerLinks → routeFor + import + class prop |
+| `customer/pages/browse.component.ts` | 1 routerLink → routeFor + import + class prop |
+| `customer/pages/proposals.component.ts` | 1 navigate → routeFor + import |
+| `customer/pages/quote-form.component.ts` | 1 routerLink (terms) → routeFor + import + class prop |
+| `shared/demo-bar.component.ts` | 1 navigate + import (1 navigate locked) |
+
+**Route keys defined (68 total):**
+Home/Auth (10), Customer (13), Servicer (27), Admin (14), plus `customer` portal base.
+
+### Gates
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `npx ng build --configuration development` | ✅ exit 0 |
+
+### Issues encountered
+- **File locking:** 7 files locked by external processes (VSCode TS server) preventing partial edits. Locked files: `customer/pages/account.component.ts`, `customer/pages/rewards.component.ts`, `public/children-browse.component.ts`, `servicer/pages/account.component.ts`, `shared/dispatch-overlay.component.ts`, `servicer/pages/listing-advanced.component.ts`, `shared/demo-bar.component.ts` (second edit). These files retain their original `routerLink="/path"` or `router.navigate(['/path'])` syntax — functional but not migrated to routeFor. Will need re-opening of files or editor restart to fix.
+- **dispatch-overlay write corruption:** Full-file write accidentally made `downTarget` private, breaking template bindings. Restored from git. Intentionally left with old routerLink syntax to avoid mutation.
+- **my-quotes full rewrite:** Accidental full-file rewrite truncated component. Restored from git and re-migrated with targeted edits.
+
+## Session 2026-06-24 — E2E QA Harness Task 5 (Group B)
+
+**Scope:** `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` — Group B, Task 5: Build Socket.io watcher helpers.
+
+### Sub-task 5a: socket-watcher.ts
+
+Created `tests/e2e/helpers/socket-watcher.ts` with three exports:
+- `waitForSocketEvent(page, eventName, timeoutMs)` — listens for a single socket event via `window.__SOCKET__`
+- `listenForSocketEvents(page, events)` — records multiple events into `window.__socketEvents[]`
+- `getCapturedEvents(page)` — returns the captured events array
+
+### Sub-task 5b: Expose Socket.io on window.__SOCKET__ in dev mode
+
+Modified `frontend/src/app/core/services/socket.service.ts` (96 → 107 lines, +11).
+
+Three insertion points, all gated behind `if (!environment.production)`:
+1. **Lines 35-38** — After first socket creation in `connect()`, expose `this.socket` on `window.__SOCKET__` before `return;`
+2. **Lines 51-54** — After `this.socket.connect()` in account-switch branch, expose reconnected socket before `return;`
+3. **Lines 64-66** — In `disconnect()`, null out `window.__SOCKET__` before nulling `this.socket`
+
+### Verification
+
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `socket-watcher.ts` file check | ✅ exists, matches spec |
+
+### Files changed
+
+| File | Action |
+|---|---|
+| `tests/e2e/helpers/socket-watcher.ts` | Created |
+| `frontend/src/app/core/services/socket.service.ts` | Modified (+11 lines) |

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { switchMap } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
+import { routeFor } from '../../core/route-for';
 import { IconComponent } from '../../shared/icon.component';
 import { ToastService } from '../../core/services/toast.service';
 
@@ -413,7 +414,7 @@ export class ListingSimpleComponent implements OnInit {
       next: () => {
         this.saving.set(false);
         this.toast.success('Listing published.');
-        this.router.navigate(['/servicer/services/listings']);
+        this.router.navigate([routeFor('servicer.services.listings')]);
       },
       error: (e) => {
         this.saving.set(false);
@@ -423,6 +424,6 @@ export class ListingSimpleComponent implements OnInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/servicer/services/listings']);
+    this.router.navigate([routeFor('servicer.services.listings')]);
   }
 }

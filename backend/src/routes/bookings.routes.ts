@@ -135,6 +135,24 @@ bookingsRouter.post(
   }),
 );
 
+// ── Disputes ──────────────────────────────────────────────────────────────────
+
+/** POST /bookings/:id/dispute — customer opens a dispute on a booking. */
+bookingsRouter.post(
+  '/:id/dispute',
+  validate([
+    body('reason').isString().notEmpty().isLength({ max: 1000 }),
+  ]),
+  asyncHandler(async (req, res) => {
+    const { openDispute } = await import('../services/dispute.service');
+    const dispute = await openDispute(req.user!.id, 'customer', {
+      bookingId: req.params.id,
+      reason: req.body.reason,
+    });
+    res.status(201).json({ data: dispute });
+  }),
+);
+
 // ── Unpaid invoices ──────────────────────────────────────────────────────────
 
 /** GET /bookings/unpaid-invoices — list customer's unpaid invoices with overdue status. */

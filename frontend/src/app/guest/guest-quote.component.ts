@@ -804,6 +804,17 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Re-apply question answers from the chat prefill after onCategoryChange clears
+   *  f.answers — mirrors the budget recovery in loadBudgetRanges' callback. Called
+   *  only from load(), never from user-triggered onCategoryChange, so it never
+   *  force-writes stale answers over a different user-picked category. */
+  private reapplyChatAnswers(): void {
+    const sd = this.chatPrefillData?.['serviceDetails'];
+    if (sd && typeof sd === 'object') {
+      this.f.answers = { ...(sd as Record<string, unknown>) };
+    }
+  }
+
   /**
    * Pick the budget bracket for the chat's prefilled budget, against the loaded ranges:
    *   1. the explicit index from the chat budget card, if it's in range;
@@ -837,6 +848,9 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
           const child = (r.data ?? []).find((c) => c.id === this.f.categoryId);
           if (child) this.parentId.set(child.parentCategoryId ?? '');
           this.onCategoryChange(this.f.categoryId);
+          // onCategoryChange clears f.answers — restoring from the chat prefill after
+          // the category locks so the collected question answers are not lost.
+          this.reapplyChatAnswers();
           // The chat's budget bracket is applied in loadBudgetRanges' callback (it needs
           // the loaded ranges to validate the index / match a free-text amount).
         }

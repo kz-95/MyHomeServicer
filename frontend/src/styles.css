@@ -342,6 +342,7 @@ button {
   align-items: center;
   justify-content: center;
 }
+.btn-ghost-sm { font-size: 0.625rem; padding: 0.15rem 0.4rem; }
 .btn-ghost:hover:not(:disabled) {
   background: var(--color-bg);
   border-color: var(--color-muted);
@@ -831,6 +832,7 @@ select {
 
 /* ── Page width constraint ──────────────────────────────────── */
 .page-narrow {
+  display: block;
   max-width: 720px;
   margin: 0 auto;
 }

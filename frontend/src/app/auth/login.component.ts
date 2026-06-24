@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
+import { routeFor } from '../core/route-for';
 import { ConfigService } from '../core/services/config.service';
 import { environment } from '../../environments/environment';
 
@@ -30,7 +31,7 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
           <input type="password" [(ngModel)]="password" name="password" autocomplete="current-password" maxlength="128" />
         </label>
         <div class="forgot-row">
-          <a routerLink="/auth/forgot">Forgot password?</a>
+          <a [routerLink]="routeFor('auth.forgot')">Forgot password?</a>
         </div>
 
         @if (error()) {
@@ -49,7 +50,7 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
           </a>
         }
 
-        <p class="muted">No account? <a routerLink="/register">Register</a></p>
+        <p class="muted">No account? <a [routerLink]="routeFor('register')">Register</a></p>
 
         @if (showSkip()) {
           <button class="btn-ghost skip-btn" (click)="skip()">
@@ -95,7 +96,7 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
         }
         -->
 
-        <p class="muted"><a routerLink="/">← Back to home</a></p>
+        <p class="muted"><a [routerLink]="routeFor('home')">← Back to home</a></p>
       </div>
     </div>
   `,
@@ -228,6 +229,7 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
     ]
 })
 export class LoginComponent implements OnInit {
+  routeFor = routeFor;
   private auth = inject(AuthService);
   private http = inject(HttpClient);
   private router = inject(Router);
@@ -243,62 +245,6 @@ export class LoginComponent implements OnInit {
   showGoogle = Boolean(this.config.googleClientId);
   googleUrl = googleOAuthUrl;
   private intent = '';
-  // Admin rescue - DISABLED 2026-06-03
-  // protected showRescue = false;
-  // protected rescueStep: 'email' | 'reason' | 'otp' | 'reset' = 'email';
-  // protected rescueEmail = '';
-  // protected rescueReason = '';
-  // protected rescueOtp = '';
-  // protected rescueNewPassword = '';
-  // protected rescueNewPin = '';
-  // protected rescueToken = '';
-  // protected rescueError = '';
-
-  // sendForgotPassword(): void {
-  //   this.rescueError = '';
-  //   this.http.post('/api/v1/auth/admin/forgot-password', { email: this.rescueEmail }).subscribe({
-  //     next: (res: any) => {
-  //       if (res.showRescueOption) {
-  //         this.rescueStep = 'reason';
-  //       } else {
-  //         this.rescueStep = 'otp';
-  //       }
-  //     },
-  //     error: (e) => this.rescueError = e.error?.message || 'Failed',
-  //   });
-  // }
-
-  // triggerRescue(): void {
-  //   this.rescueError = '';
-  //   this.http.post('/api/v1/auth/admin/rescue', { reason: this.rescueReason }).subscribe({
-  //     next: () => this.rescueStep = 'otp',
-  //     error: (e) => this.rescueError = e.error?.message || 'Failed',
-  //   });
-  // }
-
-  // verifyRescueOtp(): void {
-  //   this.rescueError = '';
-  //   this.http.post('/api/v1/auth/admin/verify-otp', { email: this.rescueEmail || 'admin@demo.local', otp: this.rescueOtp }).subscribe({
-  //     next: (res: any) => { this.rescueToken = res.token; this.rescueStep = 'reset'; },
-  //     error: (e) => this.rescueError = e.error?.message || 'Invalid code',
-  //   });
-  // }
-
-  // completeReset(): void {
-  //   this.rescueError = '';
-  //   this.http.post('/api/v1/auth/admin/reset-password', {
-  //     token: this.rescueToken,
-  //     newPassword: this.rescueNewPassword,
-  //     newPin: this.rescueNewPin,
-  //   }).subscribe({
-  //     next: () => {
-  //       this.showRescue = false;
-  //       this.rescueStep = 'email';
-  //       alert('Password reset. Please log in with your new credentials and complete the setup wizard.');
-  //     },
-  //     error: (e) => this.rescueError = e.error?.message || 'Failed',
-  //   });
-  // }
 
   ngOnInit(): void {
     this.intent = this.route.snapshot.queryParamMap.get('intent') ?? '';
@@ -307,11 +253,11 @@ export class LoginComponent implements OnInit {
 
   skip(): void {
     if (this.intent === 'chat') {
-      this.router.navigate(['/']);
+      this.router.navigate([routeFor('home')]);
     } else {
       const catId = this.auth.getGuestData()?.categoryId;
       this.auth.enterGuestMode();
-      this.router.navigate(['/guest/quote/new'], catId ? { queryParams: { category: catId } } : {});
+      this.router.navigate([routeFor('guest.quote.new')], catId ? { queryParams: { category: catId } } : {});
     }
   }
 
@@ -330,13 +276,14 @@ export class LoginComponent implements OnInit {
       next: (res) => {
         const hasGuestData = this.auth.getGuestData() !== null;
         if (this.intent === 'chat') {
-          this.router.navigate(['/']);
+          this.router.navigate([routeFor('home')]);
         } else if (hasGuestData && res.user.role === 'customer') {
           const catId = this.auth.getGuestData()?.categoryId;
           this.auth.exitGuestMode();
-          this.router.navigate(['/customer/quote'], catId ? { queryParams: { category: catId } } : {});
+          this.router.navigate([routeFor('customer.quote')], catId ? { queryParams: { category: catId } } : {});
         } else {
-          this.router.navigate([`/${res.user.role}`]);
+          const roleRoute = res.user.role === 'admin' ? routeFor('admin') : res.user.role === 'servicer' ? routeFor('servicer') : routeFor('customer');
+          this.router.navigate([roleRoute]);
         }
       },
       error: (e) => {

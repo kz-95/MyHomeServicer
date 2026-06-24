@@ -3,6 +3,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
+import { routeFor } from '../../core/route-for';
 import { ToastService } from '../../core/services/toast.service';
 import { ModalComponent } from '../../shared/modal.component';
 
@@ -890,11 +891,11 @@ export class ServicerCalendarComponent implements OnInit {
   /** View Job — navigate (mobile) or open in new tab (desktop). */
   viewJob(id: string): void {
     const url = this.router.serializeUrl(
-      this.router.createUrlTree(['/servicer/jobs', id]),
+      this.router.createUrlTree([routeFor('servicer.jobs.detail', { id })]),
     );
     if (window.innerWidth <= 760) {
       this.dayModalOpen.set(false);
-      this.router.navigate(['/servicer/jobs', id]);
+      this.router.navigate([routeFor('servicer.jobs.detail', { id })]);
     } else {
       window.open(url, '_blank');
     }

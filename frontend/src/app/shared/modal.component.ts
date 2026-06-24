@@ -72,7 +72,7 @@ import {
         color: var(--color-text);
       }
       .dialog.wide {
-        max-width: min(720px, calc(100vw - 2rem));
+        max-width: min(50vw, calc(100vw - 2rem), 960px);
       }
       .dialog::backdrop {
         background: var(--color-backdrop, rgba(0, 0, 0, 0.6));

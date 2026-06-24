@@ -1900,3 +1900,117 @@ Three stacked layers inside one positioned container:
 Never reverse it; never put the photo on the left.
 
 ---
+
+## 8.0 Form Validation UX — Required Inputs, Per-Field Errors, Validation Nudges
+
+> **Applies to every form across customer, servicer, and admin portals.**
+> This is NOT optional — it is a code quality standard that all agents must follow.
+
+### The problem
+
+LLM-generated forms almost always lack per-field validation UX. The typical pattern is:
+- No `*` indicator on required fields
+- One generic error message at the top ("Please fill all required fields")
+- Validation only fires on form submit, not on blur or input
+
+### The rule — every form must have these four things
+
+#### 8.1 Required field indicator
+
+Every label for a required field must have a `<span class="req">*</span>` appended:
+
+```html
+<label>
+  Name <span class="req">*</span>
+  <input [(ngModel)]="name" required />
+</label>
+```
+
+```css
+.req { color: var(--color-danger); margin-left: 0.15rem; }
+```
+
+*(Exception: checkbox/radio groups where the label is the group legend instead.)*
+
+#### 8.2 Per-field error message
+
+Each input with validation gets its own error message directly below it. Never show a single form-level error blob.
+
+```html
+<label>
+  Name <span class="req">*</span>
+  <input [(ngModel)]="name" (blur)="nameTouched.set(true)" (input)="onNameInput()" />
+</label>
+@if (nameTouched() && !name().trim()) {
+  <p class="field-err">Name is required.</p>
+}
+```
+
+```css
+.field-err {
+  color: var(--color-danger);
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+```
+
+#### 8.3 Validation nudge — when to show errors
+
+| Event | Behavior |
+|-------|----------|
+| **Blur** (field loses focus) | Mark field as touched. Show error if empty/invalid. |
+| **Input** (user types) | If already touched, re-validate and clear error if now valid. |
+| **Submit** | Touch ALL fields at once. Show all errors. Prevent submit if any invalid. |
+
+Implementation pattern (signals):
+
+```typescript
+nameTouched = signal(false);
+nameError = signal('');
+
+onNameBlur(): void {
+  this.nameTouched.set(true);
+  if (!this.f().name.trim()) this.nameError.set('Name is required.');
+  else this.nameError.set('');
+}
+onNameInput(): void {
+  if (!this.nameTouched()) return;
+  if (!this.f().name.trim()) this.nameError.set('Name is required.');
+  else this.nameError.set('');
+}
+```
+
+#### 8.4 Submit guard
+
+On submit, touch **every field** first, check all validity, and **do not submit** if any field is invalid. Scroll to the first error.
+
+```typescript
+submit(): void {
+  this.nameTouched.set(true);
+  this.emailTouched.set(true);
+  // ... touch all fields
+
+  // Check validity (errors are already computed by touch signals)
+  if (this.nameError() || this.emailError()) return;
+
+  // Proceed with API call
+}
+```
+
+### Existing forms that need this treatment
+
+- [ ] `quote-form.component.ts` — Customer quote request
+- [ ] `my-bookings.component.ts` — Report issue modal
+- [ ] `shell.component.ts` — Servicer proposal response card
+- [ ] `jobs.component.ts` — Servicer report issue (new)
+- [ ] `users.component.ts` — Admin edit account modal
+- [ ] `category-settings.component.ts` — Admin category editor
+- [ ] `settings.component.ts` — Admin settings form
+- [ ] `money-settings.component.ts` — Admin financial settings
+- [ ] `faq.component.ts` — Admin FAQ editor
+
+### Reference
+
+- Follow the existing Angular template-driven forms pattern (`[(ngModel)]`) already used throughout the app.
+- This section replaces any ad-hoc form validation patterns. If you see a form missing per-field errors, fix it.
+- Do NOT use a shared `showAllErrors` boolean — use per-field `touched` signals so each field validates independently.

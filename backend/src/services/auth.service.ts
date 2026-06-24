@@ -148,6 +148,9 @@ export async function register(input: {
   const existing = await findAccountByEmail(input.email);
   if (existing) throw new ApiError('CONFLICT', 'An account with that email already exists');
 
+  const banned = await prisma.bannedEmail.findUnique({ where: { email: input.email } });
+  if (banned) throw new ApiError('FORBIDDEN', 'Account banned');
+
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
   const user = await prisma.user.create({
     data: {
@@ -195,6 +198,9 @@ export async function registerServicer(input: {
   if (existing && !convertingUser) {
     throw new ApiError('CONFLICT', 'An account with that email already exists');
   }
+
+  const banned = await prisma.bannedEmail.findUnique({ where: { email: input.email } });
+  if (banned && !convertingUser) throw new ApiError('FORBIDDEN', 'Account banned');
 
   // The servicer's platform category is fixed at registration.
   const category = await prisma.category.findFirst({
@@ -318,6 +324,17 @@ export async function login(
   // (DEMO_LOGIN_ENABLED) — e.g. on a dedicated demo deployment.
   if (record.isDemo && !allowDemo) {
     throw new ApiError('FORBIDDEN', 'Demo accounts are disabled in production');
+  }
+
+  // Block banned emails.
+  const banned = await prisma.bannedEmail.findUnique({ where: { email } });
+  if (banned) {
+    throw new ApiError('FORBIDDEN', 'Account banned');
+  }
+
+  // Block deactivated accounts.
+  if (record.active === false || record.deactivatedAt) {
+    throw new ApiError('FORBIDDEN', 'Account deactivated');
   }
 
   const ok = await bcrypt.compare(password, record.passwordHash);

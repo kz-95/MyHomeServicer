@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
+import { routeFor } from '../../core/route-for';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -620,7 +621,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
 
         <label class="checkbox" [class.field-invalid]="hasError('agreeTerms')">
           <input type="checkbox" [(ngModel)]="f.agreeTerms" name="agree" (ngModelChange)="clearError('agreeTerms')" />
-          I've read and agree to the <a routerLink="/terms" target="_blank">Terms &amp; Conditions</a>
+          I've read and agree to the <a [routerLink]="routeFor('terms')" target="_blank">Terms &amp; Conditions</a>
           @if (hasError('agreeTerms')) { <span class="field-msg">You must agree to continue.</span> }
         </label>
 
@@ -1102,6 +1103,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
     ]
 })
 export class QuoteFormComponent implements OnInit, OnDestroy {
+  routeFor = routeFor;
   private api = inject(ApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -2074,7 +2076,7 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
 
   goToQuotesNow(): void {
     if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null; }
-    this.router.navigate(['/customer/quotes']);
+    this.router.navigate([routeFor('customer.quotes')]);
   }
 
   ngOnDestroy(): void {

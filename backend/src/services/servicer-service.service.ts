@@ -32,6 +32,9 @@ export interface ServiceInput {
   fieldRequirements?: unknown;
   imageUrl?: string | null;
   published?: boolean;
+  serviceChargeRate?: number | null;
+  taxInclusive?: boolean | null;
+  sstApplies?: boolean | null;
 }
 
 // ── Servicer services CRUD ───────────────────────────────────────────────────
@@ -158,6 +161,9 @@ export async function createService(servicerId: string, input: ServiceInput) {
         input.fieldRequirements !== undefined
           ? (fieldRequirementsSchema.parse(input.fieldRequirements) as Prisma.InputJsonValue)
           : undefined,
+      serviceChargeRate: input.serviceChargeRate ?? null,
+      taxInclusive: input.taxInclusive ?? null,
+      sstApplies: input.sstApplies ?? null,
     },
   });
 }
@@ -211,6 +217,9 @@ export async function updateService(
     );
     data.category = { connect: { id: categoryId } };
   }
+  if (input.serviceChargeRate !== undefined) data.serviceChargeRate = input.serviceChargeRate;
+  if (input.taxInclusive !== undefined) data.taxInclusive = input.taxInclusive;
+  if (input.sstApplies !== undefined) data.sstApplies = input.sstApplies;
   return prisma.servicerService.update({ where: { id: serviceId }, data });
 }
 

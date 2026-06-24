@@ -614,3 +614,52 @@ This step rewrites the emitted `index.html` asset refs to root-absolute so Cloud
 - [ ] Scaffold Playwright + write 5 browser E2E scenarios
 - [ ] Delete `security.yml` and `ci.yml` after confirming new workflows
 - [ ] Set `CALLMEBOT_APIKEY` + `CALLMEBOT_PHONE` GitHub secrets
+
+---
+
+## Session 2026-06-24 — E2E QA Harness Task 4b
+
+**Task:** Create seed helpers (`tests/e2e/helpers/seed-helpers.ts`) per build plan §Task 4b (lines 421-456).
+
+**Work completed:**
+
+1. Directory `tests/e2e/helpers/` already existed from prior tasks (contained `auth-helpers.ts` and `step-logger.ts`).
+2. Created `tests/e2e/helpers/seed-helpers.ts` with `resetTestDB()` — wraps `npm run db:reset` and `npm run seed:test` executed in the `backend/` directory with `NODE_ENV=test` and `stdio: 'pipe'`.
+3. Logged to `devops-log.md`.
+
+**Issues:** None. File created verbatim from plan. No commit per task instructions (branch `feat/sp3-dispatch-cards`, do not commit).
+
+---
+
+## Session 2026-06-24 — E2E QA Harness Task 1
+
+**Task:** Install Playwright + scaffold config (`docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` lines 45-101, Group A Task 1).
+
+**Branch:** `feat/sp3-dispatch-cards` (no commit, no push per instructions).
+
+### What was done
+
+1. **Installed `@playwright/test`** — `cd frontend && npm install -D @playwright/test` (changed 3 packages, 999 audited).
+2. **Installed Chromium** — `npx playwright install chromium` from `frontend/`.
+3. **Created `tests/e2e/playwright.config.ts`** at repo root with exact content from plan:
+   - `testDir: './scenarios'`, `timeout: 120_000`, `workers: 1`
+   - `baseURL: 'http://localhost:4200'`, headless, screenshot/video on, trace on-first-retry
+   - Chromium project with `--no-sandbox` launch arg
+4. **Verification** — `npx playwright test --list` from `tests/e2e/`:
+   - Result: "No tests found. Total: 0 tests in 0 files" — config loads without errors.
+   - **Issue:** Module resolution fails without `NODE_PATH` because `@playwright/test` is in `frontend/node_modules/` but the config is at repo root `tests/e2e/`. Workaround: `$env:NODE_PATH = "frontend/node_modules"` before running.
+5. **No commit, no push** — per task instructions.
+
+### Issues
+
+| Issue | Detail | Resolution |
+|-------|--------|------------|
+| `NODE_PATH` required | `@playwright/test` installed in `frontend/node_modules/` but config is at repo root `tests/e2e/`. Node can't resolve `import '@playwright/test'` from outside `frontend/`. | Set `NODE_PATH=frontend/node_modules` before running. Consider: (a) installing `@playwright/test` at repo root too, (b) moving config to `frontend/tests/e2e/`, or (c) documenting `NODE_PATH` in README/scripts. |
+| 26 npm audit vulnerabilities | Existing frontend vulnerabilities (2 low, 6 moderate, 18 high) — not introduced by Playwright. | Deferred. |
+
+### Result: SUCCESS
+
+- `@playwright/test` installed (in `frontend/package.json` devDependencies)
+- Chromium browser installed for Playwright
+- `tests/e2e/playwright.config.ts` created and verified
+- Ready for Task 2 (write scenarios)

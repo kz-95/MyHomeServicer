@@ -16,6 +16,7 @@ interface Servicer {
   rating: number;
   depositBalance: number;
   creditBalance: number;
+  categoryName: string | null;
 }
 
 /** Admin servicer management - view and ban/unban servicers. */
@@ -36,6 +37,12 @@ interface Servicer {
         <button class="chip" [class.on]="statusFilter() === 'all'" (click)="statusFilter.set('all')">All</button>
         <button class="chip" [class.on]="statusFilter() === 'active'" (click)="statusFilter.set('active')">Active</button>
         <button class="chip" [class.on]="statusFilter() === 'banned'" (click)="statusFilter.set('banned')">Banned</button>
+      <select [(ngModel)]="selectedCategoryId" name="svccat" (change)="onCategoryChange()" toolbar-sort>
+        <option value="">All categories</option>
+        @for (cat of categories(); track cat.id) {
+          <option [value]="cat.id">{{ cat.name }}</option>
+        }
+      </select>
       </div>
     </app-list-toolbar>
     <table class="card page-child">
@@ -45,6 +52,7 @@ interface Servicer {
           <th class="sort-th" (click)="toggleSort('email')">Email {{ sortIndicator('email') }}</th>
           <th class="sort-th" (click)="toggleSort('rating')">Rating {{ sortIndicator('rating') }}</th>
           <th class="sort-th" (click)="toggleSort('deposit')">Deposit {{ sortIndicator('deposit') }}</th>
+          <th>Category</th>
           <th>Status</th>
           <th></th>
         </tr>
@@ -56,6 +64,7 @@ interface Servicer {
             <td class="muted">{{ m.email }}</td>
             <td>★ {{ m.rating | number: '1.1-1' }}</td>
             <td>RM {{ m.depositBalance | number: '1.2-2' }}</td>
+            <td class="muted">{{ m.categoryName ?? "&ndash;" }}</td>
             <td>
               <span [class.banned]="m.isBanned">{{ m.isBanned ? 'Banned' : 'Active' }}</span>
             </td>
@@ -69,7 +78,7 @@ interface Servicer {
           </tr>
         } @empty {
           <tr>
-            <td colspan="6" class="muted">No servicers found.</td>
+            <td colspan="7" class="muted">No servicers found.</td>
           </tr>
         }
       </tbody>
@@ -119,6 +128,7 @@ interface Servicer {
       @media (max-width: 700px) {
         th:nth-child(3), td:nth-child(3),
         th:nth-child(4), td:nth-child(4) {
+        th:nth-child(5), td:nth-child(5),
           display: none;
         }
       }
@@ -137,6 +147,9 @@ export class AdminServicersComponent implements OnInit {
 
   search = signal('');
   statusFilter = signal<'all' | 'active' | 'banned'>('all');
+  selectedCategoryId = signal('');
+  categories = signal<{ id: string; name: string; parentCategoryId: string | null }[]>([]);
+  topCategories = computed(() => this.categories().filter((c) => !c.parentCategoryId));
   sortField = signal<'business' | 'email' | 'rating' | 'deposit'>('business');
   sortDir = signal<'asc' | 'desc'>('asc');
 
@@ -179,9 +192,15 @@ export class AdminServicersComponent implements OnInit {
     this.load();
   }
 
+  onCategoryChange(): void { this.load(); }
   private load(): void {
     this.loadFailed.set(false);
-    this.api.get<{ data: Servicer[] }>('/admin/servicers').subscribe({
+    this.api.get<{ data: { id: string; name: string; parentCategoryId: string | null }[] }>('/admin/categories').subscribe({
+      next: (r) => this.categories.set(r.data),
+    });
+    const params: Record<string, string> = {};
+    if (this.selectedCategoryId()) params['categoryId'] = this.selectedCategoryId();
+    this.api.get<{ data: Servicer[] }>('/admin/servicers', params).subscribe({
       next: (r) => {
         this.servicers.set(r.data);
         this.loading.set(false);

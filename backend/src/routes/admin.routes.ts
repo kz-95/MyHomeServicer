@@ -169,6 +169,167 @@ adminRouter.patch(
   }),
 );
 
+/** GET /admin/users/search?q= — search users by name, email, or phone. Admin-only, PIN-gated. */
+adminRouter.get(
+  '/users/search',
+  requirePin,
+  asyncHandler(async (req, res) => {
+    const q = (req.query.q as string)?.trim();
+    if (!q || q.length < 2) throw badRequest('Search query must be at least 2 characters');
+    const ci = (v: string) => ({ contains: v, mode: 'insensitive' as const });
+
+    const [users, servicers] = await Promise.all([
+      prisma.user.findMany({
+        where: { OR: [{ email: ci(q) }, { name: ci(q) }, { phone: ci(q) }] },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      prisma.servicer.findMany({
+        where: {
+          deletedAt: null,
+          OR: [{ email: ci(q) }, { name: ci(q) }, { businessName: ci(q) }, { phone: ci(q) }],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+    ]);
+
+    const results = [
+      ...users.map((u) => ({
+        id: u.id,
+        kind: 'user' as const,
+        name: u.name,
+        email: u.email,
+        phone: u.phone,
+        role: u.role as string,
+        active: u.active,
+        deactivatedAt: u.deactivatedAt,
+        createdAt: u.createdAt,
+      })),
+      ...servicers.map((m) => ({
+        id: m.id,
+        kind: 'servicer' as const,
+        name: m.businessName,
+        email: m.email,
+        phone: m.phone,
+        role: 'servicer',
+        active: m.active,
+        deactivatedAt: m.deactivatedAt,
+        createdAt: m.createdAt,
+      })),
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    res.json({ data: results });
+  }),
+);
+
+/** POST /admin/users/:id/deactivate — admin deactivates a user account. PIN-gated. */
+adminRouter.post(
+  '/users/:id/deactivate',
+  requirePin,
+  validate([body('reason').optional().isString().trim().isLength({ max: 500 })]),
+  asyncHandler(async (req, res) => {
+    const targetId = req.params.id;
+
+    const user = await prisma.user.findUnique({ where: { id: targetId } });
+    if (user) {
+      if (user.deactivatedAt) throw badRequest('User is already deactivated');
+      const updated = await prisma.user.update({
+        where: { id: targetId },
+        data: { active: false, deactivatedAt: new Date(), deactivationCount: { increment: 1 } },
+      });
+      await recordAudit({
+        actorUserId: req.user!.id,
+        actorType: 'admin',
+        action: 'user.deactivate',
+        entityType: 'User',
+        entityId: targetId,
+        oldValue: { active: true, deactivatedAt: null },
+        newValue: { active: false, deactivatedAt: updated.deactivatedAt, reason: req.body.reason ?? null },
+        ipAddress: ip(req),
+      });
+      res.json({ message: 'User deactivated.', deactivatedAt: updated.deactivatedAt });
+      return;
+    }
+
+    const servicer = await prisma.servicer.findUnique({ where: { id: targetId } });
+    if (servicer) {
+      if (servicer.deactivatedAt) throw badRequest('Servicer is already deactivated');
+      const updated = await prisma.servicer.update({
+        where: { id: targetId },
+        data: { active: false, deactivatedAt: new Date(), deactivationCount: { increment: 1 } },
+      });
+      await recordAudit({
+        actorUserId: req.user!.id,
+        actorType: 'admin',
+        action: 'servicer.deactivate',
+        entityType: 'Servicer',
+        entityId: targetId,
+        oldValue: { active: true, deactivatedAt: null },
+        newValue: { active: false, deactivatedAt: updated.deactivatedAt, reason: req.body.reason ?? null },
+        ipAddress: ip(req),
+      });
+      res.json({ message: 'Servicer deactivated.', deactivatedAt: updated.deactivatedAt });
+      return;
+    }
+
+    throw notFound('Account not found');
+  }),
+);
+
+/** POST /admin/users/:id/reactivate — admin reactivates a deactivated account. PIN-gated. */
+adminRouter.post(
+  '/users/:id/reactivate',
+  requirePin,
+  asyncHandler(async (req, res) => {
+    const targetId = req.params.id;
+
+    const user = await prisma.user.findUnique({ where: { id: targetId } });
+    if (user) {
+      if (!user.deactivatedAt) throw badRequest('User is not deactivated');
+      await prisma.user.update({
+        where: { id: targetId },
+        data: { active: true, deactivatedAt: null },
+      });
+      await recordAudit({
+        actorUserId: req.user!.id,
+        actorType: 'admin',
+        action: 'user.reactivate',
+        entityType: 'User',
+        entityId: targetId,
+        oldValue: { active: false, deactivatedAt: user.deactivatedAt },
+        newValue: { active: true, deactivatedAt: null },
+        ipAddress: ip(req),
+      });
+      res.json({ message: 'User reactivated.' });
+      return;
+    }
+
+    const servicer = await prisma.servicer.findUnique({ where: { id: targetId } });
+    if (servicer) {
+      if (!servicer.deactivatedAt) throw badRequest('Servicer is not deactivated');
+      await prisma.servicer.update({
+        where: { id: targetId },
+        data: { active: true, deactivatedAt: null },
+      });
+      await recordAudit({
+        actorUserId: req.user!.id,
+        actorType: 'admin',
+        action: 'servicer.reactivate',
+        entityType: 'Servicer',
+        entityId: targetId,
+        oldValue: { active: false, deactivatedAt: servicer.deactivatedAt },
+        newValue: { active: true, deactivatedAt: null },
+        ipAddress: ip(req),
+      });
+      res.json({ message: 'Servicer reactivated.' });
+      return;
+    }
+
+    throw notFound('Account not found');
+  }),
+);
+
 // ── Reports ──────────────────────────────────────────────────────────────────
 adminRouter.get(
   '/reports',
@@ -1458,6 +1619,122 @@ adminRouter.delete(
     await prisma.bannedEmail.delete({ where: { id: req.params.id } });
 
     res.json({ message: 'Email unbanned.' });
+  }),
+);
+
+// ── Fee Rules CRUD ────────────────────────────────────────────────────────────
+
+/** GET /admin/fee-rules — list all fee rules (admin). */
+adminRouter.get(
+  '/fee-rules',
+  asyncHandler(async (_req, res) => {
+    const { listFeeRules } = await import('../services/fee-engine.service');
+    const rules = await listFeeRules();
+    res.json({ data: rules });
+  }),
+);
+
+/** POST /admin/fee-rules — create a fee rule (admin, PIN-gated). */
+adminRouter.post(
+  '/fee-rules',
+  requirePin,
+  validate([
+    body('name').isString().notEmpty().isLength({ max: 200 }),
+    body('type').isIn(['flat', 'percentage', 'tiered']),
+    body('rate').isFloat({ min: 0 }),
+    body('appliesTo').isIn(['booking', 'withdrawal', 'topup']),
+    body('description').optional().isString(),
+    body('minAmount').optional().isFloat({ min: 0 }),
+    body('maxAmount').optional().isFloat({ min: 0 }),
+    body('capAmount').optional().isFloat({ min: 0 }),
+    body('categoryId').optional().isUUID(),
+    body('priority').optional().isInt({ min: 0 }),
+    body('active').optional().isBoolean(),
+  ]),
+  asyncHandler(async (req, res) => {
+    const { createFeeRule } = await import('../services/fee-engine.service');
+    const rule = await createFeeRule(req.body);
+    res.status(201).json({ data: rule });
+  }),
+);
+
+/** PUT /admin/fee-rules/:id — update a fee rule (admin, PIN-gated). */
+adminRouter.put(
+  '/fee-rules/:id',
+  requirePin,
+  asyncHandler(async (req, res) => {
+    const { updateFeeRule } = await import('../services/fee-engine.service');
+    const rule = await updateFeeRule(req.params.id, req.body);
+    res.json({ data: rule });
+  }),
+);
+
+/** DELETE /admin/fee-rules/:id — delete a fee rule (admin, PIN-gated). */
+adminRouter.delete(
+  '/fee-rules/:id',
+  requirePin,
+  asyncHandler(async (req, res) => {
+    const { deleteFeeRule } = await import('../services/fee-engine.service');
+    await deleteFeeRule(req.params.id);
+    res.json({ message: 'Fee rule deleted.' });
+  }),
+);
+
+// ── Disputes (admin) ──────────────────────────────────────────────────────────
+
+/** GET /admin/disputes — list all disputes. */
+adminRouter.get(
+  '/disputes',
+  asyncHandler(async (req, res) => {
+    const { listDisputes } = await import('../services/dispute.service');
+    const disputes = await listDisputes({ status: req.query.status as string, openedBy: req.query.openedBy as string });
+    res.json({ data: disputes });
+  }),
+);
+
+/** GET /admin/disputes/:id — get dispute detail. */
+adminRouter.get(
+  '/disputes/:id',
+  asyncHandler(async (req, res) => {
+    const { getDispute } = await import('../services/dispute.service');
+    const dispute = await getDispute(req.params.id);
+    res.json({ data: dispute });
+  }),
+);
+
+/** PUT /admin/disputes/:id/review — mark dispute as under review. */
+adminRouter.put(
+  '/disputes/:id/review',
+  requirePin,
+  asyncHandler(async (req, res) => {
+    const { reviewDispute } = await import('../services/dispute.service');
+    const dispute = await reviewDispute(req.params.id);
+    res.json({ data: dispute });
+  }),
+);
+
+/** PUT /admin/disputes/:id/resolve — resolve a dispute (admin, PIN-gated). */
+adminRouter.put(
+  '/disputes/:id/resolve',
+  requirePin,
+  validate([
+    body('resolution').isIn(['refund_customer', 'release_servicer', 'partial']),
+  ]),
+  asyncHandler(async (req, res) => {
+    const { resolveDispute } = await import('../services/dispute.service');
+    const dispute = await resolveDispute(req.params.id, req.body);
+    res.json({ data: dispute });
+  }),
+);
+
+/** PUT /admin/disputes/:id/dismiss — dismiss a dispute (admin, PIN-gated). */
+adminRouter.put(
+  '/disputes/:id/dismiss',
+  requirePin,
+  asyncHandler(async (req, res) => {
+    const { dismissDispute } = await import('../services/dispute.service');
+    const dispute = await dismissDispute(req.params.id);
+    res.json({ data: dispute });
   }),
 );
 

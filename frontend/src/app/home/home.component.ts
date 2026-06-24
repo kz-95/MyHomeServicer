@@ -11,6 +11,7 @@ import {
 import { placeholderUrl } from "../core/category-colors";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
+import { routeFor } from "../core/route-for";
 import { ApiService } from "../core/services/api.service";
 import { AuthService } from "../core/services/auth.service";
 import { ConfigService } from "../core/services/config.service";
@@ -43,7 +44,7 @@ interface Category {
         <app-demo-bar />
       }
       <header class="topnav">
-        <a class="brand" routerLink="/">
+        <a class="brand" [routerLink]="routeFor('home')">
           <span class="logo-wrap" [class.loaded]="logoLoaded()">
             <img
               src="assets/ico/MyHomeServicerIcon.png"
@@ -92,9 +93,9 @@ interface Category {
             >My portal</a
           >
         } @else {
-          <a class="nav-btn nav-btn--ghost" routerLink="/login">Log in</a>
+          <a class="nav-btn nav-btn--ghost" [routerLink]="routeFor('login')">Log in</a>
         }
-        <a class="nav-btn nav-btn--solid" routerLink="/register/servicer"
+        <a class="nav-btn nav-btn--solid" [routerLink]="routeFor('register.servicer')"
           >Join as Servicer</a
         >
       </header>
@@ -170,9 +171,9 @@ interface Category {
             }
           </div>
           <p class="hero-hint">
-            <a routerLink="/login">Sign in</a>
+            <a [routerLink]="routeFor('login')">Sign in</a>
             <span class="dot-sep"> - or - </span>
-            <a routerLink="/register/servicer">Join as Servicer</a>
+            <a [routerLink]="routeFor('register.servicer')">Join as Servicer</a>
           </p>
         </div>
       </section>
@@ -1469,6 +1470,7 @@ interface Category {
   ],
 })
 export class HomeComponent implements OnInit, OnDestroy {
+  routeFor = routeFor;
   isDevMode = isDevMode;
   placeholderUrl = placeholderUrl;
   config = inject(ConfigService);
@@ -1656,7 +1658,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const principal = this.auth.principal();
     if (principal) {
-      this.router.navigate(["/" + principal.role]);
+      const roleRoute = principal.role === 'admin' ? routeFor('admin') : principal.role === 'servicer' ? routeFor('servicer') : routeFor('customer');
+      this.router.navigate([roleRoute]);
       return;
     }
     this.load();
@@ -1698,23 +1701,23 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   portalPath(): string {
     const role = this.auth.principal()?.role ?? "customer";
-    return "/" + role;
+    return role === 'admin' ? routeFor('admin') : role === 'servicer' ? routeFor('servicer') : routeFor('customer');
   }
 
   private goToQuote(categoryId?: string): void {
     if (this.auth.isLoggedIn()) {
       const params: Record<string, string> = {};
       if (categoryId) params["category"] = categoryId;
-      this.router.navigate(["/customer/quote"], { queryParams: params });
+      this.router.navigate([routeFor('customer.quote')], { queryParams: params });
     } else {
       this.auth.enterGuestMode(categoryId);
-      this.router.navigate(["/login"], { queryParams: { intent: "quote" } });
+      this.router.navigate([routeFor('login')], { queryParams: { intent: "quote" } });
     }
   }
 
   pick(cat: Category): void {
     if (cat.defaultPriceSuggestion == null) {
-      void this.router.navigate(["/services", cat.slug]);
+      void this.router.navigate([routeFor('public.services', { parentSlug: cat.slug })]);
     } else {
       this.goToQuote(cat.id);
     }

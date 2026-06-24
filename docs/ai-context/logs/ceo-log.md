@@ -3,6 +3,316 @@
 > Single-writer log — only the **CEO/Orchestrator** agent writes here.
 > This agent is READ-ONLY on code. It tracks, dispatches, and coordinates.
 
+## Session 2026-06-24 19:22 — Bug-dump Triage: 11 Tasks — ALL COMPLETE ✅
+
+**Status: COMPLETE** — all 11 bugs fixed in 12 commits on `feat/sp3-dispatch-cards`. Gates: backend tsc clean, frontend tsc clean, ng build exit 0.
+
+### Completion Summary
+
+| # | ID | Severity | Commit | Time |
+|---|-----|----------|--------|------|
+| 1 | QA-005 | CRITICAL | `0ea3dbd` | Escrow/payment wired into handleDispatchAccept |
+| 2 | BE-007 | CRITICAL | `1d58af0` | `|| true` removed from service-area filter |
+| 3 | BE-001 | CRITICAL | `c094f18` | `await` added before buildSystemPrompt |
+| 4 | BE-008 | CRITICAL | `75e008c` | $transaction + idempotency guard on refund |
+| 5 | BE-011 | CRITICAL | `e04b29d` | No-show counter moved inside $transaction |
+| 6 | BE-013 | HIGH | `5379ff0` | Demo-login locked to known accounts |
+| 7 | BE-019 | HIGH | `a59ad59` | Verify-pin TTL + consume guard |
+| 8 | QA-003 | MEDIUM | `18b17cc` | Duplicate platform_fee reserve removed |
+| 9 | QA-004 | MEDIUM | `8cb084d` + `2288b73` | Urgent fee 20/80 split enforced |
+| 10 | QA-001 | LOW | `777cffb` | Countdown synced with backend timeout |
+| 11 | QA-002 | LOW | `3e558d9` | Per-servicer skip log added |
+
+**Files changed:** `dispatch.service.ts`, `quote.service.ts`, `chat.service.ts`, `quote.jobs.ts`, `booking.jobs.ts`, `routes/index.ts`, `pin-cooldown.ts`, `pin.ts`, `chat.routes.ts`, `booking.service.ts`, `admin.service.ts`, `dispatch-prompt-guard.component.ts`, `schema.prisma` (+ migration)
+
+**Docs updated:** `TODO.md` (all 11 ticked), `BUGS-TO-FIX.md` (marked complete), `ceo-log.md` (this entry).
+
+**Handoff to next CEO:** All bugs resolved. Run QA gate: `npx tsc --noEmit` (backend), `npx tsc --noEmit` + `ng build` (frontend). Task 8 (finance engine) is the remaining demo-critical item — the 7 QA/BE code bugs were the blockers.
+
+---
+
+> **Source:** 2026-05-31 bug-dump review (`qa-log.md` line 350: 22 findings) + Task 8-QA finance engine verification (`qa-log.md` lines 354-639).
+> **Branch:** `feat/sp3-dispatch-cards`
+> **All 11 tasks are independent** (different code areas, zero shared state). Dispatched in parallel.
+> **Total estimated effort:** ~170 min across all tasks.
+
+---
+
+### Task 1 — QA-005: Dispatch escrow bypass (CRITICAL)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | CRITICAL (demo-blocking — pay_now dispatch = uncharged customer, unpaid servicer) |
+| Input | `qa-log.md` lines 582-627, `dispatch.service.ts:197-234`, `booking.service.ts:89-345` |
+| Output | `handleDispatchAccept()` mirrors `selectProposal()` payment logic for pay_now: computeTotal → escrow.create → wallet deduct / gateway_payment → escrow_hold → platform_fee reserve. All inside the existing `$transaction`. |
+| Time | 30 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 65 |
+
+**Fix guidance:**
+- `dispatch.service.ts:197-234` (`$transaction` scope) — after creating `QuoteProposal` + `Booking`, replicate `selectProposal()` lines 131-344:
+  1. Build `lineItemsSnapshot` from `accept.price` (single service line item) + `qr.urgentFee` if applicable
+  2. `computeTotal(lineItemsSnapshot, 0, config, 0)` → `escrowTotal` (config from servicer tax: `serviceChargeRate`/`sstRegistered`/`taxInclusive`)
+  3. `escrow.create({ amount: escrowTotal, ... })`
+  4. If `paymentMode === 'pay_now'`:
+     - Gateway path (if `settlementMethod === 'gateway'`): `gateway_payment` + `escrow_hold` transactions
+     - Credit path: `adjustCredit('user', userId, -escrowTotal, tx)` + `escrow_hold` transaction
+  5. `platform_fee` reserve at booking time (match `booking.service.ts:333-344`)
+
+**Gate:** `npx tsc --noEmit` zero new errors. Commit with message including "fix(dispatch): wire escrow/payment into handleDispatchAccept".
+
+---
+
+### Task 2 — BE-007: Service-area filter neutered (CRITICAL)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | CRITICAL — every area-less servicer matches every quote |
+| Input | `quote.service.ts:117-118` |
+| Output | Remove `|| true` from line 118. `some()` already returns boolean. |
+| Time | 15 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 68 |
+
+**Fix:** `quote.service.ts:118` — `return m.serviceAreas.some(...) || true;` → `return m.serviceAreas.some(...);`. The `|| true` makes the entire `filter` callback always return true, so ALL servicers pass the area filter regardless of their service areas.
+
+**Gate:** `npx tsc --noEmit` zero new errors.
+
+---
+
+### Task 3 — BE-001: AI gets "[object Promise]" (CRITICAL)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | CRITICAL — AI system prompt starts with "[object Promise]" instead of the actual prompt |
+| Input | `chat.service.ts:46` (async function), `chat.service.ts:271` (call site) |
+| Output | Add `await` before `buildSystemPrompt(role)` at line 271 |
+| Time | 10 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 69 |
+
+**Fix:** `chat.service.ts:271` — `const base = buildSystemPrompt(role);` → `const base = await buildSystemPrompt(role);`. `buildSystemPrompt` is declared `async` at line 46 but the call at line 271 lacks `await`, so `base` is a Promise object. When concatenated into the system prompt string, it serializes as `[object Promise]`.
+
+**Gate:** `npx tsc --noEmit` zero new errors.
+
+---
+
+### Task 4 — BE-008: Double-refund in quote.no_response (CRITICAL)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | CRITICAL — concurrent BullMQ retry can double-refund credit |
+| Input | `quote.jobs.ts:83-99` |
+| Output | Guard the refund (lines 90-99) with an idempotency check: query for existing `refund` transaction with same `quoteRequestId` before processing. Or wrap refund + status-update in a `$transaction` so the atomic status guard (line 64) prevents re-entry. |
+| Time | 20 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 70 |
+
+**Fix:** The refund at `quote.jobs.ts:90-99` runs AFTER the status update at line 84-87. On concurrent retry, two workers could both pass the `status === 'open'` check (line 64) before either executes the status update. Options:
+- **(Recommended)** Wrap lines 84-98 in `prisma.$transaction()` — the status update runs atomically with the refund, and the `status` guard on retry blocks re-entry.
+- **(Alternative)** Before refund, check `prisma.transaction.findFirst({ where: { quoteRequestId, type: 'refund' } })` and skip if found.
+
+**Gate:** `npx tsc --noEmit` zero new errors.
+
+---
+
+### Task 5 — BE-011: No-show counter drift (CRITICAL)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | CRITICAL — counter silent desync on BullMQ retry |
+| Input | `booking.jobs.ts:53-89` |
+| Output | Move the `prisma.servicer.update` (lines 86-89: `consecutiveNoshow` + `weeklyNoshow` increment) INSIDE the `$transaction` block (lines 53-84). |
+| Time | 15 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 71 |
+
+**Fix:** `booking.jobs.ts:86-89` — the `prisma.servicer.update({ data: { consecutiveNoshow: {increment:1}, weeklyNoshow: {increment:1} } })` runs AFTER the `$transaction` block closes at line 84. If this `update` fails (network blip, DB hiccup), the booking is already cancelled + escrow refunded (inside the `$transaction`) but the counters are NOT incremented. On BullMQ retry, line 50 (`if (booking.status === 'cancelled') return`) blocks re-processing → silent counter desync. Move the `update` call inside the `$transaction` so it succeeds or fails atomically with the booking cancellation.
+
+**Gate:** `npx tsc --noEmit` zero new errors.
+
+---
+
+### Task 6 — BE-013: Demo-login security (HIGH)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | HIGH — any account with password `Demo@2026` is freely loggable |
+| Input | `routes/index.ts:248-269` |
+| Output | Block `directEmail` from the request body. Only allow the 3 known demo emails from the `DEMO_ACCOUNTS` map. |
+| Time | 10 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 72 |
+
+**Fix:** `routes/index.ts:259` — the `directEmail` variable allows ANY email to be passed in the request body, and the endpoint calls `login(email, 'Demo@2026')` with it. Any real account whose password is `Demo@2026` (a shared dev password that exists on some demo accounts) is loggable through this endpoint without proper authentication. Fix: remove `directEmail` — only use `DEMO_ACCOUNTS[role]`. The endpoint is already hard-blocked in production via `allowDemo`, but this hardens dev.
+
+**Gate:** `npx tsc --noEmit` zero new errors.
+
+---
+
+### Task 7 — BE-019: Chat verify-pin token leak (HIGH)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | HIGH — PIN verification state may leak across users/sessions |
+| Input | `routes/chat.routes.ts:285-315`, `middleware/pin.ts`, chat PIN cooldown/rate-limit functions |
+| Output | Audit `recordPinFailure()` / `recordPinSuccess()` / `checkPinCooldown()` for cross-user key collisions. Ensure Redis keys are namespaced by `userId`. Verify the `ok` result from `/chat/verify-pin` is never cached/replayed across sessions. |
+| Time | 15 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 73 |
+
+**Fix guidance:** The `/chat/verify-pin` endpoint (lines 285-315) verifies PIN and returns `{ ok: true }` but does NOT issue or consume a token. The bug-dump flagged "token store leaks + never consumed". Audit:
+1. `recordPinFailure(userId)` + `recordPinSuccess(userId)` — are Redis keys scoped to `userId`? Could a race/timing attack leak attempt state across accounts?
+2. `checkPinCooldown(userId)` — same check.
+3. After successful verification, is there any guard preventing the chatbot from replaying the `ok` state across sessions?
+
+**Gate:** `npx tsc --noEmit` zero new errors.
+
+---
+
+### Task 8 — QA-003: Double platform_fee recording (MEDIUM)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | MEDIUM — admin dashboard `totalFees` double-counts pay_now bookings |
+| Input | `qa-log.md` lines 393-422, `booking.service.ts:333-344` (reserve), `booking.jobs.ts:229-238` (release) |
+| Output | Either: (a) remove the booking-time `platform_fee` reserve (lines 333-344) and let only the release record the fee; OR (b) use a different `type` (e.g. `platform_fee_reserve`) for the booking-time record and exclude it from the dashboard `totalFees` query. |
+| Time | 20 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 66 |
+
+**Fix:** Two `platform_fee` transactions exist per pay_now booking:
+- `booking.service.ts:333-344` — reserve at booking creation (`Platform fee reserve (pay_now, ...)`)
+- `booking.jobs.ts:229-238` — actual fee at escrow release (`Platform fee (escrow release)`)
+
+The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee'` and sums both. **Recommended fix:** remove the booking-time reserve (lines 333-344) — the release transaction is the authoritative fee event. Keep the reference text update: change "Platform fee reserve" → "Platform fee (escrow release)" already at the release path.
+
+**Gate:** `npx tsc --noEmit` zero new errors.
+
+---
+
+### Task 9 — QA-004: Urgent fee split not enforced (MEDIUM)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | MEDIUM — 20/80 urgent split is dashboard-only, not deducted from servicer payout |
+| Input | `qa-log.md` lines 428-466, `admin.service.ts:102-117`, `quote-timing.service.ts:46-49`, `booking.jobs.ts:186-255` |
+| Output | Wire `splitUrgentFee()` into `handleEscrowRelease()` at `booking.jobs.ts:219-220`. Deduct `urgentPlatformShare` from servicer payout and record a separate `urgent_fee_platform` transaction. |
+| Time | 20 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 67 |
+
+**Fix guidance:** `splitUrgentFee()` at `quote-timing.service.ts:46-49` exists but has ZERO callers. The 20% platform share is computed at dashboard time (`admin.service.ts:112: urgentFeeRevenue * platform_share`) but never deducted from the servicer. In `handleEscrowRelease()` (`booking.jobs.ts:186-255`):
+1. After computing `platformFee` (line 219), check if the booking has `isUrgent && urgentFee`
+2. Call `splitUrgentFee(Number(booking.urgentFee), urgentFeeConfig)` → `{ platform, servicer }`
+3. Adjust: `servicerPayout = amount - platformFee + tip - platform` (deduct the platform's share of the urgent fee from the servicer)
+4. Record an `urgent_fee_platform` transaction for the platform's cut
+5. The `platform` amount goes to platform revenue (not credited to servicer)
+
+**Gate:** `npx tsc --noEmit` zero new errors. Update `admin.service.ts:112` to source `urgentFeePlatformShare` from the real Transaction ledger instead of settings-based derivation.
+
+---
+
+### Task 10 — QA-002: Missing per-servicer skip log (LOW)
+
+| Field | Value |
+|-------|-------|
+| Target | **Backend** |
+| Priority | LOW — polish, no functional impact |
+| Input | `qa-log.md` lines 268-269, `dispatch.service.ts:41-58` |
+| Output | Add a `logger.info()` inside the `startDispatchRotation()` filter loop when a servicer is skipped for offline/outside-working-hours. |
+| Time | 5 min |
+| Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
+| TODO | line 58 |
+
+**Fix:** `dispatch.service.ts:47-58` — the loop currently `continue`s silently for offline (`!m.isOnline`, line 48) and out-of-hours servicers (line 55). Add `logger.info('Servicer skipped — offline', { servicerId })` and `logger.info('Servicer skipped — outside working hours', { servicerId })` before each `continue`.
+
+**Gate:** `npx tsc --noEmit` zero new errors.
+
+---
+
+### Task 11 — QA-001: Frontend countdown hardcoded (LOW)
+
+| Field | Value |
+|-------|-------|
+| Target | **Frontend** |
+| Priority | LOW — defaults match (10s), desyncs only if admin changes `dispatch_prompt_timeout_seconds` |
+| Input | `qa-log.md` lines 267-268, `dispatch-prompt-guard.component.ts:310` |
+| Output | Include `timeoutSeconds` in the `dispatch.prompt` socket payload (`dispatch.service.ts:130-146`) and have the frontend read it instead of hardcoding 10. |
+| Time | 10 min (5 min backend + 5 min frontend) |
+| Status | 🟡 Dispatched to Frontend + Backend @ 2026-06-24 19:22 |
+| TODO | line 57 |
+
+**Fix:**
+- **Backend:** `dispatch.service.ts:130-146` (`sendDispatchPrompt`) — add `timeoutSeconds: timeout` to the socket payload object.
+- **Frontend:** `dispatch-prompt-guard.component.ts:310` — read `timeoutSeconds` from the incoming `dispatch.prompt` socket event payload (add field to `DispatchPrompt` interface). Change `this.countdownSecs.set(10)` to `this.countdownSecs.set(payload.timeoutSeconds ?? 10)`.
+- **Frontend (add):** `dispatch-prompt-guard.component.ts` — update `DispatchPrompt` interface to include `timeoutSeconds?: number`.
+
+**Gate:** Backend `npx tsc --noEmit` + Frontend `npx tsc --noEmit` + `ng build` — all zero errors.
+
+---
+
+## Quick Index — Bug-Dump Triage Dispatch
+
+| # | ID | Agent | Priority | Time | TODO Line |
+|---|-----|-------|----------|------|-----------|
+| 1 | QA-005 | Backend | CRITICAL | 30 min | 65 |
+| 2 | BE-007 | Backend | CRITICAL | 15 min | 68 |
+| 3 | BE-001 | Backend | CRITICAL | 10 min | 69 |
+| 4 | BE-008 | Backend | CRITICAL | 20 min | 70 |
+| 5 | BE-011 | Backend | CRITICAL | 15 min | 71 |
+| 6 | BE-013 | Backend | HIGH | 10 min | 72 |
+| 7 | BE-019 | Backend | HIGH | 15 min | 73 |
+| 8 | QA-003 | Backend | MEDIUM | 20 min | 66 |
+| 9 | QA-004 | Backend | MEDIUM | 20 min | 67 |
+| 10 | QA-002 | Backend | LOW | 5 min | 58 |
+| 11 | QA-001 | Frontend (+ Backend) | LOW | 10 min | 57 |
+
+**Dependencies:** None — all 11 tasks touch different code areas. All can be dispatched in parallel to their respective agents.
+
+**Next CEO checkpoint:** After all agents report done, read `backend-log.md` + `frontend-log.md` for completion evidence, then run the QA gate: `npx tsc --noEmit` (backend), `npx tsc --noEmit` + `ng build` (frontend).
+
+---
+
+## Session 2026-06-24 17:30 — Task RFG + Task 8-QA Dispatch
+
+### Task RFG — routeFor() typed path guard (Group 3)
+
+| Field | Value |
+|-------|-------|
+| Target | Frontend |
+| Priority | Medium |
+| Input | `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` lines 476-488 |
+| Output | `frontend/src/app/core/route-for.ts` created; all `router.navigate(['/...'])` and `[routerLink]="['/...']"` magic strings replaced with `routeFor()`; `tsc` 0 errors, `ng build` exit 0 |
+| Status | 🟡 Dispatched to `frontend-cowork` @ 2026-06-24 17:30 |
+| TODO line | 143 |
+
+### Task 8-QA — Finance engine end-to-end verification (Group 1 Step 1.4)
+
+| Field | Value |
+|-------|-------|
+| Target | QA |
+| Priority | High (demo-critical) |
+| Input | `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` lines 184-199, `docs/ai-context/logs/qa-log.md` lines 240-348 |
+| Output | 5 tests (escrow hold, release, urgent fee split, dashboard totals, shortfall block) logged to `qa-log.md` with PASS/FAIL per test |
+| Status | 🟡 Dispatched to `qa-cowork` @ 2026-06-24 17:30 |
+| TODO line | 59-62 |
+
+**Dependencies:** None — RFG and 8-QA are independent (different agents, different scopes). Dispatched in parallel.
+
+**Context:** Task 7-QA already completed (qa-log.md lines 243-326) — dispatch overlay fully verified with 7 PASS, 2 low-severity polish gaps (QA-001, QA-002).
+
+---
+
 ## Session 2026-06-24 16:33 — Task ADM Verification
 
 ### Task ADM — Admin banned-accounts + deactivate + search → COMPLETE ✅
@@ -49,21 +359,60 @@
 
 ---
 
+## Session 2026-06-24 17:12 — Task NAV (Maps/Waze on confirmed booking) → COMPLETE ✅
+
+### Dispatched from: `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Group 2
+
+### Task: Add Maps/Waze deep-link buttons to customer booking detail
+
+**Agent:** `frontend-cowork`
+**Branch:** `feat/sp3-dispatch-cards`
+
+### Assessment
+
+| Area | Status |
+|------|--------|
+| Backend listBookings() | Already returns `lat`, `lng`, `address` from quoteRequest.address (booking.service.ts:759-761) |
+| Servicer jobs.component.ts | Already had `openJobMap()` method (line 1696-1703) with correct Google Maps directions + Waze URLs in both Active + History tabs |
+| Customer my-bookings.component.ts | **Gap** — Booking interface missing lat/lng/address; no Maps/Waze buttons |
+
+### Changes made (frontend-cowork)
+
+| Change | Details |
+|--------|---------|
+| Booking interface | Added `lat?: number \| null`, `lng?: number \| null`, `address?: string \| null` fields |
+| `openJobMap()` method | Opens Google Maps directions (`/maps/dir/?api=1&destination=`) or Waze navigate (`waze.com/ul?ll=`) via `window.open(_blank)`. Guard: lat/lng non-null. |
+| Template buttons | Maps + Waze `.map-link` buttons after status badge for confirmed/in_progress/completed bookings with coordinates |
+| CSS | `.map-link` styles using design tokens |
+
+### Gates
+
+| Gate | Result |
+|------|--------|
+| Frontend tsc --noEmit | 0 errors |
+| Frontend ng build | Exit 0 |
+
+### Commit
+
+```
+feat(booking): add Maps/Waze deep-link buttons to customer booking detail
+```
+
+Pushed to `feat/sp3-dispatch-cards`.
+
+---
+
 ## Quick Index
 | Section | Line |
 |---------|------|
-| Rules & gates | 18 |
-| Project health | 28 |
-| Task assignments (Round 1) | 41 |
-| Agent handoffs | 101 |
-| Decisions made | 108 |
-| CONTINUE LATER | 121 |
-| Phase 1 Dispatch (current) | 257 |
-| QA gate | 438 |
-| Phase 8—9 dispatch | 988 |
-| Session 2026-06-02 — Spec audit + dispatch | **3050** |
-| **Session 2026-05-28 17:17 — CEO recovery** | **1699** |
-| **Session 2026-06-24 — Task ADM** | **6** |
+| **Session 2026-06-24 19:22 — Bug-dump triage: 11 tasks** | **6** |
+| Rules & gates | ~320 |
+| Task assignments (Round 1) | ~350 |
+| Session 2026-06-24 17:30 — RFG + 8-QA | ~385 |
+| Session 2026-06-24 16:33 — ADM verification | ~415 |
+| Session 2026-06-24 17:12 — NAV | ~460 |
+| Session 2026-06-02 — Spec audit + dispatch | ~520 |
+| **Older sessions...** | ~800+ |
 
 ---
 
@@ -5096,4 +5445,415 @@ Only remaining work: route wiring.
 | Changes | Replaced chooser + simple/advanced routes with direct wizard routing; removed legacy `/services/new/simple` and `/services/new/advanced` |
 | Verification | frontend tsc → 0 errors, ng build → PASS (26.2s, wizard chunk 88.77 kB), backend tsc → pre-existing errors only |
 | Commit | 4457ee5 (pushed to feat/sp3-dispatch-cards) |
+
+---
+
+## Session 2026-06-24 17:06 — Task 7-QA: Dispatch Overlay Verification
+
+**Trigger:** User: "Read docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md. Execute Task 7-QA."
+
+### Prerequisite check (pre-dispatch)
+| Prereq | Status | Evidence |
+|--------|--------|----------|
+| S2-BE (lat/lng + Haversine) | ✅ Done | Migration `add_servicer_coords`, `lib/haversine.ts`, service wiring, seed coords |
+| S2-FE (distance km render) | ✅ Done | `distance-badge` in incoming-quotes |
+| SP4-BE (dispatch gating) | ✅ Done | isOnline gate, schedule gating, configurable timer, decline→rotate, timeout→rotate, HTTP routes, BullMQ job |
+| SP4-FE (Google Map preview) | ✅ Done | Static map thumbnail in dispatch-prompt-guard, mounted in shell |
+| Servers running | ❌ Not running | Ports 3000/4200 not listening |
+
+### Task 7-QA — Verify dispatch overlay end-to-end
+| Field | Value |
+|-------|-------|
+| Target | qa-cowork |
+| Branch | feat/sp3-dispatch-cards |
+| Priority | P1 (demo-critical, blocks beat 2 verification) |
+| Method | Structural code-path verification (no live servers) |
+| Status | ✅ Completed 2026-06-24 |
+| Agent | qa-cowork |
+
+### Results Summary
+| Test | Result |
+|------|--------|
+| 1 — Quote enters dispatch rotation | ✅ PASS |
+| 2 — Servicer receives prompt with full UI | ✅ PASS |
+| 3 — ACCEPT → booking created | ✅ PASS |
+| 4 — DECLINE → rotation skips to next | ✅ PASS |
+| 5 — TIMEOUT → auto-decline + rotate | ✅ PASS |
+| 6 — OFFLINE exclusion from rotation | ✅ PASS (functional) |
+| 7 — Working hours exclusion | ✅ PASS |
+
+### New Bugs Filed
+| ID | Severity | Description |
+|----|----------|-------------|
+| QA-001 | Low | Frontend countdown hardcoded 10s; backend uses configurable `dispatch_prompt_timeout_seconds`. Socket payload missing `timeoutSeconds` field. |
+| QA-002 | Low | No per-servicer skip log for offline exclusion (spec requires log message). |
+
+### Edge cases audited
+9 edge cases checked (concurrent accept, offline-during-rotation, schedule exit mid-rotation, pool exhaustion, quote cancellation, socket reconnect, admin setting change mid-rotation). All handled or partially handled (2 partials noted, non-blocking).
+
+### Docs updated
+- `qa-log.md`: Session 2026-06-24 entry (lines 261-348) with full trace evidence, rotation edge case audit, socket event audit, route contract audit
+- `TODO.md`: Item 7 ticked as **VERIFIED**; SP4 live-dispatch PLATFORM POLISH updated
+
+### Remaining in Group 1 (Step 1.4)
+- **Task 8-QA** — Verify finance engine end-to-end (unblocked, independent of 7-QA)
+
+---
+
+## Session 2026-06-24 19:22 — E2E QA Harness: Pre-Flight + Group A
+
+> **Source:** `docs/superpowers/plans/2026-06-24-e2e-qa-harness-dispatch.md`
+> **Branch:** `feat/sp3-dispatch-cards`
+> **Rule:** NO commits until told.
+> **State:** Working tree DIRTY — multiple uncommitted changes.
+> **⚠ Do NOT re-dispatch:** Tasks from `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` are already in-flight.
+
+### Pre-Flight Results (run 19:25-19:30 MYT)
+
+| Check | Result | Detail |
+|-------|--------|--------|
+| backend `tsc --noEmit` | ✅ PASS | 0 errors |
+| frontend `tsc --noEmit` | ✅ PASS | 0 errors |
+| `npm run db:reset` | ✅ PASS | 21 migrations applied, seed: 7 parent+34 child cats, 1107 bulk bookings, 36 servicers |
+| `npm run seed:test` | ✅ PASS | 9/9 lifecycle scenarios seeded |
+| backend `npm run dev` | ✅ RUNNING | API on :3000. Redis `ECONNREFUSED` — pre-existing (not needed for harness infra setup) |
+| frontend `ng serve` | ✅ RUNNING | Build 26.9s, `http://localhost:4200/` |
+
+**Pre-Flight verdict:** ALL PASS. Ready to dispatch Group A.
+
+---
+
+### Group A — Infrastructure (est. 1h 10m, cutoff 1h 55m)
+
+Tasks 1, 2, 3, 4, 4b are **independent** (different files, different scopes). They can run in parallel.
+
+> **Note:** All `backend-cowork`, `frontend-cowork`, and `devops-cowork` subagents require manual user invocation. Dispatch prompts are provided below. CEO tracks progress, does NOT execute code.
+
+---
+
+### Task 1 — Install Playwright + scaffold config
+
+| Field | Value |
+|-------|-------|
+| Target | DevOps (`devops-cowork`) |
+| Priority | High |
+| Estimate | 10 min |
+| Cutoff | 15 min (19:45 MYT) |
+| Input | `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` Task 1 (lines 45-101) |
+| Output | `frontend/package.json` updated (`@playwright/test` installed), `tests/e2e/playwright.config.ts` created, chromium browser installed, `npx playwright test --list` works |
+| Status | ⬜ Dispatched |
+
+**Dispatch prompt for devops-cowork:**
+```
+Task: Install Playwright + scaffold E2E config (Group A Task 1).
+
+Read: docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md lines 45-101.
+Steps:
+1. cd frontend && npm install -D @playwright/test
+2. npx playwright install chromium
+3. Create tests/e2e/playwright.config.ts per the build plan (lines 61-87):
+   - testDir: './scenarios', timeout: 120s, retries: 0, workers: 1
+   - headless: true, screenshot: 'on', video: 'on', trace: 'on-first-retry'
+   - baseURL: 'http://localhost:4200', browserName: 'chromium'
+4. Verify: npx playwright test --list (should load config without errors)
+5. Log output to docs/ai-context/logs/devops-log.md.
+DO NOT commit. Work on branch feat/sp3-dispatch-cards.
+```
+
+---
+
+### Task 2 — Build StepLogger (incremental, crash-proof)
+
+| Field | Value |
+|-------|-------|
+| Target | Backend (`backend-cowork`) |
+| Priority | High |
+| Estimate | 20 min |
+| Cutoff | 25 min (19:55 MYT) |
+| Input | `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` Task 2 (lines 105-248) |
+| Output | `tests/e2e/helpers/step-logger.ts` created with `StepLogger` class: `step()`, `ok()`, `fail()`, `warn()`, `info()`, `network()`, `consoleError()`, `db()`, `screenshot()`, `rootCause()`, `summary()` methods. All use `fs.writeSync` + `fs.fsyncSync` for incremental crash-safe logging. `RUN_DIR` auto-creates `logs/e2e-qa-harness_NNNNN_HHMM/`. |
+| Status | ⬜ Dispatched |
+
+**Dispatch prompt for backend-cowork:**
+```
+Task: Build StepLogger helper (Group A Task 2).
+
+Read: docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md lines 105-248.
+Create: tests/e2e/helpers/step-logger.ts
+Implement the StepLogger class exactly per the build plan:
+- nextRunId(): counts existing e2e-qa-harness_* directories
+- RUN_ID = "{next}_HHMM", RUN_DIR = "logs/e2e-qa-harness_{RUN_ID}"
+- Constructor(scenarioId): opens file descriptor for append
+- All write methods use fs.writeSync + fs.fsyncSync (incremental, crash-proof)
+- Methods: step(title), ok(label, detail), fail(label, detail), warn(label, detail),
+  info(label, detail), network(method, url, status, ms), consoleError(text, source),
+  db(label, detail), screenshot(label, page), rootCause(title, analysis), summary()
+- Register process.on('exit') + SIGINT/SIGTERM handlers to fs.closeSync on crash
+- Verify: npx ts-node -e "import ..." creates log file at logs/e2e-qa-harness_*/scenario-99.log
+- Log output to docs/ai-context/logs/backend-log.md.
+DO NOT commit. Work on branch feat/sp3-dispatch-cards.
+```
+
+---
+
+### Task 3 — Build auth helpers (login as demo users)
+
+| Field | Value |
+|-------|-------|
+| Target | Frontend (`frontend-cowork`) |
+| Priority | High |
+| Estimate | 15 min |
+| Cutoff | 20 min (19:50 MYT) |
+| Input | `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` Task 3 (lines 252-314) |
+| Output | `tests/e2e/helpers/auth-helpers.ts` created with `loginAs(page, userKey, log)` function mapping to 36 sercvier + 3 customer + 1 admin demo accounts, `logout(page)`, `getScreenshotPath(scenarioId, stepNum)`. |
+| Status | ⬜ Dispatched |
+
+**Dispatch prompt for frontend-cowork:**
+```
+Task: Build auth helpers (Group A Task 3).
+
+Read: docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md lines 252-314.
+Create: tests/e2e/helpers/auth-helpers.ts
+Implement per the build plan:
+- DEMO_USERS record with at minimum: C_FRESH, C_ACTIVE, C_LOYAL, M1-M4 (Anas/Wei/Raj/Amy), ADMIN
+- loginAs(page, userKey, log): goto /login, fill email+password (Password@2026), click submit, wait for redirect away from /login
+- logout(page): goto /login, click logout button if present
+- getScreenshotPath(scenarioId, stepNum): returns {RUN_DIR}/scenario-XX-step-NN.png
+- Log output to docs/ai-context/logs/frontend-log.md.
+DO NOT commit. Work on branch feat/sp3-dispatch-cards.
+```
+
+---
+
+### Task 4 — Build DB check helpers (Prisma assertions)
+
+| Field | Value |
+|-------|-------|
+| Target | Backend (`backend-cowork`) |
+| Priority | High |
+| Estimate | 15 min |
+| Cutoff | 20 min (19:50 MYT) |
+| Input | `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` Task 4 (lines 318-418) |
+| Output | `tests/e2e/helpers/db-check.ts` created with `getBooking()`, `getTransactions()`, `getCustomerBalance()`, `getInvoice()`, `getBookingCount()`, `getCategoryCount()`, `verifyEscrowIntegrity()`, `disconnect()` using `PrismaClient`. |
+| Status | ⬜ Dispatched |
+
+**Dispatch prompt for backend-cowork:**
+```
+Task: Build DB check helpers (Group A Task 4).
+
+Read: docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md lines 318-418.
+Create: tests/e2e/helpers/db-check.ts
+Implement per the build plan:
+- Import PrismaClient from @prisma/client (from backend's Prisma, not a new install)
+- getBooking(id), getTransactions(bookingId), getCustomerBalance(userId), getInvoice(bookingId)
+- getBookingCount(), getCategoryCount()
+- verifyEscrowIntegrity(bookingId, log): finds escrow_hold / escrow_release / platform_fee transactions,
+  asserts hold === release + fee (within 0.02 drift), calls log.rootCause on mismatch
+- disconnect(): prisma.$disconnect()
+- Log output to docs/ai-context/logs/backend-log.md.
+DO NOT commit. Work on branch feat/sp3-dispatch-cards.
+```
+
+---
+
+### Task 4b — Build seed helpers (DB reset + seed:test wrappers)
+
+| Field | Value |
+|-------|-------|
+| Target | DevOps (`devops-cowork`) |
+| Priority | High |
+| Estimate | 5 min |
+| Cutoff | 10 min (19:40 MYT) |
+| Input | `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` Task 4b (lines 421-456) |
+| Output | `tests/e2e/helpers/seed-helpers.ts` created with `resetTestDB()` using `execSync` to run `npm run db:reset && npm run seed:test` in `backend/`. |
+| Status | ⬜ Dispatched |
+
+**Dispatch prompt for devops-cowork:**
+```
+Task: Build seed helpers (Group A Task 4b).
+
+Read: docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md lines 421-456.
+Create: tests/e2e/helpers/seed-helpers.ts
+Implement:
+- Import execSync from child_process, join from path
+- BACKEND_DIR = join(__dirname, '..', '..', '..', 'backend')
+- resetTestDB(): execSync 'npm run db:reset' then 'npm run seed:test' in BACKEND_DIR, NODE_ENV=test
+- Log output to docs/ai-context/logs/devops-log.md.
+DO NOT commit. Work on branch feat/sp3-dispatch-cards.
+```
+
+---
+
+### Group A Completion Report (19:30-19:32 MYT, all in parallel)
+
+All 5 tasks completed successfully. Total elapsed: ~2 minutes (well under 1h 55m cutoff).
+
+| Task | Agent | Result | Details |
+|------|-------|--------|---------|
+| Task 1 (DevOps) | general | ✅ COMPLETE | `@playwright/test` installed in `frontend/`, chromium browser installed, `tests/e2e/playwright.config.ts` created (testDir, timeout 120s, workers=1, baseURL :4200, headless, screenshot/video on), `npx playwright test --list` = "0 tests in 0 files" |
+| Task 2 (Backend) | general | ✅ COMPLETE | `tests/e2e/helpers/step-logger.ts` created (151 lines, `StepLogger` class with 12 methods, crash-proof `fs.writeSync`+`fs.fsyncSync`), tsc verified (0 type errors) |
+| Task 3 (Frontend) | general | ✅ COMPLETE | `tests/e2e/helpers/auth-helpers.ts` created (46 lines, 8 demo users: 3 customers + 4 servicers + 1 admin, `loginAs()`, `logout()`, `getScreenshotPath()`) |
+| Task 4 (Backend) | general | ✅ COMPLETE | `tests/e2e/helpers/db-check.ts` created (2722 bytes, 9 exports: `getBooking`, `getTransactions`, `getCustomerBalance`, `getInvoice`, `getBookingCount`, `getCategoryCount`, `verifyEscrowIntegrity`, `disconnect`) |
+| Task 4b (DevOps) | general | ✅ COMPLETE | `tests/e2e/helpers/seed-helpers.ts` created with `resetTestDB()` wrapping `npm run db:reset` + `npm run seed:test` via `execSync` |
+
+### Files created
+
+```
+tests/e2e/
+├── playwright.config.ts              ← Task 1
+├── helpers/
+│   ├── step-logger.ts                ← Task 2
+│   ├── auth-helpers.ts               ← Task 3
+│   ├── db-check.ts                   ← Task 4
+│   └── seed-helpers.ts              ← Task 4b
+```
+
+### Issue logged (non-blocking)
+
+- **Task 1 NODE_PATH:** `@playwright/test` is in `frontend/node_modules/` but the config is at `tests/e2e/`. Running `npx playwright test` from the project root requires `$env:NODE_PATH = "frontend/node_modules"` or moving config into `frontend/tests/e2e/`. This will be resolved during Group C (first actual test run).
+
+### Gate for Group B
+
+**Group A status: ✅ COMPLETE.** All 5 helper files created. Ready to proceed to Group B.
+
+Group B is **serial** after Group A per the dispatch plan.
+
+**Next: Group B — Task 5 (Frontend, est 15 min, cutoff 20 min)**
+- Create `tests/e2e/helpers/socket-watcher.ts` (waitForSocketEvent, listenForSocketEvents, getCapturedEvents)
+- Expose Socket.io on `window.__SOCKET__` in `frontend/src/app/core/socket.service.ts` (dev mode only)
+
+⚠ **GROUP B BLOCKER:** If socket watcher cannot intercept events after cutoff, fallback to Playwright `network.route()`. Do NOT spend more than 5 extra minutes debugging `window.__SOCKET__`.
+
+Dispatch suggestion for Group B (Task 5) in next CEO turn. Waiting for user signal to proceed.
+
+---
+
+## Session 2026-06-24 19:42 — Group B (Task 5) + Group C Dispatch
+
+### Group B — Task 5: Socket watcher + window.__SOCKET__ expose ✅
+
+| Field | Value |
+|-------|-------|
+| Agent | general (Frontend scope) |
+| Dispatched | 19:42 MYT |
+| Completed | 19:43 MYT |
+| Elapsed | ~1 min |
+| Cutoff | 20 min (19:50) |
+
+**Files created/modified:**
+- `tests/e2e/helpers/socket-watcher.ts` — created (3 functions: `waitForSocketEvent`, `listenForSocketEvents`, `getCapturedEvents`)
+- `frontend/src/app/core/services/socket.service.ts` — modified (96→107 lines, 3 `window.__SOCKET__` expose gates: after first connect, after reconnect, null-out in disconnect)
+
+**Gates:**
+- `frontend/ npx tsc --noEmit` → 0 errors ✅
+
+**Group B status: ✅ COMPLETE.** Socket watcher helper ready. Ready for Group C.
+
+---
+
+### Group C — Task 6: Build Scenario 1 (full happy path template)
+
+| Field | Value |
+|-------|-------|
+| Target | QA (`general` agent) |
+| Priority | CRITICAL — gateway for all 28 remaining scenarios |
+| Estimate | 45 min |
+| Cutoff | 50 min (20:33 MYT) |
+| Input | `docs/superpowers/specs/2026-06-24-e2e-qa-harness.md` Scenario 1 (lines 312-387), `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` Task 6 (lines 561-710) |
+| Output | `tests/e2e/scenarios/01-happy-path.spec.ts` created; scenario runs against live `:3000` + `:4200` and passes end-to-end |
+| Status | ⬜ Dispatched |
+
+**⚠ GROUP C BLOCKER:** If Scenario 1 does not pass end-to-end within cutoff, remaining 28 scenarios cannot be built. Fix the root cause before proceeding.
+
+**Dispatch prompt for Group C agent:**
+
+```
+Task: Build Scenario 1 (full happy path) — the template all other scenarios follow.
+
+Read first:
+1. docs/superpowers/specs/2026-06-24-e2e-qa-harness.md lines 312-387 (Scenario 1 spec)
+2. docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md lines 561-710 (Task 6 template)
+
+Project: E:\WebDevCurriculums\MyServicer
+Branch: feat/sp3-dispatch-cards
+DO NOT commit. DO NOT push.
+Backend running on :3000, Frontend on :4200.
+DB seeded (npm run db:reset && npm run seed:test already done).
+
+IMPORTANT: @playwright/test is in frontend/node_modules/. When running playwright commands from the repo root, you MUST set $env:NODE_PATH="frontend/node_modules" first. The playwright config is at tests/e2e/playwright.config.ts.
+
+Create the file tests/e2e/scenarios/01-happy-path.spec.ts.
+
+The spec should implement Scenario 1 from the spec doc (lines 312-387):
+  Browser C (C_FRESH): Login → navigate /customer/findService → select Aircon Service category → fill quote form (budget, date, time, contact, address, payment) → submit → verify quote created
+  Browser S (M2_WEI): Login → navigate /servicer/jobs → verify new quote appears → click Propose → fill price RM 250, message → submit → verify proposal sent
+  Browser C: Verify notification → navigate /customer/quotes → click proposal → verify details → click Confirm → verify booking created, navigated to /customer/bookings
+  DB CHECK: verify escrow_hold transaction exists with amount = 250
+  Browser S: Navigate /servicer/jobs Active tab → verify job appears → Mark Arrived → Mark Done (upload photo) → verify status = completed
+  DB CHECK: verify escrow_release + platform_fee transactions exist; escrow_hold === escrow_release + platform_fee
+  Browser C: Navigate /customer/bookings History → verify completed booking → submit review (5 stars) → verify toast
+
+Use the helper structure from the build plan template (beforeAll: resetTestDB, create browser contexts, watch console; afterAll: summary, disconnect).
+
+Since the actual app has complex form flows (multi-step quote form, category navigation, etc.), the locators and selectors in the build plan template are approximate. You MUST tailor them to the actual app. When in doubt about a selector:
+1. Read the relevant frontend component source to find actual CSS classes, data attributes, or button text
+2. Use text-based selectors as fallback (e.g., page.locator('text=Aircon Service'))
+3. Use generic locators (e.g., page.locator('button').filter({ hasText: 'Submit' })) when specific classes aren't available
+
+After creating the spec file, ATTEMPT TO RUN IT:
+  $env:NODE_PATH="frontend/node_modules"
+  cd tests/e2e
+  npx playwright test scenarios/01-happy-path.spec.ts --project=chromium --reporter=line
+
+If the test runs, great. If it fails, analyze:
+- Is it a selector issue? Fix the selector in the spec.
+- Is it a timing issue? Add waits.
+- Is it an app bug? Log the root cause with exact error.
+- Is it a config issue (module resolution, etc.)? Fix the config or set NODE_PATH.
+
+Iterate up to 3 times to get the scenario passing. If still failing after 3 iterations, report exact failures and root cause.
+
+Log everything to docs/ai-context/logs/qa-log.md. Append, don't overwrite. Section: "## Session 2026-06-24 — E2E QA Harness Task 6 (Group C)"
+
+Return:
+- The final spec file path and line count
+- Number of test steps defined
+- Result of test run (how many passed, how many failed)
+- Root cause of any failures
+- Whether the scenario passes end-to-end (the gate for Group D)
+```
+| Status | 🟡 Dispatched (19:43 MYT, cutoff 20:33 MYT) |
+
+### Group C Completion Report (19:43-19:46 MYT)
+
+| Metric | Value |
+|--------|-------|
+| File | `tests/e2e/scenarios/01-happy-path.spec.ts` — 515 lines, 14 test steps |
+| Run result | **12 passed, 2 failed (86%)** |
+| Selector fixes | 6 adaptations applied (email input name, sign-in button text, @demo.local domain, aircond→aircond, db-check HTTP fallback, API v1 prefix) |
+
+**Failures:**
+| Step | Failure | Root Cause |
+|------|---------|------------|
+| 1.3 — Aircon Service category | Categories API returns 0 items | `seed-test.ts` does not set `published: true` on categories; backend filters `where: { published: true }` |
+| 1.4 — Quote form step 1 | Cascading from 1.3 | Not on quote form page because no categories loaded |
+
+**Root cause:** `backend/prisma/seed/seed-test.ts` creates categories via `prisma.category.upsert()` but does not include `published: true`. The backend `/api/v1/categories` route filters `where: { published: true }`, so the frontend sees 0 categories.
+
+**Fix required:** Add `published: true` to category `upsert()` calls in `seed-test.ts`. Also add to bulk category creation in the test seed loop.
+
+**Gate for Group D:** CANNOT proceed until seed fix is applied and Scenario 1 passes 14/14. Fix dispatched below.
+
+---
+
+### Group C Fix — Seed published:true hotfix
+
+| Field | Value |
+|-------|-------|
+| Target | Backend (general agent) |
+| Priority | CRITICAL — blocks Group D |
+| Estimate | 5 min |
+| Input | `backend/prisma/seed/seed-test.ts` — add `published: true` to all category upsert/create calls |
+| Output | seed-test.ts updated, `npm run seed:test` passes, Scenario 1 re-run → 14/14 pass |
+| Status | ⬜ Dispatched |
 

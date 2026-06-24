@@ -3,6 +3,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { switchMap } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
+import { routeFor } from '../../core/route-for';
 import { IconComponent } from '../../shared/icon.component';
 import { ToastService } from '../../core/services/toast.service';
 import { DialogService } from '../../core/services/dialog.service';
@@ -862,10 +863,10 @@ export class ListingWizardComponent implements OnInit {
   goBack(): void {
     if (this.hasUnsavedChanges()) {
       this.dialog.confirm('Discard unsaved changes?', { confirmLabel: 'Discard' }).subscribe((ok) => {
-        if (ok) this.router.navigate(['/servicer/services']);
+        if (ok) this.router.navigate([routeFor('servicer.services')]);
       });
     } else {
-      this.router.navigate(['/servicer/services']);
+      this.router.navigate([routeFor('servicer.services')]);
     }
   }
 
@@ -948,7 +949,7 @@ export class ListingWizardComponent implements OnInit {
         this.saving.set(false);
         this.hasUnsavedChanges.set(false);
         this.toast.success(wasEdit ? 'Listing updated.' : 'Listing created.');
-        this.router.navigate(['/servicer/services']);
+        this.router.navigate([routeFor('servicer.services')]);
       },
       error: (e) => {
         this.saving.set(false);

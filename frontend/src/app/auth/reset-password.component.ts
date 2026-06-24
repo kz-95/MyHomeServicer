@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute } from '@angular/router';
+import { routeFor } from '../core/route-for';
 import { ApiService } from '../core/services/api.service';
 
 @Component({
@@ -29,10 +30,10 @@ import { ApiService } from '../core/services/api.service';
           </button>
         } @else {
           <p class="muted">Your password has been updated. You can now log in with your new password.</p>
-          <a class="btn-primary" routerLink="/login">Go to login</a>
+          <a class="btn-primary" [routerLink]="routeFor('login')">Go to login</a>
         }
 
-        <p class="muted"><a routerLink="/login">\u2190 Back to login</a></p>
+        <p class="muted"><a [routerLink]="routeFor('login')">\u2190 Back to login</a></p>
       </div>
     </div>
   `,
@@ -123,6 +124,7 @@ import { ApiService } from '../core/services/api.service';
     ]
 })
 export class ResetPasswordComponent implements OnInit {
+  routeFor = routeFor;
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   logoLoaded = signal(false);

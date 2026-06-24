@@ -20,7 +20,7 @@ interface Invoice {
  */
 @Component({
     selector: 'app-servicer-invoices',
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     imports: [CommonModule, FormsModule, ListToolbarComponent],
     template: `
     <h1>Invoices</h1>

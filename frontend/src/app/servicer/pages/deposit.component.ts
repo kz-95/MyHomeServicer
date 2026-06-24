@@ -50,7 +50,7 @@ interface VoucherInfo {
 
 @Component({
     selector: 'app-servicer-deposit',
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     imports: [CommonModule, FormsModule, ListToolbarComponent],
     template: `
     <h1>Deposit & Credit</h1>

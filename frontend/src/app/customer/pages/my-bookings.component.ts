@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
+import { routeFor } from '../../core/route-for';
 import { ChatWidgetService } from '../../core/services/chat-widget.service';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
@@ -69,9 +70,9 @@ const TAB_LABELS: Record<TabKey, string> = {
 
 /** Route a tab key to its full customer path (bookings vs history live on different roots). */
 const TAB_ROUTES: Record<TabKey, string> = {
-  upcoming: '/customer/bookings/upcoming',
-  inProgress: '/customer/bookings/inProgress',
-  history: '/customer/history',
+  upcoming: routeFor('customer.bookings.upcoming'),
+  inProgress: routeFor('customer.bookings.inProgress'),
+  history: routeFor('customer.history'),
 };
 
 /** Customer booking list with live status updates over Socket.io. */
@@ -98,7 +99,7 @@ const TAB_ROUTES: Record<TabKey, string> = {
     } @else if (bookings().length === 0) {
       <div class="card empty-card">
         <p>No bookings yet.</p>
-        <a routerLink="/customer/findService" class="btn-primary">Find a service →</a>
+        <a [routerLink]="routeFor('customer.findService')" class="btn-primary">Find a service →</a>
       </div>
     } @else {
       <nav class="subnav">
@@ -706,6 +707,7 @@ const TAB_ROUTES: Record<TabKey, string> = {
     ]
 })
 export class MyBookingsComponent implements OnInit, OnDestroy {
+  routeFor = routeFor;
   private api = inject(ApiService);
   private socket = inject(SocketService);
   private dialog = inject(DialogService);
@@ -970,7 +972,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   reorder(b: Booking): void {
     this.api.post<{ prefill: Record<string, unknown> }>(`/bookings/${b.id}/reorder`, {}).subscribe({
       next: (r) =>
-        this.router.navigate(['/customer/quote'], {
+        this.router.navigate([routeFor('customer.quote')], {
           // rebookServicer locks the quote to this servicer (direct, no broadcast)
           // and hides the category pickers in the quote form.
           state: { prefill: r.prefill, rebookServicer: { id: b.servicer.id, name: b.servicer.businessName } },

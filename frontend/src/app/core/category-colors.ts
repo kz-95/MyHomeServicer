@@ -136,6 +136,9 @@ const SLUG_PLACEHOLDER: Record<string, string> = {
   'gym-trainer': 'Training_GymTrainer_Train01_Placeholder.png',
   '3d-modeling-class': 'Training_3DModeling_Teach01_Placeholder.png',
   'alarm-cctv': 'TechIT_AlarmCCTV_Install01_Placeholder.png',
+  painting: 'HomeImprovement_Painting01.png',
+  moving: 'HomeMaintenance_Moving01.png',
+  gardening: 'HomeMaintenance_Gardening01.png',
 };
 
 export function placeholderUrl(slug: string): string {

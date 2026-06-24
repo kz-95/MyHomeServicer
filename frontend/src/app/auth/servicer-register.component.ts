@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
+import { routeFor } from '../core/route-for';
 import { ApiService } from '../core/services/api.service';
 import { ConfigService } from '../core/services/config.service';
 import { PhoneInputComponent } from '../shared/phone-input.component';
@@ -165,9 +166,9 @@ interface Category {
           </section>
         }
 
-        <p class="muted">Looking for a service? <a routerLink="/register">Customer sign-up</a></p>
-        <p class="muted">Already have an account? <a routerLink="/login">Sign in</a></p>
-        <p class="muted"><a routerLink="/">← Back to home</a></p>
+        <p class="muted">Looking for a service? <a [routerLink]="routeFor('register')">Customer sign-up</a></p>
+        <p class="muted">Already have an account? <a [routerLink]="routeFor('login')">Sign in</a></p>
+        <p class="muted"><a [routerLink]="routeFor('home')">← Back to home</a></p>
       </div>
     </div>
   `,
@@ -358,6 +359,7 @@ interface Category {
     ]
 })
 export class ServicerRegisterComponent implements OnInit {
+  routeFor = routeFor;
   private auth = inject(AuthService);
   private api = inject(ApiService);
   private config = inject(ConfigService);

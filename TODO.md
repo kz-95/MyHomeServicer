@@ -50,16 +50,28 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [x] **6. Admin dashboard redesign** (beat 6) — revenue/fee/escrow cards + 30-day
   line chart from the real transaction ledger (not stubbed); category breakdown; urgent-fee
   line; quick links; date range. Spec: `docs/superpowers/specs/2026-06-23-admin-dashboard-financial-redesign.md`.
-- [ ] **7. Live dispatch overlay — VERIFY for demo** (beat 2, demo-critical) — the
-  real-time order-accept flow. Built but NOT walked end-to-end.
-  **BLOCKED:** the overlay only fires if servicer `isOnline` presence + working-hours
-  availability gating are wired → see "Full SP4 live-dispatch" under PLATFORM POLISH.
-  That item IS the fix for this one.
-- [ ] **8. Finance engine — proper end-to-end** (beats 3/6, demo-critical) — verify the
+- [x] **7. Live dispatch overlay — VERIFIED** (beat 2, demo-critical) — structural
+  code-path verification pass completed 2026-06-24 (Task 7-QA). All 7 tests PASS:
+  quote→dispatch rotation, servicer prompt with overlay UI, accept→booking,
+  decline→rotation, timeout→auto-decline, offline exclusion, working-hours gating.
+   Two low-severity polish gaps filed:
+   - [x] 🟢 **QA-001** (LOW) — Frontend countdown hardcoded to 10s. `dispatch.prompt` socket payload omits `timeoutSeconds`. → ✅ Fixed `777cffb` (backend + frontend sync).
+   - [x] 🟢 **QA-002** (LOW) — No per-servicer skip log. → ✅ Fixed `3e558d9` (logger.info for offline and out-of-hours).
+- [x] **8. Finance engine — proper end-to-end** (beats 3/6, demo-critical) — verify the
   whole money path reconciles with REAL numbers for the demo: `escrow_hold` at payment →
   `escrow_release` + platform fee on completion → urgent-fee 20/80 split → all surfacing
   correctly on the admin dashboard. Items 3 (escrow integrity) + 6 (dashboard) are the
   pieces; this is the end-to-end reconciliation check. Full Wallet/Fee-engine build = STRETCH.
+  **FINDINGS from 2026-06-24 verification — ALL FIXED 2026-06-24 (11 commits):**
+  - [x] 🔴 **QA-005** — `handleDispatchAccept()` creates Booking without escrow/payment. → ✅ Fixed `0ea3dbd` (mirrored selectProposal payment logic).
+  - [x] 🟡 **QA-003** — Platform fee double-recorded per pay_now booking. → ✅ Fixed `18b17cc` (removed booking-time reserve).
+  - [x] 🟡 **QA-004** — `splitUrgentFee()` never called. → ✅ Fixed `8cb084d` (wired into escrow release + separate urgent_fee transaction).
+  - [x] 🔴 **BE-007** — Service-area filter neutered by `|| true`. → ✅ Fixed `1d58af0` (removed `|| true`).
+  - [x] 🔴 **BE-001** — AI receives "[object Promise]". → ✅ Fixed `c094f18` (added await).
+  - [x] 🔴 **BE-008** — Double-refund in `quote.no_response`. → ✅ Fixed `75e008c` ($transaction + idempotency guard).
+  - [x] 🔴 **BE-011** — No-show counter outside `$transaction`. → ✅ Fixed `e04b29d` (moved inside $transaction).
+  - [x] 🟡 **BE-013** — Demo-login accepts arbitrary email. → ✅ Fixed `5379ff0` (locked to DEMO_ACCOUNTS map).
+  - [x] 🟡 **BE-019** — Chat verify-pin token leak. → ✅ Fixed `a59ad59` (TTL + consume guard).
 
 ### Servicer journey polish (beats 2/5 — added 2026-06-23)
 
@@ -92,10 +104,13 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 
 ## STRETCH (after the demo thread holds)
 
-- [~] Full fintech P1-P5 — Wallet model, Fee engine, Payment methods, Escrow automation,
+- [x] Full fintech P1-P5 — Wallet model, Fee engine, Payment methods, Escrow automation,
   Reporting. (demo needs items 3 + 6 + 8 only; full Wallet/Fee-engine build deferred here)
   ✅ P1 (Wallet + BalanceCheckpoint models+service), P2 model (FeeRule), P3 model (SavedPaymentMethod),
   P4 model (Dispute), P5-light (CSV export endpoint) done 2026-06-24.
+  ✅ P2-P4 service logic + routes completed 2026-06-24: fee-engine.service.ts with FeeRule CRUD + computeFees()
+  (wired into credit.service.ts + booking.jobs.ts escrow release), saved-payment.service.ts CRUD,
+  dispute.service.ts CRUD + status machine, admin dispute routes, open dispute route for customers.
 
 ---
 
@@ -103,23 +118,24 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 
 > Merged with DISCUSSED brainstorms. Duplicates collapsed; spec-linked items kept.
 
-- [ ] **SP3 listing wizard** — rework `services.component.ts` (1151-line monolith) into 4-step wizard
+- [x] **SP3 listing wizard** — rework `services.component.ts` (1151-line monolith) into 4-step wizard
   (basics / pricing / tax-modules / accept), create-then-PATCH save, routes `/services/new` +
-  `/:id/edit`, priced grid active-aware. 7 decisions locked (memory `project-sp3-wizard-design`).
-  Absorbs old "SP-3 work-streams A/C/E/F" (stream B = auto-accept, already done).
-- [~] **Full SP4 live-dispatch** — real `isOnline` presence wiring; availability gating = online +
+  `/:id/edit`, priced grid active-aware. ✅ Committed `4457ee5`: 4-step wizard, /services/new + /:id/edit routes.
+- [x] **Full SP4 live-dispatch** — real `isOnline` presence wiring; availability gating = online +
   working hours (`ServicerSchedule`); admin-configurable rotation timer; decline → rotate →
   async fallback; Google Map preview in the accept prompt.
   Spec: `2026-05-30-live-order-accept-dispatch-design.md`.
-  **Blocking item 7** (dispatch overlay verify) — the overlay only fires if presence + availability
-  are live. This item IS the fix for item 7.
-  ✅ Backend done (isOnline gate, schedule gating, configurable timer, decline→rotate, timeout→rotate, HTTP routes). Frontend overlay pending.
+  ✅ Backend done (isOnline gate, schedule gating, configurable timer, decline→rotate, timeout→rotate, HTTP routes).
+  ✅ Frontend overlay done (dispatch-prompt-guard.component.ts with native `<dialog>`, countdown, map preview, accept/decline buttons, timeout auto-decline). Verified QA 2026-06-24.
 - [ ] **S2. Distance in km on dispatch card** — add `lat`/`lng` to Servicer model, seed coords,
   backend Haversine calc in feed, frontend "~X km away" render.
-- [ ] **Estimated duration on dispatch card face** — show "~90 min" per quote (from listing
-  prefill `estimatedDurationMin`); currently only in the propose flow.
-- [ ] **Navigation — Maps/Waze on confirmed booking** — job-detail "Open in Google Maps / Waze"
-  deep-link buttons once a booking is confirmed/in_progress/completed.
+- [x] **Estimated duration on dispatch card face** — show "~90 min" per quote (from listing
+  prefill `estimatedDurationMin`); currently only in the propose flow. ✅ Committed `8702a65`.
+- [x] **Navigation — Maps/Waze on confirmed booking** — job-detail "Open in Google Maps / Waze"
+  deep-link buttons once a booking is confirmed/in_progress/completed. ✅ Servicer side already had
+  Maps/Waze in Active + History tabs. Customer side added 2026-06-24 (my-bookings.component.ts:
+  lat/lng/address on Booking interface, openJobMap() method, Maps + Waze link buttons for
+  confirmed/in_progress/completed bookings when coordinates present).
 - [x] **In-app map debug** — `app-map-view` component broken (API-key load / init timing); fix. ✅ Fixed 2026-06-24 (retry loop with existing keyRetries/KEY_RETRY_MAX, timer cleanup in ngOnDestroy)
 - [x] **Route redesign + dead link sweep** — nest admin/customer routes; audit + fix backend
   notification `linkUrl` emitters + Stripe return URLs after C2 rename; servicer dashboard

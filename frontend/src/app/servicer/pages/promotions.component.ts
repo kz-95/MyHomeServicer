@@ -19,7 +19,7 @@ interface Promotion {
 /** Servicer promotions management - create and manage own promo codes. */
 @Component({
     selector: 'app-servicer-promotions',
-    host: { class: 'page-enter' },
+    host: { class: 'page-enter page-narrow' },
     imports: [FormsModule, ListToolbarComponent],
     template: `
     <h1>My promotions</h1>

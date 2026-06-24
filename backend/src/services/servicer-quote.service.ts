@@ -7,6 +7,7 @@ import { notify } from './notification.service';
 import { emitToUser } from '../socket';
 import { optionPriceMapSchema, OptionPriceMap, lineItemsSchema, moduleRefsSchema } from '../lib/json-schemas';
 import { resolveListingAccept } from './listing-accept.service';
+import { haversineKm } from '../lib/haversine';
 
 /** @internal Exported for unit testing. Count a servicer's existing jobs
  *  colliding on the same MYT calendar day + slot. */
@@ -263,6 +264,7 @@ export async function listIncomingQuotes(servicerId: string, status?: string) {
       quoteRequest: { user: { email: { not: pairedCustomerEmail(servicerId) } } },
     },
     include: {
+      servicer: { select: { id: true, lat: true, lng: true } },
       quoteRequest: {
         include: {
           category: { select: { name: true, slug: true, questionSchema: true } },
@@ -319,6 +321,9 @@ export async function listIncomingQuotes(servicerId: string, status?: string) {
         state: q.address?.state ?? null,
         lat: q.lat,
         lng: q.lng,
+        distanceKm: (q.lat != null && q.lng != null && b.servicer.lat != null && b.servicer.lng != null)
+          ? haversineKm(q.lat, q.lng, b.servicer.lat, b.servicer.lng)
+          : null,
         // Descriptions: free-text notes + readable question-schema answers.
         notes: q.notes,
         images: q.images ?? [],
@@ -362,7 +367,7 @@ export async function listIncomingQuotes(servicerId: string, status?: string) {
 export async function openQuote(
   servicerId: string,
   quoteId: string,
-): Promise<{ proposalPrefill: ProposalPrefill | null; customerAvatarUrl: string | null; customerName: string; lat: number | null; lng: number | null; budgetMin: number | null; budgetMax: number | null; preferredDate: string | null; timeSlot: string | null }> {
+): Promise<{ proposalPrefill: ProposalPrefill | null; customerAvatarUrl: string | null; customerName: string; lat: number | null; lng: number | null; budgetMin: number | null; budgetMax: number | null; preferredDate: string | null; timeSlot: string | null; descriptions: string[] }> {
   // 1. Verify the broadcast exists.
   const broadcast = await prisma.quoteBroadcast.findUnique({
     where: { quoteRequestId_servicerId: { quoteRequestId: quoteId, servicerId } },
@@ -392,6 +397,7 @@ export async function openQuote(
       preferredDate: true,
       timeSlot: true,
       lng: true,
+      notes: true,
       user: { select: { email: true, name: true, avatarUrl: true } },
     },
   });
@@ -419,7 +425,24 @@ export async function openQuote(
   );
 
   logger.info('Quote opened', { quoteId, servicerId, hasPrefill: proposalPrefill !== null });
-  return { proposalPrefill, customerAvatarUrl: quote.user.avatarUrl, customerName: quote.user.name, lat: quote.lat, lng: quote.lng, budgetMin: quote.budgetMin ? Number(quote.budgetMin) : null, budgetMax: quote.budgetMax ? Number(quote.budgetMax) : null, preferredDate: quote.preferredDate?.toISOString() ?? null, timeSlot: quote.timeSlot ?? null };
+  return {
+    proposalPrefill,
+    customerAvatarUrl: quote.user.avatarUrl,
+    customerName: quote.user.name,
+    lat: quote.lat,
+    lng: quote.lng,
+    budgetMin: quote.budgetMin ? Number(quote.budgetMin) : null,
+    budgetMax: quote.budgetMax ? Number(quote.budgetMax) : null,
+    preferredDate: quote.preferredDate?.toISOString() ?? null,
+    timeSlot: quote.timeSlot ?? null,
+    descriptions: [
+      ...formatServiceDetails(
+        quote.serviceDetails as Record<string, string | string[]> | null,
+        quote.category.questionSchema as QuestionSchemaItem[] | null,
+      ),
+      ...(quote.notes ? [quote.notes] : []),
+    ],
+  };
 }
 
 export interface ProposeInput {

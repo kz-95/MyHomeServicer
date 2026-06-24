@@ -1738,7 +1738,7 @@ Approve or reject an identity change request. On approve, the proposed fields ar
 
 ### `GET /admin/users`
 List all customer accounts. Supports search and filter.
-**Query:** `?search=email|name&role=customer|admin&page=1&limit=20`
+**Query:** `?search=email|name|phone&role=customer|admin|servicer&page=1&limit=20`
 **Response:**
 ```json
 {
@@ -1749,6 +1749,8 @@ List all customer accounts. Supports search and filter.
       "email": "sarah@example.com",
       "phone": "+60 12-345 ****",
       "role": "customer",
+      "active": true,
+      "deactivatedAt": null,
       "createdAt": "...",
       "deletedAt": null
     }
@@ -1756,6 +1758,39 @@ List all customer accounts. Supports search and filter.
   "pagination": { ... }
 }
 ```
+
+### `GET /admin/users/search`
+**PIN required.** Search users and servicers by name, email, or phone.
+**Query:** `?q=<query>` (min 2 chars)
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "kind": "user",
+      "name": "Sarah Lim",
+      "email": "sarah@example.com",
+      "phone": "+60 12-345 ****",
+      "role": "customer",
+      "active": true,
+      "deactivatedAt": null,
+      "createdAt": "..."
+    }
+  ]
+}
+```
+
+### `POST /admin/users/:id/deactivate`
+**PIN required.** Admin deactivates a user or servicer account. Sets `active=false`, `deactivatedAt=now()`.
+**Body (optional):** `{ "reason": "Violation of TOS" }`
+**Response:** `{ "message": "User deactivated.", "deactivatedAt": "..." }`
+**Errors:** 400 (already deactivated), 404 (not found)
+
+### `POST /admin/users/:id/reactivate`
+**PIN required.** Admin reactivates a deactivated account. Clears `deactivatedAt`, sets `active=true`.
+**Response:** `{ "message": "User reactivated." }`
+**Errors:** 400 (not deactivated), 404 (not found)
 
 ### `GET /admin/users/:id`
 Single user details including booking count, report history, and linked servicer account (if any).

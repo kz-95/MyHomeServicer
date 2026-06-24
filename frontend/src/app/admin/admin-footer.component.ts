@@ -1,5 +1,6 @@
 import { Component } from "@angular/core";
 import { RouterLink } from "@angular/router";
+import { routeFor } from "../core/route-for";
 
 @Component({
   selector: "app-admin-footer",
@@ -10,9 +11,9 @@ import { RouterLink } from "@angular/router";
       <div class="af-inner">
         <span class="af-brand">MyServicer Admin</span>
         <nav class="af-links">
-          <a routerLink="/">Home</a>
-          <a routerLink="/admin">Dashboard</a>
-          <a routerLink="/admin/settings">Settings</a>
+          <a [routerLink]="routeFor('home')">Home</a>
+          <a [routerLink]="routeFor('admin')">Dashboard</a>
+          <a [routerLink]="routeFor('admin.settings')">Settings</a>
         </nav>
         <span class="af-copy">&copy; {{ year }} MyServicer. All rights reserved.</span>
       </div>
@@ -31,5 +32,6 @@ import { RouterLink } from "@angular/router";
   ],
 })
 export class AdminFooterComponent {
+  routeFor = routeFor;
   year = new Date().getFullYear();
 }

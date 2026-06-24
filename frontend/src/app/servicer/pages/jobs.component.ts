@@ -17,6 +17,7 @@ import { Subscription, switchMap } from 'rxjs';
 import { statusBadgeClass } from '../../shared/status-badge.util';
 import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
+import { routeFor } from '../../core/route-for';
 import { CountdownComponent } from '../../shared/countdown-timer.component';
 import { ModalComponent } from '../../shared/modal.component';
 import { IconComponent } from '../../shared/icon.component';
@@ -134,13 +135,13 @@ const ACTIVE = ['confirmed', 'in_progress'];
     imports: [CommonModule, FormsModule, RouterLink, IconComponent, CountdownComponent, ModalComponent, DispatchOverlayComponent, ListToolbarComponent, MapViewComponent, WaButtonComponent],
     template: `
     <div class="tabs">
-      <button class="tab" [class.active]="tab() === 'pending'" [routerLink]="['/servicer/jobs', 'pending']">
+      <button class="tab" [class.active]="tab() === 'pending'" [routerLink]="[routeFor('servicer.jobs.pending')]">
         Pending <span class="n">{{ quotes().length + pendingJobs().length }}</span>
       </button>
-      <button class="tab" [class.active]="tab() === 'active'" [routerLink]="['/servicer/jobs', 'active']">
+      <button class="tab" [class.active]="tab() === 'active'" [routerLink]="[routeFor('servicer.jobs.active')]">
         Active <span class="n">{{ activeJobs().length }}</span>
       </button>
-      <button class="tab" [class.active]="tab() === 'history'" [routerLink]="['/servicer/jobs', 'history']">
+      <button class="tab" [class.active]="tab() === 'history'" [routerLink]="[routeFor('servicer.jobs.history')]">
         History <span class="n">{{ historyJobs().length }}</span>
       </button>
     </div>
@@ -537,7 +538,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
       </ul>
       <div class="modal-actions">
         <button class="btn-ghost" (click)="onboardingRequired.set(false)">Cancel</button>
-        <button class="btn-primary" routerLink="/servicer/account">Go to Account Settings</button>
+        <button class="btn-primary" [routerLink]="routeFor('servicer.account')">Go to Account Settings</button>
       </div>
     </app-modal>
 
@@ -1102,6 +1103,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
     ]
 })
 export class ServicerJobsComponent implements OnInit, OnDestroy {
+  routeFor = routeFor;
   protected readonly statusBadgeClass = statusBadgeClass;
   private api = inject(ApiService);
   private http = inject(HttpClient);

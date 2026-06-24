@@ -523,6 +523,10 @@ const serviceValidators = [
   body('autoAcceptMessage').optional({ values: 'null' }).isString().trim().isLength({ max: 200 }),
   body('imageUrl').optional({ values: 'null' }).isString().trim(),
   body('published').optional().isBoolean(),
+  // SP-3: per-listing tax/service-charge overrides
+  body('serviceChargeRate').optional({ values: 'null' }).isFloat({ min: 0, max: 100 }),
+  body('taxInclusive').optional({ values: 'null' }).isBoolean(),
+  body('sstApplies').optional({ values: 'null' }).isBoolean(),
 ];
 
 /** Partial validators for PATCH — same rules but all fields optional. */
@@ -543,6 +547,10 @@ const servicePatchValidators = [
   body('autoAcceptMessage').optional({ values: 'null' }).isString().trim().isLength({ max: 200 }),
   body('imageUrl').optional({ values: 'null' }).isString().trim(),
   body('published').optional().isBoolean(),
+  // SP-3: per-listing tax/service-charge overrides
+  body('serviceChargeRate').optional({ values: 'null' }).isFloat({ min: 0, max: 100 }),
+  body('taxInclusive').optional({ values: 'null' }).isBoolean(),
+  body('sstApplies').optional({ values: 'null' }).isBoolean(),
 ];
 
 /** POST /servicer/me/services */

@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService, Principal } from '../core/services/auth.service';
+import { routeFor } from '../core/route-for';
 
 @Component({
   selector: 'app-auth-callback',
@@ -22,7 +23,7 @@ export class AuthCallbackComponent implements OnInit {
     const userRaw = params.get('user');
 
     if (!accessToken || !refreshToken || !userRaw) {
-      this.router.navigate(['/login'], { queryParams: { error: 'google_auth_failed' } });
+      this.router.navigate([routeFor('login')], { queryParams: { error: 'google_auth_failed' } });
       return;
     }
 
@@ -35,10 +36,10 @@ export class AuthCallbackComponent implements OnInit {
         this.router.navigateByUrl(next);
         return;
       }
-      const target = user.role === 'admin' ? '/admin' : user.role === 'servicer' ? '/servicer' : '/customer';
+      const target = user.role === 'admin' ? routeFor('admin') : user.role === 'servicer' ? routeFor('servicer') : routeFor('customer');
       this.router.navigate([target]);
     } catch {
-      this.router.navigate(['/login'], { queryParams: { error: 'google_auth_failed' } });
+      this.router.navigate([routeFor('login')], { queryParams: { error: 'google_auth_failed' } });
     }
   }
 }

@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { RouterLink } from "@angular/router";
+import { routeFor } from "../../core/route-for";
 import { ApiService } from "../../core/services/api.service";
 import { placeholderUrl } from "../../core/category-colors";
 import { IconComponent } from "../../shared/icon.component";
@@ -74,7 +75,7 @@ const SKELETON_COUNT = 34;
                   [class.bw-revealed]="cat.revealed"
                   [class.bw-skeleton]="!cat.revealed"
                   [style.--spawn-delay.ms]="i * 50"
-                  routerLink="/customer/quote"
+                  [routerLink]="routeFor('customer.quote')"
                   [queryParams]="cat.id ? { category: cat.id } : {}"
                   [style]="cat.id ? {'--cat-color': cat.cardColor || 'var(--color-primary)'} : {}"
                 >
@@ -289,6 +290,7 @@ const SKELETON_COUNT = 34;
     ]
 })
 export class BrowseComponent implements OnInit, OnDestroy {
+  routeFor = routeFor;
   placeholderUrl = placeholderUrl;
   private api = inject(ApiService);
 

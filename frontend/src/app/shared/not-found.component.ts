@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { routeFor } from '../core/route-for';
 
 /**
  * 404 Not Found page - shown for any URL that doesn't match a known route.
@@ -16,7 +17,7 @@ import { RouterLink } from '@angular/router';
         <p class="muted">
           The page you're looking for doesn't exist or may have been moved.
         </p>
-        <a routerLink="/" class="btn-primary">← Back to home</a>
+        <a [routerLink]="routeFor('home')" class="btn-primary">← Back to home</a>
       </div>
     </div>
   `,
@@ -63,4 +64,6 @@ import { RouterLink } from '@angular/router';
     `,
     ]
 })
-export class NotFoundComponent {}
+export class NotFoundComponent {
+  routeFor = routeFor;
+}

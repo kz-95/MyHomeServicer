@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { routeFor } from '../../core/route-for';
 import { IconComponent } from '../../shared/icon.component';
 
 /**
@@ -110,14 +111,14 @@ export class ListingCreateComponent {
   private router = inject(Router);
 
   simple(): void {
-    this.router.navigate(['/servicer/services/new/simple']);
+    this.router.navigate([routeFor('servicer.services.new.simple')]);
   }
 
   advanced(): void {
-    this.router.navigate(['/servicer/services/new/advanced']);
+    this.router.navigate([routeFor('servicer.services.new.advanced')]);
   }
 
   cancel(): void {
-    this.router.navigate(['/servicer/services/listings']);
+    this.router.navigate([routeFor('servicer.services.listings')]);
   }
 }

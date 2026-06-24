@@ -597,6 +597,64 @@ userRouter.post(
   }),
 );
 
+// ── Saved payment methods ─────────────────────────────────────────────────────
+
+/** GET /user/me/payment-methods — list saved payment methods. */
+userRouter.get(
+  '/me/payment-methods',
+  requireAuth,
+  requireCustomer,
+  asyncHandler(async (req, res) => {
+    const { listPaymentMethods } = await import('../services/saved-payment.service');
+    const methods = await listPaymentMethods(req.user!.id);
+    res.json({ data: methods });
+  }),
+);
+
+/** POST /user/me/payment-methods — save a payment method. */
+userRouter.post(
+  '/me/payment-methods',
+  requireAuth,
+  requireCustomer,
+  validate([
+    body('stripePaymentMethodId').isString().notEmpty(),
+    body('brand').isString().isIn(['visa', 'mastercard', 'amex', 'unionpay']),
+    body('last4').isString().isLength({ min: 4, max: 4 }),
+    body('expMonth').isInt({ min: 1, max: 12 }),
+    body('expYear').isInt({ min: new Date().getFullYear(), max: new Date().getFullYear() + 20 }),
+    body('isDefault').optional().isBoolean(),
+  ]),
+  asyncHandler(async (req, res) => {
+    const { createPaymentMethod } = await import('../services/saved-payment.service');
+    const method = await createPaymentMethod(req.user!.id, req.body);
+    res.status(201).json({ data: method });
+  }),
+);
+
+/** PUT /user/me/payment-methods/:id — update a saved payment method. */
+userRouter.put(
+  '/me/payment-methods/:id',
+  requireAuth,
+  requireCustomer,
+  asyncHandler(async (req, res) => {
+    const { updatePaymentMethod } = await import('../services/saved-payment.service');
+    const method = await updatePaymentMethod(req.user!.id, req.params.id, req.body);
+    res.json({ data: method });
+  }),
+);
+
+/** DELETE /user/me/payment-methods/:id — delete a saved payment method. */
+userRouter.delete(
+  '/me/payment-methods/:id',
+  requireAuth,
+  requireCustomer,
+  asyncHandler(async (req, res) => {
+    const { deletePaymentMethod } = await import('../services/saved-payment.service');
+    await deletePaymentMethod(req.user!.id, req.params.id);
+    res.json({ message: 'Payment method deleted.' });
+  }),
+);
+
 // ── Deactivate account ───────────────────────────────────────────────────────
 
 /** POST /user/me/deactivate — permanently deactivate account. */

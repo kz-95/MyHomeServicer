@@ -38,6 +38,41 @@ function deadlineOffsetMinutes(): number {
   return arg ? parseInt(arg.split('=')[1], 10) || 1440 : 1440;
 }
 
+/**
+ * Derive approximate lat/lng from a servicer's area description.
+ * Returns null for both when no area pattern matches.
+ */
+function areaCoords(area: string): { lat: number | null; lng: number | null } {
+  const a = area.toLowerCase();
+  // PJ / Damansara Utama / SS2
+  if (/damansara\s*utama|ss2|petaling\s*jaya/.test(a)) return { lat: 3.08, lng: 101.65 };
+  // Cyberjaya / Putrajaya
+  if (/cyberjaya|putrajaya/.test(a)) return { lat: 2.99, lng: 101.65 };
+  // KLCC / Bukit Bintang
+  if (/klcc|bukit\s*bintang/.test(a)) return { lat: 3.15, lng: 101.71 };
+  // Cheras
+  if (/cheras/.test(a)) return { lat: 3.10, lng: 101.72 };
+  // Damansara Heights / Bangsar
+  if (/damansara\s*heights|bangsar/.test(a)) return { lat: 3.13, lng: 101.63 };
+  // Subang Jaya
+  if (/subang\s*jaya/.test(a)) return { lat: 3.05, lng: 101.59 };
+  // Shah Alam
+  if (/shah\s*alam/.test(a)) return { lat: 3.07, lng: 101.55 };
+  // Ampang
+  if (/ampang/.test(a)) return { lat: 3.16, lng: 101.75 };
+  // Kepong / Selayang
+  if (/kepong|selayang/.test(a)) return { lat: 3.20, lng: 101.63 };
+  // Wangsa Maju / Setapak
+  if (/wangsa\s*maju|setapak/.test(a)) return { lat: 3.20, lng: 101.73 };
+  // Gombak
+  if (/gombak/.test(a)) return { lat: 3.22, lng: 101.72 };
+  // Mont Kiara
+  if (/mont\s*kiara/.test(a)) return { lat: 3.17, lng: 101.65 };
+  // KL fallback
+  if (/kl|kuala\s*lumpur/.test(a)) return { lat: 3.14, lng: 101.69 };
+  return { lat: null, lng: null };
+}
+
 const minutes = (n: number) => new Date(Date.now() + n * 60_000);
 const days = (n: number) => new Date(Date.now() + n * 86_400_000);
 
@@ -507,6 +542,8 @@ async function main(): Promise<void> {
         invoiceContent: m.invoiceContent,
         invoiceSuffix: m.invoiceSuffix,
         serviceAreas: m.serviceAreas,
+        lat: m.lat ?? areaCoords(m.area).lat,
+        lng: m.lng ?? areaCoords(m.area).lng,
         rating: m.rating,
         onboarded: true,
         isDemo: true,

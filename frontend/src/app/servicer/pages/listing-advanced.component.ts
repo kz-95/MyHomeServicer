@@ -5,7 +5,9 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { switchMap } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
+import { routeFor } from '../../core/route-for';
 import { IconComponent } from '../../shared/icon.component';
+import { ModalComponent } from '../../shared/modal.component';
 import { ToastService } from '../../core/services/toast.service';
 
 interface CategoryQuestion {
@@ -21,7 +23,7 @@ interface ServicerModule {
   sku?: string | null;
 }
 type ModSel = { selected: boolean; kind: 'included' | 'addon'; overridePrice: number | null; durationDeltaMin: number | null };
-type OptEntry = { price: number | null; durationMin: number | null; notOffered: boolean };
+type OptEntry = { price: number | null; durationMin: number | null; notOffered: boolean; modKind: 'included' | 'addon' };
 type WizStep = 1 | 2 | 3;
 interface ModuleRefRow { moduleId: string; kind?: 'included' | 'addon'; overridePrice?: number | null; durationDeltaMin?: number | null }
 interface ServiceRow {
@@ -35,7 +37,7 @@ interface ServiceRow {
   autoAccept?: boolean;
   autoAcceptMessage?: string | null;
   moduleRefs?: ModuleRefRow[] | null;
-  modifiers?: Record<string, Record<string, { price: number | null; durationMin?: number; notOffered: boolean }>> | null;
+  modifiers?: Record<string, Record<string, { price: number | null; durationMin?: number; notOffered: boolean; modKind?: string }>> | null;
 }
 
 /**
@@ -49,7 +51,7 @@ interface ServiceRow {
 @Component({
   selector: 'app-listing-advanced',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, ModalComponent],
   template: `
     <div class="page-enter wrap">
       <button class="btn-ghost back" (click)="cancel()">← Back</button>
@@ -64,7 +66,7 @@ interface ServiceRow {
       <div class="dots">
         @for (s of steps; track s.n) {
           <button class="dot" [class.active]="step() === s.n" [class.done]="step() > s.n"
-                  [disabled]="!basicsValid() && s.n > 1" (click)="goStep(s.n)">
+                  [disabled]="!basicsValid && s.n > 1" (click)="goStep(s.n)">
             <span class="circle">{{ step() > s.n ? '✓' : s.n }}</span>{{ s.label }}
           </button>
         }
@@ -76,79 +78,79 @@ interface ServiceRow {
         <!-- Step 1 — Basics -->
         @if (step() === 1) {
           <p class="hint">Start with the essentials. You can publish now and refine pricing later.</p>
-          <div class="photo-row">
-            <div class="photo-frame">
-              @if (f.imageUrl) { <img [src]="f.imageUrl" alt="" /> } @else { <span class="ph"><app-icon name="image" sizeToken="lg" /></span> }
-            </div>
-            <label class="btn-ghost file-btn">
-              {{ uploading() ? 'Uploading…' : f.imageUrl ? 'Replace photo' : 'Add photo (optional)' }}
-              <input type="file" accept="image/jpeg,image/png,image/webp" (change)="onPhoto($event)" [disabled]="uploading()" hidden />
-            </label>
-          </div>
-          <label><span>Title<span class="req"> *</span></span>
-            <input type="text" [(ngModel)]="f.title" name="t" maxlength="120" /></label>
+           <label><span>Title<span class="req"> *</span></span>
+            <input type="text" [(ngModel)]="f.title" name="t" maxlength="120" placeholder="e.g. Leaking pipe repair" (input)="error.set('')" /></label>
           <label><span>Short description</span>
-            <input type="text" [(ngModel)]="f.description" name="d" maxlength="200" /></label>
+            <input type="text" [(ngModel)]="f.description" name="d" maxlength="200" placeholder="e.g. Quick and reliable pipe repair - done within 60 min" (input)="error.set('')" /></label>
           <div class="row-3">
             <label><span>Price type</span>
               <select [(ngModel)]="f.priceType" name="pt">
                 <option value="fixed">Fixed</option><option value="hourly">Hourly</option><option value="quote">By quote</option>
               </select></label>
             <label><span>Base price (RM)<span class="req"> *</span></span>
-              <input type="number" [(ngModel)]="f.basePrice" name="bp" min="0" step="0.01" /></label>
+              <input type="number" [(ngModel)]="f.basePrice" name="bp" min="0" step="0.01" placeholder="e.g. 80.00" (input)="error.set('')" /></label>
             <label><span>Est. duration (min)</span>
-              <input type="number" [(ngModel)]="f.duration" name="du" min="1" step="5" /></label>
+              <input type="number" [(ngModel)]="f.duration" name="du" min="1" step="5" placeholder="e.g. 60" (input)="error.set('')" /></label>
           </div>
         }
 
         <!-- Step 2 — Pricing & options -->
         @if (step() === 2) {
-          <p class="hint">Optional. Attach reusable modules and set per-option pricing. Leave empty for a flat-priced listing.</p>
-          <div class="sec-head">
-            <strong>Modules</strong>
-            <button class="link-btn" (click)="goModules()">+ New module</button>
-          </div>
-          @if (modules().length === 0) {
-            <p class="muted small">No modules yet. Create some in the Modules tab to attach them here.</p>
-          }
-          @for (m of modules(); track m.id) {
-            <div class="mod-row" [class.on]="sel(m.id).selected">
-              <label class="mod-check">
-                <input type="checkbox" [checked]="sel(m.id).selected" (change)="toggleMod(m.id)" />
-                <span class="mod-name">{{ m.name }}</span>
-                <span class="muted small">RM {{ m.price }}</span>
-              </label>
-              @if (sel(m.id).selected) {
-                <div class="mod-cfg">
-                  <select [ngModel]="sel(m.id).kind" (ngModelChange)="setKind(m.id, $event)" [name]="'k'+m.id">
-                    <option value="included">Included</option><option value="addon">Add-on</option>
-                  </select>
-                  <input type="number" placeholder="Override RM" [ngModel]="sel(m.id).overridePrice" (ngModelChange)="setOverride(m.id, $event)" [name]="'o'+m.id" min="0" step="0.01" />
-                  <input type="number" placeholder="+min" [ngModel]="sel(m.id).durationDeltaMin" (ngModelChange)="setDur(m.id, $event)" [name]="'dd'+m.id" step="5" />
+          <p class="hint">Set pricing for each service option. Leave empty to use your base price for everything.</p>
+
+          <!-- Preset module rows from question schema -->
+          @if (questions().length) {
+            <div class="sec-head"><strong>Options &amp; pricing</strong></div>
+            @for (q of questions(); track q.key) {
+              <div class="q-label">{{ q.label }}</div>
+              @for (o of q.options; track o.value) {
+                <div class="mod-row" [class.na]="opt(q.key, o.value).notOffered">
+                  <span class="mod-name">{{ o.label }}</span>
+                  @if (!opt(q.key, o.value).notOffered) {
+                    <input type="number" placeholder="RM 0" [ngModel]="opt(q.key, o.value).price" (ngModelChange)="setOptPrice(q.key, o.value, $event)" [name]="'p'+q.key+o.value" min="0" step="0.01" />
+                    <select [ngModel]="optModKind(q.key, o.value)" (ngModelChange)="setOptModKind(q.key, o.value, $event)" [name]="'k'+q.key+o.value">
+                      <option value="included">Included</option><option value="addon">Add-on</option>
+                    </select>
+                    <input type="number" placeholder="+min" [ngModel]="opt(q.key, o.value).durationMin" (ngModelChange)="setOptDur(q.key, o.value, $event)" [name]="'qd'+q.key+o.value" step="5" />
+                  }
+                  <button type="button" class="na-toggle" (click)="toggleNA(q.key, o.value)">
+                    {{ opt(q.key, o.value).notOffered ? 'N/A' : 'Offered' }}
+                  </button>
                 </div>
               }
-            </div>
+            }
+          } @else {
+            <p class="muted small">This category has no predefined options. Your listing will use flat pricing.</p>
           }
 
-          @if (questions().length) {
-            <div class="sec-head ruled"><strong>Per-option pricing &amp; jobs offered</strong></div>
-            @for (q of questions(); track q.key) {
-              <div class="q-block">
-                <div class="q-label">{{ q.label }}</div>
-                @for (o of q.options; track o.value) {
-                  <div class="opt-row" [class.na]="opt(q.key, o.value).notOffered">
-                    <span class="opt-name">{{ o.label }}</span>
-                    @if (!opt(q.key, o.value).notOffered) {
-                      <input type="number" placeholder="RM" [ngModel]="opt(q.key, o.value).price" (ngModelChange)="setOptPrice(q.key, o.value, $event)" [name]="'p'+q.key+o.value" min="0" step="0.01" />
-                      <input type="number" placeholder="+min" [ngModel]="opt(q.key, o.value).durationMin" (ngModelChange)="setOptDur(q.key, o.value, $event)" [name]="'qd'+q.key+o.value" step="5" />
-                    }
-                    <button type="button" class="na-toggle" (click)="toggleNA(q.key, o.value)">
-                      {{ opt(q.key, o.value).notOffered ? 'N/A' : 'Offered' }}
-                    </button>
+          <!-- Reusable modules (existing) -->
+          @if (modules().length) {
+            <div class="sec-head ruled"><strong>Attached modules</strong>
+              <button class="link-btn" (click)="goModules()">+ New module</button>
+            </div>
+            @for (m of modules(); track m.id) {
+              <div class="mod-row" [class.on]="sel(m.id).selected">
+                <label class="mod-check">
+                  <input type="checkbox" [checked]="sel(m.id).selected" (change)="toggleMod(m.id)" />
+                  <span class="mod-name">{{ m.name }}</span>
+                  <span class="muted small">RM {{ m.price }}</span>
+                </label>
+                @if (sel(m.id).selected) {
+                  <div class="mod-cfg">
+                    <select [ngModel]="sel(m.id).kind" (ngModelChange)="setKind(m.id, $event)" [name]="'k'+m.id">
+                      <option value="included">Included</option><option value="addon">Add-on</option>
+                    </select>
+                    <input type="number" placeholder="Override RM" [ngModel]="sel(m.id).overridePrice" (ngModelChange)="setOverride(m.id, $event)" [name]="'o'+m.id" min="0" step="0.01" />
+                    <input type="number" placeholder="+min" [ngModel]="sel(m.id).durationDeltaMin" (ngModelChange)="setDur(m.id, $event)" [name]="'dd'+m.id" step="5" />
                   </div>
                 }
               </div>
             }
+          } @else {
+            <div class="sec-head ruled"><strong>Attached modules</strong>
+              <button class="link-btn" (click)="goModules()">+ New module</button>
+            </div>
+            <p class="muted small">No modules yet. Create reusable modules to attach across listings.</p>
           }
         }
 
@@ -179,24 +181,39 @@ interface ServiceRow {
       </div>
     </div>
 
-    @if (preview()) {
-      <div class="pv-backdrop" (click)="preview.set(false)"></div>
-      <div class="pv">
-        <div class="pv-head"><strong>Customer preview</strong><button class="pv-x" (click)="preview.set(false)">✕</button></div>
-        <div class="pv-body">
-          @if (f.imageUrl) { <img [src]="f.imageUrl" class="pv-img" alt="" /> }
-          <div class="pv-title">{{ f.title || 'Untitled listing' }}</div>
-          @if (f.description) { <p class="muted">{{ f.description }}</p> }
+    <app-modal [open]="preview()" title="Customer preview" (closed)="preview.set(false)">
+      <div class="pv-card">
+        <div class="pv-avatar">{{ f.title ? f.title.charAt(0) : '?' }}</div>
+        <div class="pv-info">
+          <strong class="pv-title">{{ f.title || 'Untitled listing' }}</strong>
+          @if (f.description) { <p class="pv-desc">{{ f.description }}</p> }
+          <div class="pv-meta">
+            <span>~{{ f.duration }} min</span>
+            @if (f.autoAccept) { <span class="pv-aa">auto-accept</span> }
+          </div>
           @if (includedList().length) {
-            <div class="pv-inc"><span class="muted small">Includes:</span>
+            <div class="pv-mods">
+              <span class="pv-mods-label">Includes:</span>
               @for (m of includedList(); track m.name) { <span class="chip-soft">{{ m.name }}</span> }
             </div>
           }
-          <div class="pv-price">From RM {{ previewFrom() | number: '1.2-2' }}</div>
-          <div class="muted small">~{{ f.duration }} min · auto-accept {{ f.autoAccept ? 'on' : 'off' }}</div>
+          @if (pricedOpts().length) {
+            <div class="pv-mods">
+              <span class="pv-mods-label">Options from</span>
+              @for (o of pricedOpts(); track o.label) {
+                <span class="chip-soft">+RM {{ o.price | number: '1.2-2' }} · {{ o.label }}</span>
+              }
+            </div>
+          }
+          @if (!includedList().length && !pricedOpts().length) {
+            <p class="muted small">Flat pricing — no options configured.</p>
+          }
+        </div>
+        <div class="pv-action">
+          <span class="pv-price">From RM {{ previewFrom() | number: '1.2-2' }}</span>
         </div>
       </div>
-    }
+    </app-modal>
   `,
   styles: [
     `
@@ -245,15 +262,17 @@ interface ServiceRow {
       .toggle input { width: auto; }
       .nav { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
       .spacer { flex: 1; }
-      .pv-backdrop { position: fixed; inset: 0; background: var(--color-backdrop); z-index: 998; }
-      .pv { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999; width: min(420px, 92vw); background: var(--color-surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); }
-      .pv-head { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border-bottom: 1px solid var(--color-border); }
-      .pv-x { background: transparent; border: none; cursor: pointer; font-size: 1rem; }
-      .pv-body { padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-      .pv-img { width: 100%; height: 150px; object-fit: cover; border-radius: var(--radius); }
+      .pv-card { display: flex; gap: 1rem; align-items: flex-start; }
+      .pv-avatar { width: 44px; height: 44px; border-radius: 999px; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
+      .pv-info { flex: 1; min-width: 0; }
       .pv-title { font-weight: 700; font-size: 1.05rem; }
-      .pv-inc { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+      .pv-desc { margin: 0.2rem 0; font-size: 0.85rem; color: var(--color-muted); }
+      .pv-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--color-muted); margin-top: 0.2rem; }
+      .pv-aa { font-size: 0.7rem; background: var(--color-primary-light); color: var(--color-primary); padding: 0.05rem 0.4rem; border-radius: 4px; }
+      .pv-mods { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.35rem; }
+      .pv-mods-label { font-size: 0.78rem; color: var(--color-muted); margin-right: 0.2rem; }
       .chip-soft { font-size: 0.74rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 999px; padding: 0.05rem 0.5rem; }
+      .pv-action { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
       .pv-price { font-size: 1.3rem; font-weight: 700; }
     `,
   ],
@@ -299,7 +318,7 @@ export class ListingAdvancedComponent implements OnInit {
     autoAcceptMessage: '',
   };
 
-  basicsValid = computed(() => !!this.f.title.trim() && this.f.basePrice != null && this.f.basePrice >= 0);
+  get basicsValid(): boolean { return !!this.f.title.trim() && this.f.basePrice != null && this.f.basePrice >= 0; }
 
   includedList = computed(() =>
     this.modules().filter((m) => this.modSel[m.id]?.selected && this.modSel[m.id].kind === 'included'),
@@ -330,7 +349,7 @@ export class ListingAdvancedComponent implements OnInit {
           this.questions.set(qs);
           for (const q of qs) {
             this.optMap[q.key] = {};
-            for (const o of q.options) this.optMap[q.key][o.value] = { price: null, durationMin: null, notOffered: false };
+            for (const o of q.options)             this.optMap[q.key][o.value] = { price: null, durationMin: null, notOffered: false, modKind: 'included' };
           }
           if (this.editId) this.loadExisting(this.editId);
         },
@@ -374,6 +393,7 @@ export class ListingAdvancedComponent implements OnInit {
               price: e.price ?? null,
               durationMin: e.durationMin ?? null,
               notOffered: !!e.notOffered,
+              modKind: (e.modKind as 'included' | 'addon') ?? 'included',
             };
           }
         }
@@ -401,8 +421,8 @@ export class ListingAdvancedComponent implements OnInit {
   }
 
   // ── option helpers ──
-  opt(qKey: string, val: string): OptEntry {
-    return this.optMap[qKey]?.[val] ?? { price: null, durationMin: null, notOffered: false };
+   opt(qKey: string, val: string): OptEntry {
+    return this.optMap[qKey]?.[val] ?? { price: null, durationMin: null, notOffered: false, modKind: 'included' };
   }
   private setOpt(qKey: string, val: string, patch: Partial<OptEntry>): void {
     if (!this.optMap[qKey]) this.optMap[qKey] = {};
@@ -417,17 +437,42 @@ export class ListingAdvancedComponent implements OnInit {
   toggleNA(qKey: string, val: string): void {
     this.setOpt(qKey, val, { notOffered: !this.opt(qKey, val).notOffered });
   }
+  optModKind(qKey: string, val: string): 'included' | 'addon' {
+    return this.opt(qKey, val).modKind;
+  }
+  setOptModKind(qKey: string, val: string, kind: 'included' | 'addon'): void {
+    this.setOpt(qKey, val, { modKind: kind });
+  }
+
+  pricedOpts(): { label: string; price: number }[] {
+    const out: { label: string; price: number }[] = [];
+    for (const q of this.questions()) {
+      for (const o of q.options ?? []) {
+        const e = this.opt(q.key, o.value);
+        if (!e.notOffered && e.price != null && e.price > 0) {
+          out.push({ label: o.label, price: e.price });
+        }
+      }
+    }
+    return out;
+  }
 
   previewFrom(): number {
     let total = this.f.basePrice ?? 0;
     for (const m of this.includedList()) {
       total += this.sel(m.id).overridePrice ?? m.price;
     }
+    for (const q of this.questions()) {
+      for (const o of q.options ?? []) {
+        const e = this.opt(q.key, o.value);
+        if (!e.notOffered && e.modKind === 'included' && e.price != null) total += e.price;
+      }
+    }
     return total;
   }
 
   goStep(n: number): void {
-    if (n > 1 && !this.basicsValid()) {
+    if (n > 1 && !this.basicsValid) {
       this.error.set('Complete the basics first (title + base price).');
       return;
     }
@@ -435,7 +480,7 @@ export class ListingAdvancedComponent implements OnInit {
     this.step.set(n as WizStep);
   }
   next(): void {
-    if (this.step() === 1 && !this.basicsValid()) {
+    if (this.step() === 1 && !this.basicsValid) {
       this.error.set('Title and base price are required.');
       return;
     }
@@ -484,7 +529,7 @@ export class ListingAdvancedComponent implements OnInit {
   }
 
   save(publish: boolean): void {
-    if (!this.basicsValid()) {
+    if (!this.basicsValid) {
       this.error.set('Title and base price are required.');
       this.step.set(1);
       return;
@@ -492,14 +537,15 @@ export class ListingAdvancedComponent implements OnInit {
     this.error.set('');
     this.saving.set(true);
 
-    const modifiers: Record<string, Record<string, { price: number | null; durationMin?: number; notOffered: boolean }>> = {};
+    const modifiers: Record<string, Record<string, { price: number | null; durationMin?: number; notOffered: boolean; modKind?: string }>> = {};
     for (const q of this.questions()) {
       modifiers[q.key] = {};
       for (const o of q.options ?? []) {
         const e = this.opt(q.key, o.value);
-        const entry: { price: number | null; durationMin?: number; notOffered: boolean } = {
+        const entry: { price: number | null; durationMin?: number; notOffered: boolean; modKind?: string } = {
           price: e.notOffered ? null : e.price,
           notOffered: e.notOffered,
+          modKind: e.modKind,
         };
         if (!e.notOffered && e.durationMin != null) entry.durationMin = e.durationMin;
         modifiers[q.key][o.value] = entry;
@@ -540,7 +586,7 @@ export class ListingAdvancedComponent implements OnInit {
       next: () => {
         this.saving.set(false);
         this.toast.success(this.editId ? 'Listing updated.' : publish ? 'Listing published.' : 'Listing saved.');
-        this.router.navigate(['/servicer/services/listings']);
+        this.router.navigate([routeFor('servicer.services.listings')]);
       },
       error: (e) => {
         this.saving.set(false);

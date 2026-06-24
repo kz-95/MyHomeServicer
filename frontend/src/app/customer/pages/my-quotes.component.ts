@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute } from '@angular/router';
+import { routeFor } from '../../core/route-for';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { DialogService } from '../../core/services/dialog.service';
@@ -50,7 +51,7 @@ interface Address {
     } @else if (quotes().length === 0) {
       <div class="card empty-card">
         <p>No quotes yet.</p>
-        <a routerLink="/customer/quote" class="btn-primary">Request your first quote →</a>
+        <a [routerLink]="routeFor('customer.quote')" class="btn-primary">Request your first quote →</a>
       </div>
     } @else {
       <div class="toolbar">
@@ -83,18 +84,18 @@ interface Address {
             @if (q.status === 'open') {
               <app-countdown [deadline]="q.proposalDeadline" />
               @if (q._count.proposals > 0) {
-                <a routerLink="/customer/quotes/{{ q.id }}/proposals" class="btn-cta">
+                <a [routerLink]="routeFor('customer.quotes.proposals', { id: q.id })" class="btn-cta">
                   Choose a proposal →
                 </a>
               } @else {
                 <div class="open-actions">
                   <button class="btn-ghost small" (click)="editQuote(q)">Edit</button>
                   <button class="btn-ghost small" (click)="confirmCancel(q)">Cancel</button>
-                  <a routerLink="/customer/quotes/{{ q.id }}/proposals" class="link-muted">View proposals</a>
+                  <a [routerLink]="routeFor('customer.quotes.proposals', { id: q.id })" class="link-muted">View proposals</a>
                 </div>
               }
             } @else if (q.status === 'expired') {
-              <a routerLink="/customer/quotes/{{ q.id }}/proposals" class="link-muted">View proposals</a>
+              <a [routerLink]="routeFor('customer.quotes.proposals', { id: q.id })" class="link-muted">View proposals</a>
             }
           </div>
         </div>
@@ -411,6 +412,7 @@ interface Address {
   `]
 })
 export class MyQuotesComponent implements OnInit {
+  routeFor = routeFor;
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private auth = inject(AuthService);

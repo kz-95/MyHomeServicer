@@ -1,5 +1,6 @@
 ﻿import { Component, ElementRef, HostListener, inject, isDevMode, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { routeFor } from '../core/route-for';
 import { AuthService } from '../core/services/auth.service';
 import { ApiService } from '../core/services/api.service';
 import { ConfigService } from '../core/services/config.service';
@@ -556,7 +557,8 @@ export class DemoBarComponent {
         // SPA navigation (NOT window.location.href): the route guard fires the
         // demo PIN gate BEFORE the URL changes, so we never redirect into the
         // portal until the PIN is confirmed.
-        this.router.navigate(['/' + role]);
+        const roleRoute = role === 'admin' ? routeFor('admin') : role === 'servicer' ? routeFor('servicer') : routeFor('customer');
+        this.router.navigate([roleRoute]);
       },
       error: () => { this.demoLoggingIn.set(false); },
     });

@@ -108,7 +108,10 @@ export class PinPromptComponent {
   }
 
   confirm(): void {
-    this.pin.confirm(this.value);
+    const entered = this.value;
+    this.value = '';   // Clear field immediately after submit — don't leave PIN visible
+    this.reveal.set(false);
+    this.pin.confirm(entered);
   }
 
   cancel(): void {

@@ -181,13 +181,17 @@ export class NotificationService {
         fresh.forEach((n) => this.seen.add(n.id));
         // Show unread arrivals oldest-first so the newest sits on top.
         const unreadFresh = fresh.filter((x) => !x.isRead);
+        const isServicerOffline = this.auth.isServicerAccount() && this.auth.principal()?.isOnline === false;
+        let shownToast = false;
         for (const n of unreadFresh.reverse()) {
-          // Drop new toasts silently when the cap is reached; they stay in the panel.
+          // No toast popup when servicer is offline — they'll see it in the panel later.
+          if (isServicerOffline) continue;
           this.toasts.update((t) => t.length >= MAX_TOASTS ? t : [...t, n]);
           setTimeout(() => this.dismiss(n.id), TOAST_MS);
+          shownToast = true;
         }
-        // Play a sound for the first new unread notification (avoid spamming).
-        if (unreadFresh.length > 0) {
+        // Play a sound for the first new unread notification if a toast was shown.
+        if (shownToast) {
           this.playNotificationSound(unreadFresh[0].type);
         }
       },

@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
+import { routeFor } from '../core/route-for';
 import { ConfigService } from '../core/services/config.service';
 import { PhoneInputComponent } from '../shared/phone-input.component';
 import { environment } from '../../environments/environment';
@@ -59,11 +60,11 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
         <button class="btn-primary" (click)="submit()" [disabled]="busy()">
           {{ busy() ? 'Creating…' : 'Create account' }}
         </button>
-        <p class="muted">Already have an account? <a routerLink="/login">Sign in</a></p>
+        <p class="muted">Already have an account? <a [routerLink]="routeFor('login')">Sign in</a></p>
         <p class="muted">
-          Are you a service provider? <a routerLink="/register/servicer">Join as a Servicer</a>
+          Are you a service provider? <a [routerLink]="routeFor('register.servicer')">Join as a Servicer</a>
         </p>
-        <p class="muted"><a routerLink="/">← Back to home</a></p>
+        <p class="muted"><a [routerLink]="routeFor('home')">← Back to home</a></p>
       </div>
     </div>
   `,
@@ -188,6 +189,7 @@ const googleOAuthUrl = `${environment.apiBase}/auth/google`;
     ]
 })
 export class RegisterComponent implements OnInit {
+  routeFor = routeFor;
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -266,7 +268,7 @@ export class RegisterComponent implements OnInit {
     this.auth
       .register(payload)
       .subscribe({
-        next: () => this.router.navigate(['/customer']),
+        next: () => this.router.navigate([routeFor('customer')]),
         error: (e) => {
           this.error.set(e.message ?? 'Registration failed');
           this.busy.set(false);

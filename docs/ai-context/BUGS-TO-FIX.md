@@ -1,7 +1,76 @@
 # Bugs To Fix — Consolidated
 
 > 2026-06-24 | Sources: 7-QA, 8-QA, 2026-05-31 bug-dump
-> Fix order: CRITICAL first, then HIGH, then MEDIUM, then LOW
+> **ALL 11 FIXED 2026-06-24** on `feat/sp3-dispatch-cards` (12 commits)
+> Fix order: CRITICAL → HIGH → MEDIUM → LOW
+
+---
+
+## CRITICAL (5) — ALL FIXED ✅
+
+### ✅ QA-005 — Dispatch accept bypasses escrow/payment
+**Fixed:** `0ea3dbd` — Mirrored `selectProposal()` payment logic inside `handleDispatchAccept()` $transaction.
+
+### ✅ BE-007 — Service-area filter neutered by `|| true`
+**Fixed:** `1d58af0` — Removed `|| true` from `quote.service.ts:118`.
+
+### ✅ BE-001 — `buildSystemPrompt()` unawaited async → "[object Promise]"
+**Fixed:** `c094f18` — Added `await` before `buildSystemPrompt()` call at `chat.service.ts:271`.
+
+### ✅ BE-008 — `quote.no_response` double-refund on concurrent runs
+**Fixed:** `75e008c` — Wrapped refund in `$transaction` + idempotency guard.
+
+### ✅ BE-011 — No-show counter outside `$transaction` silently desyncs
+**Fixed:** `e04b29d` — Moved counter increment + auto-ban inside `$transaction`.
+
+---
+
+## HIGH (2) — ALL FIXED ✅
+
+### ✅ BE-013 — Demo-login accepts arbitrary email
+**Fixed:** `5379ff0` — Removed `directEmail`, locked to `DEMO_ACCOUNTS` map only.
+
+### ✅ BE-019 — Chat verify-pin token leak
+**Fixed:** `a59ad59` — Added 10-min success TTL + `consumePinSuccess()` one-shot consumption.
+
+---
+
+## MEDIUM (2) — ALL FIXED ✅
+
+### ✅ QA-003 — Platform fee double-recorded per pay_now booking
+**Fixed:** `18b17cc` — Removed booking-time `platform_fee` reserve.
+
+### ✅ QA-004 — `splitUrgentFee()` never called
+**Fixed:** `8cb084d` + `2288b73` — Wired split into escrow release; new `urgent_fee` transaction type.
+
+---
+
+## LOW (2) — ALL FIXED ✅
+
+### ✅ QA-001 — Frontend countdown hardcoded
+**Fixed:** `777cffb` — Added `timeoutSeconds` to socket payload; frontend reads from event data.
+
+### ✅ QA-002 — No log for individually skipped servicers
+**Fixed:** `3e558d9` — Added `logger.info` for offline, out-of-hours, and no-schedule skips.
+
+---
+
+## Commits (in order)
+
+```
+3e558d9 fix(dispatch): add per-servicer skip log for offline and out-of-hours
+777cffb fix(dispatch): sync frontend countdown with backend timeout setting
+2288b73 chore(backend): update session log for QA-004
+8cb084d fix(fees): enforce urgent_fee 20/80 split in escrow release
+18b17cc fix(fees): remove duplicate platform_fee booking-time reserve
+a59ad59 fix(chat): add TTL and consume guard on verify-pin token state
+5379ff0 fix(auth): lock demo-login to known demo accounts only
+e04b29d fix(jobs): move no-show counter increment inside $transaction block
+75e008c fix(jobs): add idempotency guard against double-refund in quote.no_response
+c094f18 fix(chat): await buildSystemPrompt to prevent [object Promise] in AI context
+1d58af0 fix(quote): remove || true neutering service-area filter
+0ea3dbd fix(dispatch): wire escrow/payment into handleDispatchAccept for pay_now
+```
 
 ---
 

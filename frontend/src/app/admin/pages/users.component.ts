@@ -1,7 +1,8 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { PinService } from '../../core/services/pin.service';
 import { DialogService } from '../../core/services/dialog.service';
@@ -16,6 +17,8 @@ interface Account {
   email: string;
   phone: string;
   role: 'customer' | 'admin' | 'servicer';
+  active?: boolean;
+  deactivatedAt?: string | null;
   createdAt: string;
 }
 
@@ -53,6 +56,7 @@ interface Servicer {
   rating: number;
   depositBalance: number;
   creditBalance: number;
+  categoryName: string | null;
 }
 
 type ServicerStatus = '' | 'active' | 'banned';
@@ -65,7 +69,7 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
 @Component({
     selector: 'app-admin-users',
     host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, ModalComponent, PhoneInputComponent],
+    imports: [CommonModule, FormsModule, RouterLink, ModalComponent, PhoneInputComponent],
     template: `
     <h1>Accounts</h1>
 
@@ -78,15 +82,14 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
       <!-- Sticky tab + search + filters -->
       <div class="sticky-header">
         <div class="tabs">
-          <button class="tab" [class.active]="tab() === 'all'" (click)="switchTab('all')">All Accounts</button>
-          <button class="tab" [class.active]="tab() === 'servicer'" (click)="switchTab('servicer')">Servicer</button>
+          <a class="tab" routerLink="/admin/users/all" routerLinkActive="active">All Accounts</a>
+          <a class="tab" routerLink="/admin/users/servicers" routerLinkActive="active">Servicer</a>
         </div>
         <div class="search-row">
           <input
             placeholder="Search name, business or email…"
             [(ngModel)]="search"
             (input)="onSearchInput()"
-            (keyup.enter)="load()"
           />
           @if (tab() === 'all') {
             <select [(ngModel)]="roleFilter" (change)="loadUsers()">
@@ -96,8 +99,20 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
               <option value="admin">Admins</option>
             </select>
           }
-          <button class="btn-primary" (click)="load()">Search</button>
         </div>
+
+        @if (tab() === 'all') {
+          <div class="filter-row">
+            <div class="filter-group">
+              <span class="filter-label">Status</span>
+              <div class="chips">
+                <button class="chip" [class.active]="activeFilter() === 'all'" (click)="activeFilter.set('all')">All</button>
+                <button class="chip" [class.active]="activeFilter() === 'active'" (click)="activeFilter.set('active')">Active</button>
+                <button class="chip" [class.active]="activeFilter() === 'deactivated'" (click)="activeFilter.set('deactivated')">Deactivated</button>
+              </div>
+            </div>
+          </div>
+        }
 
         @if (tab() === 'servicer') {
           <div class="filter-row">
@@ -154,11 +169,19 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
                   <span class="role" [class.admin]="u.role === 'admin'" [class.servicer]="u.role === 'servicer'">
                     {{ u.role }}
                   </span>
+                  @if (u.active === false || u.deactivatedAt) {
+                    <span class="role deactivated">deactivated</span>
+                  }
                 </td>
                 <td class="muted">{{ u.createdAt | date: 'mediumDate' }}</td>
                 <td class="actions">
                   <button class="btn-ghost" (click)="openActivity(u)">Activity log</button>
                   <button class="btn-ghost" (click)="openEdit(u)">Edit</button>
+                  @if (u.active === false || u.deactivatedAt) {
+                    <button class="btn-ghost btn-success" (click)="reactivate(u)">Reactivate</button>
+                  } @else {
+                    <button class="btn-ghost btn-danger" (click)="deactivate(u)">Deactivate</button>
+                  }
                 </td>
               </tr>
             } @empty {
@@ -468,7 +491,20 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
         background: var(--color-primary-light);
         color: var(--color-primary);
       }
+      .role.deactivated {
+        background: #fff0f0;
+        color: var(--color-danger);
+        margin-left: 0.3rem;
+      }
       .banned { color: var(--color-danger); font-weight: 600; }
+      .btn-danger, .btn-ghost.btn-danger { color: var(--color-danger); }
+      .btn-success, .btn-ghost.btn-success { color: var(--color-success); }
+      .btn-ghost.btn-danger:hover { background: var(--color-danger); color: #fff; }
+      .btn-ghost.btn-success:hover { background: var(--color-success); color: #fff; }
+      .cat-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
+      .cat-chips .chip { padding: 0.35rem 0.9rem; border-radius: 999px; border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer; font-size: 0.82rem; font-weight: 500; color: var(--color-muted); transition: all 0.15s ease; font-family: inherit; }
+      .cat-chips .chip:hover { color: var(--color-text); border-color: var(--color-muted); }
+      .cat-chips .chip.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); font-weight: 600; box-shadow: 0 1px 4px rgba(201,90,60,.25); }
       .load-err { color: var(--color-danger); }
 
       /* PIN gate */
@@ -520,14 +556,17 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
     `,
     ]
 })
-export class AdminUsersComponent implements OnInit {
+export class AdminUsersComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private pin = inject(PinService);
   private dialog = inject(DialogService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   tab = signal<'all' | 'servicer'>('all');
+  private search$ = new Subject<string>();
+  private searchSub: any;
 
   // ── All Accounts ──────────────────────────────────────────────────────────
   accounts = signal<Account[]>([]);
@@ -536,6 +575,7 @@ export class AdminUsersComponent implements OnInit {
   message = signal('');
   search = '';
   roleFilter = '';
+  activeFilter = signal<'all' | 'active' | 'deactivated'>('all');
 
   editing = signal<Account | null>(null);
   saving = signal(false);
@@ -549,11 +589,21 @@ export class AdminUsersComponent implements OnInit {
   sortCol = signal('');
   sortDir = signal<'asc' | 'desc'>('asc');
 
+  filteredAccounts = computed(() => {
+    const af = this.activeFilter();
+    if (af === 'all') return this.accounts();
+    return this.accounts().filter((a) => {
+      if (af === 'active') return a.active !== false && !a.deactivatedAt;
+      if (af === 'deactivated') return a.active === false || !!a.deactivatedAt;
+      return true;
+    });
+  });
+
   sortedAccounts = computed(() => {
     const col = this.sortCol();
     const dir = this.sortDir();
-    if (!col) return this.accounts();
-    return [...this.accounts()].sort((a, b) => {
+    if (!col) return this.filteredAccounts();
+    return [...this.filteredAccounts()].sort((a, b) => {
       const av = a[col as keyof Account] as unknown;
       const bv = b[col as keyof Account] as unknown;
       if (col === 'createdAt') {
@@ -572,6 +622,10 @@ export class AdminUsersComponent implements OnInit {
   servicerFailed = signal(false);
   servicerStatus = signal<ServicerStatus>('');
   servicerKyc = signal<ServicerKyc>('');
+  servicerSearch = '';
+  servicerCategories = signal<{ id: string; name: string; parentCategoryId: string | null }[]>([]);
+  servicerCategoryId = signal('');
+  topServicerCategories = computed(() => this.servicerCategories().filter((c) => !c.parentCategoryId));
 
   // Sort - Servicer
   mSortCol = signal('');
@@ -598,12 +652,20 @@ export class AdminUsersComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    if (this.route.snapshot.queryParamMap.get('tab') === 'servicer') {
+    this.searchSub = this.search$
+      .pipe(debounceTime(300), distinctUntilChanged())
+      .subscribe(() => this.loadUsers());
+
+    if (this.route.snapshot.url[0]?.path === 'servicers') {
       this.tab.set('servicer');
       this.loadServicers();
     } else {
       this.loadUsers();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
   }
 
   switchTab(t: 'all' | 'servicer'): void {
@@ -618,7 +680,11 @@ export class AdminUsersComponent implements OnInit {
   }
 
   onSearchInput(): void {
-    if (this.tab() === 'servicer') this.applyServicerFilter();
+    if (this.tab() === 'servicer') {
+      this.applyServicerFilter();
+    } else {
+      this.search$.next(this.search);
+    }
   }
 
   load(): void {
@@ -665,6 +731,11 @@ export class AdminUsersComponent implements OnInit {
   loadServicers(): void {
     this.servicerFailed.set(false);
     this.servicerLoading.set(true);
+    if (this.servicerCategories().length === 0) {
+      this.api.get<{ data: { id: string; name: string; parentCategoryId: string | null }[] }>('/admin/categories').subscribe({
+        next: (res) => this.servicerCategories.set(res.data),
+      });
+    }
     this.api.get<{ data: Servicer[] }>('/admin/servicers').subscribe({
       next: (r) => {
         this.servicers.set(r.data);
@@ -855,6 +926,53 @@ export class AdminUsersComponent implements OnInit {
                 this.loadServicers();
               },
               error: (e) => this.toast.error(e.message ?? 'Could not unban servicer'),
+            });
+        });
+      });
+  }
+
+  // ── Deactivate / Reactivate ──────────────────────────────────────────────
+  deactivate(u: Account): void {
+    this.dialog
+      .confirm(`Deactivate ${u.name}?`, {
+        detail: 'This will block the account from logging in. It can be reactivated later.',
+        confirmLabel: 'Deactivate',
+      })
+      .subscribe((ok) => {
+        if (!ok) return;
+        this.pin.requirePin().subscribe((pin) => {
+          if (!pin) return;
+          this.api
+            .post(`/admin/users/${u.id}/deactivate`, { reason: 'Admin deactivation' }, { 'x-action-pin': pin })
+            .subscribe({
+              next: () => {
+                this.toast.success(`${u.name} deactivated.`);
+                this.loadUsers();
+              },
+              error: (e) => this.toast.error(e.message ?? 'Could not deactivate account'),
+            });
+        });
+      });
+  }
+
+  reactivate(u: Account): void {
+    this.dialog
+      .confirm(`Reactivate ${u.name}?`, {
+        detail: 'This will restore the account and allow login again.',
+        confirmLabel: 'Reactivate',
+      })
+      .subscribe((ok) => {
+        if (!ok) return;
+        this.pin.requirePin().subscribe((pin) => {
+          if (!pin) return;
+          this.api
+            .post(`/admin/users/${u.id}/reactivate`, {}, { 'x-action-pin': pin })
+            .subscribe({
+              next: () => {
+                this.toast.success(`${u.name} reactivated.`);
+                this.loadUsers();
+              },
+              error: (e) => this.toast.error(e.message ?? 'Could not reactivate account'),
             });
         });
       });

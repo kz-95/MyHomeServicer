@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { switchMap } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
+import { routeFor } from '../../core/route-for';
 import { IconComponent } from '../../shared/icon.component';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
 import { DialogService } from '../../core/services/dialog.service';
@@ -169,6 +170,25 @@ interface Service {
                 <span class="ex-label">Auto-accept</span>
                 <span class="ex-val">{{ autoSummary(s) }}</span>
               </div>
+              @if (s.modifiers && objectKeys(s.modifiers).length) {
+                <div class="ex-sec ex-pricing">
+                  <span class="ex-label">Pricing options</span>
+                  <div class="ex-val">
+                    @for (qKey of objectKeys(s.modifiers); track qKey) {
+                      <div class="ex-opt-group">
+                        <span class="ex-opt-key">{{ qKey }}</span>
+                        <span class="ex-opts">
+                          @for (opt of objectKeys(s.modifiers![qKey]); track opt) {
+                            @if (!s.modifiers![qKey][opt].notOffered) {
+                              <span class="ex-opt-chip">{{ opt }}: RM {{ s.modifiers![qKey][opt].price }}</span>
+                            }
+                          }
+                        </span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
             </div>
           }
         </div>
@@ -577,6 +597,10 @@ export class ServicerListingsComponent implements OnInit {
     this.openIds.set(next);
   }
 
+  objectKeys(obj: Record<string, unknown>): string[] {
+    return Object.keys(obj);
+  }
+
   toggleDir(): void {
     this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
   }
@@ -586,12 +610,12 @@ export class ServicerListingsComponent implements OnInit {
   }
 
   add(): void {
-    this.router.navigate(['/servicer/services/new']);
+    this.router.navigate([routeFor('servicer.services.new')]);
   }
 
   edit(s: Service): void {
     this.menuId.set(null);
-    this.router.navigate(['/servicer/services', s.id, 'edit']);
+    this.router.navigate([routeFor('servicer.services.edit', { id: s.id })]);
   }
 
   toggleStatus(s: Service): void {

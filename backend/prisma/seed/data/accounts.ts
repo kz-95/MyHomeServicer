@@ -52,6 +52,8 @@ export interface SeedServicer {
   area: string;
   serviceAreas: string[];
   rating: number;
+  lat?: number;
+  lng?: number;
   categorySlug: string;
   services: SeedService[];
 }

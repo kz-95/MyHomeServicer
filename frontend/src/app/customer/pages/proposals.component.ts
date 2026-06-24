@@ -2,6 +2,7 @@ import { Component, Input, OnInit, OnDestroy, inject, signal, computed } from '@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { routeFor } from '../../core/route-for';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
@@ -69,27 +70,29 @@ const STAGGER_MS = 70;
       @for (p of displayProposals(); track p.id; let idx = $index) {
         @if (idx < revealCount()) {
         <div class="card proposal pp-revealed">
+          <span class="svc-avatar">
+            @if (p.servicer.logoUrl) {
+              <img [src]="p.servicer.logoUrl" [alt]="p.servicer.businessName" class="svc-logo" />
+            } @else {
+              <span class="svc-initials">{{ initials(p.servicer.businessName) }}</span>
+            }
+          </span>
           <div class="info">
             <div class="servicer-head">
-              <span class="svc-avatar">
-                @if (p.servicer.logoUrl) {
-                  <img [src]="p.servicer.logoUrl" [alt]="p.servicer.businessName" class="svc-logo" />
-                } @else {
-                  <span class="svc-initials">{{ initials(p.servicer.businessName) }}</span>
-                }
-              </span>
               <button type="button" class="svc-name-btn" (click)="detailServicerId.set(p.servicer.id)">{{ p.servicer.businessName }}</button>
             </div>
-            <span class="muted">★ {{ p.servicer.rating | number: '1.1-1' }}</span>
-            @if (p.isAuto) {
-              <span class="auto">auto</span>
-            }
             @if (p.message) {
               <p class="msg">{{ p.message }}</p>
             }
-            @if (p.etaMinutes) {
-              <span class="muted">ETA ~{{ p.etaMinutes }} min</span>
+            @if (p.isAuto) {
+              <span class="auto">auto</span>
             }
+            <div class="meta-row">
+              <span class="muted meta-rating">★ {{ p.servicer.rating | number: '1.1-1' }}</span>
+              @if (p.etaMinutes) {
+                <span class="muted meta-eta">ETA ~{{ p.etaMinutes }} min</span>
+              }
+            </div>
           </div>
           <div class="action">
             <span class="price">RM {{ p.proposedPrice | number: '1.2-2' }}</span>
@@ -148,15 +151,22 @@ const STAGGER_MS = 70;
       select { border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); padding: 0.4rem 0.6rem; font-size: 0.85rem; outline: none; cursor: pointer; }
       .proposal {
         display: flex;
+        align-items: center;
         justify-content: space-between;
         gap: 1rem;
         margin-bottom: 0.8rem;
         transition: box-shadow var(--transition), transform var(--transition);
       }
+      .proposal > .svc-avatar {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+      }
       .proposal:hover {
         box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
         transform: translateY(-1px);
       }
+      .info { flex: 1; min-width: 0; }
       .servicer-head {
         display: flex;
         align-items: center;
@@ -198,8 +208,16 @@ const STAGGER_MS = 70;
         font-size: 0.78rem;
         font-weight: 600;
       }
+      .meta-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.2rem;
+      }
+      .meta-rating { font-weight: 600; }
+      .meta-eta { }
       .msg {
-        margin: 0.4rem 0;
+        margin: 0.25rem 0;
       }
       .action {
         display: flex;
@@ -424,7 +442,7 @@ export class ProposalsComponent implements OnInit, OnDestroy {
     this.api
       .post<{ bookingId: string }>(`/quotes/${this.id}/select`, body)
       .subscribe({
-        next: (r) => this.router.navigate(['/customer/bookings/upcoming'], { queryParams: { id: r.bookingId } }),
+        next: (r) => this.router.navigate([routeFor('customer.bookings.upcoming')], { queryParams: { id: r.bookingId } }),
         error: (e) => {
           this.error.set(e.message ?? 'Could not select proposal');
           this.selecting.set(false);

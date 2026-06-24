@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { routeFor } from '../core/route-for';
 import { ApiService } from '../core/services/api.service';
 
 @Component({
@@ -32,7 +33,7 @@ import { ApiService } from '../core/services/api.service';
           <button class="btn-primary" (click)="sent.set(false)">Resend</button>
         }
 
-        <p class="muted"><a routerLink="/login">\u2190 Back to login</a></p>
+        <p class="muted"><a [routerLink]="routeFor('login')">\u2190 Back to login</a></p>
       </div>
     </div>
   `,
@@ -126,6 +127,7 @@ import { ApiService } from '../core/services/api.service';
     ]
 })
 export class ForgotPasswordComponent {
+  routeFor = routeFor;
   private api = inject(ApiService);
   logoLoaded = signal(false);
   email = '';

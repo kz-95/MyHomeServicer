@@ -43,7 +43,7 @@ if (process.env.NODE_ENV === 'production' && user.isDemo) {
 | `customer.active@demo.local` | Customer | Has an open quote with 3 proposals waiting. Used to demo proposal selection. |
 | `customer.loyal@demo.local` | Customer | Has 4 completed bookings with invoices, saved addresses, chat history, ready for reorder demo. |
 | `admin@demo.local` | Admin | Sees the category requests queue, withdrawal queue, reports, settings panel, 30-day platform revenue chart. Action PIN: `1234` |
-| `servicer.{1..36}@demo.local` | Servicer | 36 servicers — spread across 34 child categories. Demo-bar dropdown lists them sorted A→Z with scrollbar. |
+| `servicer.{1..105}@demo.local` | Servicer | 105 servicers — 3 per category across 32 child categories + 9 under Painting/Moving/Gardening. Demo-bar dropdown lists them sorted A→Z with scrollbar. |
 
 All accounts use password `Demo@2026`. Two PINs (see security-notes.md): the **action PIN** `1234` (per-account; sensitive admin saves + the Admin Accounts/Review Queues view-guards), and the **demo login gate** `5201314` (fixed shared speedbump shown to demo accounts on portal entry; real `isDemo=false` accounts are not gated).
 
@@ -91,7 +91,9 @@ These replace the original 4-chip row on the login page.
 
 ---
 
-## Servicer breakdown (36 servicers — 1 per category, 6 for 3D Modeling)
+## Servicer breakdown (105 servicers — 3 per category across 32 categories + 9 for Painting/Moving/Gardening)
+
+### Set A (M1-M36) — first servicer per category
 
 | Ref | Business Name | Category Slug | Completed | In-flight scenarios |
 |-----|--------------|---------------|-----------|-------------------|
@@ -132,6 +134,90 @@ These replace the original 4-chip row on the login page.
 | M35 | ZBrushArt Studio (ZBrush) | 3d-modeling-class | 12 bulk | — |
 | M36 | SecureView CCTV & Alarm | alarm-cctv | 12 bulk | — |
 
+### Set B (M37-M66) — second servicer per category
+
+| Ref | Business Name | Category Slug | In-flight scenarios |
+|-----|--------------|---------------|-------------------|
+| M37 | PipePro Plumbing Solutions | plumber | — |
+| M38 | ArcticAir Services Sdn Bhd | aircond-servicer | — |
+| M39 | PowerLine Electrical Works | electrical-wiring | — |
+| M40 | GlowClean Home Services | home-cleaning | — |
+| M41 | DeepSteam Upholstery Care | sofa-mattress-cleaning | — |
+| M42 | FibreFresh Carpet Studio | carpet-cleaning | — |
+| M43 | CleanDrape Curtain Services | curtain-cleaning | — |
+| M44 | Momentous Events Enterprise | event-planner | — |
+| M45 | Warisan Kitchen Catering | catering | — |
+| M46 | OrderMind Home Organizing | professional-organizer | — |
+| M47 | CoolTech Installation Services | aircond-installer | — |
+| M48 | TimberCraft Furniture Works | carpenter | — |
+| M49 | HomeCraft Renovation Works | renovation | — |
+| M50 | Lux Interiors Design Studio | interior-design | — |
+| M51 | GateKing Auto & Security | door-gate | — |
+| M52 | RoofShield Waterproofing Works | roof | — |
+| M53 | SpinFix Appliance Repair | washing-machine-repair | — |
+| M54 | IceBreak Fridge Services | refrigerator-repair | — |
+| M55 | PixelPerfect TV Workshop | tv-repair | — |
+| M56 | BakeRight Oven & Kitchen Repair | oven-repair | — |
+| M57 | HotFlow Water Systems | water-heater-repair | — |
+| M58 | BreezeWorks Fan & Electrical | ceiling-fan-repair | — |
+| M59 | FrostFix AC Repair | aircond-repair | — |
+| M60 | InkWell Art Academy | art-class | — |
+| M61 | LinguaEdge Language Centre | language-class | — |
+| M62 | RhythmBox Music School | music-class | — |
+| M63 | ApexTutor Learning Centre | home-tutoring | — |
+| M64 | SpiceRoute Cooking Academy | cooking-class | — |
+| M65 | CoreStrong Personal Fitness | gym-trainer | — |
+| M66 | SafeHaven Security Systems | alarm-cctv | — |
+
+### Set C (M67-M96) — third servicer per category
+
+| Ref | Business Name | Category Slug | In-flight scenarios |
+|-----|--------------|---------------|-------------------|
+| M67 | DrainMaster Plumbing & Sewerage | plumber | — |
+| M68 | PolarCool Aircon Service Centre | aircond-servicer | — |
+| M69 | Ampere Electrical Contractors | electrical-wiring | — |
+| M70 | Bersih Cermat Home Clean | home-cleaning | — |
+| M71 | SofaRenew Cleaning Specialists | sofa-mattress-cleaning | — |
+| M72 | CarpetPro Steam Clean | carpet-cleaning | — |
+| M73 | VelvetClean Curtain & Drape | curtain-cleaning | — |
+| M74 | Premier Occasions Event Co | event-planner | — |
+| M75 | Lotus Leaf Catering Services | catering | — |
+| M76 | NeatNest Organising Studio | professional-organizer | — |
+| M77 | IceKing AC Installation Works | aircond-installer | — |
+| M78 | GrainLine Custom Carpentry | carpenter | — |
+| M79 | AceReno Building & Renovation | renovation | — |
+| M80 | Aether Design Atelier | interior-design | — |
+| M81 | IronShield Gate & Grille Works | door-gate | — |
+| M82 | ApexRoof Construction Works | roof | — |
+| M83 | WashTech Appliance Care | washing-machine-repair | — |
+| M84 | FridgePro Cooling Services | refrigerator-repair | — |
+| M85 | SmartScreen TV & AV Repair | tv-repair | — |
+| M86 | KitchenFix Oven & Appliance | oven-repair | — |
+| M87 | AquaHeat Plumbing & Heater | water-heater-repair | — |
+| M88 | AirSpin Fan & Lighting Works | ceiling-fan-repair | — |
+| M89 | ChillDoc Aircon Diagnostic | aircond-repair | — |
+| M90 | UrbanBrush Art & Craft Studio | art-class | — |
+| M91 | SpeakEasy Language Hub | language-class | — |
+| M92 | Nada Music Academy | music-class | — |
+| M93 | SmartKids Home Tuition | home-tutoring | — |
+| M94 | Chopstick Kitchen Studio | cooking-class | — |
+| M95 | IronWill Fitness Coaching | gym-trainer | — |
+| M96 | VisionGuard CCTV & Access Control | alarm-cctv | — |
+
+### New categories (M97-M105) — Painting, Moving, Gardening (3 each)
+
+| Ref | Business Name | Category Slug | In-flight scenarios |
+|-----|--------------|---------------|-------------------|
+| M97 | BrightWall Painting Services | painting | — |
+| M98 | EasyMove Relocation Services | moving | — |
+| M99 | GreenThumb Garden Care | gardening | — |
+| M100 | ColourCraft Interior Painting | painting | — |
+| M101 | SwiftShift Moving & Storage | moving | — |
+| M102 | LushGarden Landscaping Works | gardening | — |
+| M103 | ProPaint Specialist | painting | — |
+| M104 | SafeMove Professional Movers | moving | — |
+| M105 | EcoGarden Services | gardening | — |
+
 ---
 
 ## Servicer revenue chart seeding
@@ -147,29 +233,46 @@ The chart endpoints (`/servicer/me/earnings/daily`) query:
 
 ### What gets seeded
 
-1. **Bulk completed bookings for ALL 19 servicers** — 194 completed jobs spread across the last 30 days:
+1. **Bulk completed bookings for Set A servicers** — 194 completed jobs spread across the last 30 days (Sets B/C and new categories have no historical data yet):
 
 | Servicer | Jobs seeded | Price range |
 |---|---|---|
 | M1 (Ahmad Plumbing) | 8 | RM 80–250 |
-| M2 (RapidFix Plumbing) | 8 | RM 60–140 |
-| M3 (KL Pro Plumbers) | 8 | RM 150–300 |
+| M2 (CoolBreeze AC Service) | 8 | RM 60–140 |
+| M3 (Volt Masters Electrical) | 8 | RM 150–300 |
 | M4 (Sparkle Home Cleaning) | 8 | RM 60–200 |
-| M5 (EcoClean Services) | 8 | RM 80–200 |
-| M6 (Maid Day Services) | 8 | RM 55–130 |
-| M7 (CoolBreeze AC Service) | 8 | RM 80–180 |
-| M8 (Daikin Pro Service KL) | 8 | RM 100–250 |
-| M9 (AC Doctor Malaysia) | 50 | RM 65–200 |
-| M10 (Auntie Mei Catering) | 8 | RM 80–250 |
-| M11 (Mama Lim's Catering) | 8 | RM 150–250 |
-| M12 (Chef Raj Catering) | 8 | RM 90–220 |
-| M13 (Volt Masters Electrical) | 8 | RM 60–200 |
-| M14 (AutoGate Solutions) | 8 | RM 80–180 |
-| M15 (TopGuard Roofing) | 8 | RM 100–350 |
-| M16 (BuildRight Renovation) | 8 | RM 200–600 |
-| M17 (Studio Aria Interior Design) | 8 | RM 300–800 |
-| M18 (Bliss Wedding Planners) | 8 | RM 200–1000 |
-| M19 (BrightMinds Tutoring) | 8 | RM 50–120 |
+| M5 (FreshCare Sofa & Mattress) | 8 | RM 80–200 |
+| M6 (PureClean Carpet Care) | 8 | RM 55–130 |
+| M7 (DrapeFresh Curtain Care) | 8 | RM 80–180 |
+| M8 (Bliss Wedding & Events) | 8 | RM 100–250 |
+| M9 (Auntie Mei Catering) | 50 | RM 65–200 |
+| M10 (Space Harmony Organizer) | 8 | RM 80–250 |
+| M11 (AC Pro Installers) | 8 | RM 150–250 |
+| M12 (Precision Woodworks) | 8 | RM 90–220 |
+| M13 (BuildRight Renovation) | 8 | RM 60–200 |
+| M14 (Studio Aria Interior Design) | 8 | RM 80–180 |
+| M15 (AutoGate Solutions) | 8 | RM 100–350 |
+| M16 (TopGuard Roofing) | 8 | RM 200–600 |
+| M17 (WasherDoc Repair) | 8 | RM 300–800 |
+| M18 (ChillFix Refrigeration) | 8 | RM 200–1000 |
+| M19 (ScreenFix TV Repair) | 8 | RM 50–120 |
+| M20 (HeatWave Oven Repair) | — | — |
+| M21 (HydroHeat Services) | — | — |
+| M22 (FanFix Services) | — | — |
+| M23 (AC Medic) | — | — |
+| M24 (Creative Canvas Studio) | — | — |
+| M25 (Polyglot Language Academy) | — | — |
+| M26 (Melody Music Studio) | — | — |
+| M27 (BrightMinds Tutoring) | — | — |
+| M28 (Chef's Table Cooking Studio) | — | — |
+| M29 (FitForge Personal Training) | — | — |
+| M30 (FusionCraft Studio) | — | — |
+| M31 (SketchBuild Studio) | — | — |
+| M32 (BlendForge Studio) | **50 bulk** | — |
+| M33 (MayaMotion Studio) | — | — |
+| M34 (MaxDesign Studio) | — | — |
+| M35 (ZBrushArt Studio) | — | — |
+| M36 (SecureView CCTV & Alarm) | — | — |
 
 2. **Invoice + escrow_release for every completed booking** — each booking gets an `Invoice` row with:
    - `subtotal` = booking price
@@ -183,7 +286,7 @@ The chart endpoints (`/servicer/me/earnings/daily`) query:
 - **Dashboard** (7/30-day bar chart): Shows bars for the selected range. Days with no data show zero-height bars. "Earnings today" stat card sums `escrow_release` transactions created today.
 - **History** (30-day mini bar chart): Same query. Summarizes total earned, completed jobs, average per job.
 
-On first boot, all 19 servicers see populated charts so the demo never shows empty states.
+On first boot, Set A servicers see populated charts so the demo never shows empty states.
 
 ### Platform revenue chart (admin)
 
@@ -193,7 +296,7 @@ Platform revenue is calculated from the `platformFee` field on actual `Invoice` 
 
 ## Invoices
 
-Every completed booking gets an `Invoice` row. Currently **194 invoices** are created in a single batch, covering all bulk bookings across all 19 servicers:
+Every completed booking gets an `Invoice` row. Currently **194 invoices** are created in a single batch, covering all bulk bookings across Set A servicers (M1-M19 bulk + M32 bulk):
 
 Invoice fields: `lineItems` (snapshot `[{ label, amount, taxable, serviceChargeable }]`), `subtotal` (Σ lineItems), `promoDiscount` (10% off every 5th booking), `serviceChargeRate` / `serviceChargeAmount`, `sstApplies` (bool), `taxInclusive` (bool), `taxRate` (Decimal(5,4)), `taxAmount`, `tipAmount`, `total` (canonical total), `platformFee` (8% of afterPromo, unified fee), `dueDate` (now+14d), `paidAt`, `issuedAt`.
 
@@ -308,7 +411,7 @@ Platform marketing budget: RM 5,000 total, RM 320 spent.
 ### Customer.loyal (Priya Subramaniam)
 - Email: `customer.loyal@demo.local`
 - 2 saved addresses: Damansara Heights (default) + SS2
-- Multiple completed bookings across most categories (from the bulk seed across all 19 servicers)
+- Multiple completed bookings across most categories (from the bulk seed across Set A servicers)
 - 1 in_progress booking (M8, RM 130)
 - 1 active open catering quote (M10, M11, M12 broadcast; proposals from M10, M11)
 - Chat session with history
@@ -438,7 +541,7 @@ All seeded photos use placeholder URLs from `picsum.photos`:
 2. **Platform settings** — budget ranges, fee rate, penalty rules, feature flags, FAQ knowledge base, marketing budget
 3. **Admin user** — fixed UUID, is_demo flag, action PIN hashed
 4. **Customers** — 3 customer accounts with addresses, quote presets
-5. **Servicers** — 19 servicers each with:
+5. **Servicers** — All 105 servicers each with:
    - Servicer record (profile, business info, category, service areas, rating)
    - ServicerDeposit (RM 500 deposited, RM 500 current, RM 100 minimum)
    - ServicerProposalPreset (standard quote template)

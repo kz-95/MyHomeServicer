@@ -32,6 +32,10 @@ export class SocketService {
         auth: { token },
         transports: ['websocket'],
       });
+      // Expose socket for E2E test harness (dev mode only)
+      if (!environment.production) {
+        (window as any).__SOCKET__ = this.socket;
+      }
       return;
     }
 
@@ -44,6 +48,10 @@ export class SocketService {
       (this.socket as Socket & { auth: Record<string, unknown> }).auth = { token };
       this.socket.disconnect();
       this.socket.connect();
+      // Expose socket for E2E test harness (dev mode only)
+      if (!environment.production) {
+        (window as any).__SOCKET__ = this.socket;
+      }
       return;
     }
 
@@ -53,6 +61,9 @@ export class SocketService {
 
   disconnect(): void {
     this.socket?.disconnect();
+    if (!environment.production) {
+      (window as any).__SOCKET__ = null;
+    }
     this.socket = null;
     this.connectedToken = null;
   }
