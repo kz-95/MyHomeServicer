@@ -6,6 +6,7 @@ import { ApiService } from '../../core/services/api.service';
 import { routeFor } from '../../core/route-for';
 import { IconComponent } from '../../shared/icon.component';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
+import { ModalComponent } from '../../shared/modal.component';
 import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
 
@@ -30,19 +31,25 @@ interface Service {
   taxMode: string;
   estimatedDurationMinutes: number;
   autoAccept: boolean;
-  modifiers?: Record<string, Record<string, { price: number | null; notOffered: boolean }>> | null;
+  modifiers?: Record<string, Record<string, { price: number | null; notOffered: boolean; modKind?: string }>> | null;
   autoAcceptConditions?: {
     budget_min?: number;
     budget_max?: number;
     match_time_slot?: string[];
   } | null;
-  moduleRefs?: { moduleId: string; priceOverride?: number | null }[] | null;
+  moduleRefs?: { moduleId: string; priceOverride?: number | null; kind?: 'included' | 'addon' }[] | null;
+}
+
+interface ModuleLookup {
+  id: string;
+  name: string;
+  price: number;
 }
 
 @Component({
   selector: 'app-servicer-listings',
   standalone: true,
-  imports: [FormsModule, IconComponent, ListToolbarComponent],
+  imports: [FormsModule, IconComponent, ListToolbarComponent, ModalComponent],
   template: `
     <div class="head">
       <div>
@@ -143,8 +150,11 @@ interface Service {
                     <button (click)="toggleStatus(s)">{{ s.published ? 'Deactivate' : 'Activate' }}</button>
                     <button class="danger" (click)="remove(s)">Delete</button>
                   </div>
-                }
+            }
+              <div class="ex-acts">
+                <button class="btn-ghost" (click)="previewListing(s)">👁 Preview as customer</button>
               </div>
+            </div>
             </div>
           </div>
 
@@ -152,7 +162,18 @@ interface Service {
             <div class="lc-expand-body">
               <div class="ex-sec">
                 <span class="ex-label">Modules</span>
-                <span class="ex-val">{{ moduleCount(s) > 0 ? moduleCount(s) + ' attached' : 'None (manual quoting)' }}</span>
+                <span class="ex-val">
+                  @if (moduleCount(s) > 0) {
+                    @for (ref of (s.moduleRefs ?? []); track ref.moduleId) {
+                      <span class="ex-chip" [class.ex-addon]="moduleRefKind(s, ref.moduleId) === 'addon'">
+                        {{ moduleRefName(ref.moduleId) }}
+                        @if (moduleRefKind(s, ref.moduleId) === 'addon') { <span class="kind-tag">add-on</span> }
+                      </span>
+                    }
+                  } @else {
+                    None (manual quoting)
+                  }
+                </span>
               </div>
               <div class="ex-sec">
                 <span class="ex-label">Jobs offered</span>
@@ -176,7 +197,7 @@ interface Service {
                   <div class="ex-val">
                     @for (qKey of objectKeys(s.modifiers); track qKey) {
                       <div class="ex-opt-group">
-                        <span class="ex-opt-key">{{ qKey }}</span>
+                        <span class="ex-opt-key">{{ questionLabel(qKey) }}</span>
                         <span class="ex-opts">
                           @for (opt of objectKeys(s.modifiers![qKey]); track opt) {
                             @if (!s.modifiers![qKey][opt].notOffered) {
@@ -194,6 +215,45 @@ interface Service {
         </div>
       }
     }
+
+    <app-modal [open]="preview() !== null" title="Customer preview" (closed)="preview.set(null)">
+      @if (preview(); as p) {
+        <div class="pv-card">
+          <div class="pv-avatar">{{ p.title ? p.title.charAt(0) : '?' }}</div>
+          <div class="pv-info">
+            <strong class="pv-title">{{ p.title || 'Untitled' }}</strong>
+            @if (p.description) { <p class="pv-desc">{{ p.description }}</p> }
+            <div class="pv-meta">
+              <span>~{{ p.estimatedDurationMinutes }} min</span>
+              <span class="mdot">·</span>
+              <span>RM {{ p.basePrice }}</span>
+              @if (p.autoAccept) { <span class="pv-aa">auto-accept</span> }
+            </div>
+            @if (moduleCount(p) > 0) {
+              <div class="pv-mods">
+                <span class="pv-mods-label">Includes:</span>
+                @for (ref of (p.moduleRefs ?? []); track ref.moduleId) {
+                  @if (moduleRefKind(p, ref.moduleId) === 'included') {
+                    <span class="chip-soft">{{ moduleRefName(ref.moduleId) }}</span>
+                  }
+                }
+              </div>
+            }
+            @if (offeredSummary(p).length) {
+              <div class="pv-mods">
+                <span class="pv-mods-label">Jobs:</span>
+                @for (line of offeredSummary(p); track line) {
+                  <span class="chip-soft">{{ line }}</span>
+                }
+              </div>
+            }
+          </div>
+          <div class="pv-action">
+            <span class="pv-price">From RM {{ p.basePrice }}</span>
+          </div>
+        </div>
+      }
+    </app-modal>
   `,
   styles: [
     `
@@ -467,6 +527,36 @@ interface Service {
         padding: 0.1rem 0.5rem;
         font-size: 0.76rem;
       }
+      .ex-chip.ex-addon {
+        border-style: dashed;
+      }
+      .kind-tag {
+        font-size: 0.66rem;
+        font-weight: 600;
+        background: var(--color-warning-bg, #fef3c7);
+        color: var(--color-warning, #d97706);
+        border-radius: 4px;
+        padding: 0.05rem 0.35rem;
+        margin-left: 0.25rem;
+      }
+      .ex-acts {
+        display: flex;
+        gap: 0.5rem;
+        padding-top: 0.4rem;
+      }
+
+      .pv-card { display: flex; gap: 1rem; align-items: flex-start; }
+      .pv-avatar { width: 44px; height: 44px; border-radius: 999px; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
+      .pv-info { flex: 1; min-width: 0; }
+      .pv-title { font-weight: 700; font-size: 1.05rem; }
+      .pv-desc { margin: 0.2rem 0; font-size: 0.85rem; color: var(--color-muted); }
+      .pv-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--color-muted); margin-top: 0.2rem; }
+      .pv-aa { font-size: 0.7rem; background: var(--color-primary-light); color: var(--color-primary); padding: 0.05rem 0.4rem; border-radius: 4px; }
+      .pv-mods { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.35rem; }
+      .pv-mods-label { font-size: 0.78rem; color: var(--color-muted); margin-right: 0.2rem; }
+      .chip-soft { font-size: 0.74rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 999px; padding: 0.05rem 0.5rem; }
+      .pv-action { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+      .pv-price { font-size: 1.3rem; font-weight: 700; }
     `,
   ],
 })
@@ -490,6 +580,9 @@ export class ServicerListingsComponent implements OnInit {
 
   openIds = signal<Set<string>>(new Set());
   menuId = signal<string | null>(null);
+  preview = signal<Service | null>(null);
+
+  private moduleData = signal<ModuleLookup[]>([]);
 
   activeCount = computed(() => this.services().filter((s) => s.published).length);
   draftCount = computed(() => this.services().filter((s) => !s.published).length);
@@ -539,7 +632,15 @@ export class ServicerListingsComponent implements OnInit {
         },
         error: () => {},
       });
+    this.loadModules();
     this.load();
+  }
+
+  private loadModules(): void {
+    this.api.get<{ data: ModuleLookup[] }>('/servicer/modules').subscribe({
+      next: (r) => this.moduleData.set(r.data),
+      error: () => {},
+    });
   }
 
   private load(): void {
@@ -584,6 +685,22 @@ export class ServicerListingsComponent implements OnInit {
     }
     if (c.match_time_slot?.length) parts.push(`slots: ${c.match_time_slot.join(', ')}`);
     return parts.length ? `On — ${parts.join(' · ')}` : 'On';
+  }
+
+  moduleRefName(moduleId: string): string {
+    return this.moduleData().find((m) => m.id === moduleId)?.name ?? moduleId;
+  }
+
+  moduleRefKind(s: Service, moduleId: string): string {
+    return s.moduleRefs?.find((r) => r.moduleId === moduleId)?.kind ?? 'included';
+  }
+
+  questionLabel(qKey: string): string {
+    return this.questions().find((q) => q.key === qKey)?.label ?? qKey;
+  }
+
+  previewListing(s: Service): void {
+    this.preview.set(s);
   }
 
   isOpen(id: string): boolean {
@@ -664,10 +781,10 @@ export class ServicerListingsComponent implements OnInit {
   }
 
   remove(s: Service): void {
-    this.menuId.set(null);
     this.dialog
       .confirm(`Delete the listing "${s.title}"?`, { confirmLabel: 'Delete listing' })
       .subscribe((ok) => {
+        this.menuId.set(null);
         if (!ok) return;
         this.api.delete(`/servicer/me/services/${s.id}`).subscribe({
           next: () => {

@@ -6,10 +6,8 @@ Start here. One-line summary of every doc an agent or developer might need.
 |------|----------------|
 | [`CLAUDE.md`](../CLAUDE.md) | Session rules, permission policy, coding rules, agent coordination |
 | [`TODO.md`](../TODO.md) | Current task checklist — single source of truth for task state |
-| [`docs/ai-context/ceo-overview.md`](ai-context/ceo-overview.md) | CEO/orchestrator decisions (§10–§19), parity evidence, strategic rationale |
-| [`docs/ai-context/money-listing-epic-spec.md`](ai-context/money-listing-epic-spec.md) | Consolidated build spec: payment + tax/itemized + pricing modules + listing form + calc fixes |
-| [`docs/ai-context/calculation-audit.md`](ai-context/calculation-audit.md) | Money-flow trace, worked sample, button→effect map, calculation inconsistencies + fixes |
-| [`docs/ai-context/orchestration-plan.md`](ai-context/orchestration-plan.md) | 2 Claude (plan+QA) + 3 Kilo (execute): roles, workflow, branch/push rules |
+| [`docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md`](superpowers/specs/2026-06-12-sp3-service-listings-design.md) | SP-3 service listings redesign: simple + advanced wizard, modules, auto-accept, customer proposal |
+| [`docs/ai-context/modal-audit.md`](ai-context/modal-audit.md) | Inventory of every modal/popup/dialog in the app + top-layer status |
 | [`docs/ai-context/schema-notes.md`](ai-context/schema-notes.md) | DB models, fields, relations, indexes |
 | [`docs/api-reference/api-doc.md`](api-reference/api-doc.md) | Route contracts, request/response shape, auth headers |
 | [`docs/ai-context/security-notes.md`](ai-context/security-notes.md) | Auth, JWT, rate limits, uploads, money rules |

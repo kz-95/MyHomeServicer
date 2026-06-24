@@ -2,6 +2,35 @@
 
 > Single-writer log — only the **Frontend** agent writes here.
 
+## Session 2026-06-24 — SP-3 Service Listings Route Fix + Card Polish
+
+**Scope:** SP-3 spec `2026-06-12-sp3-service-listings-design.md` — route wiring fix + listing card expanded view polish.
+
+### Issues addressed
+
+1. **Routes pointed to old wizard** — `/servicer/services/new` and `/:id/edit` loaded the old `listing-wizard.component.ts` instead of the SP-3 components (`listing-create`, `listing-simple`, `listing-advanced`). The new components existed but were unreachable.
+
+2. **Delete dialog not appearing** — `menuId.set(null)` was called before `dialog.confirm()`, which in some browser event sequences could suppress the dialog. Fixed by moving `menuId.set(null)` inside the subscription callback (after dialog resolves).
+
+3. **Expanded card bare modules section** — showed only "N attached" count. Updated to show each module name with `included` vs `add-on` kind tag.
+
+4. **Pricing options showed raw keys** — showed `qKey` (e.g. "property_type") instead of the question label (e.g. "Type of property"). Fixed via `questionLabel()` resolver.
+
+5. **Missing "Preview as customer"** — Added a preview button in the expanded card that opens a modal showing title, description, included modules, jobs offered, and base price.
+
+### Files changed
+
+- `frontend/src/app/servicer/servicer.routes.ts` — replaced old wizard routes with SP-3 components (listing-create, listing-simple, listing-advanced)
+- `frontend/src/app/servicer/pages/services-listings.component.ts` — added `ModuleLookup` interface, module data loading, `moduleRefName()`, `moduleRefKind()`, `questionLabel()`, `previewListing()` helpers; updated expanded card template; added preview modal; fixed delete flow
+
+### Docs removed (stale/misleading)
+
+9 files in `docs/ai-context/`: money-listing-epic-spec.md, orchestration-plan.md, ceo-overview.md, ceo-run-roadmap.md, PROJECT-STATUS.md, BUGS-TO-FIX.md, calculation-audit.md, application-map.md, invoice-spec.md. Updated `docs/README.md` to drop references.
+
+### Gates
+- `npx tsc --noEmit` → 0 errors ✅
+- `npx ng build --configuration development` → exit 0 ✅
+
 ## Session 2026-06-24 — E2E QA Harness Task 3
 
 **Scope:** `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` lines 252–314 — Group A, Task 3: Build auth helpers.
