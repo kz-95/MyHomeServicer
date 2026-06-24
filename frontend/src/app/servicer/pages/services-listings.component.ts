@@ -786,12 +786,12 @@ export class ServicerListingsComponent implements OnInit {
   }
 
   add(): void {
-    this.router.navigate([routeFor('servicer.services.new')]);
+    this.toast.info('New listing form coming in next update.');
   }
 
   edit(s: Service): void {
     this.menuId.set(null);
-    this.router.navigate([routeFor('servicer.services.edit', { id: s.id })]);
+    this.toast.info('Edit listing form coming in next update.');
   }
 
   toggleStatus(s: Service): void {

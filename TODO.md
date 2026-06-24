@@ -1,6 +1,6 @@
 # TODO — Current Project State
 
-> **State: DEMO-FOCUSED** — 2026-06-23
+> **State: DEMO-FOCUSED — SP-3 REDESIGN** — 2026-06-25
 > Branch: feat/sp3-dispatch-cards
 > Demo script + slides: `ignorethis/demo-presentation-flow.md` (7-beat single-thread story)
 >
@@ -122,6 +122,17 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [x] **SP3 listing wizard** — rework `services.component.ts` (1151-line monolith) into 4-step wizard
   (basics / pricing / tax-modules / accept), create-then-PATCH save, routes `/services/new` +
   `/:id/edit`, priced grid active-aware. ✅ Committed `4457ee5`: 4-step wizard, /services/new + /:id/edit routes.
+  > **SUPERSEDED 2026-06-25** — Scrapped. New unified module-first design per spec §17.
+- [ ] **SP-3 REDESIGN (2026-06-25)** — New listing form replacing simple/advanced/model-chooser.
+  Spec: `docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md` §17.
+  - [x] Tab order: Modules first + default redirect ✅ `66b5950`
+  - [x] Scrap old components: listing-wizard, service-wizard, listing-create, listing-simple, listing-advanced
+  - [x] Spec update: §6 tab order, NEW §17 redesign, seeding coverage plan
+  - [ ] Schema: add `questionKey`, `optionValue`, `durationMin` to `ServicerModule`
+  - [ ] Backend: add `proposalPreset` to `ServicerService`
+  - [ ] Build new unified listing form component
+  - [ ] Auto-accept engine: Q-match via modules (not modifiers)
+  - [ ] Seed data: per-category auto-accept listings with modules
 - [x] **Full SP4 live-dispatch** — real `isOnline` presence wiring; availability gating = online +
   working hours (`ServicerSchedule`); admin-configurable rotation timer; decline → rotate →
   async fallback; Google Map preview in the accept prompt.

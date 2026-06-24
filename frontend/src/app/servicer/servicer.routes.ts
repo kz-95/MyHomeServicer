@@ -43,30 +43,11 @@ export const servicerRoutes: Routes = [
           },
         ],
       },
-      // SP-3: mode chooser → Simple (one-screen) or Advanced (3-step wizard + edit).
-      // Specific routes first so `services/new/simple` isn't captured by `services/:id/edit`.
+      // SP-3 REDESIGN 2026-06-25: new unified listing form (spec §17).
+      // Scrapped: simple/advanced split, mode chooser, old wizards.
+      // TODO: new route for unified listing create/edit form.
       {
-        path: 'services/new/simple',
-        loadComponent: () =>
-          import('./pages/listing-simple.component').then((m) => m.ListingSimpleComponent),
-      },
-      {
-        path: 'services/new/advanced',
-        loadComponent: () =>
-          import('./pages/listing-advanced.component').then((m) => m.ListingAdvancedComponent),
-      },
-      {
-        path: 'services/new',
-        loadComponent: () =>
-          import('./pages/listing-create.component').then((m) => m.ListingCreateComponent),
-      },
-      {
-        path: 'services/:id/edit',
-        loadComponent: () =>
-          import('./pages/listing-advanced.component').then((m) => m.ListingAdvancedComponent),
-      },
-      {
-        // SP-3: /servicer/services → 2 tabs (listings · module), jobs-tabs style.
+        // SP-3: /servicer/services → 2 tabs (modules · listings), modules is default.
         path: 'services',
         loadComponent: () =>
           import('./pages/services.component').then((m) => m.ServicerServicesComponent),

@@ -2,9 +2,46 @@
 
 > Single-writer log — only the **Frontend** agent writes here.
 
-## Session 2026-06-24 — SP-3 Service Listings Route Fix + Card Polish
+## Session 2026-06-25 — SP-3 Redesign: Module-First Tab Order + Spec Update
 
-**Scope:** SP-3 spec `2026-06-12-sp3-service-listings-design.md` — route wiring fix + listing card expanded view polish.
+**Scope:** SP-3 spec redesign — scrapped simple/advanced split, unified listing form, module-first IA.
+
+### Decisions recorded (spec §17)
+
+- **Tab order:** Modules now first + default tab (`/servicer/services` → module). Logical flow: create modules → attach to listings.
+- **Scrapped:** Simple/Advanced split, mode chooser (`listing-create`), and all old wizards (`listing-wizard`, `service-wizard`, `listing-simple`, `listing-advanced`).
+- **New unified form:** Label (internal), Title (customer), Description (internal), Proposal Preset (auto/manual), Enable Auto toggle.
+- **Modules extended:** Each module now maps `questionKey + optionValue → price + duration + SKU`. Replaces the old `modifiers` JSON approach.
+- **Three match paths:** Broadcast (category only), Manual accept (category only), Auto-accept (category + Q-match + budget + availability + coverage).
+- **Seeding:** Every priced question option across 32 categories covered by 1-3 auto-accept listings. Exception: M1 Ahmad Plumber.
+
+### Code changes
+
+- `frontend/src/app/servicer/pages/services.component.ts` — tabs swapped: [Modules][Listings]
+- `frontend/src/app/servicer/servicer.routes.ts` — redirect `''` → `module`
+
+### Docs created
+
+- `docs/superpowers/plans/2026-06-25-sp3-qa-verification.md` — 6-task QA verification plan
+- `docs/superpowers/plans/2026-06-25-sp3-seeding-coverage.md` — per-category module seeding map
+
+### Docs updated
+
+- `docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md` — §6 tab order, NEW §17 redesign
+
+### Docs removed (stale/conflicting, 11 total)
+
+- `docs/ai-context/`: money-listing-epic-spec, orchestration-plan, ceo-overview, ceo-run-roadmap, PROJECT-STATUS, BUGS-TO-FIX, calculation-audit, application-map, invoice-spec
+- `docs/superpowers/specs/`: 2026-05-31 quote-question-pricing-model-design, 2026-06-02 bill-step-redesign
+
+### Previous session — Listing Card Polish (2026-06-24)
+
+- Delete dialog: replaced `DialogService.confirm()` with direct `<app-modal>`
+- Touch targets: all card buttons ≥44px (expand, menu, status-toggle, chips, sort-dir)
+- Card padding: 0.75rem → 1rem
+- Expanded card: module names with included/addon tags, question labels, preview modal
+
+## Session 2026-06-24 — SP-3 Service Listings Route Fix + Card Polish
 
 ### Issues addressed
 

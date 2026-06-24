@@ -674,13 +674,18 @@ model PricingModule {
 // Block 2.6 — Servicer modules (SP-3 first-class reusable priced item library)
 // First-class replacement for the ad-hoc PricingModule/moduleRefs UX. PricingModule
 // is kept for now; reconciliation/migration is Phase 2.
+// 2026-06-25: extended with questionKey, optionValue, durationMin per SP-3 redesign §17.
+// Each module maps a category question answer to a price+duration+SKU.
 // ──────────────────────────────────────────────────────────────────────────────
 
 model ServicerModule {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   servicerId        String   @map("servicer_id") @db.Uuid
   name              String
+  questionKey       String?  @map("question_key")
+  optionValue       String?  @map("option_value")
   price             Decimal  @db.Decimal(10, 2)
+  durationMin       Int?     @map("duration_min")
   sku               String?
   active            Boolean  @default(true)
   createdAt         DateTime @default(now()) @map("created_at")
