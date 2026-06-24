@@ -109,22 +109,22 @@ git commit -m "fix(customer): unify reorder to rebook-same-servicer (drop toast-
 - Modify: every internal link to `/customer/quote/new` and to browse (`''`) — grep + update
 - Modify: customer shell nav links/labels
 
-- [ ] **Step 1: Rename browse + quote paths.** `''` → `findService` (BrowseComponent),
+- [x] **Step 1: Rename browse + quote paths.** `''` → `findService` (BrowseComponent),
   `quote/new` → `quote` (QuoteFormComponent). Add a default redirect (`'' → findService`)
   so the portal root still lands on browse.
 
-- [ ] **Step 2: Split bookings from history.** Replace the current `bookings → history`
+- [x] **Step 2: Split bookings from history.** Replace the current `bookings → history`
   redirect with a real `bookings` parent: `bookings/upcoming` + `bookings/inProgress`
   (both `MyBookingsComponent`, reading the segment to filter pending+confirmed vs
   in_progress). Make `history` its own top-level route (`MyBookingsComponent` filtered to
   completed+cancelled) — the "Rebook this servicer" button stays here.
 
-- [ ] **Step 3: Update MyBookings segment logic.** Its `729-736` tab detection maps
+- [x] **Step 3: Update MyBookings segment logic.** Its `729-736` tab detection maps
   route segment → status filter: `upcoming` = pending+confirmed, `inProgress` =
   in_progress, `history` = completed+cancelled. Verify labels read Upcoming / In Progress
   / History.
 
-- [ ] **Step 4: Redirect old paths (safety).** Keep redirects so old links don't 404:
+- [x] **Step 4: Redirect old paths (safety).** Keep redirects so old links don't 404:
 
 ```typescript
   { path: 'quote/new', redirectTo: 'quote', pathMatch: 'full' },
@@ -132,12 +132,12 @@ git commit -m "fix(customer): unify reorder to rebook-same-servicer (drop toast-
   { path: 'history/inProgress', redirectTo: 'bookings/inProgress', pathMatch: 'full' },
 ```
 
-- [ ] **Step 5: Update internal links.** Grep `frontend/src` for `quote/new` and browse
+- [x] **Step 5: Update internal links.** Grep `frontend/src` for `quote/new` and browse
   links; repoint to `/customer/quote` and `/customer/findService`. Update the customer
   shell nav to list: Find Service, My Quotes, Bookings (Upcoming/In Progress), History,
   Transactions, Rewards, Notifications, Account.
 
-- [ ] **Step 6: Type-gate + build + commit**
+- [x] **Step 6: Type-gate + build + commit**
 
 Run: `npx tsc --noEmit` && `ng build`
 ```bash
@@ -150,11 +150,11 @@ git commit -m "feat(customer): restructure routes — findService/quote rename, 
 **Files:**
 - Modify: `frontend/src/app/customer/pages/quote-form.component.ts` (photos block ~`369-377`, "Extra Details:" label ~`259`)
 
-- [ ] **Step 1:** Move the "Add photos (optional, max 5)" upload block + thumbnails so it
+- [x] **Step 1:** Move the "Add photos (optional, max 5)" upload block + thumbnails so it
   renders **above** the "Extra Details:" label on the first form page (currently it sits
   below it). Keep the same `onQuoteImage`/`quoteImages` wiring — template move only.
 
-- [ ] **Step 2: Build + commit**
+- [x] **Step 2: Build + commit**
 
 Run: `npx tsc --noEmit` && `ng build`
 ```bash

@@ -255,6 +255,18 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
             </div>
           }
 
+          <!-- Image upload -->
+          <label class="upload" style="display:block; margin-bottom:0.75rem;">
+            <span>Add photos <span class="muted">(optional, max 5)</span></span>
+            <input type="file" accept="image/*" (change)="onQuoteImage($event)" [disabled]="imgUploading()" style="display:block; margin-top:0.3rem;" />
+          </label>
+          @if (quoteImages().length) {
+            <div class="thumbs" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+              @for (url of quoteImages(); track url) { <img class="thumb" [src]="url" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--color-border);" /> }
+            </div>
+          }
+          @if (imgError()) { <p class="err" style="margin-bottom:0.5rem;">{{ imgError() }}</p> }
+
           <label>
             Extra Details: <span class="muted">(optional)</span>
             <textarea rows="2" [(ngModel)]="f.extraNotes" name="extraNotes" maxlength="1000" placeholder="Anything else the servicer should know about this service…"></textarea>
@@ -365,17 +377,6 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
         <label><span>Enter Building/Premise Instructions <span class="muted">(optional)</span></span>
           <textarea rows="2" [(ngModel)]="f.notes" name="notes" maxlength="1000" placeholder="Register at guard house, park at visitor lot B, management office open 9am-5pm"></textarea>
         </label>
-        <!-- Image upload -->
-        <label class="upload" style="display:block; margin-bottom:0.75rem;">
-          <span>Add photos <span class="muted">(optional, max 5)</span></span>
-          <input type="file" accept="image/*" (change)="onQuoteImage($event)" [disabled]="imgUploading()" style="display:block; margin-top:0.3rem;" />
-        </label>
-        @if (quoteImages().length) {
-          <div class="thumbs" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
-            @for (url of quoteImages(); track url) { <img class="thumb" [src]="url" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--color-border);" /> }
-          </div>
-        }
-        @if (imgError()) { <p class="err" style="margin-bottom:0.5rem;">{{ imgError() }}</p> }
         <!-- Address No + Street Details + Google Maps / GPS -->
         <app-address-fields
           [(addressNo)]="f.addressNo"
