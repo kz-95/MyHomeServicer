@@ -48,17 +48,26 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
   const eligible: { servicerId: string }[] = [];
   for (const bc of broadcasts) {
     const m = bc.servicer;
-    if (!m.isOnline) continue;
+    if (!m.isOnline) {
+      logger.info('Servicer skipped — offline', { servicerId: m.id });
+      continue;
+    }
 
     // Check working hours from ServicerSchedule.
     const schedule = m.schedules.filter((s) => s.weekday === currentDay && s.isAvailable);
-    if (schedule.length === 0) continue;
+    if (schedule.length === 0) {
+      logger.info('Servicer skipped — no working schedule for today', { servicerId: m.id, currentDay });
+      continue;
+    }
 
     const inWorkingHours = schedule.some((s) => {
       const slotRange = slotHourRange(s.timeSlot);
       return currentHour >= slotRange[0] && currentHour < slotRange[1];
     });
-    if (!inWorkingHours) continue;
+    if (!inWorkingHours) {
+      logger.info('Servicer skipped — outside working hours', { servicerId: m.id, currentDay, currentHour });
+      continue;
+    }
 
     eligible.push({ servicerId: m.id });
   }
