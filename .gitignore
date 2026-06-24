@@ -131,3 +131,4 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+tests/e2e/logs/
