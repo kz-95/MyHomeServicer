@@ -1,4 +1,4 @@
-import { QuoteRequest, MerchantService } from '@prisma/client';
+import { QuoteRequest, ServicerService } from '@prisma/client';
 import { quoteMatchesAutoAccept, computeAutoPrice } from '../../src/services/auto-accept.service';
 
 /** Build a minimal QuoteRequest-shaped object for matching tests. */
@@ -13,12 +13,12 @@ function quote(overrides: Partial<QuoteRequest> = {}): QuoteRequest {
   } as QuoteRequest;
 }
 
-/** Build a minimal MerchantService-shaped object. */
-function service(autoAccept: boolean, conditions: unknown): MerchantService {
+/** Build a minimal ServicerService-shaped object. */
+function service(autoAccept: boolean, conditions: unknown): ServicerService {
   return {
     autoAccept,
     autoAcceptConditions: conditions,
-  } as MerchantService;
+  } as ServicerService;
 }
 
 describe('quoteMatchesAutoAccept', () => {
