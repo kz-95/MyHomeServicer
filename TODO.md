@@ -125,7 +125,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   notification `linkUrl` emitters + Stripe return URLs after C2 rename; servicer dashboard
   quickLinks; chat AI route updates. One pass, all dead links. ✅ Fixed 2026-06-24 (1 dead linkUrl fixed in admin.routes.ts, all 20 linkUrls + 4 Stripe URLs + 60 routerLinks + chat prompts audited)
 - [ ] **Customer rewards / deposit-credit promotions**
-- [ ] **Admin banned-accounts, deactivate-account, customer search/filter**
+- [x] **Admin banned-accounts, deactivate-account, customer search/filter** ✅ Verified 2026-06-24 (BannedEmail model + migration, GET/POST/DELETE /admin/banned-emails, POST /user/me/deactivate + /servicer/me/deactivate, deactivate.service.ts with email suffix + auto-ban after 10, admin users page search/role filter, admin settings banned tab, customer/servicer Danger Zone deactivation modals)
 - [x] **Forgot-password + settings refinements + PIN-registration settings** ✅ Built 2026-06-24 (forgot/reset flow already existed; added 4 PIN/password policy platform settings + security tab in admin settings + configurable cooldown middleware)
 - [x] **Cancel reason presets + form validation UX + admin footer wiring** - ✅ Fixed 2026-06-24 (cancel_reasons platform setting, customer booking cancel dropdown, admin footer links)
 - [~] **IDOR audit + Decimal-as-string coercion + global-search fields** ✅ Audited 2026-06-24: fixed 1 IDOR (`PUT /files/local-upload/:fileId` ownership check), Decimal serialization OK (Prisma PostgreSQL toJSON), global search exists at `/api/v1/search` with documented gaps.
