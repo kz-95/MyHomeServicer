@@ -364,17 +364,21 @@ async function seedModules() {
     await seedForServicer(s, cfg.label, cfg.proposal, true, mods);
   }
 
-  // ── M1 Ahmad specifically — manual only, no auto-accept ──────────
+  // ── M1 Ahmad — modules but NO auto-accept ────────────────────────
   const m1 = await prisma.servicer.findFirst({
     where: { businessName: { contains: 'Ahmad', mode: 'insensitive' }, category: { slug: 'plumber' } },
-    select: { id: true, businessName: true },
+    select: { id: true, businessName: true, categoryId: true },
   });
   if (m1) {
-    await prisma.servicerService.updateMany({
-      where: { servicerId: m1.id, deletedAt: null },
-      data: { autoAccept: false, autoAcceptMessage: null },
-    });
-    console.log(`  M1 ${m1.businessName}: auto-accept disabled (manual only)`);
+    // Create same modules as other plumbers, but autoAccept=false.
+    await seedForServicer(
+      m1,
+      'PLB-MANUAL',
+      'Thank you for your plumbing request! We will provide a manual quote.',
+      false,
+      CATEGORY_MODULES['plumber'].mods,
+    );
+    console.log(`  M1 ${m1.businessName}: modules seeded, auto-accept disabled`);
   }
 
   console.log('SP-3 Module seeding complete.');
