@@ -2,7 +2,68 @@
 
 > Single-writer log - only the **Backend** agent writes here.
 
-## Session 2026-06-26 01:36 - Docs update: forensic audit findings round 2
+## Session 2026-06-26 01:45 - P1 Financial Foundation Fixes (T1-T23)
+
+**Task:** Execute all 23 P1 financial correctness tasks from the forensic audit.
+
+**Commit:** `4284130` on `feat/ux-polish`
+
+### Changes by group
+
+**Critical fixes (T1-T6):**
+- **T1:** `booking.jobs.ts:243` - Removed `+ tip` from servicerPayout (tip already in `amount` from computeTotal)
+- **T2:** `booking.jobs.ts:71` - Removed `+ Number(escrow.tipAmount)` from no-show refund (same root cause)
+- **T3:** `booking.service.ts:1362` - Removed `+ Number(escrow.tipAmount)` from cancel refund
+- **T4:** `booking.jobs.ts:221-226` - Subtract `urgentFeeAmount` from `feeBase` before computing platformFee (prevents double-dip: X% on urgent fee + 20% split separately)
+- **T5:** `booking.jobs.ts` - `Math.max(0, amount - platformFee - urgentPlatformShare)` guard on servicerPayout
+- **T6:** `seed/static.ts:2408` - `current_rate: 0.2` → `0.05`, `new_rate: 0.2` → `0.07`
+
+**TOCTOU race fixes (T7-T9):**
+- **T7:** `booking.service.ts:1365` - escrow.update where: `{ id, status: 'held' }`
+- **T8:** `booking.jobs.ts:246` - escrow.update where: `{ id, status: 'held' }`
+- **T9:** `admin.service.ts:974` - withdrawal.update where: `{ id, status: 'approved' }`
+
+**Fee engine (T10-T14):**
+- **T10:** Created `tests/unit/fee-engine.test.ts` - 7 tests (fallback, flat, category, cap, priority, NaN, DB error) - all pass
+- **T11:** `fee-engine.service.ts` - Added activeFrom/activeTo date-range filtering to `getApplicableFeeRules`
+- **T12:** `fee-engine.service.ts` - Added try/catch + fallback to `getPlatformFeeRate()` on DB error in `computeFees`
+- **T13:** Migrated 4 call sites from `computePlatformFee` to `computeFees`:
+  - `booking.service.ts:976` (computeSettlementAmounts)
+  - `dispatch.service.ts:278` (handleDispatchAccept)
+  - `invoice.service.ts:97` (generateInvoice)
+  - `invoice.service.ts:225` (getInvoicePreview)
+  - Removed unused `computePlatformFee`/`getPlatformFeeRate` imports from all 3 files
+- **T14:** Added `@deprecated` JSDoc to `computePlatformFee` in `money.ts`
+
+**Schema (T15):**
+- Added `gateway_fee`, `registered_customer_discount`, `promo_cost`, `points_liability` to TransactionType enum
+- Ran `prisma migrate dev --name add_financial_transaction_types`
+
+**Transaction recordings (T16-T19):**
+- **T16:** `booking.service.ts` - Record `gateway_fee` transaction in `completeGatewaySettlement` (3.4% + RM 1.00)
+- **T17:** `seed/static.ts` - Added `gateway_fee_pct` (0.034) and `gateway_fee_fixed` (1.00) settings
+- **T18:** `quote.service.ts` - Record `registered_customer_discount` transaction at quote creation
+- **T19:** `admin.jobs.ts` - Record `promo_cost` transaction inside promo payback $transaction
+
+**Dispute/Cash/Points/Dashboard (T20-T23):**
+- **T20:** `dispute.service.ts` - `resolveDispute` now calls `refundEscrowIfHeld` when resolution is `refund_customer`; exported `refundEscrowIfHeld` from booking.service.ts
+- **T21:** `booking.service.ts` - Added `cashConfirmed` guard in `settleBooking` cash case
+- **T22:** `booking.service.ts` - Moved `awardPoints` inside `$transaction` with `await`; moved points config lookups before transaction; used `tx as any` for type compatibility
+- **T23:** `admin.service.ts` - Added 4 cost-line queries (gatewayFee, registeredDiscount, promoCost, pointsCost) to `getDashboardFinancial` return
+
+### Gates
+- `npx tsc --noEmit` in backend/ → 0 code errors (2 pre-existing TS 7.0 deprecation warnings only)
+- `npx jest tests/unit/fee-engine.test.ts` → 7/7 pass
+- `npx tsc --noEmit` in frontend/ → 0 errors
+
+### Pre-existing test failures (not caused by this session)
+- `noshow-jobs.test.ts`: `prisma.dispute` not mocked (the dispute check in `handleEscrowRelease` was already there before T1-T23)
+- `fintech.test.ts`: TS2345 type error on `tx` param (pre-existing `awardPoints` call, same code pattern)
+- `listing-pricing.test.ts`: TS2554 wrong argument count (pre-existing)
+
+### Files changed: 14 (13 source + 1 migration)
+
+
 
 **Task:** Update financial correctness spec, TODO.md, and schema-notes.md with round 2 forensic audit findings.
 
