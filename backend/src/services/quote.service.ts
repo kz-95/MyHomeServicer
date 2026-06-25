@@ -207,7 +207,7 @@ export async function resolvePromo(code: string | undefined, budgetMax?: number)
 export async function createQuote(
   userId: string,
   input: CreateQuoteInput,
-  options?: { skipCreditCheck?: boolean; deferBroadcastUntilPayment?: boolean },
+  options?: { deferBroadcastUntilPayment?: boolean },
 ) {
   // Timing model (2026-06-23): the job's own start time drives the response
   // window. No customer-chosen deadline; no past-dated jobs.
@@ -275,10 +275,9 @@ export async function createQuote(
 
   const promoDiscount = await resolvePromo(input.promoCode, input.budgetMax);
 
-  // Auto-discount for registered (non-guest) customers: fetch the
-  // registered_customer_discount setting and apply it on top of any promo.
+  // Registered customer discount: only for non-gateway (registered) users
   let registeredDiscount = 0;
-  if (!options?.skipCreditCheck && input.budgetMax != null) {
+  if (input.settlementMethod !== 'gateway' && input.budgetMax != null) {
     const discountCfg = await getSetting<{ rate: number }>('registered_customer_discount').catch(() => null);
     if (discountCfg?.rate) {
       registeredDiscount = Math.round(input.budgetMax * discountCfg.rate * 100) / 100;
@@ -302,7 +301,7 @@ export async function createQuote(
       ? computeHoldAmount(input.budgetMax ?? null, input.tipAmount ?? 0)
       : 0;
   const creditHold = baseHold > 0 && urgentFee ? Math.round((baseHold + urgentFee) * 100) / 100 : baseHold;
-  if (creditHold > 0 && !options?.skipCreditCheck) {
+  if (creditHold > 0 && input.settlementMethod !== 'gateway') {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { creditBalance: true },
@@ -1097,14 +1096,13 @@ export async function createGuestQuote(input: {
     budgetMin: input.budgetMin,
     budgetMax: input.budgetMax,
     paymentMode: input.paymentMode ?? 'pay_later',
-    settlementMethod: input.paymentMode === 'pay_later' ? (input.settlementMethod ?? 'cash') : undefined,
+    settlementMethod: input.paymentMode === 'pay_now' ? 'gateway' : (input.settlementMethod ?? 'cash'),
     deadlineMode: 'fixed_time',
     proposalDeadline: proposalDeadline.toISOString(),
     propertyType: input.propertyType,
     notes: input.notes,
     serviceDetails: input.serviceDetails,
   }, {
-    skipCreditCheck: true,
     // Guest pay_now funds an empty wallet via Stripe - hold the broadcast until
     // the checkout.session.completed webhook settles payment (payment gate
     // before broadcast). pay_later / cash guests broadcast immediately.
