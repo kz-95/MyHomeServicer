@@ -669,7 +669,7 @@ export class AdminMoneySettingsComponent implements OnInit {
     });
   }
   deleteTier(t: LoyaltyTier): void { this.pin.requirePin().subscribe((pin) => { if (!pin) return; this.api.delete(`/admin/rewards/tiers/${t.id}`, { 'x-action-pin': pin }).subscribe({ next: () => this.loadTiers(), error: () => {} }); }); }
-  private loadTiers(): void { this.api.get<{ data: LoyaltyTier[] }>('/rewards/tiers').subscribe({ next: (r) => this.tiers.set(r.data ?? []) }); }
+  private loadTiers(): void { this.api.get<{ data: LoyaltyTier[] }>('/admin/rewards/tiers').subscribe({ next: (r) => this.tiers.set(r.data ?? []) }); }
 
   // ── Rewards catalog ──
   openRewardModal(): void { this.rewardEditTarget.set(null); this.rewardForm = { name: '', description: '', pointCost: 0, discountType: 'topup_fixed', discountValue: 0, maxDiscount: null, minTopup: null }; this.rewardError.set(''); this.rewardModalOpen.set(true); }

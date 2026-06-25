@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 
 import { routeFor } from '../../core/route-for';
 import { ApiService } from '../../core/services/api.service';
+import { IconComponent } from '../../shared/icon.component';
 
 // ── Interfaces ────────────────────────────────────────────────────────────
 
@@ -84,16 +85,17 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
 @Component({
   selector: 'app-admin-dashboard',
   host: { class: 'page-enter' },
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, IconComponent],
   template: `
     <h1>Admin dashboard</h1>
 
     <!-- ── 1. PENDING QUEUES (collapsible) ─────────────────────────────── -->
     @if (data(); as d) {
-      <button class="section-header page-child" (click)="toggleSection('queues')"
-              title="Items awaiting admin review: withdrawals, appeals, category requests, and open reports">
-        Pending Queues (?) {{ showSections()['queues'] ? '▲' : '▼' }}
-      </button>
+      <div class="section-header page-child">
+        <button class="section-toggle" (click)="toggleSection('queues')">Pending Queues {{ showSections()['queues'] ? '▲' : '▼' }}</button>
+        <button class="hint-btn" title="Service requests waiting for admin action">(?)</button>
+        <span class="section-spacer"></span>
+      </div>
       @if (showSections()['queues']) {
         <div class="section-body">
           <div class="grid">
@@ -122,24 +124,24 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
     @if (finData(); as fd) {
       <div class="fin-cards page-child">
         <div class="card fin-card">
-          <span class="fin-label" title="Sum of all platform fees and customer top-ups">Total Revenue (?)</span>
+          <span class="fin-label">Total Revenue <button class="hint-btn" title="Sum of all platform fees and customer top-ups">(?)</button></span>
           <span class="fin-n">RM {{ (fd.totalTopUps + fd.totalFees) | number:'1.2-2' }}</span>
           <span class="fin-sub">Today: RM {{ (fd.todayTopUps + fd.todayFees) | number:'1.2-2' }}</span>
         </div>
         <div class="card fin-card">
-          <span class="fin-label" title="Platform's 8% service fee collected from completed bookings">Platform Fees (?)</span>
+          <span class="fin-label">Platform Fees <button class="hint-btn" title="Platform's 8% service fee collected from completed bookings">(?)</button></span>
           <span class="fin-n">RM {{ fd.totalFees | number:'1.2-2' }}</span>
         </div>
         <div class="card fin-card">
-          <span class="fin-label" title="Customer payments currently held in escrow pending job completion">Escrow Held (?)</span>
+          <span class="fin-label">Escrow Held <button class="hint-btn" title="Customer payments currently held in escrow pending job completion">(?)</button></span>
           <span class="fin-n">RM {{ fd.totalEscrow | number:'1.2-2' }}</span>
         </div>
         <div class="card fin-card">
-          <span class="fin-label" title="Escrow funds ready to be released to servicers upon job completion">Pending Payouts (?)</span>
+          <span class="fin-label">Pending Payouts <button class="hint-btn" title="Escrow funds ready to be released to servicers upon job completion">(?)</button></span>
           <span class="fin-n">RM {{ fd.pendingPayouts | number:'1.2-2' }}</span>
         </div>
         <div class="card fin-card urgent-card">
-          <span class="fin-label" title="RM 150 same-day surcharge for urgent bookings; platform takes 20% (RM 30)">Urgent Fee (?)</span>
+          <span class="fin-label">Urgent Fee <button class="hint-btn" title="RM 150 same-day surcharge for urgent bookings; platform takes 20% (RM 30)">(?)</button></span>
           <span class="fin-n">RM {{ fd.urgentFeeRevenue | number:'1.2-2' }}</span>
           <span class="fin-sub">Platform share: RM {{ fd.urgentFeePlatformShare | number:'1.2-2' }}</span>
         </div>
@@ -148,34 +150,41 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
 
     <!-- ── 3. TOOLBAR ──────────────────────────────────────────────────── -->
     <div class="toolbar page-child">
-      <div class="search-wrap">
-        <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16"
-             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input
-          type="search"
-          class="toolbar-search"
-          placeholder="Search bookings, customers, servicers..."
-          [(ngModel)]="searchQuery"
-        />
-      </div>
       <div class="cat-chips">
         <button class="chip" [class.active]="!dashCategoryId()" (click)="dashCategoryId.set(''); reloadDashboard()">All</button>
         @for (cat of topCategories(); track cat.id) {
           <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
         }
       </div>
+      <div class="search-row">
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="search"
+            class="toolbar-search"
+            placeholder="Search bookings, customers, servicers..."
+            [(ngModel)]="searchQuery"
+          />
+        </div>
+        <div class="sort-controls">
+          <button class="btn-ghost btn-sm sort-btn">Sort: Revenue <app-icon name="chevron-down" sizeToken="sm" /></button>
+          <button class="btn-ghost btn-sm" title="Reverse order"><app-icon name="arrow-up-down" sizeToken="sm" /></button>
+        </div>
+      </div>
     </div>
 
     <!-- ── 4-7. CHART + TABLES (all collapsible) ────────────────────────── -->
     @if (finData(); as fd) {
       <!-- ── 4. Revenue & Fees Chart ──────────────────────────────────── -->
-      <button class="section-header page-child" (click)="toggleSection('chart')"
-              title="Daily platform revenue and financial metrics. Toggle lines with the pills below.">
-        Revenue &amp; Fees (?) {{ showSections()['chart'] ? '▲' : '▼' }}
-      </button>
+      <div class="section-header page-child">
+        <button class="section-toggle" (click)="toggleSection('chart')">Revenue &amp; Fees {{ showSections()['chart'] ? '▲' : '▼' }}</button>
+        <button class="hint-btn" title="Daily platform revenue and financial metrics. Toggle lines with the pills below.">(?)</button>
+        <span class="section-spacer"></span>
+      </div>
       @if (showSections()['chart']) {
         <div class="section-body">
 
@@ -290,10 +299,11 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       }
 
       <!-- ── 5. Category Breakdown ─────────────────────────────────────── -->
-      <button class="section-header page-child" (click)="toggleSection('categories')"
-              title="Per-category booking count, total booking value, and platform fees">
-        Category Breakdown (?) {{ showSections()['categories'] ? '▲' : '▼' }}
-      </button>
+      <div class="section-header page-child">
+        <button class="section-toggle" (click)="toggleSection('categories')">Category Breakdown {{ showSections()['categories'] ? '▲' : '▼' }}</button>
+        <button class="hint-btn" title="Per-category booking count, total booking value, and platform fees.">(?)</button>
+        <span class="section-spacer"></span>
+      </div>
       @if (showSections()['categories']) {
         <div class="section-body">
           <div class="card cat-breakdown">
@@ -328,10 +338,11 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       }
 
       <!-- ── 6. Customer Leaderboard ───────────────────────────────────── -->
-      <button class="section-header page-child" (click)="toggleSection('customers')"
-              title="Top 20 customers ranked by total spend">
-        Customer Leaderboard (?) {{ showSections()['customers'] ? '▲' : '▼' }}
-      </button>
+      <div class="section-header page-child">
+        <button class="section-toggle" (click)="toggleSection('customers')">Customer Leaderboard {{ showSections()['customers'] ? '▲' : '▼' }}</button>
+        <button class="hint-btn" title="Top 20 customers ranked by total spend.">(?)</button>
+        <span class="section-spacer"></span>
+      </div>
       @if (showSections()['customers']) {
         <div class="section-body">
           <div class="card lb-table-wrap">
@@ -366,10 +377,11 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       }
 
       <!-- ── 7. Servicer Leaderboard ───────────────────────────────────── -->
-      <button class="section-header page-child" (click)="toggleSection('servicers')"
-              title="Top 20 servicers ranked by total booking revenue">
-        Servicer Leaderboard (?) {{ showSections()['servicers'] ? '▲' : '▼' }}
-      </button>
+      <div class="section-header page-child">
+        <button class="section-toggle" (click)="toggleSection('servicers')">Servicer Leaderboard {{ showSections()['servicers'] ? '▲' : '▼' }}</button>
+        <button class="hint-btn" title="Top 20 servicers ranked by total booking revenue.">(?)</button>
+        <span class="section-spacer"></span>
+      </div>
       @if (showSections()['servicers']) {
         <div class="section-body">
           <div class="card lb-table-wrap">
@@ -429,13 +441,13 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       h1 { margin-bottom: 1rem; }
 
       /* ── Hint tooltip (?) ──────────────────────────────────────────── */
-      .hint {
-        font-size: 0.7rem;
-        color: var(--color-muted);
-        cursor: help;
-        opacity: 0.55;
-        margin-left: 0.2rem;
+      .hint-btn {
+        background: none; border: none; cursor: help;
+        font-size: 0.75rem; color: var(--color-muted);
+        padding: 0; margin-left: 2px; line-height: 1;
+        font-family: inherit; vertical-align: middle;
       }
+      .hint-btn:hover { color: var(--color-primary); }
 
       /* ── Financial cards grid ───────────────────────────────────────── */
       .fin-cards {
@@ -461,7 +473,6 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
         color: var(--color-muted);
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        cursor: help;
       }
       .fin-n {
         font-size: 1.5rem;
@@ -479,20 +490,16 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
 
       /* ── Collapsible section headers ────────────────────────────────── */
       .section-header {
-        width: 100%;
-        text-align: left;
-        background: none;
-        border: none;
-        font-size: 1rem;
-        font-weight: 600;
-        padding: 0.5rem 0;
-        cursor: pointer;
-        color: var(--color-text);
-        font-family: inherit;
-        border-bottom: 1px solid var(--color-border);
-        margin-top: 1.5rem;
+        display: flex; align-items: center; gap: 0.35rem;
+        border-bottom: 1px solid var(--color-border); margin-top: 1.5rem; padding: 0.5rem 0;
       }
-      .section-header:hover { color: var(--color-primary); }
+      .section-spacer { flex: 1; }
+      .section-toggle {
+        background: none; border: none; cursor: pointer;
+        font-size: 1rem; font-weight: 600; font-family: inherit;
+        color: var(--color-text); text-align: left; padding: 0;
+      }
+      .section-toggle:hover { color: var(--color-primary); }
       .section-body { padding-top: 0.75rem; }
 
       /* ── Queue grid ─────────────────────────────────────────────────── */
@@ -532,13 +539,19 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
         gap: 0.6rem;
         margin: 0.5rem 0 1rem;
       }
+      .search-row {
+        display: flex; align-items: center; gap: 0.75rem;
+      }
       .search-wrap {
+        flex: 1;
         position: relative;
         display: flex;
         align-items: center;
-        width: 100%;
-        max-width: 380px;
       }
+      .sort-controls {
+        display: flex; gap: 0.4rem; flex-shrink: 0;
+      }
+      .sort-btn { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
       .search-icon {
         position: absolute;
         left: 0.7rem;

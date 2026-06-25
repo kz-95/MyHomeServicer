@@ -1338,6 +1338,100 @@ async function main(): Promise<void> {
   }
   console.log('  ✓ platform settings upserted (budget ranges + greeting tiers etc.)');
 
+  // ── Paired customer accounts for all servicers ──────────────────────────
+  // Every servicer gets a paired customer account (customer mode) + 1 address
+  // so the customer leaderboard shows them as active platform users.
+  const svcCustRefs: string[] = [];
+  const svcCustAddrKeys: string[] = [];
+  const svcCustUserIds: Record<string, string> = {};
+  for (const m of servicers) {
+    const svcId = servicerByRef[m.ref];
+    const pairedEmail = `servicer-${svcId}@customer.servicer.local`;
+    const uid = fixedUuid(pairedEmail);
+    // Create paired customer user
+    await prisma.user.upsert({
+      where: { id: uid },
+      create: {
+        id: uid,
+        role: 'customer',
+        name: m.name,
+        email: pairedEmail,
+        phone: m.phone,
+        passwordHash,
+        contactName: m.name,
+        contactNumber: m.phone,
+        isDemo: true,
+      },
+      update: {},
+    });
+    svcCustUserIds[m.ref] = uid;
+    // Create address for this paired customer
+    const addr = await prisma.userAddress.upsert({
+      where: { id: fixedUuid(`${pairedEmail}-addr`) },
+      create: {
+        id: fixedUuid(`${pairedEmail}-addr`),
+        userId: uid,
+        label: 'Home',
+        address: `${m.businessName}, ${m.area}`,
+        propertyType: 'condo',
+        isDefault: true,
+        district: m.area.split(',')[0]?.trim() ?? null,
+        lat: m.lat ?? areaCoords(m.area).lat,
+        lng: m.lng ?? areaCoords(m.area).lng,
+      },
+      update: {},
+    });
+    const ref = `SVC_${m.ref}`;
+    const addrKey = `${ref}:0`;
+    customerByRef[ref] = uid;
+    addressByRef[addrKey] = addr.id;
+    addrCoordsByRef[addrKey] = { lat: addr.lat ?? 3.14, lng: addr.lng ?? 101.69 };
+    svcCustRefs.push(ref);
+    svcCustAddrKeys.push(addrKey);
+  }
+  console.log(`  ✓ paired customer accounts for ${svcCustRefs.length} servicers`);
+
+  // ── Guest users (unregistered quote submitters) ─────────────────────────
+  // Create 10 guest-style accounts that placed orders without full registration.
+  const guestRefs: string[] = [];
+  const guestAddrKeys: string[] = [];
+  const guestNames = ['Amir Hakim', 'Siti Nora', 'Rajesh Kumar', 'Mei Ling Wong', 'Hafizuddin',
+    'Jennifer Tan', 'Kumaravel Subra', 'Lisa Chen', 'Azman Ibrahim', 'Diana Surya'];
+  for (let g = 0; g < guestNames.length; g++) {
+    const guestId = fixedUuid(`guest-${g}@guest.local`);
+    await prisma.user.upsert({
+      where: { id: guestId },
+      create: {
+        id: guestId, role: 'customer', name: guestNames[g],
+        email: `guest-${g}@guest.local`, phone: `+60 1${g}-000 ${1000 + g}`,
+        passwordHash, contactName: guestNames[g],
+        contactNumber: `+60 1${g}-000 ${1000 + g}`, isDemo: true,
+      },
+      update: {},
+    });
+    const area = ['Cyberjaya', 'KLCC', 'PJ', 'Cheras', 'Ampang'][g % 5];
+    const coords = areaCoords(area);
+    const addr = await prisma.userAddress.upsert({
+      where: { id: fixedUuid(`guest-${g}@guest.local-addr`) },
+      create: {
+        id: fixedUuid(`guest-${g}@guest.local-addr`),
+        userId: guestId, label: 'Home',
+        address: `Unit ${g + 1}-${(g % 3) + 1}, Block ${String.fromCharCode(65 + g % 4)}, ${area}`,
+        propertyType: g % 2 === 0 ? 'condo' : 'landed', isDefault: true,
+        district: area, lat: coords.lat, lng: coords.lng,
+      },
+      update: {},
+    });
+    const ref = `GUEST_${g}`;
+    const addrKey = `${ref}:0`;
+    customerByRef[ref] = guestId;
+    addressByRef[addrKey] = addr.id;
+    addrCoordsByRef[addrKey] = { lat: coords.lat ?? 3.14, lng: coords.lng ?? 101.69 };
+    guestRefs.push(ref);
+    guestAddrKeys.push(addrKey);
+  }
+  console.log(`  ✓ guest customer accounts: ${guestRefs.length}`);
+
   // ── Demo quote helpers ──────────────────────────────────────────────────
   function sampleAnswers(categorySlug: string): Record<string, unknown> {
     const map: Record<string, Record<string, unknown>> = {
@@ -1395,14 +1489,18 @@ async function main(): Promise<void> {
     categorySlug: string,
     opts: { timeSlot?: 'morning' | 'noon' | 'afternoon' | 'evening' | 'night'; status?: 'open' | 'matched'; budget?: [number, number]; payment?: 'pay_now' | 'pay_later' | 'cash'; deadline?: Date; serviceDetails?: Record<string, unknown>; notes?: string } = {},
   ) {
-    const cust = customers.find((c) => c.ref === customerRef)!;
+    const cust = customers.find((c) => c.ref === customerRef);
+    const userId = customerByRef[customerRef];
+    // Fallback: look up user from DB for paired/guest accounts not in customers[]
+    const fallbackName = cust?.name ?? (userId ? (await prisma.user.findUnique({ where: { id: userId }, select: { name: true } }))?.name ?? 'Demo Customer' : 'Demo Customer');
+    const fallbackPhone = cust?.phone ?? '+60 12-000 0000';
     return prisma.quoteRequest.create({
       data: {
-        userId: customerByRef[customerRef],
+        userId,
         categoryId: categoryBySlug[categorySlug],
         addressId: addressByRef[addressKey],
-        contactName: cust.name,
-        contactNumber: cust.phone,
+        contactName: fallbackName,
+        contactNumber: fallbackPhone,
         timeSlot: opts.timeSlot ?? 'morning',
         preferredDate: days(1),
         propertyType: 'condo',
@@ -1593,13 +1691,13 @@ async function main(): Promise<void> {
     { ref: 'M5',  slug: 'sofa-mattress-cleaning', prices: [50, 70, 90, 120],         count: 12 },
     { ref: 'M6',  slug: 'carpet-cleaning',        prices: [40, 80, 140, 200],        count: 12 },
     { ref: 'M7',  slug: 'curtain-cleaning',       prices: [30, 50, 80, 120],         count: 12 },
-    { ref: 'M8',  slug: 'event-planner',          prices: [500, 1000, 2000, 5000],   count: 10 },
-    { ref: 'M9',  slug: 'catering',               prices: [50, 120, 200, 350],       count: 15 },
+    { ref: 'M8',  slug: 'event-planner',          prices: [1200, 3500, 8000, 20000],  count: 10 },
+    { ref: 'M9',  slug: 'catering',               prices: [600, 1200, 2500, 4000],     count: 15 },
     { ref: 'M10', slug: 'professional-organizer', prices: [60, 100, 150, 200],       count: 12 },
     { ref: 'M11', slug: 'aircond-installer',      prices: [250, 400, 600, 900],      count: 12 },
     { ref: 'M12', slug: 'carpenter',              prices: [100, 200, 300, 500],      count: 12 },
-    { ref: 'M13', slug: 'renovation',             prices: [500, 1000, 2000, 5000],   count: 10 },
-    { ref: 'M14', slug: 'interior-design',        prices: [300, 800, 1500, 3000],    count: 10 },
+    { ref: 'M13', slug: 'renovation',             prices: [30000, 55000, 85000, 120000], count: 8  },
+    { ref: 'M14', slug: 'interior-design',        prices: [4000, 8000, 14000, 20000], count: 8  },
     { ref: 'M15', slug: 'door-gate',              prices: [80, 120, 180, 250],       count: 12 },
     { ref: 'M16', slug: 'roof',                   prices: [200, 400, 600, 1000],     count: 10 },
     { ref: 'M17', slug: 'washing-machine-repair', prices: [50, 80, 120, 160],        count: 12 },
@@ -1630,13 +1728,13 @@ async function main(): Promise<void> {
     { ref: 'M41',  slug: 'sofa-mattress-cleaning', prices: [60, 80, 110, 150],         count: 10 },
     { ref: 'M42',  slug: 'carpet-cleaning',        prices: [55, 85, 130, 190],         count: 10 },
     { ref: 'M43',  slug: 'curtain-cleaning',       prices: [35, 55, 85, 120],          count: 10 },
-    { ref: 'M44',  slug: 'event-planner',          prices: [350, 800, 1500, 3000],     count: 8  },
-    { ref: 'M45',  slug: 'catering',               prices: [60, 120, 200, 350],        count: 12 },
+    { ref: 'M44',  slug: 'event-planner',          prices: [1000, 3000, 7000, 15000],   count: 8  },
+    { ref: 'M45',  slug: 'catering',               prices: [500, 1000, 2000, 3500],     count: 12 },
     { ref: 'M46',  slug: 'professional-organizer', prices: [70, 100, 150, 200],        count: 10 },
     { ref: 'M47',  slug: 'aircond-installer',      prices: [300, 450, 600, 900],       count: 10 },
     { ref: 'M48',  slug: 'carpenter',              prices: [100, 180, 280, 450],       count: 10 },
-    { ref: 'M49',  slug: 'renovation',             prices: [400, 900, 2000, 5000],     count: 8  },
-    { ref: 'M50',  slug: 'interior-design',        prices: [500, 1000, 2000, 4000],    count: 8  },
+    { ref: 'M49',  slug: 'renovation',             prices: [25000, 50000, 80000, 110000], count: 8  },
+    { ref: 'M50',  slug: 'interior-design',        prices: [5000, 10000, 15000, 20000], count: 8  },
     { ref: 'M51',  slug: 'door-gate',              prices: [80, 130, 200, 320],        count: 10 },
     { ref: 'M52',  slug: 'roof',                   prices: [200, 380, 600, 1000],      count: 8  },
     { ref: 'M53',  slug: 'washing-machine-repair', prices: [55, 85, 120, 160],         count: 10 },
@@ -1661,13 +1759,13 @@ async function main(): Promise<void> {
     { ref: 'M71',  slug: 'sofa-mattress-cleaning', prices: [55, 75, 100, 140],         count: 8  },
     { ref: 'M72',  slug: 'carpet-cleaning',        prices: [50, 80, 120, 180],         count: 8  },
     { ref: 'M73',  slug: 'curtain-cleaning',       prices: [30, 50, 75, 110],          count: 8  },
-    { ref: 'M74',  slug: 'event-planner',          prices: [400, 900, 2000, 4000],     count: 8  },
-    { ref: 'M75',  slug: 'catering',               prices: [70, 130, 220, 380],        count: 10 },
+    { ref: 'M74',  slug: 'event-planner',          prices: [1500, 4000, 10000, 25000],  count: 8  },
+    { ref: 'M75',  slug: 'catering',               prices: [700, 1500, 3000, 4000],     count: 10 },
     { ref: 'M76',  slug: 'professional-organizer', prices: [65, 95, 140, 190],         count: 8  },
     { ref: 'M77',  slug: 'aircond-installer',      prices: [280, 420, 580, 850],       count: 8  },
     { ref: 'M78',  slug: 'carpenter',              prices: [90, 160, 260, 420],        count: 8  },
-    { ref: 'M79',  slug: 'renovation',             prices: [450, 950, 2500, 6000],     count: 8  },
-    { ref: 'M80',  slug: 'interior-design',        prices: [400, 900, 1800, 3500],     count: 8  },
+    { ref: 'M79',  slug: 'renovation',             prices: [35000, 60000, 90000, 120000], count: 8  },
+    { ref: 'M80',  slug: 'interior-design',        prices: [6000, 12000, 18000, 20000], count: 8  },
     { ref: 'M81',  slug: 'door-gate',              prices: [90, 140, 220, 350],        count: 8  },
     { ref: 'M82',  slug: 'roof',                   prices: [220, 400, 650, 1100],      count: 8  },
     { ref: 'M83',  slug: 'washing-machine-repair', prices: [50, 80, 115, 155],         count: 8  },
@@ -1696,11 +1794,13 @@ async function main(): Promise<void> {
     { ref: 'M105', slug: 'gardening',              prices: [65,  100, 150, 210],       count: 8  },
   ];
   const allBulkCompleted: { booking: Awaited<ReturnType<typeof makeBooking>>; servicerRef: string; price: number }[] = [];
+  const allCustomerRefs = ['C_FRESH', 'C_FRESH2', 'C_FRESH3', 'C_ACTIVE', 'C_ACTIVE2', 'C_ACTIVE3', 'C_LOYAL', 'C_LOYAL2', 'C_LOYAL3', ...svcCustRefs, ...guestRefs];
+  const allCustomerAddrs = ['C_FRESH:0', 'C_FRESH2:0', 'C_FRESH3:0', 'C_ACTIVE:0', 'C_ACTIVE2:0', 'C_ACTIVE3:0', 'C_LOYAL:0', 'C_LOYAL2:0', 'C_LOYAL3:0', ...svcCustAddrKeys, ...guestAddrKeys];
   for (const m of servicerSlugs) {
     const count = m.count;
     // Build a set of working days: ~80% chance per day (takes 1-2 days off per week).
     const workingDays: number[] = [];
-    for (let d = -1; d >= -30; d--) {
+    for (let d = -1; d >= -90; d--) {
       if (Math.random() < 0.8) workingDays.push(d);
     }
     // If for some reason we have fewer working days than bookings, pad with the last available day.
@@ -1710,9 +1810,10 @@ async function main(): Promise<void> {
       const sched = new Date(Date.now() + dayOffset * 86_400_000);
       const price = m.prices[i % m.prices.length];
       const pay = i % 7 === 0 ? 'cash' : 'pay_later';
+      const custIdx = i % allCustomerRefs.length;
       const b = await makeBooking(
-        i % 2 === 0 ? 'C_ACTIVE' : 'C_LOYAL',
-        i % 2 === 0 ? 'C_ACTIVE:0' : 'C_LOYAL:0',
+        allCustomerRefs[custIdx],
+        allCustomerAddrs[custIdx],
         m.ref, m.slug, 'completed', pay, price,
         { scheduledDate: sched },
       );
@@ -1724,8 +1825,6 @@ async function main(): Promise<void> {
 
   // ── Per-servicer scenario bookings (all 105 servicers) ──
   // Each servicer account gets one of each state so every dashboard has real data.
-  const allCustomerRefs = ['C_FRESH', 'C_FRESH2', 'C_FRESH3', 'C_ACTIVE', 'C_ACTIVE2', 'C_ACTIVE3', 'C_LOYAL', 'C_LOYAL2', 'C_LOYAL3'];
-  const allCustomerAddrs = ['C_FRESH:0', 'C_FRESH2:0', 'C_FRESH3:0', 'C_ACTIVE:0', 'C_ACTIVE2:0', 'C_ACTIVE3:0', 'C_LOYAL:0', 'C_LOYAL2:0', 'C_LOYAL3:0'];
   let scenarioIdx = 0;
   for (const m of servicerSlugs) {
     const custRef = allCustomerRefs[scenarioIdx % allCustomerRefs.length];
