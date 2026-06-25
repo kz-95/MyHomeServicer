@@ -99,8 +99,8 @@ interface ListingData {
         <!-- Modules -->
         <div class="sec">
           <div class="sec-head">
-            <strong>Modules<span class="req"> *</span></strong>
-            <span class="muted">Min 1 required</span>
+            <strong>Modules@if (f.autoAccept) {<span class="req"> *</span>}</strong>
+            @if (f.autoAccept) { <span class="muted">Min 1 required</span> } @else { <span class="muted">Optional</span> }
           </div>
 
           @if (loading()) {
@@ -252,7 +252,7 @@ export class ListingFormComponent implements OnInit {
     if (!this.f.label.trim()) { this.error.set('Label is required.'); return; }
     if (!this.f.title.trim()) { this.error.set('Title is required.'); return; }
     if (!this.f.proposalPreset.trim()) { this.error.set('Proposal preset is required.'); return; }
-    if (this.selectedCount() < 1) { this.error.set('At least 1 module is required.'); return; }
+    if (this.f.autoAccept && this.selectedCount() < 1) { this.error.set('At least 1 module is required when auto-accept is enabled.'); return; }
 
     this.error.set('');
     this.saving.set(true);

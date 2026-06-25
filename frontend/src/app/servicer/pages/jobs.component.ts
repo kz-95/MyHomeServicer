@@ -219,7 +219,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
                     <span class="pq-addr">{{ composedAddress(q) }}</span>
                     @if (q.lat != null && q.lng != null) {
                       <button class="btn-ghost pq-map-btn" (click)="toggleMap(q.quoteId, $event)">
-                        {{ mapQuoteId() === q.quoteId ? 'Hide map' : 'Map' }}
+                        <app-icon name="eye" sizeToken="sm" /> {{ mapQuoteId() === q.quoteId ? 'Hide map' : 'Show map' }}
                       </button>
                     }
                   </div>

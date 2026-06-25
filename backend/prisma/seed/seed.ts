@@ -699,6 +699,12 @@ function areaCoords(area: string): { lat: number | null; lng: number | null } {
   return { lat: null, lng: null };
 }
 
+/** Slight random offset so nearby entities don't show 0.0 km. */
+function jitter(n: number | null): number | null {
+  if (n == null) return null;
+  return n + (Math.random() - 0.5) * 0.006;
+}
+
 const minutes = (n: number) => new Date(Date.now() + n * 60_000);
 const days = (n: number) => new Date(Date.now() + n * 86_400_000);
 
@@ -1182,8 +1188,8 @@ async function main(): Promise<void> {
         invoiceContent: m.invoiceContent,
         invoiceSuffix: m.invoiceSuffix,
         serviceAreas: m.serviceAreas,
-        lat: m.lat ?? areaCoords(m.area).lat,
-        lng: m.lng ?? areaCoords(m.area).lng,
+        lat: m.lat ?? jitter(areaCoords(m.area).lat),
+        lng: m.lng ?? jitter(areaCoords(m.area).lng),
         rating: m.rating,
         operatingHours: {
           mon: { open: '09:00', close: '18:00' },
@@ -1376,8 +1382,8 @@ async function main(): Promise<void> {
         propertyType: 'condo',
         isDefault: true,
         district: m.area.split(',')[0]?.trim() ?? null,
-        lat: m.lat ?? areaCoords(m.area).lat,
-        lng: m.lng ?? areaCoords(m.area).lng,
+        lat: m.lat ?? jitter(areaCoords(m.area).lat),
+        lng: m.lng ?? jitter(areaCoords(m.area).lng),
       },
       update: {},
     });
@@ -1564,13 +1570,11 @@ async function main(): Promise<void> {
       paymentMode: 'pay_later', deadlineMode: 'fixed_time',
       proposalDeadline: minutes(offset), servicerDeadline: minutes(offset - 15),
       status: 'open',
+      serviceDetails: sampleAnswers('plumber') as Prisma.InputJsonValue,
       lat: addrCoordsByRef['C_FRESH:0']?.lat ?? 2.924, lng: addrCoordsByRef['C_FRESH:0']?.lng ?? 101.657,
     },
   });
   await prisma.quoteBroadcast.create({ data: { quoteRequestId: plumbingOpenQuote.id, servicerId: servicerByRef['M1'] } });
-  await prisma.quoteProposal.create({
-    data: { quoteRequestId: plumbingOpenQuote.id, servicerId: servicerByRef['M1'], proposedPrice: 100, lineItems: [{ label: 'Service', amount: 100, taxable: true, serviceChargeable: true }], message: 'Ahmad Plumbing can fix this - fast and reliable.', etaMinutes: 60 },
-  });
 
   // Open catering quote (C_LOYAL) → M9 broadcast + proposal.
   const cateringOpenQuote = await prisma.quoteRequest.create({
