@@ -189,8 +189,10 @@ All demo accounts share the password `Demo@2026`.
 | `customer.fresh@demo.local` | Customer - no order history |
 | `customer.active@demo.local` | Customer - open quote with 3 proposals |
 | `customer.loyal@demo.local` | Customer - 4 completed bookings with invoices |
-| `admin@demo.local` | Admin - action PIN: `1234`, 30-day revenue chart |
-| `servicer.1@demo.local` to `servicer.19@demo.local` | Servicers - 19 across all 11 categories, each with revenue history for dashboard charts |
+| `admin@demo.local` | Admin - action PIN: `1234`, full financial dashboard with 90-day data |
+| `servicer.1@demo.local` to `servicer.105@demo.local` | Servicers - 105 across all 34 categories, each with revenue history, modules, and advanced listings |
+
+> The seed creates 90 days of booking data across 124 customer accounts (9 demo + 105 servicer paired + 10 guests). Admin dashboard shows real-time financial metrics from live SQL queries.
 
 > Demo account logins are blocked in production (`NODE_ENV=production`).
 
