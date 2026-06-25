@@ -65,6 +65,7 @@ export async function listSubcategories(servicerId: string) {
   });
   return {
     category: { id: servicer.category.id, name: servicer.category.name },
+    myCategoryId: servicer.categoryId,
     subcategories: subcategories.map((s) => ({ id: s.id, name: s.name })),
   };
 }

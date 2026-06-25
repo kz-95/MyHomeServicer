@@ -309,30 +309,22 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
 
   private loadQuestions(): void {
     this.questionsLoading.set(true);
-    let bigCatId = '';
-    this.api.get<{ category: { id: string; name: string } }>('/servicer/me/subcategories')
+    let myCatId = '';
+    this.api.get<{ category: { id: string; name: string }; myCategoryId: string }>('/servicer/me/subcategories')
       .pipe(
         switchMap((sub) => {
-          bigCatId = sub.category.id;
-          return this.api.get<{ data: { id: string; parentCategoryId?: string | null; questionSchema?: CategoryQuestion[] | null }[] }>('/categories?scope=all');
+          myCatId = sub.myCategoryId;
+          return this.api.get<{ data: { id: string; questionSchema?: CategoryQuestion[] | null }[] }>('/categories?scope=all');
         }),
       )
       .subscribe({
         next: (r) => {
           this.questionsLoading.set(false);
-          // Prefer a child of the servicer's big category; fall back to first category with questions.
           let best: CategoryQuestion[] | null = null;
           for (const cat of r.data) {
-            if (!cat.questionSchema) continue;
-            const qs = cat.questionSchema.filter(
-              (q: CategoryQuestion) => Array.isArray(q.options) || q.type === 'number' || q.type === 'text',
-            );
-            if (!qs.length) continue;
-            if (!best) best = qs;
-            if (bigCatId && cat.parentCategoryId === bigCatId) {
-              best = qs;
-              break;
-            }
+            if (!cat.questionSchema?.length) continue;
+            if (cat.id === myCatId) { best = cat.questionSchema; break; }
+            if (!best) best = cat.questionSchema;
           }
           if (best) this.allQuestions.set(best);
         },
