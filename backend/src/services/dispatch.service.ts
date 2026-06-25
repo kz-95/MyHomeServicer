@@ -2,11 +2,11 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { badRequest, businessRule, conflict, notFound } from '../lib/errors';
-import { computeTotal, computePlatformFee, LineItem, ServicerTaxConfig } from '../lib/money';
+import { computeTotal, LineItem, ServicerTaxConfig } from '../lib/money';
 import { enqueue, JOB_NAMES, jobQueue } from '../lib/queue';
 import { emitToServicer, emitToServicers, emitToUser } from '../socket';
 import { notify } from './notification.service';
-import { getPlatformFeeRate, getSetting, getSstRate } from './settings.service';
+import { getSetting, getSstRate } from './settings.service';
 import { adjustCredit } from './credit.service';
 import { recordTransaction } from './ledger.service';
 import { resolveListingAccept } from './listing-accept.service';
@@ -264,7 +264,7 @@ export async function handleDispatchAccept(
     // ── Pay-now: charge canonical total → escrow ─────────────────
     if (qr.paymentMode === 'pay_now') {
       const servicer = await tx.servicer.findUnique({ where: { id: servicerId } });
-      const [sstRate, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
+      const sstRate = await getSstRate();
       const config: ServicerTaxConfig = {
         serviceChargeRate: Number(servicer?.serviceChargeRate ?? 0),
         sstRegistered: servicer?.sstRegistered ?? false,
@@ -275,7 +275,9 @@ export async function handleDispatchAccept(
       const totalResult = computeTotal(lineItemsSnapshot, 0, config, 0);
       const escrowTotal = totalResult.total;
       const afterPromo = totalResult.afterPromo;
-      const platformFee = computePlatformFee(afterPromo, feeRate);
+      // T13: use FeeRule engine instead of legacy computePlatformFee
+      const { computeFees } = await import('./fee-engine.service');
+      const platformFee = await computeFees(afterPromo, 'booking');
 
       const escrow = await tx.escrow.create({
         data: {

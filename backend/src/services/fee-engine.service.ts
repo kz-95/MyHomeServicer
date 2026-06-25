@@ -38,6 +38,7 @@ export async function getApplicableFeeRules(
   appliesTo: string,
   categoryId?: string,
 ) {
+  const now = new Date();
   return prisma.feeRule.findMany({
     where: {
       active: true,
@@ -46,6 +47,12 @@ export async function getApplicableFeeRules(
       OR: [
         { categoryId: null },
         ...(categoryId ? [{ categoryId }] : []),
+      ],
+      // T11: honor activeFrom/activeTo date-range so future-dated rules
+      // don't apply immediately.
+      AND: [
+        { OR: [{ activeFrom: null }, { activeFrom: { lte: now } }] },
+        { OR: [{ activeTo: null }, { activeTo: { gte: now } }] },
       ],
     },
     orderBy: { priority: 'asc' },
@@ -69,7 +76,18 @@ export async function computeFees(
   appliesTo: string,
   categoryId?: string,
 ): Promise<number> {
-  const rules = await getApplicableFeeRules(appliesTo, categoryId);
+  // T12: guard against NaN/Infinity inputs
+  if (!Number.isFinite(baseAmount) || baseAmount < 0) return 0;
+
+  let rules: Awaited<ReturnType<typeof getApplicableFeeRules>>;
+  try {
+    rules = await getApplicableFeeRules(appliesTo, categoryId);
+  } catch (err) {
+    // T12: on DB error, fall back to legacy platform_fee_rate
+    logger.error('computeFees: FeeRule query failed, falling back to legacy rate', { error: String(err) });
+    const rate = await getPlatformFeeRate();
+    return computePlatformFee(baseAmount, rate);
+  }
 
   // No FeeRules configured - fall back to legacy platform_fee_rate
   if (rules.length === 0) {

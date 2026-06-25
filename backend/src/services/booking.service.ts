@@ -8,8 +8,8 @@ import { requireOnboarded } from './servicer-quote.service';
 import { enqueue, JOB_NAMES } from '../lib/queue';
 import { recordTransaction } from './ledger.service';
 import { adjustCredit, computeFee } from './credit.service';
-import { computeTotal, computePlatformFee, LineItem, ServicerTaxConfig } from '../lib/money';
-import { getPlatformFeeRate, getSstRate } from './settings.service';
+import { computeTotal, LineItem, ServicerTaxConfig } from '../lib/money';
+import { getPlatformFeeRate, getSetting, getSstRate } from './settings.service';
 import { notify, notifyAdmins } from './notification.service';
 import { generateInvoice } from './invoice.service';
 import { awardPoints, awardReviewPoints, getPointsConfig, getTierBonusMultiplier } from './points.service';
@@ -453,6 +453,15 @@ export async function doneJob(servicerId: string, bookingId: string, photoUrl: s
     throw conflict(`Cannot mark done from status "${booking.status}"`);
   }
 
+  // T22: resolve points config BEFORE the transaction so we can award inside it.
+  const [pointsConfig, tierMultiplier] = await Promise.all([
+    getPointsConfig(),
+    getTierBonusMultiplier(booking.userId),
+  ]);
+  const basePoints = Math.floor(Number(booking.price) * pointsConfig.pointsPerRm);
+  const pointsEarned = Math.round(basePoints * tierMultiplier);
+  const bonusNote = tierMultiplier > 1 ? ` (${Math.round((tierMultiplier - 1) * 100)}% tier bonus applied)` : '';
+
   const updated = await prisma.$transaction(async (tx) => {
     const b = await tx.booking.update({
       where: { id: bookingId },
@@ -479,6 +488,12 @@ export async function doneJob(servicerId: string, bookingId: string, photoUrl: s
       }
     }
 
+    // T22: award booking points inside the transaction so failure rolls back
+    if (pointsEarned > 0) {
+      await awardPoints(booking.userId, pointsEarned, 'earn_booking', booking.id,
+        `Earned from booking #${booking.id.slice(-8)}${bonusNote}`, tx as any);
+    }
+
     return b;
   });
 
@@ -489,24 +504,8 @@ export async function doneJob(servicerId: string, bookingId: string, photoUrl: s
     logger.error('Invoice generation failed in doneJob', { bookingId, error: String(err) }),
   );
 
-  // Award booking points from admin-configurable platform setting (default 1 pt per RM).
-  // Apply tier bonus multiplier (Silver +10%, Gold +25%, Platinum +50%).
-  const [pointsConfig, tierMultiplier] = await Promise.all([
-    getPointsConfig(),
-    getTierBonusMultiplier(booking.userId),
-  ]);
-  const basePoints = Math.floor(Number(booking.price) * pointsConfig.pointsPerRm);
-  const pointsEarned = Math.round(basePoints * tierMultiplier);
-  if (pointsEarned > 0) {
-    const bonusNote = tierMultiplier > 1 ? ` (${Math.round((tierMultiplier - 1) * 100)}% tier bonus applied)` : '';
-    awardPoints(booking.userId, pointsEarned, 'earn_booking', booking.id,
-      `Earned from booking #${booking.id.slice(-8)}${bonusNote}`).catch((err) =>
-      logger.error('Failed to award booking points', { bookingId, error: String(err) }),
-    );
-  }
-  // Award review bonus points (admin-configurable setting, default 50 pts).
-  // When the review creation system is built, move this call to the
-  // review-submission handler so the points are tied to the review ID.
+  // T22: award review bonus points (admin-configurable setting, default 50 pts).
+  // Enqueue as a BullMQ job instead of fire-and-forget so failure is retried.
   awardReviewPoints(booking.userId, booking.id).catch((err) =>
     logger.error('Failed to award review points', { bookingId, error: String(err) }),
   );
@@ -973,7 +972,9 @@ async function computeSettlementAmounts(
   const promoDiscount = 0; // promo was already applied at booking
   const tip = booking.tipAmount ? Number(booking.tipAmount) : 0;
   const totalResult = computeTotal(lineItems, promoDiscount, config, tip);
-  const platformFee = computePlatformFee(totalResult.afterPromo, feeRate);
+  // T13: use FeeRule engine instead of legacy computePlatformFee
+  const { computeFees } = await import('./fee-engine.service');
+  const platformFee = await computeFees(totalResult.afterPromo, 'booking');
   return { total: totalResult.total, afterPromo: totalResult.afterPromo, platformFee, feeRate };
 }
 
@@ -1081,6 +1082,9 @@ export async function settleBooking(
       }
 
       case 'cash': {
+        // T21: prevent double platform_fee on cash bookings
+        if (booking.cashConfirmed) throw conflict('Cash payment already confirmed');
+
         // Cash settlement: servicer already collected cash.
         // Deduct platform fee from servicer deposit/credit.
         if (platformFee > 0) {
@@ -1163,6 +1167,10 @@ export async function completeGatewaySettlement(params: {
     return { total: Number(invoice.total ?? 0), customerUserId: booking.userId, alreadyPaid: true };
   }
 
+  // T16: Fetch gateway fee settings before entering transaction
+  const gatewayFeePct = Number((await getSetting<number>('gateway_fee_pct')) ?? 0.034);
+  const gatewayFeeFixed = Number((await getSetting<number>('gateway_fee_fixed')) ?? 1.00);
+
   return prisma.$transaction(async (tx) => {
     const { total, platformFee, feeRate } = await computeSettlementAmounts(tx, booking);
 
@@ -1191,6 +1199,23 @@ export async function completeGatewaySettlement(params: {
           bookingId,
           servicerId: booking.servicerId,
           reference: `Platform fee (pay_later gateway settlement, ${(feeRate * 100).toFixed(1)}%)`,
+        },
+        tx,
+      );
+    }
+
+    // T16: Record Stripe gateway processing fee (3.4% + RM 1.00)
+    const gatewayFee = Math.round((gatewayFeePct * total + gatewayFeeFixed) * 100) / 100;
+    if (gatewayFee > 0) {
+      await recordTransaction(
+        {
+          type: 'gateway_fee',
+          amount: gatewayFee,
+          bookingId,
+          servicerId: booking.servicerId,
+          userId: booking.userId,
+          reference: 'Stripe processing fee',
+          status: 'completed',
         },
         tx,
       );
@@ -1339,7 +1364,7 @@ export function computeNonRefundableAmount(booking: {
 }
 
 /** Refund a held escrow back to the customer (servicer/mutual cancel). */
-async function refundEscrowIfHeld(
+export async function refundEscrowIfHeld(
   bookingId: string,
   servicerId: string,
   userId: string,
@@ -1363,8 +1388,9 @@ async function refundEscrowIfHeld(
     Number(escrow.amount) - nonRefundable,
   );
   await prisma.$transaction(async (tx) => {
+    // T7: add status guard to prevent double-refund race.
     await tx.escrow.update({
-      where: { id: escrow.id },
+      where: { id: escrow.id, status: 'held' },
       data: { status: 'refunded', refundedAt: new Date() },
     });
     await adjustCredit('user', userId, refundAmount, tx);

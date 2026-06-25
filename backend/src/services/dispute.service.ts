@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { notFound, businessRule } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { notify } from './notification.service';
+import { refundEscrowIfHeld } from './booking.service';
 
 /**
  * Dispute Service - CRUD for the Dispute model plus resolution logic.
@@ -115,13 +116,25 @@ export interface ResolveDisputeInput {
 
 /**
  * Resolve a dispute (admin action). Sets status to 'resolved' and records
- * the resolution type. Actual escrow adjustment is handled by the calling
- * route handler.
+ * the resolution type. When resolution is 'refund_customer', refunds the
+ * escrow back to the customer.
  */
 export async function resolveDispute(disputeId: string, input: ResolveDisputeInput) {
   const dispute = await getDispute(disputeId);
   if (!['open', 'under_review'].includes(dispute.status)) {
     throw businessRule(`Cannot resolve dispute in "${dispute.status}" status.`);
+  }
+
+  // T20: actually refund the customer when resolution is refund_customer
+  if (input.resolution === 'refund_customer' && dispute.booking) {
+    await refundEscrowIfHeld(
+      dispute.bookingId,
+      dispute.booking.servicerId,
+      dispute.booking.userId,
+      // booking details not available from dispute query, pass undefined
+      // so nonRefundable = 0 (full refund)
+      undefined,
+    );
   }
 
   return prisma.dispute.update({

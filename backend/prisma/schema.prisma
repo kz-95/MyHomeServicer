@@ -154,6 +154,10 @@ enum TransactionType {
   withdrawal
   gateway_payment
   deposit_topup
+  gateway_fee
+  registered_customer_discount
+  promo_cost
+  points_liability
 }
 
 enum TransactionStatus {

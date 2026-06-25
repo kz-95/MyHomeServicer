@@ -2,8 +2,8 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { uploadBuffer } from '../lib/s3';
-import { computeTotal, computePlatformFee, LineItem, ServicerTaxConfig } from '../lib/money';
-import { getPlatformFeeRate, getSstRate } from './settings.service';
+import { computeTotal, LineItem, ServicerTaxConfig } from '../lib/money';
+import { getSstRate } from './settings.service';
 import { notFound } from '../lib/errors';
 
 /** Round to 2 decimal places (currency). */
@@ -83,7 +83,7 @@ export async function generateInvoice(servicerId: string, bookingId: string) {
 
   // Resolve servicer tax config from the booked service + servicer (spec §2.6).
   const servicer = booking.servicer;
-  const [sstRateSetting, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
+  const sstRateSetting = await getSstRate();
   const servicerTaxConfig = resolveTaxConfig(servicer, sstRateSetting);
 
   const subtotal = money(lineItems.reduce((s, li) => s + li.amount, 0));
@@ -94,7 +94,10 @@ export async function generateInvoice(servicerId: string, bookingId: string) {
   const totalResult = computeTotal(lineItems, promoDiscount, servicerTaxConfig, tip);
 
   // Platform fee: based on afterPromo only (spec decision #1).
-  const platformFee = computePlatformFee(totalResult.afterPromo, feeRate);
+  // T13: use FeeRule engine instead of legacy computePlatformFee
+  const { computeFees } = await import('./fee-engine.service');
+  const categoryId = booking.quoteRequest?.categoryId ?? undefined;
+  const platformFee = await computeFees(totalResult.afterPromo, 'booking', categoryId);
 
   // INVARIANT: escrow.amount (pay_now) == invoice.total.
   // Log a warning if there's a mismatch - this indicates a bug in the money pipeline.
@@ -214,7 +217,7 @@ export async function getInvoicePreview(servicerId: string, bookingId: string): 
 
   const lineItems = resolveLineItems(booking);
   const servicer = booking.servicer;
-  const [sstRateSetting, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
+  const sstRateSetting = await getSstRate();
   const taxConfig = resolveTaxConfig(servicer, sstRateSetting);
 
   const subtotal = money(lineItems.reduce((s, li) => s + li.amount, 0));
@@ -222,7 +225,10 @@ export async function getInvoicePreview(servicerId: string, bookingId: string): 
   const tip = booking.tipAmount ? Number(booking.tipAmount) : 0;
 
   const totalResult = computeTotal(lineItems, promoDiscount, taxConfig, tip);
-  const platformFee = computePlatformFee(totalResult.afterPromo, feeRate);
+  // T13: use FeeRule engine instead of legacy computePlatformFee
+  const { computeFees } = await import('./fee-engine.service');
+  const categoryId = booking.quoteRequest?.categoryId ?? undefined;
+  const platformFee = await computeFees(totalResult.afterPromo, 'booking', categoryId);
 
   const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60_000);
 

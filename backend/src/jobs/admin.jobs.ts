@@ -5,6 +5,7 @@ import { logger } from '../lib/logger';
 import { JOB_NAMES } from '../lib/queue';
 import { registerJob } from './index';
 import { generateInvoice } from '../services/invoice.service';
+import { recordTransaction } from '../services/ledger.service';
 import { notify } from '../services/notification.service';
 
 const invoicePayload = z.object({
@@ -74,6 +75,19 @@ async function handlePromoCreditPayback(job: Job): Promise<void> {
         note: `Platform promo reimbursed`,
       },
     });
+    // T19: record promo_cost transaction for dashboard cost tracking
+    await recordTransaction(
+      {
+        type: 'promo_cost',
+        amount: discount,
+        bookingId,
+        servicerId: booking.servicerId,
+        userId: booking.userId,
+        reference: 'Platform promo reimbursement',
+        status: 'completed',
+      },
+      tx,
+    );
     // Track marketing-budget spend.
     const budget = await tx.platformMarketingBudget.findFirst({
       where: { isActive: true },

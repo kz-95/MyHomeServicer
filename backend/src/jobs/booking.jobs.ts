@@ -250,8 +250,9 @@ async function handleEscrowRelease(job: Job): Promise<void> {
   const servicerPayout = Math.max(0, amount - platformFee - urgentPlatformShare);
 
   await prisma.$transaction(async (tx) => {
+    // T8: add status guard to prevent double-release race.
     await tx.escrow.update({
-      where: { id: escrowId },
+      where: { id: escrowId, status: 'held' },
       data: { status: 'released', releasedAt: new Date() },
     });
     // Credit the servicer's wallet with their payout (price minus platform fee, plus tip,

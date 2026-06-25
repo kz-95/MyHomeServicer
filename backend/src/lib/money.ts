@@ -145,6 +145,9 @@ export function computeTotal(
  *
  * This replaces the dual `platform_charge` / `platform_fee_rate` system.
  * ONE setting, ONE function.
+ *
+ * @deprecated Use computeFees() from fee-engine.service instead.
+ * Kept as the internal fallback within computeFees when no FeeRules exist.
  */
 export function computePlatformFee(afterPromo: number, feeRate: number): number {
   const raw = afterPromo * feeRate;

@@ -283,6 +283,16 @@ export async function createQuote(
       registeredDiscount = Math.round(input.budgetMax * discountCfg.rate * 100) / 100;
     }
   }
+  // T18: record the discount as a transaction for dashboard tracking
+  if (registeredDiscount > 0) {
+    await recordTransaction({
+      type: 'registered_customer_discount',
+      amount: registeredDiscount,
+      userId,
+      reference: 'Registered customer discount (15%)',
+      status: 'completed',
+    });
+  }
   const discountApplied = promoDiscount + registeredDiscount;
 
   // Pay-now: deduct budgetMax (or budgetMin if open-ended) + tip from customer

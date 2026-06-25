@@ -112,6 +112,47 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   );
   const todayFees = Number(todayFeeRows[0]?.total ?? 0);
 
+  // ── T23: Cost-line queries ──────────────────────────────────────────
+  // gatewayFee: SUM of gateway_fee transactions (Stripe processing)
+  const [gatewayFeeRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'gateway_fee' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const gatewayFee = Number(gatewayFeeRow?.total ?? 0);
+
+  // registeredDiscount: SUM of registered_customer_discount transactions
+  const [regDiscountRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions
+     WHERE type = 'registered_customer_discount' AND status = 'completed' AND created_at >= $1`,
+    start,
+  );
+  const registeredDiscount = Number(regDiscountRow?.total ?? 0);
+
+  // promoCost: SUM of promo_cost transactions
+  const [promoCostRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'promo_cost' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const promoCost = Number(promoCostRow?.total ?? 0);
+
+  // pointsCost: SUM of points_liability transactions
+  const [pointsCostRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions
+     WHERE type = 'points_liability' AND status = 'completed' AND created_at >= $1`,
+    start,
+  );
+  const pointsCost = Number(pointsCostRow?.total ?? 0);
+
   // ── urgentFeeRevenue - sum of Booking.urgentFee where isUrgent=true ──
   const urgentAgg = await prisma.booking.aggregate({
     _sum: { urgentFee: true },
@@ -348,6 +389,11 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     todayFees,
     urgentFeeRevenue,
     urgentFeePlatformShare,
+    // T23: cost lines
+    gatewayFee,
+    registeredDiscount,
+    promoCost,
+    pointsCost,
     categoryBreakdown,
     dailyRevenue,
     dailyEscrow,
@@ -971,8 +1017,9 @@ export async function markWithdrawalPaid(adminId: string, withdrawalId: string, 
   if (w.status !== 'approved') throw conflict('Only approved withdrawals can be marked paid');
 
   return prisma.$transaction(async (tx) => {
+    // T9: add status guard to prevent double-pay race.
     const updated = await tx.servicerWithdrawal.update({
-      where: { id: withdrawalId },
+      where: { id: withdrawalId, status: 'approved' },
       data: { status: 'paid', paidAt: new Date() },
     });
     const servicer = await tx.servicer.update({

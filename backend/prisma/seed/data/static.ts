@@ -2417,6 +2417,9 @@ export const platformSettings: { key: string; value: unknown }[] = [
     },
   },
   { key: "servicer_proposal_preset_limit", value: { limit: 3 } },
+  // T17: gateway fee settings (Stripe MYR processing: 3.4% + RM 1.00)
+  { key: "gateway_fee_pct", value: 0.034 },
+  { key: "gateway_fee_fixed", value: 1.00 },
   { key: "notification_sound_enabled", value: true },
   { key: "chat_sound_enabled", value: true },
   { key: "typing_sound_enabled", value: true },
