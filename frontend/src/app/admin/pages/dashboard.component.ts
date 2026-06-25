@@ -311,15 +311,15 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
               <table class="cb-table">
                 <thead>
                   <tr>
-                    <th>Category</th>
-                    <th class="num">Bookings</th>
-                    <th class="num">Revenue</th>
-                    <th class="num">Fees</th>
-                    <th class="num">% of Total</th>
+                    <th (click)="sortState.set({key:'name',dir:sortState().key==='name'&&sortState().dir==='asc'?'desc':'asc'})">Category <span class="sort-icon">{{ sortIcon('name') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'count',dir:sortState().key==='count'&&sortState().dir==='asc'?'desc':'asc'})">Bookings <span class="sort-icon">{{ sortIcon('count') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'revenue',dir:sortState().key==='revenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('revenue') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'fees',dir:sortState().key==='fees'&&sortState().dir==='asc'?'desc':'asc'})">Fees <span class="sort-icon">{{ sortIcon('fees') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'pct',dir:sortState().key==='pct'&&sortState().dir==='asc'?'desc':'asc'})">% of Total <span class="sort-icon">{{ sortIcon('pct') }}</span></th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (row of fd.categoryBreakdown; track row.categoryId) {
+                  @for (row of sortedCategoryBreakdown(); track row.categoryId) {
                     <tr>
                       <td>{{ row.name }}</td>
                       <td class="num">{{ row.count }}</td>
@@ -351,14 +351,14 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
                 <thead>
                   <tr>
                     <th class="num-col">#</th>
-                    <th>Customer</th>
-                    <th class="num">Bookings</th>
-                    <th class="num">Total Spent</th>
-                    <th class="num">Last Booking</th>
+                    <th (click)="sortState.set({key:'custName',dir:sortState().key==='custName'&&sortState().dir==='asc'?'desc':'asc'})">Customer <span class="sort-icon">{{ sortIcon('custName') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'custBookings',dir:sortState().key==='custBookings'&&sortState().dir==='asc'?'desc':'asc'})">Bookings <span class="sort-icon">{{ sortIcon('custBookings') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'custSpent',dir:sortState().key==='custSpent'&&sortState().dir==='asc'?'desc':'asc'})">Total Spent <span class="sort-icon">{{ sortIcon('custSpent') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'custLast',dir:sortState().key==='custLast'&&sortState().dir==='asc'?'desc':'asc'})">Last Booking <span class="sort-icon">{{ sortIcon('custLast') }}</span></th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (row of fd.customerLeaderboard; track row.userId; let i = $index) {
+                  @for (row of sortedCustomerLB(); track row.userId; let i = $index) {
                     <tr>
                       <td class="num-col">{{ i + 1 }}</td>
                       <td><span class="lb-name">{{ row.name }}</span></td>
@@ -390,15 +390,15 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
                 <thead>
                   <tr>
                     <th class="num-col">#</th>
-                    <th>Servicer</th>
-                    <th class="num">Jobs</th>
-                    <th class="num">Revenue</th>
-                    <th class="num">Rating</th>
-                    <th class="num">Reports</th>
+                    <th (click)="sortState.set({key:'svcName',dir:sortState().key==='svcName'&&sortState().dir==='asc'?'desc':'asc'})">Servicer <span class="sort-icon">{{ sortIcon('svcName') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'svcJobs',dir:sortState().key==='svcJobs'&&sortState().dir==='asc'?'desc':'asc'})">Jobs <span class="sort-icon">{{ sortIcon('svcJobs') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'svcRevenue',dir:sortState().key==='svcRevenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('svcRevenue') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'svcRating',dir:sortState().key==='svcRating'&&sortState().dir==='asc'?'desc':'asc'})">Rating <span class="sort-icon">{{ sortIcon('svcRating') }}</span></th>
+                    <th class="num" (click)="sortState.set({key:'svcReports',dir:sortState().key==='svcReports'&&sortState().dir==='asc'?'desc':'asc'})">Reports <span class="sort-icon">{{ sortIcon('svcReports') }}</span></th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (row of fd.servicerLeaderboard; track row.servicerId; let i = $index) {
+                  @for (row of sortedServicerLB(); track row.servicerId; let i = $index) {
                     <tr>
                       <td class="num-col">{{ i + 1 }}</td>
                       <td><span class="lb-name">{{ row.businessName || row.name }}</span></td>
@@ -554,13 +554,16 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       .sort-btn { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
       .search-icon {
         position: absolute;
-        left: 0.7rem;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
         color: var(--color-muted);
         pointer-events: none;
+        z-index: 1;
       }
       .toolbar-search {
         width: 100%;
-        padding: 0.55rem 0.85rem 0.55rem 2.2rem;
+        padding: 0.55rem 0.85rem 0.55rem 2.5rem;
         border: 1px solid var(--color-border);
         border-radius: var(--radius-input);
         font-family: inherit;
@@ -810,6 +813,11 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       .cb-table tbody tr:last-child td { border-bottom: none; }
       .cb-table .num { text-align: right; white-space: nowrap; }
 
+      .cb-table th { cursor: pointer; user-select: none; white-space: nowrap; }
+      .cb-table th:hover { color: var(--color-primary); }
+      .sort-icon { font-size: 0.7rem; margin-left: 2px; opacity: 0.5; }
+      th:hover .sort-icon { opacity: 1; }
+
       /* ── Leaderboard tables ─────────────────────────────────────────── */
       .lb-table-wrap { padding: 0.5rem 1rem 1rem; }
       .lb-table {
@@ -834,6 +842,9 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       .lb-table tbody tr:last-child td { border-bottom: none; }
       .lb-table .num { text-align: right; white-space: nowrap; }
       .lb-table .num-col { text-align: center; width: 2rem; color: var(--color-muted); }
+
+      .lb-table th { cursor: pointer; user-select: none; white-space: nowrap; }
+      .lb-table th:hover { color: var(--color-primary); }
       .lb-name { font-weight: 500; }
       .rating-stars { color: var(--color-warning); }
       .report-warn { color: var(--color-danger); font-weight: 600; }
@@ -928,6 +939,49 @@ export class AdminDashboardComponent implements OnInit {
 
   // ── Search ───────────────────────────────────────────────────────────
   searchQuery = '';
+
+  // ── Sort ─────────────────────────────────────────────────────────────
+  sortState = signal<{ key: string; dir: 'asc' | 'desc' }>({ key: 'fees', dir: 'desc' });
+
+  sortIcon(key: string): string {
+    if (this.sortState().key !== key) return '↕';
+    return this.sortState().dir === 'asc' ? '▲' : '▼';
+  }
+
+  sortedCategoryBreakdown = computed(() => {
+    const rows = [...(this.finData()?.categoryBreakdown ?? [])];
+    const { key, dir } = this.sortState();
+    const m = dir === 'asc' ? 1 : -1;
+    if (key === 'name') rows.sort((a, b) => a.name.localeCompare(b.name) * m);
+    else if (key === 'count') rows.sort((a, b) => (a.count - b.count) * m);
+    else if (key === 'revenue') rows.sort((a, b) => (a.revenue - b.revenue) * m);
+    else if (key === 'fees') rows.sort((a, b) => (a.fees - b.fees) * m);
+    else if (key === 'pct') rows.sort((a, b) => ((a.fees / (this.finData()?.totalFees || 1)) - (b.fees / (this.finData()?.totalFees || 1))) * m);
+    return rows;
+  });
+
+  sortedCustomerLB = computed(() => {
+    const rows = [...(this.finData()?.customerLeaderboard ?? [])];
+    const { key, dir } = this.sortState();
+    const m = dir === 'asc' ? 1 : -1;
+    if (key === 'custName') rows.sort((a, b) => a.name.localeCompare(b.name) * m);
+    else if (key === 'custBookings') rows.sort((a, b) => (a.bookingCount - b.bookingCount) * m);
+    else if (key === 'custSpent') rows.sort((a, b) => (a.totalSpent - b.totalSpent) * m);
+    else if (key === 'custLast') rows.sort((a, b) => (a.lastBooking ?? '').localeCompare(b.lastBooking ?? '') * m);
+    return rows;
+  });
+
+  sortedServicerLB = computed(() => {
+    const rows = [...(this.finData()?.servicerLeaderboard ?? [])];
+    const { key, dir } = this.sortState();
+    const m = dir === 'asc' ? 1 : -1;
+    if (key === 'svcName') rows.sort((a, b) => (a.businessName || a.name).localeCompare(b.businessName || b.name) * m);
+    else if (key === 'svcJobs') rows.sort((a, b) => (a.jobCount - b.jobCount) * m);
+    else if (key === 'svcRevenue') rows.sort((a, b) => (a.revenue - b.revenue) * m);
+    else if (key === 'svcRating') rows.sort((a, b) => (a.rating - b.rating) * m);
+    else if (key === 'svcReports') rows.sort((a, b) => (a.reportCount - b.reportCount) * m);
+    return rows;
+  });
 
   // ── Lifecycle ────────────────────────────────────────────────────────
   ngOnInit(): void {
