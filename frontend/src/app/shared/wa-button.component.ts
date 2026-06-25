@@ -1,17 +1,17 @@
 import { Component, Input, OnChanges, computed, signal } from '@angular/core';
 
 /**
- * <app-wa-button> — standalone, reusable "Message on WhatsApp" button.
+ * <app-wa-button> - standalone, reusable "Message on WhatsApp" button.
  *
  * PUBLIC CONTRACT (consumed by Agent D's won-job card):
  *
  *   <app-wa-button
- *     [phone]="customerPhone"        // string  — customer phone, any local/intl format
- *     [preset]="chosenPreset"        // WaPreset | null — { label, body } template (optional)
- *     [body]="rawBody"               // string  — alternative to preset.body if no preset
- *     [vars]="{ name, orderId, eta }"// WaVars   — placeholder values (all optional)
- *     [label]="'Message on WhatsApp'"// string  — button text (optional, defaults shown)
- *     [disabled]="false"             // boolean  — disable the button (optional)
+ *     [phone]="customerPhone"        // string  - customer phone, any local/intl format
+ *     [preset]="chosenPreset"        // WaPreset | null - { label, body } template (optional)
+ *     [body]="rawBody"               // string  - alternative to preset.body if no preset
+ *     [vars]="{ name, orderId, eta }"// WaVars   - placeholder values (all optional)
+ *     [label]="'Message on WhatsApp'"// string  - button text (optional, defaults shown)
+ *     [disabled]="false"             // boolean  - disable the button (optional)
  *   ></app-wa-button>
  *
  * Behaviour:
@@ -25,7 +25,7 @@ import { Component, Input, OnChanges, computed, signal } from '@angular/core';
  *  - Opens `https://wa.me/<intlPhone>?text=<encodeURIComponent(message)>` in a new tab.
  *  - Disabled (and visually muted) when no usable phone is present.
  *
- * Pure presentation + window.open — no API calls, no router, no service deps, so it
+ * Pure presentation + window.open - no API calls, no router, no service deps, so it
  * drops onto any card. Either pass a `preset` (its `body` wins) or a raw `body`.
  */
 

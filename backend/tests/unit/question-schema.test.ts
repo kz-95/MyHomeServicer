@@ -1,8 +1,8 @@
 /**
- * Unit tests — questionSchemaSchema validation and checkQuestionSchemaImmutability.
+ * Unit tests - questionSchemaSchema validation and checkQuestionSchemaImmutability.
  *
  * Tests Zod schema parsing and immutability enforcement for category question schemas.
- * No mocks, no DB calls — pure function tests.
+ * No mocks, no DB calls - pure function tests.
  */
 
 import {
@@ -11,9 +11,9 @@ import {
   checkQuestionSchemaImmutability,
 } from '../../src/lib/json-schemas';
 
-// ── questionSchemaSchema — valid ────────────────────────────────────────────────
+// ── questionSchemaSchema - valid ────────────────────────────────────────────────
 
-describe('questionSchemaSchema — valid', () => {
+describe('questionSchemaSchema - valid', () => {
   it('parses minimal item [{ key, label, type }]', () => {
     const data = [{ key: 'q', label: 'Q', type: 'text' }] as const;
     const result = questionSchemaSchema.safeParse(data);
@@ -80,9 +80,9 @@ describe('questionSchemaSchema — valid', () => {
   });
 });
 
-// ── questionSchemaSchema — invalid ──────────────────────────────────────────────
+// ── questionSchemaSchema - invalid ──────────────────────────────────────────────
 
-describe('questionSchemaSchema — invalid', () => {
+describe('questionSchemaSchema - invalid', () => {
   it('rejects unsupported type "select"', () => {
     const data = [{ key: 'q', label: 'Q', type: 'select' }];
     const result = questionSchemaSchema.safeParse(data);
@@ -109,9 +109,9 @@ describe('questionSchemaSchema — invalid', () => {
   });
 });
 
-// ── checkQuestionSchemaImmutability — allowed changes ────────────────────────────
+// ── checkQuestionSchemaImmutability - allowed changes ────────────────────────────
 
-describe('checkQuestionSchemaImmutability — allowed changes', () => {
+describe('checkQuestionSchemaImmutability - allowed changes', () => {
   const base: QuestionSchema = [
     {
       key: 'rooms',
@@ -215,9 +215,9 @@ describe('checkQuestionSchemaImmutability — allowed changes', () => {
   });
 });
 
-// ── checkQuestionSchemaImmutability — violations ─────────────────────────────────
+// ── checkQuestionSchemaImmutability - violations ─────────────────────────────────
 
-describe('checkQuestionSchemaImmutability — violations', () => {
+describe('checkQuestionSchemaImmutability - violations', () => {
   const base: QuestionSchema = [
     {
       key: 'rooms',

@@ -1,5 +1,5 @@
 /**
- * E2E tests — cash payment booking lifecycle.
+ * E2E tests - cash payment booking lifecycle.
  *
  * Covers the full flow for a cash booking:
  *   submit cash quote → merchant proposes → customer accepts →

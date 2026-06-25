@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Minimal admin seed - creates a single non-demo admin account so the admin
  * panel is usable without loading the full demo dataset.
  *

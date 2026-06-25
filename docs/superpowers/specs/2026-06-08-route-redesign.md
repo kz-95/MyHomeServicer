@@ -1,4 +1,4 @@
-# App-Wide Route Redesign — RESTful URL Restructuring
+﻿# App-Wide Route Redesign - RESTful URL Restructuring
 
 > 2026-06-08 · Specification · Phase 1 complete, Phase 2–6 pending
 >
@@ -7,10 +7,10 @@
 > map; the companion audits the FULL reroute surface (backend `linkUrl`/Stripe/search/
 > chat-AI emitters, seed FAQ, dynamic routes) and adds a **new Phase 6**. Two things in
 > THIS doc's example route configs are deliberately incomplete and MUST NOT be copied
-> verbatim — see the companion:
+> verbatim - see the companion:
 > 1. The `Routes` examples omit backward-compat **`redirectTo` entries** (companion §6).
 > 2. The admin `Routes` example omits **`canActivate: [adminActionPinGuard]`** on
->    `users`, `queues` (→ parent), and `settings/api-keys` — copying it verbatim makes the
+>    `users`, `queues` (→ parent), and `settings/api-keys` - copying it verbatim makes the
 >    demo PIN gate (token + accidental-edit safeguard) stop firing on those pages
 >    (companion §9f). Carry every guard onto its renamed/nested route.
 
@@ -20,16 +20,16 @@ Key design decisions from the brainstorming session:
 
 | Decision | Outcome |
 |----------|---------|
-| `/servicer/jobs/:id` page type | **Full page** (A) — replaces the jobs list, browser back returns to list |
+| `/servicer/jobs/:id` page type | **Full page** (A) - replaces the jobs list, browser back returns to list |
 | Calendar card: description state | **All collapsed by default**, only one open at a time (toggle behavior) |
 | Calendar card: View Job behavior | `window.open()` new tab on desktop (>760px), `router.navigate` on mobile |
-| Calendar card: address format | Single `address` field (DB stores one line — "No.18, Jalan Tempua 5"), displayed with postcode/district/state appended |
+| Calendar card: address format | Single `address` field (DB stores one line - "No.18, Jalan Tempua 5"), displayed with postcode/district/state appended |
 | Calendar card: payment label | `pay_now` → always "Paid", `pay_later` → always "Unpaid", `cash` → depends on `cashConfirmed` |
 | Customer bookings tabs | Pending + Active share same `MyBookingsComponent`, History uses separate `OrderHistoryComponent` |
 | Admin queues tabs | All 4 sub-routes use same `AdminQueuesComponent`, read which tab from URL segment |
 | Notification settings | Nested under `/notifications/settings` for both customer and servicer |
-| FAQ | No standalone route — stays embedded in admin AI Chat settings |
-| Chat | No `/chat` route — stays a floating widget |
+| FAQ | No standalone route - stays embedded in admin AI Chat settings |
+| Chat | No `/chat` route - stays a floating widget |
 
 ## Goal
 
@@ -60,10 +60,10 @@ bookmarkable, shareable, browser-navigable URLs.
 |--------|---------|---------|-----------|--------|
 | GET | `/servicer` | `/servicer` | `ServicerDashboardComponent` | Keep |
 | GET | `/servicer/jobs` *(in-component tab signal)* | `/servicer/jobs/pending` | `ServicerJobsComponent` (pending tab) | **Refactor** |
-| GET | — | `/servicer/jobs/active` | `ServicerJobsComponent` (active tab) | **Add** |
-| GET | — | `/servicer/jobs/history` | `ServicerJobsComponent` (history tab) | **Add** |
-| GET | — | `/servicer/jobs/history/:id` | Single history job detail | **NEW** |
-| GET | — | `/servicer/jobs/:id` | Active job detail/actions overlay | **NEW** |
+| GET | - | `/servicer/jobs/active` | `ServicerJobsComponent` (active tab) | **Add** |
+| GET | - | `/servicer/jobs/history` | `ServicerJobsComponent` (history tab) | **Add** |
+| GET | - | `/servicer/jobs/history/:id` | Single history job detail | **NEW** |
+| GET | - | `/servicer/jobs/:id` | Active job detail/actions overlay | **NEW** |
 | GET | `/servicer/services` | `/servicer/services` | `ServicerServicesComponent` | Keep |
 | GET | `/servicer/services/new` | `/servicer/services/new` | `ListingWizardComponent` | Keep |
 | GET | `/servicer/services/:id/edit` | `/servicer/services/:id/edit` | `ListingWizardComponent` | Keep |
@@ -94,7 +94,7 @@ bookmarkable, shareable, browser-navigable URLs.
 | Old Label | Old Route | New Label | New Route | exact? |
 |-----------|-----------|-----------|-----------|--------|
 | Dashboard | `/servicer` | Dashboard | `/servicer` | yes |
-| My Jobs | `/servicer/jobs` | My Jobs | `/servicer/jobs/pending` | no — match prefix `/jobs` |
+| My Jobs | `/servicer/jobs` | My Jobs | `/servicer/jobs/pending` | no - match prefix `/jobs` |
 | Calendar | `/servicer/calendar` | Calendar | `/servicer/calendar` | no |
 | Service Listings | `/servicer/services` | Service Listings | `/servicer/services` | no |
 | Promotions | `/servicer/promotions` | Promotions | `/servicer/promotions` | no |
@@ -132,10 +132,10 @@ bookmarkable, shareable, browser-navigable URLs.
 | GET | `/customer/quotes` | `/customer/quotes` | `MyQuotesComponent` | Keep |
 | GET | `/customer/quotes/:id/proposals` | `/customer/quotes/:id/proposals` | `ProposalsComponent` | Keep |
 | GET | `/customer/bookings` | `/customer/bookings/active` | `MyBookingsComponent` (active tab) | **Refactor** |
-| GET | — | `/customer/bookings/pending` | `MyBookingsComponent` (pending tab) | **Add** |
+| GET | - | `/customer/bookings/pending` | `MyBookingsComponent` (pending tab) | **Add** |
 | GET | `/customer/history` | `/customer/bookings/history` | `OrderHistoryComponent` | **Rename** |
-| GET | — | `/customer/bookings/history/:id` | Single history booking detail | **NEW** |
-| GET | — | `/customer/bookings/:id` | Single active booking detail | **NEW** |
+| GET | - | `/customer/bookings/history/:id` | Single history booking detail | **NEW** |
+| GET | - | `/customer/bookings/:id` | Single active booking detail | **NEW** |
 | GET | `/customer/rewards` | `/customer/rewards` | `RewardsComponent` | Keep |
 | GET | `/customer/transactions` | `/customer/transactions` | `TransactionsComponent` | Keep |
 | GET | `/customer/account` | `/customer/account` | `AccountComponent` | Keep |
@@ -156,8 +156,8 @@ bookmarkable, shareable, browser-navigable URLs.
 |-----------|-----------|-----------|-----------|--------|
 | Find a Service | `/customer` | Find a Service | `/customer` | yes |
 | Current Quotes | `/customer/quotes` | Current Quotes | `/customer/quotes` | no |
-| Upcoming | `/customer/bookings` | Bookings | `/customer/bookings/active` | no — match prefix `/bookings` |
-| Order History | `/customer/history` | *(removed)* | *(merged into `/customer/bookings/history`)* | — |
+| Upcoming | `/customer/bookings` | Bookings | `/customer/bookings/active` | no - match prefix `/bookings` |
+| Order History | `/customer/history` | *(removed)* | *(merged into `/customer/bookings/history`)* | - |
 | Payments | `/customer/transactions` | Payments | `/customer/transactions` | no |
 | Rewards | `/customer/rewards` | Rewards | `/customer/rewards` | no |
 | Notifications | `/customer/notifications` | Notifications | `/customer/notifications` | no |
@@ -202,14 +202,14 @@ No structural changes. Guest routes remain flat (only one page: `/guest/quote/ne
 |--------|---------|---------|-----------|--------|
 | GET | `/admin` | `/admin` | `AdminDashboardComponent` | Keep |
 | GET | `/admin/users` | `/admin/users` | `AdminUsersComponent` (tabs via query params inside) | Keep |
-| GET | — | `/admin/users/:id` | Single user detail | **NEW** |
+| GET | - | `/admin/users/:id` | Single user detail | **NEW** |
 | GET | `/admin/merchants` | `/admin/merchants` | `AdminMerchantsComponent` | Keep |
-| GET | — | `/admin/merchants/:id` | Single merchant detail | **NEW** |
+| GET | - | `/admin/merchants/:id` | Single merchant detail | **NEW** |
 | GET | `/admin/queues` | `/admin/queues` | `AdminQueuesComponent` (or redirect) | Keep |
-| GET | — | `/admin/queues/withdrawals` | Withdrawals review queue | **NEW sub-route** |
-| GET | — | `/admin/queues/appeals` | Appeals review queue | **NEW sub-route** |
-| GET | — | `/admin/queues/category` | Category requests queue | **NEW sub-route** |
-| GET | — | `/admin/queues/reports` | Reports queue | **NEW sub-route** |
+| GET | - | `/admin/queues/withdrawals` | Withdrawals review queue | **NEW sub-route** |
+| GET | - | `/admin/queues/appeals` | Appeals review queue | **NEW sub-route** |
+| GET | - | `/admin/queues/category` | Category requests queue | **NEW sub-route** |
+| GET | - | `/admin/queues/reports` | Reports queue | **NEW sub-route** |
 | GET | `/admin/settings` | `/admin/settings` | `AdminSettingsComponent` | Keep |
 | GET | `/admin/money-settings` | `/admin/settings/money` | Financial settings | **Rename** |
 | GET | `/admin/uiux-settings` | `/admin/settings/uiux` | UI/UX settings | **Rename** |
@@ -224,7 +224,7 @@ No structural changes. Guest routes remain flat (only one page: `/guest/quote/ne
 |-----------|-----------|-----------|-----------|--------|
 | Dashboard | `/admin` | Dashboard | `/admin` | yes |
 | Accounts | `/admin/users` | Users | `/admin/users` | no |
-| Review Queues | `/admin/queues` | Review Queues | `/admin/queues/withdrawals` | no — match prefix `/queues` |
+| Review Queues | `/admin/queues` | Review Queues | `/admin/queues/withdrawals` | no - match prefix `/queues` |
 | AI Chat Settings | `/admin/ai-chat-settings` | AI Chat & FAQ | `/admin/settings/ai-chat` | no |
 | Financial Settings | `/admin/money-settings` | Financial | `/admin/settings/money` | no |
 | Category Settings | `/admin/category-settings` | Categories | `/admin/settings/categories` | no |
@@ -281,12 +281,12 @@ No structural changes.
 
 ---
 
-## 6. Dead Links — Remediation
+## 6. Dead Links - Remediation
 
 | Dead Link | File | Line | Fix |
 |-----------|------|------|-----|
-| `/customer/chat` | `customer/pages/my-bookings.component.ts` | 724 | Remove — chat is a widget, not a route. Open widget via `ChatWidgetService` instead. |
-| `/contact` | `shared/chat-widget.component.ts` | 1482 | Remove — no contact page exists. Replace with another action or suppress. |
+| `/customer/chat` | `customer/pages/my-bookings.component.ts` | 724 | Remove - chat is a widget, not a route. Open widget via `ChatWidgetService` instead. |
+| `/contact` | `shared/chat-widget.component.ts` | 1482 | Remove - no contact page exists. Replace with another action or suppress. |
 | `/admin/dashboard` | `admin/pages/setup-wizard.component.ts` | 99 | Change to `/admin`. |
 
 ---
@@ -302,11 +302,11 @@ the redesign:
 - If `linkQuoteList`, return `/customer/quotes` (unchanged).
 - If `linkReorder`, return `/customer/bookings/history` (was `/customer/history`).
 
-**File:** `shared/services/notification.service.ts` — update `linkReorder` return value.
+**File:** `shared/services/notification.service.ts` - update `linkReorder` return value.
 
 ### Snackbar Navigation
 
-`SnackbarComponent` calls `notifications.routeFor()`. No direct changes needed — it picks
+`SnackbarComponent` calls `notifications.routeFor()`. No direct changes needed - it picks
 up the new routes from the notification service.
 
 ### Chat Widget Navigation
@@ -324,7 +324,7 @@ up the new routes from the notification service.
 
 ---
 
-## 8. Files Changed — Complete Inventory
+## 8. Files Changed - Complete Inventory
 
 | # | File | Type | Change Summary |
 |---|------|------|----------------|
@@ -355,11 +355,11 @@ up the new routes from the notification service.
 
 | Phase | Scope | Files | Risk |
 |-------|-------|-------|------|
-| **1** | Servicer jobs sub-routes | `servicer.routes.ts`, `jobs.component.ts`, `servicer-shell.component.ts`, `calendar.component.ts` | Medium — single component refactor |
-| **2** | Customer bookings restructure | `customer.routes.ts`, `my-bookings.component.ts`, `order-history.component.ts`, `customer-shell.component.ts`, `proposals.component.ts` | Medium — merges two pages |
-| **3** | Admin settings + queues nesting | `admin.routes.ts`, `admin-shell.component.ts`, `dashboard.component.ts`, `setup-wizard.component.ts` | Low — mostly renaming |
-| **4** | Shared + notification routing | `chat-widget.component.ts`, `notification.service.ts`, dead link fixes | Low — small targeted edits |
-| **5** | New detail pages (optional stretch) | `jobs/history/:id`, `jobs/:id`, `bookings/:id`, `users/:id`, `merchants/:id` | Medium — new components |
+| **1** | Servicer jobs sub-routes | `servicer.routes.ts`, `jobs.component.ts`, `servicer-shell.component.ts`, `calendar.component.ts` | Medium - single component refactor |
+| **2** | Customer bookings restructure | `customer.routes.ts`, `my-bookings.component.ts`, `order-history.component.ts`, `customer-shell.component.ts`, `proposals.component.ts` | Medium - merges two pages |
+| **3** | Admin settings + queues nesting | `admin.routes.ts`, `admin-shell.component.ts`, `dashboard.component.ts`, `setup-wizard.component.ts` | Low - mostly renaming |
+| **4** | Shared + notification routing | `chat-widget.component.ts`, `notification.service.ts`, dead link fixes | Low - small targeted edits |
+| **5** | New detail pages (optional stretch) | `jobs/history/:id`, `jobs/:id`, `bookings/:id`, `users/:id`, `merchants/:id` | Medium - new components |
 
 ---
 
@@ -492,10 +492,10 @@ export const adminRoutes: Routes = [
 
 ## 11. Non-Goals (things NOT changing)
 
-- Guest routes — single page, no children to restructure
+- Guest routes - single page, no children to restructure
 - Public routes (`/`, `/login`, `/register`, `/terms`, `/auth/*`, `/services/:slug`)
-- Chat widget — stays a floating overlay, not a route
-- FAQ — stays embedded in admin settings, no standalone route
-- API routes — backend endpoint paths unchanged
-- `window.location.href` hard navigations in `shell.component.ts` — unchanged
-- Demo bar login redirects — unchanged (they use dynamic `role` variable)
+- Chat widget - stays a floating overlay, not a route
+- FAQ - stays embedded in admin settings, no standalone route
+- API routes - backend endpoint paths unchanged
+- `window.location.href` hard navigations in `shell.component.ts` - unchanged
+- Demo bar login redirects - unchanged (they use dynamic `role` variable)

@@ -1,4 +1,4 @@
-# Admin Platform Settings Redesign
+﻿# Admin Platform Settings Redesign
 
 > 2026-05-28 · Brainstorming session · Approved
 
@@ -57,7 +57,7 @@ Search bar + filter dropdown (All / Active / Inactive). Each category is a colla
 | **Budget ranges** | Existing range-row UI (min–max inputs + Add/Remove) | Stored in `budget_ranges` platform setting per-category |
 | **Time slots** | Checkboxes: ☐ Morning ☐ Noon ☐ Afternoon ☐ Evening ☐ Night | New per-category field `allowedTimeSlots` (String[] on Category model) |
 | **Custom questions** | Full CRUD: list of questions with Add/Edit/Delete/Reorder | `questionSchema` JSON field on Category model |
-| **Condo note** | *(Removed from per-category — moved to General tab)* | — |
+| **Condo note** | *(Removed from per-category - moved to General tab)* | - |
 | **[Save]** button | Saves all changes for this category | PATCH `/admin/categories/:id` |
 
 **Custom questions CRUD:**
@@ -65,14 +65,14 @@ Each question has:
 - Label (string, e.g. "Select type of aircon and type of cleaning")
 - Type (radio / checkbox / text)
 - Required (boolean toggle)
-- Priced (boolean toggle — priced questions feed `computePrefill()` proposal price calc)
+- Priced (boolean toggle - priced questions feed `computePrefill()` proposal price calc)
 - Options (for radio/checkbox): list of { value, label } with Add/Remove per row
 
 Backend: extends existing `PATCH /admin/categories/:id` to accept `questionSchema` updates.
 
 ### Servicer tab
 
-Unchanged from current — rules for charge floors, deposit/withdrawal limits, no-show enforcement. Will be extended later with team size rules when the servicer proposal feature is designed.
+Unchanged from current - rules for charge floors, deposit/withdrawal limits, no-show enforcement. Will be extended later with team size rules when the servicer proposal feature is designed.
 
 ### Location tab
 
@@ -80,7 +80,7 @@ New tab for postcode-to-district/state mapping. Searchable table with postcode, 
 
 ### Thumbnails tab
 
-Unchanged from current — per-category image upload with preview and clear.
+Unchanged from current - per-category image upload with preview and clear.
 
 ---
 
@@ -134,7 +134,7 @@ Existing `GET/PATCH /admin/settings` remains for the key-value store settings.
 
 | Component | File | Description |
 |-----------|------|-------------|
-| `settings.component.ts` | `admin/pages/settings.component.ts` | Main page — rebuild tabs, add Categories component |
+| `settings.component.ts` | `admin/pages/settings.component.ts` | Main page - rebuild tabs, add Categories component |
 | *(inline)* | Inside settings | Categories tab: search bar + filter + collapsible category cards |
 | *(inline)* | Inside settings | Custom question editor: inline CRUD rows per category |
 | *(postcodes)* | New or inline | Location tab: searchable postcode table |

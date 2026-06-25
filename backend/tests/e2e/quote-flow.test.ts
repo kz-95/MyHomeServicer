@@ -154,7 +154,7 @@ e2e('Quote → booking → done (end-to-end)', () => {
 // payment settles. The quote is parked in pending_payment with zero broadcast
 // rows; the checkout.session.completed webhook (settleAndBroadcastGuestQuote)
 // flips it to open and broadcasts it only after the wallet is funded.
-e2e('Payment gate — guest pay_now is not broadcast before payment', () => {
+e2e('Payment gate - guest pay_now is not broadcast before payment', () => {
   let app: Application;
   let categoryId = '';
 
@@ -232,7 +232,7 @@ e2e('Payment gate — guest pay_now is not broadcast before payment', () => {
     const after = await prisma.quoteRequest.findUnique({ where: { id: quoteId } });
     expect(after?.status).toBe('open');
 
-    // Idempotent — a redelivered webhook must not change anything.
+    // Idempotent - a redelivered webhook must not change anything.
     const broadcastBefore = await prisma.quoteBroadcast.count({ where: { quoteRequestId: quoteId } });
     await settleAndBroadcastGuestQuote(quoteId);
     const broadcastAfter = await prisma.quoteBroadcast.count({ where: { quoteRequestId: quoteId } });

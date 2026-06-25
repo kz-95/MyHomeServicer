@@ -1,4 +1,4 @@
-# Financial System — Consolidated Spec
+﻿# Financial System - Consolidated Spec
 
 > 2026-06-23 · Merged from `deposit-credit-promotions` (2026-05-28) + `admin-dashboard-financial-redesign` (2026-06-23)
 
@@ -61,7 +61,7 @@ Unify the platform's financial architecture into a single coherent system coveri
 
 | Property | Value |
 |----------|-------|
-| Purpose | Security buffer. Locked — cannot be spent or withdrawn directly. |
+| Purpose | Security buffer. Locked - cannot be spent or withdrawn directly. |
 | Source | Job earnings land here first |
 | Minimum | RM 100 (configurable via `minimum_required` on `ServicerDeposit`) |
 | Drained by | Platform fees on cash/pay-later jobs, penalties, refunds |
@@ -75,7 +75,7 @@ Unify the platform's financial architecture into a single coherent system coveri
 | Source | Stripe top-up, transfers from Deposit |
 | Minimum | RM 0 (no minimum) |
 | Drained by | Withdrawal to bank |
-| Can top up? | ✅ Yes — via Stripe Checkout (same flow as customer) |
+| Can top up? | ✅ Yes - via Stripe Checkout (same flow as customer) |
 
 ### Money flow
 
@@ -141,7 +141,7 @@ Promotion
   id, label, description, active
   triggerType (topup_min_amount | order_percent | first_booking | signup_bonus | seasonal_fixed | ...)
   valueType (percent | fixed), value (Decimal)
-  conditions (Json — minAmount, categoryId, nthNumber, etc.)
+  conditions (Json - minAmount, categoryId, nthNumber, etc.)
   targetRole (customer | servicer | all)
   startDate?, endDate?
   maxUses?, usedCount, maxPerUser?
@@ -223,10 +223,10 @@ evaluatePromotions(triggerType, context { userId, amount?, categoryId?, bookingC
 ```
 
 **Backend:**
-- `GET /promotions/active?role=customer` — returns active promotions
-- `POST /promotions/claim` — customer claims a promotion (creates a `ClaimedReward` record)
-- `GET /customer/rewards` — returns claimed rewards with status (available/used/expired), expiry date, requirements
-- `POST /quotes/:id/apply-reward` — applies a claimed reward to a quote (validates conditions + expiry)
+- `GET /promotions/active?role=customer` - returns active promotions
+- `POST /promotions/claim` - customer claims a promotion (creates a `ClaimedReward` record)
+- `GET /customer/rewards` - returns claimed rewards with status (available/used/expired), expiry date, requirements
+- `POST /quotes/:id/apply-reward` - applies a claimed reward to a quote (validates conditions + expiry)
 - Rewards that auto-trigger (e.g. `first_booking`, `signup_bonus`) are claimed automatically when the customer meets the condition
 
 **Model:**
@@ -261,7 +261,7 @@ model ClaimedReward {
 ├── [Financial cards]  Top-ups | Fees | Escrow | Payouts | Net revenue | Conversion
 ├── [Revenue chart]  [From] [To] | [Q1][Q2][Q3][Q4] [Year] | [30d][7d][Today]
 │   └── Candle chart (open/close/high/low per day)
-└── [Admin footer] — simplified, no category listing
+└── [Admin footer] - simplified, no category listing
 ```
 
 ### Financial endpoint
@@ -290,7 +290,7 @@ Reuse existing `createTopUpSession()` from `stripe.ts`. New endpoint `POST /serv
 
 ### Withdrawal
 
-`POST /servicer/me/withdrawal` — PIN-gated, records bank details from profile. Admin approves via existing `POST /admin/withdrawals/:id/mark-paid`.
+`POST /servicer/me/withdrawal` - PIN-gated, records bank details from profile. Admin approves via existing `POST /admin/withdrawals/:id/mark-paid`.
 
 ### Bank account
 
@@ -322,20 +322,20 @@ Scheduled job: auto-release N days after completion with no dispute. Dispute fla
 
 | Step | Phase | What | Effort | Depends on |
 |------|-------|------|--------|-----------|
-| 1 | P1 | Wallet model + BalanceCheckpoint | 3h | — |
+| 1 | P1 | Wallet model + BalanceCheckpoint | 3h | - |
 | 2 | P1 | Seed wallets + migrate creditBalance | 2h | 1 |
 | 3 | P1 | Rewrite adjustCredit to use Wallet | 4h | 2 |
 | 4 | P1 | Remove old creditBalance columns | 1h | 3 |
-| 5 | — | Add bankName/bankAccount/onboarded to Servicer | 1h | — |
-| 6 | — | Promotion model + CRUD (admin) | 3h | — |
-| 7 | — | Promotion evaluation engine | 3h | 6 |
+| 5 | - | Add bankName/bankAccount/onboarded to Servicer | 1h | - |
+| 6 | - | Promotion model + CRUD (admin) | 3h | - |
+| 7 | - | Promotion evaluation engine | 3h | 6 |
 | 8 | P2 | FeeRule model + admin CRUD | 3h | 1 |
 | 9 | P2 | Replace computePlatformFee with FeeRule | 2h | 8 |
-| 10 | — | Servicer Stripe top-up endpoint | 1h | — |
-| 11 | — | Deposit↔Credit transfer endpoint | 2h | — |
-| 12 | — | Deposit page redesign (frontend) | 4h | 10, 11 |
-| 13 | — | Onboarding gate | 1h | 5 |
-| 14 | P3 | SavedPaymentMethod + SetupIntent flow | 4h | — |
+| 10 | - | Servicer Stripe top-up endpoint | 1h | - |
+| 11 | - | Deposit↔Credit transfer endpoint | 2h | - |
+| 12 | - | Deposit page redesign (frontend) | 4h | 10, 11 |
+| 13 | - | Onboarding gate | 1h | 5 |
+| 14 | P3 | SavedPaymentMethod + SetupIntent flow | 4h | - |
 | 15 | P4 | Escrow auto-release + dispute | 4h | 1 |
 | 16 | P5 | Financial dashboard widgets + candle chart | 5h | 1, 9 |
 | 17 | P5 | CSV export | 2h | 1 |

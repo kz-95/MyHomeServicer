@@ -1,4 +1,4 @@
-﻿import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/prisma';
 import { emitToUser, emitToServicer } from '../socket';
 import { logger } from '../lib/logger';
 
@@ -11,14 +11,14 @@ import { logger } from '../lib/logger';
 export interface NotificationPrefs {
   /** Per-type on/off toggles. */
   types: Record<string, boolean>;
-  /** Category ids the recipient follows — empty means "all categories". */
+  /** Category ids the recipient follows - empty means "all categories". */
   followedCategoryIds: string[];
 }
 
 /** Known notification types (the settings UI renders a toggle per type). */
 export const NOTIFICATION_TYPES = ['orders', 'jobs', 'listings', 'promos', 'queues', 'payments'] as const;
 
-/** Default settings — every type on, no category filter. */
+/** Default settings - every type on, no category filter. */
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   types: { orders: true, jobs: true, listings: true, promos: true, queues: true },
   followedCategoryIds: [],
@@ -41,7 +41,7 @@ interface NotificationInput {
   servicerId?: string;
   /** In-app redirect target for a click, e.g. `/customer/quotes/<id>`. */
   linkUrl?: string;
-  /** Optional category id — drives the "followed categories" filter. */
+  /** Optional category id - drives the "followed categories" filter. */
   category?: string;
   linkQuoteList?: string;
   linkReorder?: string;
@@ -50,7 +50,7 @@ interface NotificationInput {
 /**
  * Creates an in-app notification row, unless the recipient has that type
  * switched off, or they follow specific categories and this one isn't among
- * them. Never throws — a notification failure must not break the triggering
+ * them. Never throws - a notification failure must not break the triggering
  * action. Pushes a lightweight socket event for the customer badge.
  */
 export async function notify(input: NotificationInput): Promise<void> {
@@ -105,7 +105,7 @@ export async function notify(input: NotificationInput): Promise<void> {
 }
 
 /**
- * Notifies every admin — admins are USER rows with `role = admin`. Used for
+ * Notifies every admin - admins are USER rows with `role = admin`. Used for
  * "a queue item needs settling" alerts.
  */
 export async function notifyAdmins(

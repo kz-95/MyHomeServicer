@@ -1,6 +1,6 @@
 /**
  * One-off: apply local demo profile pictures to already-seeded servicers.
- * Non-destructive — only updates Servicer.logoUrl, matched by email.
+ * Non-destructive - only updates Servicer.logoUrl, matched by email.
  *
  *   npx ts-node --transpile-only prisma/seed/apply-logos.ts
  *

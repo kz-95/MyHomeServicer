@@ -25,8 +25,8 @@ export function configurePassport(): void {
             name,
           });
           // With a custom authenticate() callback (session: false) this object is
-          // passed straight through to that callback — it's the auth result, not a
-          // req.user principal — so the Express.User typing doesn't apply here.
+          // passed straight through to that callback - it's the auth result, not a
+          // req.user principal - so the Express.User typing doesn't apply here.
           done(null, result as unknown as Express.User);
         } catch (err) {
           done(err as Error, undefined);

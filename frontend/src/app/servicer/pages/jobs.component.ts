@@ -52,6 +52,7 @@ interface IncomingQuote {
   state?: string | null;
   lat?: number | null;
   lng?: number | null;
+  distanceKm?: number | null;
   notes?: string | null;
   descriptions?: string[];
 }
@@ -73,6 +74,7 @@ interface Job {
   address?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
+  distanceKm?: number | null;
   quoteRequest: { category: { name: string } };
 }
 interface JobDetail {
@@ -202,6 +204,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
                         <span class="pq-tag budget">RM {{ q.budgetMin ?? '—' }}–{{ q.budgetMax ?? '—' }}</span>
                         @if (q.propertyType) { <span class="pq-tag">{{ q.propertyType }}</span> }
                         @if (q.paymentMode) { <span class="pq-tag pay">{{ payLabel(q.paymentMode) }}</span> }
+                        @if (q.distanceKm != null) { <span class="pq-tag dist">{{ q.distanceKm | number:'1.1-1' }} km</span> }
                       </div>
                     </div>
                   </div>
@@ -332,55 +335,45 @@ const ACTIVE = ['confirmed', 'in_progress'];
         } @else {
           <div class="grid">
             @for (j of filteredActiveJobs(); track j.id) {
-              <div class="card item">
-                <!-- Session + timer -->
-                <div class="ac-head">
-                  <div>
-                    <strong class="ac-session">{{ sessionLabel(j) }}</strong>
-                    <span class="ac-timer" [class.ac-urgent]="isUrgent(j)">{{ countdown(j) }}</span>
+              <div class="card item acard">
+                <div class="ac-left">
+                  <strong class="ac-title">{{ j.scheduledDate | date: 'EEE, MMM d' }} · {{ timeSpan(j) }} · {{ sessionLabel(j) }}</strong>
+                  <span class="ac-timer" [class.ac-urgent]="isUrgent(j)">{{ countdown(j) }}</span>
+                  <span class="ac-cust">{{ j.customerName ?? '-' }}</span>
+                  <div class="ac-price-row">
+                    <span class="ac-price">RM {{ j.price | number: '1.2-2' }}</span>
+                    <span class="sep">·</span>
+                    <span>{{ j.etaMinutes ?? '-' }} min</span>
+                    <span class="sep">·</span>
+                    <span>{{ formatPaymentMode(j.paymentMode) }}</span>
+                    @if (j.distanceKm != null) {
+                      <span class="sep">·</span>
+                      <span>{{ j.distanceKm | number:'1.1-1' }} km</span>
+                    }
                   </div>
-                  <span class="badge">{{ j.status }}</span>
                 </div>
-                <div class="ac-date">
-                  {{ j.scheduledDate | date: 'EEE, MMM d' }} · {{ timeSpan(j) }}
-                </div>
-                <!-- Price · duration · payment · distance -->
-                <div class="ac-meta">
-                  <span class="ac-price">RM {{ j.price | number: '1.2-2' }}</span>
-                  <span class="sep">·</span>
-                  <span>{{ j.etaMinutes ?? '—' }} min</span>
-                  <span class="sep">·</span>
-                  <span>{{ formatPaymentMode(j.paymentMode) }}</span>
-                </div>
-                <!-- Customer name -->
-                @if (j.customerName) {
-                  <div class="ac-customer">{{ j.customerName }}</div>
-                }
-                <div class="actions">
-                  <button class="btn-ghost small-btn" (click)="openOverlay(j.id)">
-                    View details
-                  </button>
-                </div>
-                <div class="ac-bar">
-                  @if (j.status === 'confirmed') {
-                    <button class="btn-primary" (click)="openPhotoModal(j, 'arrive_photo')">
-                      Mark arrived
-                    </button>
-                  }
-                  @if (j.status === 'in_progress') {
-                    <button class="btn-primary" (click)="openPhotoModal(j, 'done_photo')">
-                      Mark done
-                    </button>
-                  }
-                  @if (j.customerPhone) {
-                    <app-wa-button
-                      [phone]="j.customerPhone"
-                      [body]="'Hi {name}, this is regarding your booking ' + (j.orderId || '') + '. '"
-                      [vars]="{ name: j.customerName || '', orderId: j.orderId || '', eta: j.etaMinutes ? (j.etaMinutes + ' min') : '' }"
-                      label="WhatsApp"
-                    ></app-wa-button>
-                  }
-                  <button class="btn-ghost" (click)="cancel(j)">Cancel</button>
+                <div class="ac-right">
+                  <div class="ac-rr">
+                    <span [class]="statusBadgeClass(j.status)">{{ j.status }}</span>
+                    <button class="btn-ghost btn-sm" (click)="openOverlay(j.id)">Details</button>
+                    <button class="btn-ghost btn-sm" (click)="openJobMap(j, 'google')">Map</button>
+                  </div>
+                  <div class="ac-rr">
+                    @if (j.status === 'in_progress') {
+                      <button class="btn-primary btn-sm" (click)="openPhotoModal(j, 'done_photo')">Mark done</button>
+                    }
+                    @if (j.status === 'confirmed') {
+                      <button class="btn-primary btn-sm" (click)="openPhotoModal(j, 'arrive_photo')">Mark arrived</button>
+                    }
+                    @if (j.customerPhone) {
+                      <app-wa-button
+                        [phone]="j.customerPhone"
+                        [body]="'Hi {name}, this is regarding your booking ' + (j.orderId || '') + '. '"
+                        [vars]="{ name: j.customerName || '', orderId: j.orderId || '', eta: j.etaMinutes ? (j.etaMinutes + ' min') : '' }"
+                        label="WhatsApp"
+                      ></app-wa-button>
+                    }
+                  </div>
                 </div>
               </div>
             } @empty {
@@ -828,26 +821,25 @@ const ACTIVE = ['confirmed', 'in_progress'];
       }
       .pq-msg { margin: 0; font-size: 0.85rem; color: var(--color-text); line-height: 1.35; }
 
-      /* ── Active card layout ──────────────────────────────────────────────── */
-      .ac-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
-      .ac-head > div { display: flex; flex-direction: column; gap: 0.15rem; }
-      .ac-session { font-size: 0.92rem; font-weight: 700; }
-      .ac-timer { font-size: 0.78rem; color: var(--color-muted); }
-      .ac-timer.ac-urgent { color: var(--color-warning, #d97706); font-weight: 600; }
-      .ac-date { font-size: 0.82rem; color: var(--color-muted); margin-top: 0.15rem; }
-      .ac-meta { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; font-size: 0.85rem; margin-top: 0.35rem; }
-      .ac-price { font-weight: 700; color: var(--color-primary); font-size: 0.95rem; }
-      .ac-customer { font-size: 0.82rem; color: var(--color-muted); margin-top: 0.25rem; }
-      .ac-bar { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid var(--color-border); }
-      .ac-bar .btn-primary { flex: 1; font-size: 0.85rem; padding: 0.5rem 0.75rem; }
-      .ac-bar .btn-ghost { font-size: 0.82rem; }
+      /* -- Active card -- two-column layout ------------------------------------ */
+      .acard { padding: 0.7rem 0.85rem; display: flex; flex-direction: row; gap: 0.75rem; align-items: flex-start; }
+      .ac-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+      .ac-right { display: flex; flex-direction: column; gap: 0.3rem; flex-shrink: 0; }
+      .ac-rr { display: flex; align-items: center; gap: 0.35rem; }
+      .ac-rr .btn-sm { flex: 1; min-width: 60px; }
+      .ac-rr .badge { flex-shrink: 0; }
+      .ac-rr app-wa-button { display: block; flex: 1; }
+      .ac-rr app-wa-button button { width: 100% !important; box-sizing: border-box; }
+      .ac-title { font-size: 1.2rem; font-weight: 700; line-height: 1.25; }
+      .ac-timer { font-size: 0.95rem; color: var(--color-muted); }
+      .ac-cust { font-size: 1rem; color: var(--color-muted); }
+      .ac-price-row { font-size: 0.95rem; display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; }
+      .ac-price { font-weight: 700; color: var(--color-primary); font-size: 1.05rem; }
+      .btn-sm { font-size: 0.85rem; padding: 0.4rem 0.75rem; border-radius: var(--radius); line-height: 1.3; min-height: 36px; white-space: nowrap; }
       .sep { color: var(--color-border); }
+
       .small {
         font-size: 0.8rem;
-      }
-      /* .badge base style comes from global styles.css */
-      .badge {
-        align-self: flex-start;   /* override global inline-flex alignment for this list layout */
       }
       .done {
         font-size: 0.75rem;
@@ -1568,6 +1560,11 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
 
   formatPaymentMode(mode: string): string {
     return this.PAY_LABELS[mode] ?? mode;
+  }
+
+  /** Placeholder distance — will be replaced with actual Haversine calc when servicer coords available. */
+  computeDistance(j: Job): string {
+    return '-';
   }
 
   // ── Pending card helpers ───────────────────────────────────────────────────

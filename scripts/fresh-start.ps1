@@ -1,4 +1,4 @@
-# scripts/fresh-start.ps1
+﻿# scripts/fresh-start.ps1
 # ─────────────────────────────────────────────────────────────────────────────
 # One-command fresh start: spin up infrastructure, wait for healthy services,
 # reset + reseed the database, then print the commands to start the app.
@@ -23,7 +23,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 Write-Host ""
 Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  MyServicer — Fresh Start" -ForegroundColor Cyan
+Write-Host "  MyServicer - Fresh Start" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host ""
 
@@ -70,7 +70,7 @@ npm run db:reset
 if ($LASTEXITCODE -ne 0) { Write-Error "db:reset failed"; exit 1 }
 Write-Host "      Database ready with demo seed data." -ForegroundColor Green
 
-# ── Done — print start instructions ──────────────────────────────────────────
+# ── Done - print start instructions ──────────────────────────────────────────
 Set-Location $RepoRoot
 Write-Host ""
 Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor Green
@@ -87,7 +87,7 @@ Write-Host ""
 Write-Host "  Off-network tunnel:" -ForegroundColor Cyan
 Write-Host "    .\scripts\tunnel.ps1"
 Write-Host ""
-Write-Host "  Demo accounts — password: Demo@2026" -ForegroundColor Yellow
+Write-Host "  Demo accounts - password: Demo@2026" -ForegroundColor Yellow
 Write-Host "    customer.fresh@demo.local  |  admin@demo.local (PIN: 1234)"
 Write-Host "    merchant.1@demo.local  ...  merchant.12@demo.local"
 Write-Host ""

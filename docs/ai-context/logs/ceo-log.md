@@ -1,11 +1,11 @@
-# CEO / Orchestrator Agent Log
+﻿# CEO / Orchestrator Agent Log
 
-> Single-writer log — only the **CEO/Orchestrator** agent writes here.
+> Single-writer log - only the **CEO/Orchestrator** agent writes here.
 > This agent is READ-ONLY on code. It tracks, dispatches, and coordinates.
 
-## Session 2026-06-24 19:22 — Bug-dump Triage: 11 Tasks — ALL COMPLETE ✅
+## Session 2026-06-24 19:22 - Bug-dump Triage: 11 Tasks - ALL COMPLETE ✅
 
-**Status: COMPLETE** — all 11 bugs fixed in 12 commits on `feat/sp3-dispatch-cards`. Gates: backend tsc clean, frontend tsc clean, ng build exit 0.
+**Status: COMPLETE** - all 11 bugs fixed in 12 commits on `feat/sp3-dispatch-cards`. Gates: backend tsc clean, frontend tsc clean, ng build exit 0.
 
 ### Completion Summary
 
@@ -27,7 +27,7 @@
 
 **Docs updated:** `TODO.md` (all 11 ticked), `BUGS-TO-FIX.md` (marked complete), `ceo-log.md` (this entry).
 
-**Handoff to next CEO:** All bugs resolved. Run QA gate: `npx tsc --noEmit` (backend), `npx tsc --noEmit` + `ng build` (frontend). Task 8 (finance engine) is the remaining demo-critical item — the 7 QA/BE code bugs were the blockers.
+**Handoff to next CEO:** All bugs resolved. Run QA gate: `npx tsc --noEmit` (backend), `npx tsc --noEmit` + `ng build` (frontend). Task 8 (finance engine) is the remaining demo-critical item - the 7 QA/BE code bugs were the blockers.
 
 ---
 
@@ -38,12 +38,12 @@
 
 ---
 
-### Task 1 — QA-005: Dispatch escrow bypass (CRITICAL)
+### Task 1 - QA-005: Dispatch escrow bypass (CRITICAL)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | CRITICAL (demo-blocking — pay_now dispatch = uncharged customer, unpaid servicer) |
+| Priority | CRITICAL (demo-blocking - pay_now dispatch = uncharged customer, unpaid servicer) |
 | Input | `qa-log.md` lines 582-627, `dispatch.service.ts:197-234`, `booking.service.ts:89-345` |
 | Output | `handleDispatchAccept()` mirrors `selectProposal()` payment logic for pay_now: computeTotal → escrow.create → wallet deduct / gateway_payment → escrow_hold → platform_fee reserve. All inside the existing `$transaction`. |
 | Time | 30 min |
@@ -51,7 +51,7 @@
 | TODO | line 65 |
 
 **Fix guidance:**
-- `dispatch.service.ts:197-234` (`$transaction` scope) — after creating `QuoteProposal` + `Booking`, replicate `selectProposal()` lines 131-344:
+- `dispatch.service.ts:197-234` (`$transaction` scope) - after creating `QuoteProposal` + `Booking`, replicate `selectProposal()` lines 131-344:
   1. Build `lineItemsSnapshot` from `accept.price` (single service line item) + `qr.urgentFee` if applicable
   2. `computeTotal(lineItemsSnapshot, 0, config, 0)` → `escrowTotal` (config from servicer tax: `serviceChargeRate`/`sstRegistered`/`taxInclusive`)
   3. `escrow.create({ amount: escrowTotal, ... })`
@@ -64,48 +64,48 @@
 
 ---
 
-### Task 2 — BE-007: Service-area filter neutered (CRITICAL)
+### Task 2 - BE-007: Service-area filter neutered (CRITICAL)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | CRITICAL — every area-less servicer matches every quote |
+| Priority | CRITICAL - every area-less servicer matches every quote |
 | Input | `quote.service.ts:117-118` |
 | Output | Remove `|| true` from line 118. `some()` already returns boolean. |
 | Time | 15 min |
 | Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
 | TODO | line 68 |
 
-**Fix:** `quote.service.ts:118` — `return m.serviceAreas.some(...) || true;` → `return m.serviceAreas.some(...);`. The `|| true` makes the entire `filter` callback always return true, so ALL servicers pass the area filter regardless of their service areas.
+**Fix:** `quote.service.ts:118` - `return m.serviceAreas.some(...) || true;` → `return m.serviceAreas.some(...);`. The `|| true` makes the entire `filter` callback always return true, so ALL servicers pass the area filter regardless of their service areas.
 
 **Gate:** `npx tsc --noEmit` zero new errors.
 
 ---
 
-### Task 3 — BE-001: AI gets "[object Promise]" (CRITICAL)
+### Task 3 - BE-001: AI gets "[object Promise]" (CRITICAL)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | CRITICAL — AI system prompt starts with "[object Promise]" instead of the actual prompt |
+| Priority | CRITICAL - AI system prompt starts with "[object Promise]" instead of the actual prompt |
 | Input | `chat.service.ts:46` (async function), `chat.service.ts:271` (call site) |
 | Output | Add `await` before `buildSystemPrompt(role)` at line 271 |
 | Time | 10 min |
 | Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
 | TODO | line 69 |
 
-**Fix:** `chat.service.ts:271` — `const base = buildSystemPrompt(role);` → `const base = await buildSystemPrompt(role);`. `buildSystemPrompt` is declared `async` at line 46 but the call at line 271 lacks `await`, so `base` is a Promise object. When concatenated into the system prompt string, it serializes as `[object Promise]`.
+**Fix:** `chat.service.ts:271` - `const base = buildSystemPrompt(role);` → `const base = await buildSystemPrompt(role);`. `buildSystemPrompt` is declared `async` at line 46 but the call at line 271 lacks `await`, so `base` is a Promise object. When concatenated into the system prompt string, it serializes as `[object Promise]`.
 
 **Gate:** `npx tsc --noEmit` zero new errors.
 
 ---
 
-### Task 4 — BE-008: Double-refund in quote.no_response (CRITICAL)
+### Task 4 - BE-008: Double-refund in quote.no_response (CRITICAL)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | CRITICAL — concurrent BullMQ retry can double-refund credit |
+| Priority | CRITICAL - concurrent BullMQ retry can double-refund credit |
 | Input | `quote.jobs.ts:83-99` |
 | Output | Guard the refund (lines 90-99) with an idempotency check: query for existing `refund` transaction with same `quoteRequestId` before processing. Or wrap refund + status-update in a `$transaction` so the atomic status guard (line 64) prevents re-entry. |
 | Time | 20 min |
@@ -113,55 +113,55 @@
 | TODO | line 70 |
 
 **Fix:** The refund at `quote.jobs.ts:90-99` runs AFTER the status update at line 84-87. On concurrent retry, two workers could both pass the `status === 'open'` check (line 64) before either executes the status update. Options:
-- **(Recommended)** Wrap lines 84-98 in `prisma.$transaction()` — the status update runs atomically with the refund, and the `status` guard on retry blocks re-entry.
+- **(Recommended)** Wrap lines 84-98 in `prisma.$transaction()` - the status update runs atomically with the refund, and the `status` guard on retry blocks re-entry.
 - **(Alternative)** Before refund, check `prisma.transaction.findFirst({ where: { quoteRequestId, type: 'refund' } })` and skip if found.
 
 **Gate:** `npx tsc --noEmit` zero new errors.
 
 ---
 
-### Task 5 — BE-011: No-show counter drift (CRITICAL)
+### Task 5 - BE-011: No-show counter drift (CRITICAL)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | CRITICAL — counter silent desync on BullMQ retry |
+| Priority | CRITICAL - counter silent desync on BullMQ retry |
 | Input | `booking.jobs.ts:53-89` |
 | Output | Move the `prisma.servicer.update` (lines 86-89: `consecutiveNoshow` + `weeklyNoshow` increment) INSIDE the `$transaction` block (lines 53-84). |
 | Time | 15 min |
 | Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
 | TODO | line 71 |
 
-**Fix:** `booking.jobs.ts:86-89` — the `prisma.servicer.update({ data: { consecutiveNoshow: {increment:1}, weeklyNoshow: {increment:1} } })` runs AFTER the `$transaction` block closes at line 84. If this `update` fails (network blip, DB hiccup), the booking is already cancelled + escrow refunded (inside the `$transaction`) but the counters are NOT incremented. On BullMQ retry, line 50 (`if (booking.status === 'cancelled') return`) blocks re-processing → silent counter desync. Move the `update` call inside the `$transaction` so it succeeds or fails atomically with the booking cancellation.
+**Fix:** `booking.jobs.ts:86-89` - the `prisma.servicer.update({ data: { consecutiveNoshow: {increment:1}, weeklyNoshow: {increment:1} } })` runs AFTER the `$transaction` block closes at line 84. If this `update` fails (network blip, DB hiccup), the booking is already cancelled + escrow refunded (inside the `$transaction`) but the counters are NOT incremented. On BullMQ retry, line 50 (`if (booking.status === 'cancelled') return`) blocks re-processing → silent counter desync. Move the `update` call inside the `$transaction` so it succeeds or fails atomically with the booking cancellation.
 
 **Gate:** `npx tsc --noEmit` zero new errors.
 
 ---
 
-### Task 6 — BE-013: Demo-login security (HIGH)
+### Task 6 - BE-013: Demo-login security (HIGH)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | HIGH — any account with password `Demo@2026` is freely loggable |
+| Priority | HIGH - any account with password `Demo@2026` is freely loggable |
 | Input | `routes/index.ts:248-269` |
 | Output | Block `directEmail` from the request body. Only allow the 3 known demo emails from the `DEMO_ACCOUNTS` map. |
 | Time | 10 min |
 | Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
 | TODO | line 72 |
 
-**Fix:** `routes/index.ts:259` — the `directEmail` variable allows ANY email to be passed in the request body, and the endpoint calls `login(email, 'Demo@2026')` with it. Any real account whose password is `Demo@2026` (a shared dev password that exists on some demo accounts) is loggable through this endpoint without proper authentication. Fix: remove `directEmail` — only use `DEMO_ACCOUNTS[role]`. The endpoint is already hard-blocked in production via `allowDemo`, but this hardens dev.
+**Fix:** `routes/index.ts:259` - the `directEmail` variable allows ANY email to be passed in the request body, and the endpoint calls `login(email, 'Demo@2026')` with it. Any real account whose password is `Demo@2026` (a shared dev password that exists on some demo accounts) is loggable through this endpoint without proper authentication. Fix: remove `directEmail` - only use `DEMO_ACCOUNTS[role]`. The endpoint is already hard-blocked in production via `allowDemo`, but this hardens dev.
 
 **Gate:** `npx tsc --noEmit` zero new errors.
 
 ---
 
-### Task 7 — BE-019: Chat verify-pin token leak (HIGH)
+### Task 7 - BE-019: Chat verify-pin token leak (HIGH)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | HIGH — PIN verification state may leak across users/sessions |
+| Priority | HIGH - PIN verification state may leak across users/sessions |
 | Input | `routes/chat.routes.ts:285-315`, `middleware/pin.ts`, chat PIN cooldown/rate-limit functions |
 | Output | Audit `recordPinFailure()` / `recordPinSuccess()` / `checkPinCooldown()` for cross-user key collisions. Ensure Redis keys are namespaced by `userId`. Verify the `ok` result from `/chat/verify-pin` is never cached/replayed across sessions. |
 | Time | 15 min |
@@ -169,20 +169,20 @@
 | TODO | line 73 |
 
 **Fix guidance:** The `/chat/verify-pin` endpoint (lines 285-315) verifies PIN and returns `{ ok: true }` but does NOT issue or consume a token. The bug-dump flagged "token store leaks + never consumed". Audit:
-1. `recordPinFailure(userId)` + `recordPinSuccess(userId)` — are Redis keys scoped to `userId`? Could a race/timing attack leak attempt state across accounts?
-2. `checkPinCooldown(userId)` — same check.
+1. `recordPinFailure(userId)` + `recordPinSuccess(userId)` - are Redis keys scoped to `userId`? Could a race/timing attack leak attempt state across accounts?
+2. `checkPinCooldown(userId)` - same check.
 3. After successful verification, is there any guard preventing the chatbot from replaying the `ok` state across sessions?
 
 **Gate:** `npx tsc --noEmit` zero new errors.
 
 ---
 
-### Task 8 — QA-003: Double platform_fee recording (MEDIUM)
+### Task 8 - QA-003: Double platform_fee recording (MEDIUM)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | MEDIUM — admin dashboard `totalFees` double-counts pay_now bookings |
+| Priority | MEDIUM - admin dashboard `totalFees` double-counts pay_now bookings |
 | Input | `qa-log.md` lines 393-422, `booking.service.ts:333-344` (reserve), `booking.jobs.ts:229-238` (release) |
 | Output | Either: (a) remove the booking-time `platform_fee` reserve (lines 333-344) and let only the release record the fee; OR (b) use a different `type` (e.g. `platform_fee_reserve`) for the booking-time record and exclude it from the dashboard `totalFees` query. |
 | Time | 20 min |
@@ -190,21 +190,21 @@
 | TODO | line 66 |
 
 **Fix:** Two `platform_fee` transactions exist per pay_now booking:
-- `booking.service.ts:333-344` — reserve at booking creation (`Platform fee reserve (pay_now, ...)`)
-- `booking.jobs.ts:229-238` — actual fee at escrow release (`Platform fee (escrow release)`)
+- `booking.service.ts:333-344` - reserve at booking creation (`Platform fee reserve (pay_now, ...)`)
+- `booking.jobs.ts:229-238` - actual fee at escrow release (`Platform fee (escrow release)`)
 
-The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee'` and sums both. **Recommended fix:** remove the booking-time reserve (lines 333-344) — the release transaction is the authoritative fee event. Keep the reference text update: change "Platform fee reserve" → "Platform fee (escrow release)" already at the release path.
+The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee'` and sums both. **Recommended fix:** remove the booking-time reserve (lines 333-344) - the release transaction is the authoritative fee event. Keep the reference text update: change "Platform fee reserve" → "Platform fee (escrow release)" already at the release path.
 
 **Gate:** `npx tsc --noEmit` zero new errors.
 
 ---
 
-### Task 9 — QA-004: Urgent fee split not enforced (MEDIUM)
+### Task 9 - QA-004: Urgent fee split not enforced (MEDIUM)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | MEDIUM — 20/80 urgent split is dashboard-only, not deducted from servicer payout |
+| Priority | MEDIUM - 20/80 urgent split is dashboard-only, not deducted from servicer payout |
 | Input | `qa-log.md` lines 428-466, `admin.service.ts:102-117`, `quote-timing.service.ts:46-49`, `booking.jobs.ts:186-255` |
 | Output | Wire `splitUrgentFee()` into `handleEscrowRelease()` at `booking.jobs.ts:219-220`. Deduct `urgentPlatformShare` from servicer payout and record a separate `urgent_fee_platform` transaction. |
 | Time | 20 min |
@@ -222,30 +222,30 @@ The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee
 
 ---
 
-### Task 10 — QA-002: Missing per-servicer skip log (LOW)
+### Task 10 - QA-002: Missing per-servicer skip log (LOW)
 
 | Field | Value |
 |-------|-------|
 | Target | **Backend** |
-| Priority | LOW — polish, no functional impact |
+| Priority | LOW - polish, no functional impact |
 | Input | `qa-log.md` lines 268-269, `dispatch.service.ts:41-58` |
 | Output | Add a `logger.info()` inside the `startDispatchRotation()` filter loop when a servicer is skipped for offline/outside-working-hours. |
 | Time | 5 min |
 | Status | 🟡 Dispatched to Backend @ 2026-06-24 19:22 |
 | TODO | line 58 |
 
-**Fix:** `dispatch.service.ts:47-58` — the loop currently `continue`s silently for offline (`!m.isOnline`, line 48) and out-of-hours servicers (line 55). Add `logger.info('Servicer skipped — offline', { servicerId })` and `logger.info('Servicer skipped — outside working hours', { servicerId })` before each `continue`.
+**Fix:** `dispatch.service.ts:47-58` - the loop currently `continue`s silently for offline (`!m.isOnline`, line 48) and out-of-hours servicers (line 55). Add `logger.info('Servicer skipped - offline', { servicerId })` and `logger.info('Servicer skipped - outside working hours', { servicerId })` before each `continue`.
 
 **Gate:** `npx tsc --noEmit` zero new errors.
 
 ---
 
-### Task 11 — QA-001: Frontend countdown hardcoded (LOW)
+### Task 11 - QA-001: Frontend countdown hardcoded (LOW)
 
 | Field | Value |
 |-------|-------|
 | Target | **Frontend** |
-| Priority | LOW — defaults match (10s), desyncs only if admin changes `dispatch_prompt_timeout_seconds` |
+| Priority | LOW - defaults match (10s), desyncs only if admin changes `dispatch_prompt_timeout_seconds` |
 | Input | `qa-log.md` lines 267-268, `dispatch-prompt-guard.component.ts:310` |
 | Output | Include `timeoutSeconds` in the `dispatch.prompt` socket payload (`dispatch.service.ts:130-146`) and have the frontend read it instead of hardcoding 10. |
 | Time | 10 min (5 min backend + 5 min frontend) |
@@ -253,15 +253,15 @@ The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee
 | TODO | line 57 |
 
 **Fix:**
-- **Backend:** `dispatch.service.ts:130-146` (`sendDispatchPrompt`) — add `timeoutSeconds: timeout` to the socket payload object.
-- **Frontend:** `dispatch-prompt-guard.component.ts:310` — read `timeoutSeconds` from the incoming `dispatch.prompt` socket event payload (add field to `DispatchPrompt` interface). Change `this.countdownSecs.set(10)` to `this.countdownSecs.set(payload.timeoutSeconds ?? 10)`.
-- **Frontend (add):** `dispatch-prompt-guard.component.ts` — update `DispatchPrompt` interface to include `timeoutSeconds?: number`.
+- **Backend:** `dispatch.service.ts:130-146` (`sendDispatchPrompt`) - add `timeoutSeconds: timeout` to the socket payload object.
+- **Frontend:** `dispatch-prompt-guard.component.ts:310` - read `timeoutSeconds` from the incoming `dispatch.prompt` socket event payload (add field to `DispatchPrompt` interface). Change `this.countdownSecs.set(10)` to `this.countdownSecs.set(payload.timeoutSeconds ?? 10)`.
+- **Frontend (add):** `dispatch-prompt-guard.component.ts` - update `DispatchPrompt` interface to include `timeoutSeconds?: number`.
 
-**Gate:** Backend `npx tsc --noEmit` + Frontend `npx tsc --noEmit` + `ng build` — all zero errors.
+**Gate:** Backend `npx tsc --noEmit` + Frontend `npx tsc --noEmit` + `ng build` - all zero errors.
 
 ---
 
-## Quick Index — Bug-Dump Triage Dispatch
+## Quick Index - Bug-Dump Triage Dispatch
 
 | # | ID | Agent | Priority | Time | TODO Line |
 |---|-----|-------|----------|------|-----------|
@@ -277,15 +277,15 @@ The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee
 | 10 | QA-002 | Backend | LOW | 5 min | 58 |
 | 11 | QA-001 | Frontend (+ Backend) | LOW | 10 min | 57 |
 
-**Dependencies:** None — all 11 tasks touch different code areas. All can be dispatched in parallel to their respective agents.
+**Dependencies:** None - all 11 tasks touch different code areas. All can be dispatched in parallel to their respective agents.
 
 **Next CEO checkpoint:** After all agents report done, read `backend-log.md` + `frontend-log.md` for completion evidence, then run the QA gate: `npx tsc --noEmit` (backend), `npx tsc --noEmit` + `ng build` (frontend).
 
 ---
 
-## Session 2026-06-24 17:30 — Task RFG + Task 8-QA Dispatch
+## Session 2026-06-24 17:30 - Task RFG + Task 8-QA Dispatch
 
-### Task RFG — routeFor() typed path guard (Group 3)
+### Task RFG - routeFor() typed path guard (Group 3)
 
 | Field | Value |
 |-------|-------|
@@ -296,7 +296,7 @@ The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee
 | Status | 🟡 Dispatched to `frontend-cowork` @ 2026-06-24 17:30 |
 | TODO line | 143 |
 
-### Task 8-QA — Finance engine end-to-end verification (Group 1 Step 1.4)
+### Task 8-QA - Finance engine end-to-end verification (Group 1 Step 1.4)
 
 | Field | Value |
 |-------|-------|
@@ -307,15 +307,15 @@ The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee
 | Status | 🟡 Dispatched to `qa-cowork` @ 2026-06-24 17:30 |
 | TODO line | 59-62 |
 
-**Dependencies:** None — RFG and 8-QA are independent (different agents, different scopes). Dispatched in parallel.
+**Dependencies:** None - RFG and 8-QA are independent (different agents, different scopes). Dispatched in parallel.
 
-**Context:** Task 7-QA already completed (qa-log.md lines 243-326) — dispatch overlay fully verified with 7 PASS, 2 low-severity polish gaps (QA-001, QA-002).
+**Context:** Task 7-QA already completed (qa-log.md lines 243-326) - dispatch overlay fully verified with 7 PASS, 2 low-severity polish gaps (QA-001, QA-002).
 
 ---
 
-## Session 2026-06-24 16:33 — Task ADM Verification
+## Session 2026-06-24 16:33 - Task ADM Verification
 
-### Task ADM — Admin banned-accounts + deactivate + search → COMPLETE ✅
+### Task ADM - Admin banned-accounts + deactivate + search → COMPLETE ✅
 
 **Dispatched from:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Group 3
 
@@ -329,13 +329,13 @@ The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee
 | Schema | User.active / deactivationCount / deactivatedAt | ✅ |
 | Schema | Servicer.active / deactivationCount / deactivatedAt | ✅ |
 | Migration | `0_init` + `1_add_newer_tables` contain banned_emails + deactivation fields | ✅ |
-| Backend | `deactivate.service.ts` — email suffix `_dNN`, auto-ban after 10, booking cancel, email notification, session invalidation | ✅ |
-| Backend | `POST /user/me/deactivate` — password verification, handles Google-only accounts | ✅ |
-| Backend | `POST /servicer/me/deactivate` — PIN verification with cooldown | ✅ |
-| Backend | `GET /admin/banned-emails` — paginated, searchable by email substring | ✅ |
-| Backend | `POST /admin/banned-emails` — manual ban, PIN-gated | ✅ |
-| Backend | `DELETE /admin/banned-emails/:id` — unban, PIN-gated | ✅ |
-| Backend | `GET /admin/users` — search by email/name/businessName + role filter | ✅ |
+| Backend | `deactivate.service.ts` - email suffix `_dNN`, auto-ban after 10, booking cancel, email notification, session invalidation | ✅ |
+| Backend | `POST /user/me/deactivate` - password verification, handles Google-only accounts | ✅ |
+| Backend | `POST /servicer/me/deactivate` - PIN verification with cooldown | ✅ |
+| Backend | `GET /admin/banned-emails` - paginated, searchable by email substring | ✅ |
+| Backend | `POST /admin/banned-emails` - manual ban, PIN-gated | ✅ |
+| Backend | `DELETE /admin/banned-emails/:id` - unban, PIN-gated | ✅ |
+| Backend | `GET /admin/users` - search by email/name/businessName + role filter | ✅ |
 | Backend | Auth routes check BannedEmail on registration (both customer + servicer) | ✅ |
 | Frontend | Admin settings → Banned tab (search, table, ban modal, unban confirm, empty state) | ✅ |
 | Frontend | Admin users page → search bar, role filter dropdown, All Accounts + Servicer tabs | ✅ |
@@ -346,20 +346,20 @@ The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee
 
 | Gate | Result |
 |------|--------|
-| Backend tsc --noEmit | 9 pre-existing errors in fintech services (dispute.service.ts, fee-engine.service.ts, saved-payment.service.ts) — NOT ADM-related |
+| Backend tsc --noEmit | 9 pre-existing errors in fintech services (dispute.service.ts, fee-engine.service.ts, saved-payment.service.ts) - NOT ADM-related |
 | Frontend tsc --noEmit | 0 errors |
-| Frontend ng build | Exit 0 (1 non-blocking warning: IconComponent unused in ServiceWizardComponent — SP3 task) |
+| Frontend ng build | Exit 0 (1 non-blocking warning: IconComponent unused in ServiceWizardComponent - SP3 task) |
 
 #### Actions taken
 
 - TODO.md line 128 ticked
 - ceo-log.md updated (this entry)
 
-#### No code changes required — all ADM components already built.
+#### No code changes required - all ADM components already built.
 
 ---
 
-## Session 2026-06-24 17:12 — Task NAV (Maps/Waze on confirmed booking) → COMPLETE ✅
+## Session 2026-06-24 17:12 - Task NAV (Maps/Waze on confirmed booking) → COMPLETE ✅
 
 ### Dispatched from: `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Group 2
 
@@ -374,7 +374,7 @@ The admin dashboard query (`admin.service.ts:47`) does `WHERE type='platform_fee
 |------|--------|
 | Backend listBookings() | Already returns `lat`, `lng`, `address` from quoteRequest.address (booking.service.ts:759-761) |
 | Servicer jobs.component.ts | Already had `openJobMap()` method (line 1696-1703) with correct Google Maps directions + Waze URLs in both Active + History tabs |
-| Customer my-bookings.component.ts | **Gap** — Booking interface missing lat/lng/address; no Maps/Waze buttons |
+| Customer my-bookings.component.ts | **Gap** - Booking interface missing lat/lng/address; no Maps/Waze buttons |
 
 ### Changes made (frontend-cowork)
 
@@ -405,18 +405,18 @@ Pushed to `feat/sp3-dispatch-cards`.
 ## Quick Index
 | Section | Line |
 |---------|------|
-| **Session 2026-06-24 19:22 — Bug-dump triage: 11 tasks** | **6** |
+| **Session 2026-06-24 19:22 - Bug-dump triage: 11 tasks** | **6** |
 | Rules & gates | ~320 |
 | Task assignments (Round 1) | ~350 |
-| Session 2026-06-24 17:30 — RFG + 8-QA | ~385 |
-| Session 2026-06-24 16:33 — ADM verification | ~415 |
-| Session 2026-06-24 17:12 — NAV | ~460 |
-| Session 2026-06-02 — Spec audit + dispatch | ~520 |
+| Session 2026-06-24 17:30 - RFG + 8-QA | ~385 |
+| Session 2026-06-24 16:33 - ADM verification | ~415 |
+| Session 2026-06-24 17:12 - NAV | ~460 |
+| Session 2026-06-02 - Spec audit + dispatch | ~520 |
 | **Older sessions...** | ~800+ |
 
 ---
 
-## Session 2026-06-02 — Spec Audit Complete, Phase 1 Dispatched
+## Session 2026-06-02 - Spec Audit Complete, Phase 1 Dispatched
 
 **CEO:** Full audit of 20 spec files + 4 plans against codebase. TODO.md consolidated.
 **Completed this session:** Identity change request admin queue (routes + service), arrive/done 400 fix, 36-merchant seed restructure, customer quote priority sort.
@@ -424,7 +424,7 @@ Pushed to `feat/sp3-dispatch-cards`.
 
 ---
 
-### Task 1 — Money Epic (remaining items)
+### Task 1 - Money Epic (remaining items)
 | Field | Value |
 |-------|-------|
 | Target | Backend + Frontend |
@@ -446,11 +446,11 @@ Pushed to `feat/sp3-dispatch-cards`.
 ```
 - In booking.service.ts and quote.service.ts: before creating a quote/booking,
   check if customer has unpaid invoices (invoice.paidAt IS NULL AND dueDate < now)
-- Return 402 Payment Required with message: "Unpaid invoice — settle before new requests"
+- Return 402 Payment Required with message: "Unpaid invoice - settle before new requests"
 - Also block reorder and new quotes for customers with overdue invoices
 ```
 
-### Task 2 — Stripe frontend (pay-now card payments)
+### Task 2 - Stripe frontend (pay-now card payments)
 | Field | Value |
 |-------|-------|
 | Target | Frontend (+ Backend verify) |
@@ -466,10 +466,10 @@ Pushed to `feat/sp3-dispatch-cards`.
 4. Wire into quote-form Bill step when paymentMode === 'pay_now'
 5. Call POST /stripe/create-payment-intent to get clientSecret
 6. Call stripe.confirmCardPayment(clientSecret) on submit
-7. Backend stripe.routes.ts already has PaymentIntent creation — verify
+7. Backend stripe.routes.ts already has PaymentIntent creation - verify
 ```
 
-### Task 3 — Seed sync (update seed-test + reseed)
+### Task 3 - Seed sync (update seed-test + reseed)
 | Field | Value |
 |-------|-------|
 | Target | Backend (DevOps) |
@@ -487,7 +487,7 @@ Pushed to `feat/sp3-dispatch-cards`.
 4. Run npm run db:reset → verify 36 merchants, 477 bulk bookings, 31 categories
 ```
 
-### Task 4 — Customer Rewards gaps
+### Task 4 - Customer Rewards gaps
 | Field | Value |
 |-------|-------|
 | Target | Backend + Frontend |
@@ -508,27 +508,27 @@ Pushed to `feat/sp3-dispatch-cards`.
 
 ---
 
-## Session 2026-06-02 — ALL 9 TODO ITEMS RESOLVED 🟢
+## Session 2026-06-02 - ALL 9 TODO ITEMS RESOLVED 🟢
 
-### Batch 1 (T1–T4) — Completed (parallel dispatch)
+### Batch 1 (T1–T4) - Completed (parallel dispatch)
 | Task | Agent | Result |
 |------|-------|--------|
-| T1 — Money Epic (pricing modules + soft enforcement) | Backend + Frontend | ✅ Pricing modules in proposal builder; 402 block on unpaid reorder |
-| T2 — Stripe frontend (card form + env) | Frontend | ✅ `@stripe/stripe-js` installed; `StripeCardFormComponent` + `StripePaymentService` exist; env key added to .env |
-| T3 — Seed sync (36-merchant) | DevOps | ✅ `seed-test.ts` rewritten for 8 merchants × 9 lifecycle scenarios; `db:reset` verified (36 merch, 477 bookings, 31 cats) |
-| T4 — Customer Rewards gaps (5 items) | Backend + Frontend | ✅ Review points in doneJob(); welcome banner; idle banner; voucher auto-apply; notification prefs UI |
+| T1 - Money Epic (pricing modules + soft enforcement) | Backend + Frontend | ✅ Pricing modules in proposal builder; 402 block on unpaid reorder |
+| T2 - Stripe frontend (card form + env) | Frontend | ✅ `@stripe/stripe-js` installed; `StripeCardFormComponent` + `StripePaymentService` exist; env key added to .env |
+| T3 - Seed sync (36-merchant) | DevOps | ✅ `seed-test.ts` rewritten for 8 merchants × 9 lifecycle scenarios; `db:reset` verified (36 merch, 477 bookings, 31 cats) |
+| T4 - Customer Rewards gaps (5 items) | Backend + Frontend | ✅ Review points in doneJob(); welcome banner; idle banner; voucher auto-apply; notification prefs UI |
 
-### Batch 2 (T5, T7, T8) — Completed (parallel dispatch)
+### Batch 2 (T5, T7, T8) - Completed (parallel dispatch)
 | Task | Agent | Result |
 |------|-------|--------|
-| T5 — AI Smart Assistant gaps (4 items) | Frontend + Backend | ✅ `POST /chat/verify-pin` + `/apply-profile` routes; PinService role-aware; quote wizard/prefill verified correct |
-| T7 — Admin Rescue + API Keys Vault (13 items) | Backend + Frontend | ✅ Full spec: ApiKeyConfig, AdminOtp, config-vault.ts (AES-256-GCM), gmail-rescue.ts, rescue/vault routes, setup wizard, vault page, audit trail, T1-T3 rescue flow |
-| T8 — UI / Frontend gaps (5 items) | Frontend | ✅ Dispatch overlay visibility controls; SP2b tabs; shell split (nav extracted, -800 LOC); quantity pricing + presence verified |
+| T5 - AI Smart Assistant gaps (4 items) | Frontend + Backend | ✅ `POST /chat/verify-pin` + `/apply-profile` routes; PinService role-aware; quote wizard/prefill verified correct |
+| T7 - Admin Rescue + API Keys Vault (13 items) | Backend + Frontend | ✅ Full spec: ApiKeyConfig, AdminOtp, config-vault.ts (AES-256-GCM), gmail-rescue.ts, rescue/vault routes, setup wizard, vault page, audit trail, T1-T3 rescue flow |
+| T8 - UI / Frontend gaps (5 items) | Frontend | ✅ Dispatch overlay visibility controls; SP2b tabs; shell split (nav extracted, -800 LOC); quantity pricing + presence verified |
 
-### Final seed re-run (T6) — Completed
+### Final seed re-run (T6) - Completed
 | Task | Result |
 |------|--------|
-| T6 — Seed Phase 2 re-run | ✅ `db:reset` + `seed:test` both exit 0; no seed changes needed |
+| T6 - Seed Phase 2 re-run | ✅ `db:reset` + `seed:test` both exit 0; no seed changes needed |
 
 ### Gates
 | Gate | Result |
@@ -538,18 +538,18 @@ Pushed to `feat/sp3-dispatch-cards`.
 | `npx ng build` | ✅ exit 0 (pre-existing warnings: bundle budget, NG8113 unused imports, qrcode CommonJS) |
 | `npm run db:reset` | ✅ 36 merchants, 477 bulk bookings, 31 categories |
 
-### Final TODO.md state: 🟢 ALL CLEAR — all 9 sections ticked.
+### Final TODO.md state: 🟢 ALL CLEAR - all 9 sections ticked.
 
 ### Gate for next CEO
 1. Read `TODO.md` for full outstanding list (execution order: 5→2→7→4→3→7→1→6→7)
-2. Dispatch Tasks 1-4 above to agents (can run all 4 in parallel — no shared state)
+2. Dispatch Tasks 1-4 above to agents (can run all 4 in parallel - no shared state)
 3. Each agent reports done in its own log file under `docs/ai-context/logs/`
 4. After all report done, next CEO runs QA gate: `tsc --noEmit` + `npm run db:reset` + `ng build`
 5. Tick items in TODO.md, then move to Batch 2 (Tasks 5-7: AI Assistant + Admin Rescue + UI)
 
 ---
 
-## Batch 2 — 2026-06-02 (T1–T4 complete, dispatch T5 + T7 + T8)
+## Batch 2 - 2026-06-02 (T1–T4 complete, dispatch T5 + T7 + T8)
 
 **Phase 1 (T1–T4) all 4 agents reported done. Gates verified:**
 - Backend tsc --noEmit: 0 errors
@@ -558,13 +558,13 @@ Pushed to `feat/sp3-dispatch-cards`.
 - npm run db:reset: 36 merchants, 477 bookings, 31 categories
 
 **Remaining TODO items (after marking T1-T4 + T9 done):**
-- [5/9] AI Smart Assistant gaps 🟡 P1 — 4 items
-- [7/9] Admin Rescue + API Keys Vault 🔴 P0 — 13 items (entire spec)
-- [8/9] UI / Frontend gaps 🟡 P2 — 5 items
-- [6/9] Seed Phase 2 🟡 P2 — re-seed after AI changes
-- [1/9] Identity change admin queue wiring 🟡 P1 — 1 remaining item
+- [5/9] AI Smart Assistant gaps 🟡 P1 - 4 items
+- [7/9] Admin Rescue + API Keys Vault 🔴 P0 - 13 items (entire spec)
+- [8/9] UI / Frontend gaps 🟡 P2 - 5 items
+- [6/9] Seed Phase 2 🟡 P2 - re-seed after AI changes
+- [1/9] Identity change admin queue wiring 🟡 P1 - 1 remaining item
 
-### Task 5 — AI Smart Assistant gaps
+### Task 5 - AI Smart Assistant gaps
 | Field | Value |
 |-------|-------|
 | Target | Frontend (+ Backend verify) |
@@ -574,20 +574,20 @@ Pushed to `feat/sp3-dispatch-cards`.
 | Status | 🟡 Dispatched → session 2026-06-02 |
 
 ```
-1. Servicer profile assistant flow — AI-driven profile wizard that guides servicer through
+1. Servicer profile assistant flow - AI-driven profile wizard that guides servicer through
    setting up their profile. The backend already has `POST /admin/chat/apply-profile` and
    action blocks (profile_field, pin_required). Verify the frontend chat-widget renders
    profile_field/pin_required blocks and the flow works end-to-end.
-2. Quote wizard E2E — verify intent detection → category ID extraction → prefill navigation.
+2. Quote wizard E2E - verify intent detection → category ID extraction → prefill navigation.
    Check chat-widget sends quote prompts, backend returns action blocks with quote_field items,
    frontend renders them and navigates to /customer/quote/new?prefill=... on completion.
-3. Action token inline fields — verify quote_field items (date picker, address autocomplete)
+3. Action token inline fields - verify quote_field items (date picker, address autocomplete)
    render properly in the chat widget. These were partially wired in Phase 7.
-4. quote_prefill navigation — verify /customer/quote/new?prefill=... route loads prefill data
+4. quote_prefill navigation - verify /customer/quote/new?prefill=... route loads prefill data
    from the AI session and fills the form correctly.
 ```
 
-### Task 7 — Admin Rescue + API Keys Vault (entire spec)
+### Task 7 - Admin Rescue + API Keys Vault (entire spec)
 | Field | Value |
 |-------|-------|
 | Target | Backend |
@@ -602,7 +602,7 @@ then config-vault.ts (AES-256-GCM), gmail-rescue.ts, services, routes, JWT claim
 frontend setup wizard + vault page, and audit trail.
 ```
 
-### Task 8 — UI / Frontend gaps
+### Task 8 - UI / Frontend gaps
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -612,27 +612,27 @@ frontend setup wizard + vault page, and audit trail.
 | Status | 🟡 Dispatched → session 2026-06-02 |
 
 ```
-1. Visibility controls in dispatch overlay — showEmailPublic/showPhonePublic not wired to conditional hide
-2. SP2b deferred tabs — sub-categories, thumbnail upload, customer copy in Category Settings not built
-3. Quantity × unit pricing in computePrefill — doesn't calculate unit-price × qty for 'quantity' type
-4. Presence wiring — isOnline not wired to socket connect/disconnect
-5. Shell component too large (2,787 LOC) — split nav/chat/notifications/demo-bar into sub-components
+1. Visibility controls in dispatch overlay - showEmailPublic/showPhonePublic not wired to conditional hide
+2. SP2b deferred tabs - sub-categories, thumbnail upload, customer copy in Category Settings not built
+3. Quantity × unit pricing in computePrefill - doesn't calculate unit-price × qty for 'quantity' type
+4. Presence wiring - isOnline not wired to socket connect/disconnect
+5. Shell component too large (2,787 LOC) - split nav/chat/notifications/demo-bar into sub-components
 ```
 
 ---
 
-## Session 2026-06-01 — AI Chat FAQ + Dynamic Category Injection
+## Session 2026-06-01 - AI Chat FAQ + Dynamic Category Injection
 
 **Dispatched by:** CEO (direct execution, no sub-agent delegation)
 **Files changed:**
-- `backend/src/services/chat.service.ts` — dynamic Category catalog injection into system prompt
-- `backend/prisma/seed/data/static.ts` — full FAQ rewrite (52→74 entries, updated to current taxonomy/workflow)
-- `backend/prisma/seed/seed-test.ts` — FAQ sync (19 entries, matching updated workflow)
-- `TODO.md` — entry added
-- `docs/ai-context/logs/ceo-log.md` — this entry
+- `backend/src/services/chat.service.ts` - dynamic Category catalog injection into system prompt
+- `backend/prisma/seed/data/static.ts` - full FAQ rewrite (52→74 entries, updated to current taxonomy/workflow)
+- `backend/prisma/seed/seed-test.ts` - FAQ sync (19 entries, matching updated workflow)
+- `TODO.md` - entry added
+- `docs/ai-context/logs/ceo-log.md` - this entry
 
 **Summary:**
-1. Dynamic injection: `sendToAi()` now builds a "Service Catalog" section from all published children's questionSchema/description/pricing/procedure, appended to every system prompt. Zero-maintenance — admin category edits auto-reflect.
+1. Dynamic injection: `sendToAi()` now builds a "Service Catalog" section from all published children's questionSchema/description/pricing/procedure, appended to every system prompt. Zero-maintenance - admin category edits auto-reflect.
 2. FAQ seed rewritten: removed 13 outdated flat-category entries, replaced with 1 consolidated taxonomy entry. All 74 entries audited for current workflow accuracy (quote steps, payment flows, dispatch overlay, 5-slot time system, `/admin/ai-chat-settings` path fix, category settings admin entries added, servicer PIN fallback removed).
 3. seed-test.ts synced.
 
@@ -642,7 +642,7 @@ frontend setup wizard + vault page, and audit trail.
 
 ## Rules
 
-- Read-only analysis and coordination — NEVER write code or modify files
+- Read-only analysis and coordination - NEVER write code or modify files
 - Parse TODO.md to identify unassigned tasks, delegate to the correct agent
 - Track overall project health by reading all agent logs
 - Never dispatch a task to multiple agents simultaneously without explicit instructions
@@ -650,7 +650,7 @@ frontend setup wizard + vault page, and audit trail.
 
 ---
 
-## Project health — session 2026-05-28
+## Project health - session 2026-05-28
 
 - Build is **code-complete through Phase 7**. All money-epic (Phases 1–5), identity avatars (Phase 6), card thumbnails + chat/FAQ tier (Phase 7) are complete.
 - **235+ tests green.** Test seed scaffolding in place (`Run-Test.bat`, `seed-test.ts`).
@@ -661,17 +661,17 @@ frontend setup wizard + vault page, and audit trail.
 
 ## Task Assignments
 
-### Round 1 — Demo-prep runtime verification — dispatched 2026-05-25
+### Round 1 - Demo-prep runtime verification - dispatched 2026-05-25
 
-> Sequencing: Task 1 (reseed) must complete first — Tasks 2 & 3 verify seeded
+> Sequencing: Task 1 (reseed) must complete first - Tasks 2 & 3 verify seeded
 > data and are **Blocked** until the DB is freshly seeded. Tasks 4 & 5 are
 > independent and may run in parallel with Task 1.
 > Verification tasks are owned solely by **QA** (QA's defined role is "verify
-> fixes / audit"). The partner agent named in TODO.md is **on standby** — only
+> fixes / audit"). The partner agent named in TODO.md is **on standby** - only
 > engaged via a new task if QA finds a defect, so no task is dispatched to two
 > agents at once.
 
-### Task 1 — Verify clean reseed against live DB
+### Task 1 - Verify clean reseed against live DB
 | Field | Value |
 |-------|-------|
 | Target | DevOps |
@@ -681,37 +681,37 @@ frontend setup wizard + vault page, and audit trail.
 | Status | ⬜ Dispatched |
 | Notes | Blocks Task 2 and Task 3. |
 
-### Task 2 — Verify Customer.active quote countdown is ticking
+### Task 2 - Verify Customer.active quote countdown is ticking
 | Field | Value |
 |-------|-------|
-| Target | QA (lead) — Frontend on standby |
+| Target | QA (lead) - Frontend on standby |
 | Priority | Medium |
 | Input | docs/ai-context/seed-plan.md (Customer.active deadline = now+30m) · frontend quote countdown timer component · frontend-log.md |
 | Output | QA confirms the countdown renders and decrements on the active quote; if broken, raise FE bug → new task to Frontend; TODO.md line 121 ticked |
-| Status | ⬛ Blocked — waiting on Task 1 |
+| Status | ⬛ Blocked - waiting on Task 1 |
 
-### Task 3 — Verify Customer.loyal chat session shows seed messages
+### Task 3 - Verify Customer.loyal chat session shows seed messages
 | Field | Value |
 |-------|-------|
-| Target | QA (lead) — Frontend on standby |
+| Target | QA (lead) - Frontend on standby |
 | Priority | Medium |
 | Input | docs/ai-context/seed-plan.md · frontend chat.component.ts · docs/api-reference/api-doc.md (chat endpoints) |
 | Output | QA confirms the chat UI resumes the latest seeded session with its messages; if broken, raise FE bug → new task to Frontend; TODO.md line 122 ticked |
-| Status | ⬛ Blocked — waiting on Task 1 |
+| Status | ⬛ Blocked - waiting on Task 1 |
 
-### Task 4 — Verify Socket.io events firing
+### Task 4 - Verify Socket.io events firing
 | Field | Value |
 |-------|-------|
-| Target | QA (lead) — Backend on standby |
+| Target | QA (lead) - Backend on standby |
 | Priority | High |
 | Input | docs/api-reference/api-doc.md · backend Socket.io emit points · docs/ai-context/security-notes.md (handshake) |
 | Output | QA confirms `quote.new` and `booking.status_changed` emit/receive live; if broken, raise BE bug → new task to Backend; TODO.md line 124 ticked |
 | Status | ⬜ Dispatched |
 
-### Task 5 — Verify Dify chatbot connects and responds
+### Task 5 - Verify Dify chatbot connects and responds
 | Field | Value |
 |-------|-------|
-| Target | QA (lead) — Backend on standby |
+| Target | QA (lead) - Backend on standby |
 | Priority | Medium |
 | Input | docs/api-reference/api-doc.md (chat relay endpoints) · backend/.env (DIFY key) · docs/ai-context/tech-stack.md |
 | Output | QA confirms the chatbot responds (live key, or documented local fallback); if broken, raise BE bug → new task to Backend; TODO.md line 125 ticked |
@@ -728,7 +728,7 @@ which unblocks Tasks 2 and 3.)*
 
 ## Decisions Made
 
-- **2026-05-25** — Round-1 verification tasks (2–5) are owned solely by QA, with
+- **2026-05-25** - Round-1 verification tasks (2–5) are owned solely by QA, with
   the TODO-named partner agent (Frontend/Backend) on standby rather than
   co-dispatched. Rationale: the orchestrator rule forbids simultaneous
   multi-agent dispatch; QA's role already covers verification; any defect QA
@@ -748,12 +748,12 @@ which unblocks Tasks 2 and 3.)*
 
 ---
 
-### Session 2026-05-27 — Demo account UI overhaul, seed revenue, Google Maps plan
+### Session 2026-05-27 - Demo account UI overhaul, seed revenue, Google Maps plan
 
 **Tasks dispatched:**
-- **Frontend** — Add all demo accounts to navbar dropdowns + login page, remove old login chips.
-- **Backend** — Add invoice + revenue transaction seeding for all 12 servicers, email-based demo login.
-- **Docs** — Create Google Maps API integration plan, update seed-plan.md with revenue chart docs.
+- **Frontend** - Add all demo accounts to navbar dropdowns + login page, remove old login chips.
+- **Backend** - Add invoice + revenue transaction seeding for all 12 servicers, email-based demo login.
+- **Docs** - Create Google Maps API integration plan, update seed-plan.md with revenue chart docs.
 
 **Completed:**
 - Frontend: Login page now shows all 15 accounts organized by category. Shell/demo-bar dropdowns show all customers + all 12 servicers grouped. Auth service has `demoLoginByEmail`.
@@ -763,25 +763,25 @@ which unblocks Tasks 2 and 3.)*
 
 ---
 
-### Orchestrator discovery pass — 2026-05-27
+### Orchestrator discovery pass - 2026-05-27
 
-**Claude-1 (Orchestrator) — non-destructive discovery pass. No code edited; only this log appended.**
+**Claude-1 (Orchestrator) - non-destructive discovery pass. No code edited; only this log appended.**
 
 ---
 
 #### (a) Kilo headless capability
 
-**YES — Kilo can be driven non-interactively via `kilo run`.**
+**YES - Kilo can be driven non-interactively via `kilo run`.**
 
 Probe results:
 
 | Command | Exit | Result |
 |---------|------|--------|
-| `kilo --help` | 124 (timeout) | Opens interactive TUI — hangs |
+| `kilo --help` | 124 (timeout) | Opens interactive TUI - hangs |
 | `kilo -p --help` | 124 (timeout) | Same TUI hang |
 | `kilo --print --help` | 124 (timeout) | Same TUI hang |
 | `kilo task --help` | 124 (timeout) | Same TUI hang |
-| `kilo run --help` | **0** | **Full non-interactive subcommand — headless-capable** |
+| `kilo run --help` | **0** | **Full non-interactive subcommand - headless-capable** |
 
 **Headless command:**
 ```
@@ -789,18 +789,18 @@ kilo run "message" --auto --agent <role> --dir E:\WebDevCurriculums\MyServicer
 ```
 
 Key flags from `kilo run --help`:
-- `--auto` — auto-approve all permissions (for autonomous/pipeline usage)
-- `--agent <name>` — agent role; maps to `.kilo/agents/<role>.md`
-- `--format default|json` — non-interactive output (default = formatted text; json = raw events)
-- `-m / --model <provider/model>` — model override
-- `--dir <path>` — working directory (remote or local)
-- `--dangerously-skip-permissions` — stronger than `--auto`; skips all prompts
+- `--auto` - auto-approve all permissions (for autonomous/pipeline usage)
+- `--agent <name>` - agent role; maps to `.kilo/agents/<role>.md`
+- `--format default|json` - non-interactive output (default = formatted text; json = raw events)
+- `-m / --model <provider/model>` - model override
+- `--dir <path>` - working directory (remote or local)
+- `--dangerously-skip-permissions` - stronger than `--auto`; skips all prompts
 
 **Recommended dispatch form per the orchestration plan:**
 ```
 kilo run "Read your task in docs/ai-context/logs/ceo-log.md (→ <task name>) and execute it." --auto --agent backend --dir E:\WebDevCurriculums\MyServicer
 ```
-Change `--agent backend` to `frontend` or `devops` for the other Kilos. The `.kilo/agents/<role>.md` role files must exist first (per orchestration-plan.md §7 item 1 — currently a setup prerequisite).
+Change `--agent backend` to `frontend` or `devops` for the other Kilos. The `.kilo/agents/<role>.md` role files must exist first (per orchestration-plan.md §7 item 1 - currently a setup prerequisite).
 
 ---
 
@@ -819,24 +819,24 @@ Change `--agent backend` to `frontend` or `devops` for the other Kilos. The `.ki
 
 **Open TODO.md work (all `[ ]` items, by priority):**
 
-1. **Calculation correctness** (6 items) — CRITICAL; must ship with Payment MVP; invariant `escrow == invoice == fee`
-2. **Payment model redesign** — pay_now/pay_later, Stripe MVP; design + spec complete
-3. **Quote-flow redesign** — 4-step with Bill step; coupled to Payment MVP
-4. **Servicer experience** — entity type, business-details form, pricing modules, admin review queue; most items are inside the money/listing epic
-5. **UI/UX review fixes** — P1 a11y (contrast, aria-labels, snackbar `role="status"`), P1 touch targets; P2 icon system, P2 reduced-motion; **all independent of the money epic**
-6. **Servicer listings redesign** (`services.component.ts`) — frontend-only card layout; **independent**
-7. **Identity avatars MVP** — show servicer `logoUrl` on customer quotes/bookings; data already in payloads; **frontend-only, independent**
-8. **Found bugs** — 6 stale `/servicer/*` notification `linkUrl`s in `booking.service.ts` + `quote.service.ts`; `TIME_SLOTS` hardcoded + duplicated in two files
-9. **Admin-managed thumbnails** — post-MVP; deferred until greenlit
-10. **Google Maps integration** — planning stage; not started
+1. **Calculation correctness** (6 items) - CRITICAL; must ship with Payment MVP; invariant `escrow == invoice == fee`
+2. **Payment model redesign** - pay_now/pay_later, Stripe MVP; design + spec complete
+3. **Quote-flow redesign** - 4-step with Bill step; coupled to Payment MVP
+4. **Servicer experience** - entity type, business-details form, pricing modules, admin review queue; most items are inside the money/listing epic
+5. **UI/UX review fixes** - P1 a11y (contrast, aria-labels, snackbar `role="status"`), P1 touch targets; P2 icon system, P2 reduced-motion; **all independent of the money epic**
+6. **Servicer listings redesign** (`services.component.ts`) - frontend-only card layout; **independent**
+7. **Identity avatars MVP** - show servicer `logoUrl` on customer quotes/bookings; data already in payloads; **frontend-only, independent**
+8. **Found bugs** - 6 stale `/servicer/*` notification `linkUrl`s in `booking.service.ts` + `quote.service.ts`; `TIME_SLOTS` hardcoded + duplicated in two files
+9. **Admin-managed thumbnails** - post-MVP; deferred until greenlit
+10. **Google Maps integration** - planning stage; not started
 
 ---
 
-#### (c) Single next task — per `money-listing-epic-spec.md` §6 build order
+#### (c) Single next task - per `money-listing-epic-spec.md` §6 build order
 
 Step 1 of the §6 build order is the schema foundation. Nothing in the money epic can be correct until this lands. This is the single next dispatch.
 
-**Task: Step 1 — Schema additions**
+**Task: Step 1 - Schema additions**
 **Target:** Kilo-1 (Backend), then hand off to Kilo-3 (DevOps) for `db push`
 **Spec ref:** `money-listing-epic-spec.md` §2 (complete model additions)
 
@@ -857,11 +857,11 @@ Then Kilo-3 (DevOps):
 - Stop server → `Remove-Item -Recurse -Force node_modules/.prisma/client` → `npx prisma db push` → restart (CLAUDE.md DLL-lock protocol)
 - Write to `devops-log.md`: push result
 
-**Phase 1 parallel tracks (no money-model touch — can run concurrently with Step 1):**
+**Phase 1 parallel tracks (no money-model touch - can run concurrently with Step 1):**
 
 | Agent | Task |
 |-------|------|
-| Kilo-2 (Frontend) | P1 a11y: darken `--color-muted` in `styles.css`, `aria-label` on icon buttons, `role="status"` on snackbar. P1 touch: ≥44px hit areas. Servicer logo avatars on customer quotes + bookings (§16.1 — data already in payloads). Servicer listing card redesign (`services.component.ts`, §11 layout only). Gate: `ng build` exits 0. |
+| Kilo-2 (Frontend) | P1 a11y: darken `--color-muted` in `styles.css`, `aria-label` on icon buttons, `role="status"` on snackbar. P1 touch: ≥44px hit areas. Servicer logo avatars on customer quotes + bookings (§16.1 - data already in payloads). Servicer listing card redesign (`services.component.ts`, §11 layout only). Gate: `ng build` exits 0. |
 | Kilo-3 (DevOps) | Fix 6 stale `/servicer/*` notification `linkUrl`s in `booking.service.ts` + `quote.service.ts` → correct `/servicer/...` paths. `TIME_SLOTS` single-source (one constant or backend setting, remove duplicate in guest-quote form). Then await Kilo-1 schema hand-off for `db push`. |
 
 ---
@@ -871,15 +871,15 @@ Then Kilo-3 (DevOps):
 2. Create agent branches `kilo/backend-epic`, `kilo/frontend-indep`, `kilo/devops` (or agree per-task convention).
 3. Clear any stale `.git/HEAD.lock` on the Windows host (DevOps log reported it as pending).
 
-**Status 2026-05-27:** Prerequisites resolved — role files exist at `.kilo/agents/backend-cowork.md`, `frontend-cowork.md`, `devops-cowork.md`. Phase 1 dispatch below.
+**Status 2026-05-27:** Prerequisites resolved - role files exist at `.kilo/agents/backend-cowork.md`, `frontend-cowork.md`, `devops-cowork.md`. Phase 1 dispatch below.
 
 ---
 
-## Phase 1 Dispatch — 2026-05-27
+## Phase 1 Dispatch - 2026-05-27
 
 > Kilo-2 and Kilo-3 are **independent** of the money model and may run concurrently with
 > Kilo-1. For true parallel execution they need separate branches (see orchestration-plan §4).
-> For sequential dispatch (one at a time), master is fine — Kilo-2/3 do not touch
+> For sequential dispatch (one at a time), master is fine - Kilo-2/3 do not touch
 > `backend/prisma/schema.prisma` or any money logic.
 >
 > **Branch recommendation:** `kilo/backend-epic` for Kilo-1 (money-critical),
@@ -887,21 +887,21 @@ Then Kilo-3 (DevOps):
 
 ---
 
-### Kilo-1 Task P1-BE — Epic Step 1 (Schema) + servicer link fix
+### Kilo-1 Task P1-BE - Epic Step 1 (Schema) + servicer link fix
 
 | Field | Value |
 |-------|-------|
 | Target | Kilo-1 (backend-cowork) |
 | Branch | `kilo/backend-epic` |
-| Priority | CRITICAL — nothing money-correct can land until schema is in |
+| Priority | CRITICAL - nothing money-correct can land until schema is in |
 | Spec ref | `money-listing-epic-spec.md` §2 (full model additions) + TODO.md Found bugs (servicer links) |
 | DoD | `npx tsc --noEmit` clean in `backend/`; `schema-notes.md` updated; write "done" to `backend-log.md` |
 | Status | 🟡 Dispatched 2026-05-27 19:56 |
 
 **Schema changes** (`backend/prisma/schema.prisma`):
 
-1. **`Servicer` model** — add fields:
-   - `entityType` — enum `EntityType` (values: `sole_proprietorship`, `partnership`, `enterprise`, `sdn_bhd`), optional (nullable)
+1. **`Servicer` model** - add fields:
+   - `entityType` - enum `EntityType` (values: `sole_proprietorship`, `partnership`, `enterprise`, `sdn_bhd`), optional (nullable)
    - `sstRegistered Boolean @default(false)`
    - `sstNumber String?`
    - `serviceChargeRate Decimal @default(0) @db.Decimal(5,4)`
@@ -921,18 +921,18 @@ Then Kilo-3 (DevOps):
    servicer      Servicer @relation(fields: [servicerId], references: [id])
    ```
 
-3. **`ServicerService` (listing)** — add fields:
+3. **`ServicerService` (listing)** - add fields:
    - `moduleRefs Json @default("[]")`
    - `serviceChargeRate Decimal? @db.Decimal(5,4)`
    - `taxInclusive Boolean?`
    - `sstApplies Boolean?`
 
-4. **`Booking` model** — add fields:
-   - `paymentTiming PaymentTiming?` — enum `PaymentTiming` (values: `pay_now`, `pay_later`)
-   - `settlementMethod SettlementMethod?` — enum `SettlementMethod` (values: `gateway`, `credit`, `cash`)
+4. **`Booking` model** - add fields:
+   - `paymentTiming PaymentTiming?` - enum `PaymentTiming` (values: `pay_now`, `pay_later`)
+   - `settlementMethod SettlementMethod?` - enum `SettlementMethod` (values: `gateway`, `credit`, `cash`)
    - `lineItems Json @default("[]")`
 
-5. **`Invoice` model** — add fields:
+5. **`Invoice` model** - add fields:
    - `lineItems Json @default("[]")`
    - `subtotal Decimal? @db.Decimal(10,2)`
    - `promoDiscount Decimal? @db.Decimal(10,2)`
@@ -959,7 +959,7 @@ Then Kilo-3 (DevOps):
    ```
    Enum `IdentityRequestStatus`: `pending`, `approved`, `rejected`
 
-**Servicer link fix** (same session — quick, in `backend/src/`):
+**Servicer link fix** (same session - quick, in `backend/src/`):
 
 Fix 6 stale `linkUrl` strings that point to non-existent `/servicer/...` routes. Correct paths:
 - `booking.service.ts` line ~161: `/servicer/jobs` → `/servicer/jobs`
@@ -972,21 +972,21 @@ Check `frontend/src/app/servicer/servicer.routes.ts` to confirm the correct path
 
 **Copiable `kilo run` prompt:**
 ```
-Read your task in docs/ai-context/logs/ceo-log.md (→ Phase 1 Dispatch → Kilo-1 Task P1-BE) and execute it. Work on branch kilo/backend-epic. Do NOT run db push yourself — write "schema ready for db push" in backend-log.md when schema.prisma changes are done; Kilo-3 runs db push.
+Read your task in docs/ai-context/logs/ceo-log.md (→ Phase 1 Dispatch → Kilo-1 Task P1-BE) and execute it. Work on branch kilo/backend-epic. Do NOT run db push yourself - write "schema ready for db push" in backend-log.md when schema.prisma changes are done; Kilo-3 runs db push.
 ```
 
 ---
 
-### Kilo-3 Task P1-OPS — db push (blocked on Kilo-1)
+### Kilo-3 Task P1-OPS - db push (blocked on Kilo-1)
 
 | Field | Value |
 |-------|-------|
 | Target | Kilo-3 (devops-cowork) |
 | Branch | `kilo/devops` |
-| Priority | High — unblocks all money epic steps after Step 1 |
+| Priority | High - unblocks all money epic steps after Step 1 |
 | Blocked by | Kilo-1 P1-BE writing "schema ready" to `backend-log.md` |
 | DoD | `db push` completes cleanly; write result to `devops-log.md` |
-| Status | 🟡 Dispatched 2026-05-27 19:56 (blocked — waiting on Kilo-1) |
+| Status | 🟡 Dispatched 2026-05-27 19:56 (blocked - waiting on Kilo-1) |
 
 **Task:** Run the CLAUDE.md DLL-lock `db push` protocol after Kilo-1 reports schema ready:
 1. Stop the running backend server (if running)
@@ -996,7 +996,7 @@ Read your task in docs/ai-context/logs/ceo-log.md (→ Phase 1 Dispatch → Kilo
 5. Confirm no errors; log result to `devops-log.md`
 
 **Also this session** (independent of Kilo-1, can run immediately):
-- Single-source `TIME_SLOTS`: it is hardcoded AND duplicated in `backend/` settings. The fix belongs in `frontend/` (move the two copies to one shared constant) — **leave to Kilo-2**; Kilo-3 scope is infra only.
+- Single-source `TIME_SLOTS`: it is hardcoded AND duplicated in `backend/` settings. The fix belongs in `frontend/` (move the two copies to one shared constant) - **leave to Kilo-2**; Kilo-3 scope is infra only.
 - Check for stale `.git/HEAD.lock` on the Windows host; delete if present.
 
 **Copiable `kilo run` prompt:**
@@ -1006,18 +1006,18 @@ Read your task in docs/ai-context/logs/ceo-log.md (→ Phase 1 Dispatch → Kilo
 
 ---
 
-### Kilo-2 Task P1-FE — A11y + avatars + listing card + TIME_SLOTS
+### Kilo-2 Task P1-FE - A11y + avatars + listing card + TIME_SLOTS
 
 | Field | Value |
 |-------|-------|
 | Target | Kilo-2 (frontend-cowork) |
 | Branch | `kilo/frontend-indep` |
-| Priority | High — independent of money model; can run now |
+| Priority | High - independent of money model; can run now |
 | Spec ref | `ceo-overview.md` §11 (listing card), §14 (UI/UX a11y), §16.1 (avatars); `frontend/STYLE-RULES.md` |
-| DoD | `npx ng build --configuration development` exits 0 (AOT gate — not just tsc); write "done" to `frontend-log.md` |
+| DoD | `npx ng build --configuration development` exits 0 (AOT gate - not just tsc); write "done" to `frontend-log.md` |
 | Status | 🟡 Dispatched 2026-05-27 19:56 |
 
-**Sub-tasks (all independent of the money model — no schema.prisma or money-logic changes):**
+**Sub-tasks (all independent of the money model - no schema.prisma or money-logic changes):**
 
 **A. P1 Accessibility (`styles.css` + `shell.component.ts` + `snackbar.component.ts`):**
 - Darken `--color-muted` to `#6b6258` (warm theme) and `#a09384` (night theme) to clear 4.5:1 contrast AA for body text.
@@ -1026,16 +1026,16 @@ Read your task in docs/ai-context/logs/ceo-log.md (→ Phase 1 Dispatch → Kilo
 
 **B. P1 Touch targets (`styles.css` + relevant components):**
 - Pad icon-button hit areas to ≥44×44px (notification bell ~32px, fab-toggle ~28px, theme-toggle). Visual size can stay; expand clickable area with padding or pseudo-element.
-- Fix `.topbar.is-idle { pointer-events: none }` — restore pointer-events on hover/focus, not only on scroll (`shell.component.ts`).
+- Fix `.topbar.is-idle { pointer-events: none }` - restore pointer-events on hover/focus, not only on scroll (`shell.component.ts`).
 
-**C. Servicer logo avatars — §16.1 (customer quote list + upcoming bookings):**
+**C. Servicer logo avatars - §16.1 (customer quote list + upcoming bookings):**
 - Data already in payloads: `quote.service.ts` selects `logoUrl`; `my-bookings` interface has `servicer.logoUrl`.
 - Show servicer `logoUrl` as a small circular avatar on the customer's current quotes (proposal list) and upcoming bookings pages.
 - Fallback: show initials from `businessName` when `logoUrl` is null/empty.
-- No backend changes; no schema changes — data is already returned.
+- No backend changes; no schema changes - data is already returned.
 
-**D. Servicer listing card redesign — §11 (`servicer/pages/services.component.ts` template + styles):**
-- List layout (not grid) — scannable at ~60 listings.
+**D. Servicer listing card redesign - §11 (`servicer/pages/services.component.ts` template + styles):**
+- List layout (not grid) - scannable at ~60 listings.
 - Left 48px rounded tile = `Category.icon` on tinted background (photo-ready slot: if `imageUrl` exists show it, otherwise icon; no data change now).
 - Title bold (hero); description muted 1-line-clamp subtitle.
 - Price block right-aligned, prominent; `priceType` small label beneath.
@@ -1051,7 +1051,7 @@ Read your task in docs/ai-context/logs/ceo-log.md (→ Phase 1 Dispatch → Kilo
 
 **Copiable `kilo run` prompt:**
 ```
-Read your task in docs/ai-context/logs/ceo-log.md (→ Phase 1 Dispatch → Kilo-2 Task P1-FE) and execute it. All five sub-tasks are independent of the money model — do NOT touch backend/, schema.prisma, or any money/payment logic. Gate: ng build --configuration development must exit 0.
+Read your task in docs/ai-context/logs/ceo-log.md (→ Phase 1 Dispatch → Kilo-2 Task P1-FE) and execute it. All five sub-tasks are independent of the money model - do NOT touch backend/, schema.prisma, or any money/payment logic. Gate: ng build --configuration development must exit 0.
 ```
 
 ---
@@ -1066,19 +1066,19 @@ After all three pass QA: Claude-1 ticks TODO.md items, merges branches to master
 
 ---
 
-## Session 2026-05-27 19:58 — Phase 1 live dispatch (visible terminals)
+## Session 2026-05-27 19:58 - Phase 1 live dispatch (visible terminals)
 
 | Agent | Window | Status |
 |-------|--------|--------|
 | Kilo-1 (backend-cowork) | PowerShell window (cyan title) | 🟡 Running in `kilo/backend-epic` |
 | Kilo-2 (frontend-cowork) | PowerShell window (green title) | 🟡 Running in `kilo/frontend-indep` |
-| Kilo-3 (devops-cowork) | — | ⬛ Blocked (waiting on Kilo-1 "schema ready") |
+| Kilo-3 (devops-cowork) | - | ⬛ Blocked (waiting on Kilo-1 "schema ready") |
 
-Launched via `Start-Process powershell` — two visible terminal windows. Agents are resumable (will pick up from CONTINUE LATER in their logs if restarted). Kilo-3 waits for Kilo-1 to write "schema ready for db push" to `backend-log.md`.
+Launched via `Start-Process powershell` - two visible terminal windows. Agents are resumable (will pick up from CONTINUE LATER in their logs if restarted). Kilo-3 waits for Kilo-1 to write "schema ready for db push" to `backend-log.md`.
 
 ---
 
-## Phase 1 — COMPLETE (2026-05-27 20:30)
+## Phase 1 - COMPLETE (2026-05-27 20:30)
 
 ### QA gate results
 
@@ -1103,21 +1103,21 @@ Launched via `Start-Process powershell` — two visible terminal windows. Agents
 
 ### Remaining for Phase 2
 
-Phase 2 is the epic core — `computeTotal()` + unified `computePlatformFee()` with unit tests (Kilo-1), followed by frontend contracts (Kilo-2). P2 icons, P2 reduced-motion, and post-MVP items remain open.
+Phase 2 is the epic core - `computeTotal()` + unified `computePlatformFee()` with unit tests (Kilo-1), followed by frontend contracts (Kilo-2). P2 icons, P2 reduced-motion, and post-MVP items remain open.
 
 ---
 
-## Phase 2 Dispatch — 2026-05-27 20:35
+## Phase 2 Dispatch - 2026-05-27 20:35
 
-### Phase 2 Step — Epic Step 2: Canonical total + unified fee + unit tests
+### Phase 2 Step - Epic Step 2: Canonical total + unified fee + unit tests
 
-### Kilo-1 Task P2-BE — `computeTotal()` + `computePlatformFee()` + test suite
+### Kilo-1 Task P2-BE - `computeTotal()` + `computePlatformFee()` + test suite
 
 | Field | Value |
 |-------|-------|
 | Target | Kilo-1 (backend-cowork) |
 | Branch | `kilo/backend-epic` |
-| Priority | CRITICAL — all money-correct depends on this |
+| Priority | CRITICAL - all money-correct depends on this |
 | Spec ref | `money-listing-epic-spec.md` §3 (canonical total), §3 (unified fee), `calculation-audit.md` |
 | DoD | `npx tsc --noEmit` clean; all unit tests pass; `backend-log.md` updated |
 | Status | 🟡 Dispatched 2026-05-27 20:35 |
@@ -1144,7 +1144,7 @@ total          = afterPromo + serviceCharge + sst + tip
 platformFee = round2(afterPromo × feeRate)   // ONE setting; base = afterPromo only
 ```
 
-2. Create `backend/tests/money.test.ts` — test every combo:
+2. Create `backend/tests/money.test.ts` - test every combo:
    - promo × {none, 10%}
    - service charge × {0%, 5%, 10%}
    - SST × {registered, not registered}
@@ -1155,7 +1155,7 @@ platformFee = round2(afterPromo × feeRate)   // ONE setting; base = afterPromo 
 3. Wire the new functions into where they belong:
    - Replace `computeCharge()` in `credit.service.ts` with `computePlatformFee()`
    - Replace the invoice total calculation in `invoice.service.ts` with `computeTotal()`
-   - Remove `platform_charge` duality — use only `platform_fee_rate`
+   - Remove `platform_charge` duality - use only `platform_fee_rate`
    - Ensure `computeTotal()` is called for escrow AND invoice (same function)
 
 4. Gate: `npx tsc --noEmit` zero errors + `npx jest money.test.ts` all green
@@ -1167,23 +1167,23 @@ platformFee = round2(afterPromo × feeRate)   // ONE setting; base = afterPromo 
 kilo run "Read your task in docs/ai-context/logs/ceo-log.md (Phase 2 Dispatch - Kilo-1 Task P2-BE) and execute it. Build computeTotal() and computePlatformFee() in backend/src/lib/money.ts with unit tests in backend/tests/money.test.ts per money-listing-epic-spec.md §3. Wire into credit.service.ts and invoice.service.ts. Remove platform_charge duality. Gate: tsc clean + tests green." --auto --agent backend-cowork -m deepseek/deepseek-chat --dir E:\WebDevCurriculums\MyServicer
 ```
 
-### Phase 2 + Google Maps — COMPLETE (2026-05-27 21:11)
+### Phase 2 + Google Maps - COMPLETE (2026-05-27 21:11)
 
 **QA gate:**
 - Money core: 68 unit tests green, `tsc` clean
-- Google Maps backend: geocoding, distance, radius matching, location API — `tsc` clean
-- Google Maps frontend: Places Autocomplete, map view, all address fields — `ng build` exit 0
+- Google Maps backend: geocoding, distance, radius matching, location API - `tsc` clean
+- Google Maps frontend: Places Autocomplete, map view, all address fields - `ng build` exit 0
 - Bug fix: quote matching fallback for non-coordinate service areas
 
 **Merged to master, pushed to GitHub** (`515f360`).
 
-**Remaining P2 items:** Icon system, reduced-motion — dispatch next.
+**Remaining P2 items:** Icon system, reduced-motion - dispatch next.
 
 ---
 
-## Phase 3 Dispatch — 2026-05-27 21:15 (epic core: wire canonical functions into pipeline)
+## Phase 3 Dispatch - 2026-05-27 21:15 (epic core: wire canonical functions into pipeline)
 
-### Kilo-1 Task P3-BE — Wire `computeTotal()` + `computePlatformFee()` into booking/escrow
+### Kilo-1 Task P3-BE - Wire `computeTotal()` + `computePlatformFee()` into booking/escrow
 
 | Field | Value |
 |-------|-------|
@@ -1196,15 +1196,15 @@ kilo run "Read your task in docs/ai-context/logs/ceo-log.md (Phase 2 Dispatch - 
 **What was built:**
 - `selectProposal()` finalised: pay_now computes canonical total → escrow; pay_later stores `settlementMethod` with no charge.
 - Settlement endpoint `POST /bookings/:id/settle` (credit deducts wallet, cash deducts servicer deposit, gateway placeholder).
-- Soft enforcement: `checkUnpaidEnforcement()` — overdue pay_later invoices (>14d) block new quotes; `GET /bookings/unpaid-invoices`.
-- `settlement.test.ts` — 15 tests (8 invariant cases, 4 total paths, 3 promo, 3 SST, 2 enforcement, 2 line items, 3 method validation, 4 fee invariants).
+- Soft enforcement: `checkUnpaidEnforcement()` - overdue pay_later invoices (>14d) block new quotes; `GET /bookings/unpaid-invoices`.
+- `settlement.test.ts` - 15 tests (8 invariant cases, 4 total paths, 3 promo, 3 SST, 2 enforcement, 2 line items, 3 method validation, 4 fee invariants).
 - `Invoice.dueDate` schema addition + `QuoteProposal.lineItems` snapshot.
 
 ---
 
-## Phase 3 + 4 Combined — 2026-05-27 21:30 (pricing modules, identity, quote UI, receipt)
+## Phase 3 + 4 Combined - 2026-05-27 21:30 (pricing modules, identity, quote UI, receipt)
 
-### Kilo-1/2/3 Tasks — Epic steps 3-4 + 9-11 (combined session)
+### Kilo-1/2/3 Tasks - Epic steps 3-4 + 9-11 (combined session)
 
 | Field | Value |
 |-------|-------|
@@ -1213,24 +1213,24 @@ kilo run "Read your task in docs/ai-context/logs/ceo-log.md (Phase 2 Dispatch - 
 | Spec ref | `money-listing-epic-spec.md` §2.1/§2.3/§2.4/§5, §6 steps 3-4, 9-11 |
 | Status | ✅ Complete (commit `938f3f8`) |
 
-**Backend (DevOps log — proposal line-items flow):**
+**Backend (DevOps log - proposal line-items flow):**
 - `QuoteProposal.lineItems` schema addition (Json, db push done).
-- `computePrefill()` now async — reads `PricingModule` rows, builds `suggestedLineItems[]`.
+- `computePrefill()` now async - reads `PricingModule` rows, builds `suggestedLineItems[]`.
 - `submitProposal()` accepts optional `lineItems[]`, validates with Zod, derives `proposedPrice`.
 - Line items flow: proposal → booking (at acceptance) → invoice (at done). 207 tests green.
 
-**Backend (invoice generation — §2.6/§3/§6 step 7):**
-- `generateInvoice()` called directly from `doneJob()` — canonical `computeTotal()` + invariant assertion (escrow vs invoice mismatch warning).
-- `getInvoicePreview()` — computes total without DB write for servicer review before marking done.
+**Backend (invoice generation - §2.6/§3/§6 step 7):**
+- `generateInvoice()` called directly from `doneJob()` - canonical `computeTotal()` + invariant assertion (escrow vs invoice mismatch warning).
+- `getInvoicePreview()` - computes total without DB write for servicer review before marking done.
 - `Invoice.dueDate` (now+14d), `paymentMethod`, `paymentReference` fields.
 - All invoice breakdown fields populated: `lineItems`, `subtotal`, `promoDiscount`, `serviceChargeRate/Amount`, `sstApplies`, `taxInclusive`, `taxRate/Amount`, `tipAmount`, `total`, `platformFee`.
 
-**Frontend (step 9 — admin settings + servicer identity):**
+**Frontend (step 9 - admin settings + servicer identity):**
 - Admin Platform Settings: removed dead `platform_charge` section (unified fee model).
 - Servicer account page: business details (legal name, entity type dropdown, reg number, tax number) + SST/SC/tax-inclusive config. Identity change requests flow through admin review queue.
-- Admin queues: new "Account Changes" tab — pending identity requests with Approve/Reject (PIN-gated).
+- Admin queues: new "Account Changes" tab - pending identity requests with Approve/Reject (PIN-gated).
 
-**Frontend (step 10 — listing form sectioned redesign):**
+**Frontend (step 10 - listing form sectioned redesign):**
 - 3 collapsible sections: Basics · Pricing & Modules · Auto-accept, with CSS grid-row animation.
 - `PricingModule` picker: loads from `GET /servicer/pricing-modules?active=true`, per-module price overrides.
 - Service charge rate override, tax inclusive toggle, SST applies toggle.
@@ -1238,7 +1238,7 @@ kilo run "Read your task in docs/ai-context/logs/ceo-log.md (Phase 2 Dispatch - 
 **Frontend (invoice receipt redesign):**
 - Customer my-bookings + servicer jobs detail: itemized receipt with line items table, subtotal breakdown (promo as green negative, SC, SST with rate%, tip), bold total, tax mode badge, platform fee row.
 
-**Frontend (quote flow 4-step redesign — §13):**
+**Frontend (quote flow 4-step redesign - §13):**
 - 4-step wizard (Choose service · Contact · Summary · Bill) in both auth + guest quote forms.
 - Budget moved to Step 1; Step 3 = clean review (no money); Step 4 = Bill (payment timing radio, settlement method, tip, promo, estimate, agree checkbox).
 - Date input `max-width:12rem` hack removed. `paymentMode` replaced with `paymentTiming` + `settlementMethod`.
@@ -1247,9 +1247,9 @@ kilo run "Read your task in docs/ai-context/logs/ceo-log.md (Phase 2 Dispatch - 
 
 ---
 
-## Phase 4 — P2 Polish (icons + reduced-motion)
+## Phase 4 - P2 Polish (icons + reduced-motion)
 
-### Kilo-2 Task P4-FE — Lucide SVG icon system + `prefers-reduced-motion`
+### Kilo-2 Task P4-FE - Lucide SVG icon system + `prefers-reduced-motion`
 
 | Field | Value |
 |-------|-------|
@@ -1265,9 +1265,9 @@ kilo run "Read your task in docs/ai-context/logs/ceo-log.md (Phase 2 Dispatch - 
 
 ---
 
-## Phase 5 — Stripe Integration (epic §6 step 8)
+## Phase 5 - Stripe Integration (epic §6 step 8)
 
-### Kilo-3 Task P5-OPS — Real Stripe payment gateway
+### Kilo-3 Task P5-OPS - Real Stripe payment gateway
 
 | Field | Value |
 |-------|-------|
@@ -1276,7 +1276,7 @@ kilo run "Read your task in docs/ai-context/logs/ceo-log.md (Phase 2 Dispatch - 
 | Spec ref | `money-listing-epic-spec.md` §6 step 8 |
 | Status | ✅ Complete (commit `336aea7`) |
 
-**Backend (devops log — Stripe integration):**
+**Backend (devops log - Stripe integration):**
 - `stripe` SDK v22.1.1 installed.
 - `lib/stripe.ts`: lazy client init, `createPaymentIntent()`, `createTopUpSession()`, `verifyWebhookSignature()`.
 - `routes/stripe.routes.ts`: `POST /stripe/create-payment-intent`, `POST /stripe/create-topup-session`, `POST /stripe/webhook`.
@@ -1289,28 +1289,28 @@ kilo run "Read your task in docs/ai-context/logs/ceo-log.md (Phase 2 Dispatch - 
 
 ---
 
-## Recovery session — 2026-05-27 22:57
+## Recovery session - 2026-05-27 22:57
 
 ### State at recovery start
 
 - **Current branch:** `kilo/backend-epic` (3 commits ahead of master: `68965d3`, `938f3f8`, `336aea7`).
-- **Working tree:** DIRTY — 12 modified files + 1 untracked test file (`settlement.test.ts`). Changes are the Phase 3–5 delta vs. master baseline.
+- **Working tree:** DIRTY - 12 modified files + 1 untracked test file (`settlement.test.ts`). Changes are the Phase 3–5 delta vs. master baseline.
 - **Master:** at `f4ace4f` (Phase 2 + Google Maps + P2 docs).
-- **CEO log:** was stale at Phase 2 complete (line 560) — now updated through Phase 5.
-- **TODO.md:** was missing ticks for ~27 completed items across Servicer experience, Calculation correctness, Tax model, Payment MVP, Stripe — now reconciled.
+- **CEO log:** was stale at Phase 2 complete (line 560) - now updated through Phase 5.
+- **TODO.md:** was missing ticks for ~27 completed items across Servicer experience, Calculation correctness, Tax model, Payment MVP, Stripe - now reconciled.
 
 ### Recovery actions taken (2026-05-27)
 1. ✅ Reconciled TODO.md: ticked all completed items from commits `68965d3`, `938f3f8`, `336aea7`.
 2. ✅ Updated CEO log: Phase 3, Phase 3+4 Combined, Phase 4 (P2 polish), Phase 5 (Stripe).
 3. ✅ **Git recovery** (completed 22:57): committed dirty tree (`8d3459f`), merged `kilo/backend-epic` → master, pushed to origin, deleted all 5 stale branches, removed 4 stale worktrees, added `.gitignore` for `.omc/state/`.
 4. ✅ **SESSION-HANDOFF.md** rewritten for current state.
-5. ✅ Master is clean at `665c1d0` — single branch, up to date with origin.
+5. ✅ Master is clean at `665c1d0` - single branch, up to date with origin.
 
 ### Remaining open work (after Phase 5)
 
 | Item | Status |
 |------|--------|
-| Identity avatars POST-MVP (customer → servicer) | 🟡 Dispatched — Phase 6 below |
+| Identity avatars POST-MVP (customer → servicer) | 🟡 Dispatched - Phase 6 below |
 | Admin-managed card thumbnails (POST-MVP) | ⬜ Not started |
 | Google Maps API key restriction in GCP | ⬜ Manual step |
 | `promo.credit_payback` verification | ⬜ Low priority |
@@ -1319,11 +1319,11 @@ kilo run "Read your task in docs/ai-context/logs/ceo-log.md (Phase 2 Dispatch - 
 
 ---
 
-## Phase 6 Dispatch — Identity Avatars POST-MVP (2026-05-28 00:11)
+## Phase 6 Dispatch - Identity Avatars POST-MVP (2026-05-28 00:11)
 
 > Full design: `ceo-overview.md` §16.2. Trust-building: show the customer's photo + name
 > to the servicer on incoming quotes / job-accept views, **before the servicer accepts**.
-> Today only `user.email` is sent — the customer is masked until acceptance.
+> Today only `user.email` is sent - the customer is masked until acceptance.
 
 ### Sequencing
 
@@ -1335,7 +1335,7 @@ Kilo-2 can START in parallel (build UI against expected field)
 
 ---
 
-### Task P6-BE — Backend: `avatarUrl` on User + customer identity in servicer payload
+### Task P6-BE - Backend: `avatarUrl` on User + customer identity in servicer payload
 
 | Field | Value |
 |-------|-------|
@@ -1345,25 +1345,25 @@ Kilo-2 can START in parallel (build UI against expected field)
 | Spec ref | `ceo-overview.md` §16.2; `TODO.md` lines 52-54 |
 | DoD | `npx tsc --noEmit` zero errors; `backend-log.md` updated; write "schema ready for db push" |
 
-**Step 1 — Schema:**
+**Step 1 - Schema:**
 Add to `User` model in `backend/prisma/schema.prisma`:
 ```prisma
 avatarUrl String?
 ```
-No other fields, no indexes needed. This is a nullable URL string — most users won't have one.
+No other fields, no indexes needed. This is a nullable URL string - most users won't have one.
 
-**Step 2 — Payload extension:**
+**Step 2 - Payload extension:**
 In `backend/src/services/servicer-quote.service.ts`, find where the servicer quote response is built (currently selects `user.email`). Add two fields to the queried user data:
 ```
 user: { select: { email: true, avatarUrl: true, name: true } }
 ```
 Also add `customerAvatarUrl` and `customerName` to the returned quote/proposal shape so the frontend can display them.
 
-**Step 3 — Docs:**
+**Step 3 - Docs:**
 Update `schema-notes.md`: add `avatarUrl` field doc under User model.
 Update `api-doc.md`: note the new `customerAvatarUrl` + `customerName` fields on servicer quote/proposal responses.
 
-**Gate:** `npx tsc --noEmit` clean. Do NOT run `db push` yourself — Kilo-3 handles it.
+**Gate:** `npx tsc --noEmit` clean. Do NOT run `db push` yourself - Kilo-3 handles it.
 
 **Copiable prompt:**
 ```
@@ -1372,7 +1372,7 @@ Read your task in docs/ai-context/logs/ceo-log.md (Phase 6 -> Task P6-BE) and ex
 
 ---
 
-### Task P6-OPS — DevOps: db push (blocked on P6-BE)
+### Task P6-OPS - DevOps: db push (blocked on P6-BE)
 
 | Field | Value |
 |-------|-------|
@@ -1396,7 +1396,7 @@ Read your task in docs/ai-context/logs/ceo-log.md (Phase 6 -> Task P6-OPS). Wait
 
 ---
 
-### Task P6-FE — Frontend: customer avatar upload + servicer-facing display
+### Task P6-FE - Frontend: customer avatar upload + servicer-facing display
 
 | Field | Value |
 |-------|-------|
@@ -1406,23 +1406,23 @@ Read your task in docs/ai-context/logs/ceo-log.md (Phase 6 -> Task P6-OPS). Wait
 | Spec ref | `ceo-overview.md` §16.2; `frontend/STYLE-RULES.md` |
 | DoD | `npx ng build --configuration development` exit 0 |
 
-**Sub-task A — Customer avatar upload on account page:**
+**Sub-task A - Customer avatar upload on account page:**
 
 File: `frontend/src/app/customer/pages/account.component.ts`
 - Add an avatar section to the account page template: a circular image preview (defaulting to initials fallback when no avatar), with an upload button.
-- Reuse the existing file upload flow (S3 presigned → PUT → confirm). Pattern: look at how `servicer/pages/account.component.ts` handles logo upload — same flow, different endpoint.
+- Reuse the existing file upload flow (S3 presigned → PUT → confirm). Pattern: look at how `servicer/pages/account.component.ts` handles logo upload - same flow, different endpoint.
 - On successful upload, PATCH `/user/me` with `{ avatarUrl }` (or use the existing profile save endpoint).
 - Show initials fallback (first letter of name, on tinted bg) when `avatarUrl` is null/empty.
 
-**Sub-task B — Show customer photo on servicer incoming quotes:**
+**Sub-task B - Show customer photo on servicer incoming quotes:**
 
 File: `frontend/src/app/servicer/pages/jobs.component.ts` (the "Pending" column / incoming-quotes view)
 - The backend now sends `customerAvatarUrl` and `customerName` in quote/proposal payloads.
 - Show the customer's avatar (or initials fallback) + name on each incoming quote card in the Pending column.
 - Replace the current masked display (which shows only email or "Customer") with the real name + photo.
-- **Privacy guard:** keep the `pairedCustomerEmail` check — if the quote's customer email matches the servicer's paired email, do NOT reveal (self-quote). This guard already exists in the backend; do not duplicate in frontend — just ensure you don't break the existing masking logic.
+- **Privacy guard:** keep the `pairedCustomerEmail` check - if the quote's customer email matches the servicer's paired email, do NOT reveal (self-quote). This guard already exists in the backend; do not duplicate in frontend - just ensure you don't break the existing masking logic.
 
-**Sub-task C — Show customer photo on job-accept view:**
+**Sub-task C - Show customer photo on job-accept view:**
 
 File: `frontend/src/app/servicer/pages/jobs.component.ts` (job detail / accept view)
 - Same as B: show `customerAvatarUrl` + `customerName` in the job detail view when the servicer is reviewing a booking before accepting.
@@ -1448,13 +1448,13 @@ Read your task in docs/ai-context/logs/ceo-log.md (Phase 6 -> Task P6-FE) and ex
 
 ---
 
-## Phase 6 — COMPLETE (2026-05-28 00:14)
+## Phase 6 - COMPLETE (2026-05-28 00:14)
 
 ### QA gate results
 
 | Gate | Result |
 |------|--------|
-| Backend `tsc --noEmit` | ✅ 9 pre-existing Stale Prisma Client errors (resolve after db push) — code is correct |
+| Backend `tsc --noEmit` | ✅ 9 pre-existing Stale Prisma Client errors (resolve after db push) - code is correct |
 | `avatarUrl` on User model | ✅ Already present from prior schema session (`schema.prisma:281`) |
 | `submitProposal` user select | ✅ Extended from `{ email }` → `{ email, name, avatarUrl }` |
 | `listIncomingQuotes` + `openQuote` payloads | ✅ Already included `customerAvatarUrl` + `customerName` |
@@ -1465,7 +1465,7 @@ Read your task in docs/ai-context/logs/ceo-log.md (Phase 6 -> Task P6-FE) and ex
 | Customer avatar upload UI | ✅ 80px circular preview + upload button + initials fallback on account page |
 | Servicer sees customer photo on incoming quotes | ✅ 40px avatar + customerName in Pending column |
 | Servicer sees customer photo on job-accept | ✅ 40px avatar + customerName in expand/accept view |
-| `pairedCustomerEmail` guard | ✅ Intact — backend excludes self-quotes; frontend receives safe data only |
+| `pairedCustomerEmail` guard | ✅ Intact - backend excludes self-quotes; frontend receives safe data only |
 | `avatarUrl` in profile save | ✅ Included in PATCH `/user/me` body |
 
 ### Agent summary
@@ -1482,51 +1482,51 @@ Read your task in docs/ai-context/logs/ceo-log.md (Phase 6 -> Task P6-FE) and ex
 
 | Item | Priority |
 |------|----------|
-| Admin-managed card thumbnails (POST-MVP) | ✅ Complete — Phase 7 |
-| Chat/FAQ tier system audit + gaps | ✅ Complete — Phase 7 |
+| Admin-managed card thumbnails (POST-MVP) | ✅ Complete - Phase 7 |
+| Chat/FAQ tier system audit + gaps | ✅ Complete - Phase 7 |
 | Google Maps API key restriction in GCP | Manual step |
-| `?q` auto-send in chat widget | Low — deferred |
+| `?q` auto-send in chat widget | Low - deferred |
 | `promo.credit_payback` audit | Low |
 | Per-listing `taxRate` dead code | Low |
 | Stripe production keys | Production only |
 
 ---
 
-## Phase 7 — Card Thumbnails + Chat/FAQ Tier System (2026-05-28 00:42)
+## Phase 7 - Card Thumbnails + Chat/FAQ Tier System (2026-05-28 00:42)
 
-### P7-A — Admin Card Thumbnails: COMPLETE
+### P7-A - Admin Card Thumbnails: COMPLETE
 
 | Gate | Result |
 |------|--------|
 | `imageUrl` on Category schema | ✅ `schema.prisma:602`, db push 247ms |
 | `PATCH /admin/categories/:id` | ✅ PIN-gated |
 | `imageUrl` in 4 category selects | ✅ servicer-service, account, quote.service |
-| Admin Thumbnails tab | ✅ settings.component.ts — upload, preview, clear |
+| Admin Thumbnails tab | ✅ settings.component.ts - upload, preview, clear |
 | Servicer listing thumbnail | ✅ 48px img when `imageUrl`; icon fallback |
 | `ng build` + `tsc` | ✅ Both clean |
 
-### P7-B — Chat/FAQ Tier System Audit: COMPLETE
+### P7-B - Chat/FAQ Tier System Audit: COMPLETE
 
-Audit findings — all items verified against actual code:
+Audit findings - all items verified against actual code:
 - Backend: Faq.tier (hierarchical single-value), buildSystemPrompt filter, admin CRUD, seed data ✅
 - Frontend: chat widget at app root, shell/home/browse FAB buttons, FAQ tier dropdown ✅
 - `db push` for Faq.tier confirmed (2026-05-28, 234ms) ✅
-- `?q` auto-send: not implemented (low priority — deferred)
+- `?q` auto-send: not implemented (low priority - deferred)
 
 **Gaps fixed:**
-1. `localFallback()` tier bypass (SECURITY) — admin FAQs leaked via keyword match on AI outage. Added hierarchical tier filter.
-2. `browse.component.ts` missing chat entry — added ChatWidgetService + FAB.
+1. `localFallback()` tier bypass (SECURITY) - admin FAQs leaked via keyword match on AI outage. Added hierarchical tier filter.
+2. `browse.component.ts` missing chat entry - added ChatWidgetService + FAB.
 3. `schema-notes.md` + `backend-log.md` docs updated from old comma-separated model.
 
 ---
 
-## Session 2026-05-28 02:44 — Credential leak fix + ConfigService
+## Session 2026-05-28 02:44 - Credential leak fix + ConfigService
 
 **Trigger:** Real Google OAuth client ID and Maps API key were found in
 `frontend/src/environments/environment.ts` (left by a corrupted previous
 session).
 
-**Resolution — moved Google keys from compile-time env to runtime API:**
+**Resolution - moved Google keys from compile-time env to runtime API:**
 
 | Layer | What changed |
 |-------|-------------|
@@ -1545,16 +1545,16 @@ session).
 
 **Benefit:** Keys can now be changed per-environment without rebuilding the
 frontend. The `environment.ts` file is no longer a leak vector for any
-credential — it only holds `apiBase` and empty placeholders.
+credential - it only holds `apiBase` and empty placeholders.
 
 ---
 
-## Session 2026-05-28 10:49 — Bug report: "book this servicer" missing settlementMethod + quote form CORS error
+## Session 2026-05-28 10:49 - Bug report: "book this servicer" missing settlementMethod + quote form CORS error
 
-### Bug A — Proposals page: `settlementMethod` not sent on "Confirm — book this servicer"
+### Bug A - Proposals page: `settlementMethod` not sent on "Confirm - book this servicer"
 
 **Observed behavior:**
-When a customer clicks "Select" on a proposal, then "Confirm — book this servicer", the frontend POSTs to `/quotes/:id/select` with **only `{ proposalId }`** — no `settlementMethod` in the body. If the quote was created with `paymentMode = 'pay_later'` or `'cash'`, the backend throws:
+When a customer clicks "Select" on a proposal, then "Confirm - book this servicer", the frontend POSTs to `/quotes/:id/select` with **only `{ proposalId }`** - no `settlementMethod` in the body. If the quote was created with `paymentMode = 'pay_later'` or `'cash'`, the backend throws:
 
 ```
 settlementMethod is required for pay_later bookings
@@ -1566,7 +1566,7 @@ settlementMethod is required for pay_later bookings
 - File: `frontend/src/app/customer/pages/proposals.component.ts:227`
 - The `select()` method sends `{ proposalId }` but does NOT include `settlementMethod`
 - The confirmation modal (lines 73–89) has no payment-method selector
-- The quote form (Step 4 — Bill step) DOES let the user pick `paymentTiming` + `settlementMethod`, but that data is not carried through to the proposals page
+- The quote form (Step 4 - Bill step) DOES let the user pick `paymentTiming` + `settlementMethod`, but that data is not carried through to the proposals page
 - The backend route `POST /quotes/:id/select` accepts `settlementMethod` as optional (`req.body.settlementMethod ?? undefined`), but when the quote is pay_later, the service requires it (`selectProposal()` line 105–107)
 
 **Fix needed:**
@@ -1583,7 +1583,7 @@ content-type: application/json; charset=utf-8
 ...
 ```
 
-### Bug B — Quote form "Send request" — CORS-headered error response
+### Bug B - Quote form "Send request" - CORS-headered error response
 
 **Observed behavior:**
 When clicking "Send request" on the new quote form (`quote-form.component.ts`), the server returns a 144-byte JSON error with full CORS headers (listed above). This suggests a backend validation failure, not a true CORS preflight issue (the response includes proper CORS headers + a JSON body).
@@ -1599,64 +1599,64 @@ When clicking "Send request" on the new quote form (`quote-form.component.ts`), 
 
 | Bug | Priority | Impact |
 |-----|----------|--------|
-| A — settlementMethod on proposal select | **HIGH** | Pay_later customers cannot complete booking — flow is broken |
-| B — Send request error | **HIGH** | Quote submission fails for affected cases |
+| A - settlementMethod on proposal select | **HIGH** | Pay_later customers cannot complete booking - flow is broken |
+| B - Send request error | **HIGH** | Quote submission fails for affected cases |
 
 ### Action needed
 
-Both bugs are in the **Frontend** scope (backend validation is correct — it's the frontend not sending the required field). Single dispatch to Frontend agent recommended. See TODO.md for new task entries.
+Both bugs are in the **Frontend** scope (backend validation is correct - it's the frontend not sending the required field). Single dispatch to Frontend agent recommended. See TODO.md for new task entries.
 
 ---
 
-### Task — Fix Bug A + Bug B: settlementMethod missing on proposal select + quote form submit
+### Task - Fix Bug A + Bug B: settlementMethod missing on proposal select + quote form submit
 
 | Field | Value |
 |-------|-------|
 | Target | Frontend (backend may need minor read-only validation review for Bug B) |
-| Priority | HIGH — pay_later booking flow is broken for both quote submission and proposal selection |
+| Priority | HIGH - pay_later booking flow is broken for both quote submission and proposal selection |
 | Input | `frontend/src/app/customer/pages/proposals.component.ts` (line 227), `frontend/src/app/customer/pages/quote-form.component.ts` (lines 1097-1139), `backend/src/routes/quotes.routes.ts` (POST /quotes handler), `backend/src/services/booking.service.ts` (selectProposal, lines 99-107) |
 | Output | Bug A: `settlementMethod` sent in POST `/quotes/:id/select` body. Bug B: quote form submit succeeds for pay_later/cash without server error. Both `ng build` exit 0 and `tsc --noEmit` clean. |
 | Status | ⬜ Dispatched |
 
 **Detailed description:**
-- **Bug A** — `proposals.component.ts` `select()` (line 227): add `settlementMethod` to the POST body. The settlement method was chosen by the customer in the quote form's Bill step (Step 4) but is lost by the time they reach the proposals page. Either persist it (store in `ApiService` / route data / localStorage) or add a settlement-method radio group inside the confirmation modal.
-- **Bug B** — `quote-form.component.ts` `doSubmit()` (lines 1097-1100): the current code maps `paymentTiming` + `settlementMethod` to the legacy `paymentMode` string, losing the settlement method. The backend `POST /quotes` handler likely needs the settlement method for pay_later quotes at creation time, or the mapping must be fixed to pass both fields. Read the backend handler in `quotes.routes.ts` to determine which approach is correct.
+- **Bug A** - `proposals.component.ts` `select()` (line 227): add `settlementMethod` to the POST body. The settlement method was chosen by the customer in the quote form's Bill step (Step 4) but is lost by the time they reach the proposals page. Either persist it (store in `ApiService` / route data / localStorage) or add a settlement-method radio group inside the confirmation modal.
+- **Bug B** - `quote-form.component.ts` `doSubmit()` (lines 1097-1100): the current code maps `paymentTiming` + `settlementMethod` to the legacy `paymentMode` string, losing the settlement method. The backend `POST /quotes` handler likely needs the settlement method for pay_later quotes at creation time, or the mapping must be fixed to pass both fields. Read the backend handler in `quotes.routes.ts` to determine which approach is correct.
 
 ---
 
-## Session 2026-05-28 10:53 — Fix: guest quote not reaching servicer (socket room mismatch + missing coordinates)
+## Session 2026-05-28 10:53 - Fix: guest quote not reaching servicer (socket room mismatch + missing coordinates)
 
-### Bug C — Socket room name mismatch (CRITICAL)
+### Bug C - Socket room name mismatch (CRITICAL)
 
-**Root cause:** During the Servicer → Servicer rename, the socket connection handler was updated (line 73, `socket/index.ts`) to join room `servicer:{id}` but the two emit functions were **not updated** — they still emit to `servicer:{id}`.
+**Root cause:** During the Servicer → Servicer rename, the socket connection handler was updated (line 73, `socket/index.ts`) to join room `servicer:{id}` but the two emit functions were **not updated** - they still emit to `servicer:{id}`.
 
 | Code location | Room format | Status |
 |---------------|-------------|--------|
-| `socket/index.ts:73` — `io.on('connection', ...)` joins room | `servicer:{id}` | ✅ Correct (updated during rename) |
-| `socket/index.ts:96` — `emitToServicer()` emits to | `servicer:{id}` | ❌ **Stale — should be `servicer:{id}`** |
-| `socket/index.ts:102` — `emitToServicers()` emits to | `servicer:{id}` | ❌ **Stale — should be `servicer:{id}`** |
+| `socket/index.ts:73` - `io.on('connection', ...)` joins room | `servicer:{id}` | ✅ Correct (updated during rename) |
+| `socket/index.ts:96` - `emitToServicer()` emits to | `servicer:{id}` | ❌ **Stale - should be `servicer:{id}`** |
+| `socket/index.ts:102` - `emitToServicers()` emits to | `servicer:{id}` | ❌ **Stale - should be `servicer:{id}`** |
 
 **Impact:** ALL real-time Socket.io events for servicers silently drop:
-- `quote.new` — servicer never sees incoming quote in real-time
-- `notification.new` — servicer never gets real-time notification
-- `booking.status_changed` — servicer never sees booking transitions live
+- `quote.new` - servicer never sees incoming quote in real-time
+- `notification.new` - servicer never gets real-time notification
+- `booking.status_changed` - servicer never sees booking transitions live
 
 **In-app notification DB rows ARE created** (the notification is persisted), but the socket push to the servicer's browser is silently dropped because nobody is listening on `servicer:{id}`.
 
 **Fixed:** Changed both emit functions to use `servicer:{id}` to match the connection handler.
 
-### Bug D — Guest quote `lat`/`lng` not passed through (HIGH)
+### Bug D - Guest quote `lat`/`lng` not passed through (HIGH)
 
 **Root cause:** `createGuestQuote()` creates a guest user address but does NOT accept or pass through `lat`/`lng` coordinates, even when the guest form provides them via Google Places Autocomplete. This means:
 1. Guest address always has `lat`/`lng` = null
 2. `findMatchingServicers()` falls back to fragile substring matching on the address text
 3. The address text must contain the exact service-area keyword (e.g. "SS2", "PJ") for a match
-4. If the guest types an address like "123 Jalan Ampang, Kuala Lumpur" — no match, no quote broadcast
+4. If the guest types an address like "123 Jalan Ampang, Kuala Lumpur" - no match, no quote broadcast
 
 **Fixed:**
 - `POST /quotes/guest` route validation now accepts `lat`/`lng` (optional floats)
 - `createGuestQuote()` accepts `lat`/`lng` in input, saves them on the user address
-- `createQuote()` already copies address lat/lng to the quote request and passes them to `findMatchingServicers()` — so the full chain now works: guest Places → address lat/lng → coordinates-based radius matching
+- `createQuote()` already copies address lat/lng to the quote request and passes them to `findMatchingServicers()` - so the full chain now works: guest Places → address lat/lng → coordinates-based radius matching
 
 ### Fixes applied
 
@@ -1666,61 +1666,61 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 | `backend/src/routes/quotes.routes.ts:129-130` | Added `lat`/`lng` validation to `/quotes/guest` route |
 | `backend/src/services/quote.service.ts:689,700-701,720-723` | Added `lat`/`lng` params to `createGuestQuote()`, saved on address creation |
 
-**Gates:** `npx tsc --noEmit` — zero errors.
+**Gates:** `npx tsc --noEmit` - zero errors.
 
 ### Remaining frontend bugs (separate dispatch)
 
 | Bug | Scope | Status |
 |-----|-------|--------|
-| A — `settlementMethod` missing on proposal select | Frontend | ⬜ Not started |
-| B — Quote form "Send request" CORS error | Frontend | ⬜ Not started |
+| A - `settlementMethod` missing on proposal select | Frontend | ⬜ Not started |
+| B - Quote form "Send request" CORS error | Frontend | ⬜ Not started |
 
 ---
 
-## Session 2026-05-28 11:07 — Kilo CLI corruption check + CEO log update
+## Session 2026-05-28 11:07 - Kilo CLI corruption check + CEO log update
 
 **Trigger:** User reported "got corrupted again for kilo code in cli".
 
 **Investigation:**
-- Kilo CLI `7.3.12` — healthy, no corruption.
-- `.kilo/kilo.json` — intact, 3 MCPs (context7, github, semgrep).
-- `.kilo/agents/` — 7 role files present.
-- `agent-manager.json` — 2 stale worktree entries (`agreeable-otter`, `snow-pudding`), but worktrees directory is empty. These are orphaned references — not corruption, just stale config.
-- **Fix applied:** Removed stale `.git/objects/maintenance.lock` (zero-byte leftover from prior `git maintenance` — not harmful but clean to remove).
-- `git fsck` — only dangling commits/blobs (normal after rebases), no corruption.
-- 3 active `node.exe` processes running (expected — backend, frontend dev servers).
+- Kilo CLI `7.3.12` - healthy, no corruption.
+- `.kilo/kilo.json` - intact, 3 MCPs (context7, github, semgrep).
+- `.kilo/agents/` - 7 role files present.
+- `agent-manager.json` - 2 stale worktree entries (`agreeable-otter`, `snow-pudding`), but worktrees directory is empty. These are orphaned references - not corruption, just stale config.
+- **Fix applied:** Removed stale `.git/objects/maintenance.lock` (zero-byte leftover from prior `git maintenance` - not harmful but clean to remove).
+- `git fsck` - only dangling commits/blobs (normal after rebases), no corruption.
+- 3 active `node.exe` processes running (expected - backend, frontend dev servers).
 
 **Verdict:** No Kilo CLI corruption. The stale maintenance.lock was cleared. Project is healthy.
 
 ---
 
-## Phase 8 Dispatch — Bug A + Bug B (Frontend, HIGH priority)
+## Phase 8 Dispatch - Bug A + Bug B (Frontend, HIGH priority)
 
-### Task P8-FE — Fix settlementMethod flow on proposal select + quote form submit
+### Task P8-FE - Fix settlementMethod flow on proposal select + quote form submit
 
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
-| Priority | HIGH — pay_later booking flow is broken |
+| Priority | HIGH - pay_later booking flow is broken |
 | Input | `frontend/src/app/customer/pages/proposals.component.ts` · `frontend/src/app/customer/pages/quote-form.component.ts` · `backend/src/routes/quotes.routes.ts` · `backend/src/services/booking.service.ts` |
 | Output | Bug A fixed + Bug B fixed. `ng build` exit 0. |
-| Status | ✅ Complete — see verification below |
+| Status | ✅ Complete - see verification below |
 
 **Root cause chain (both bugs frontend-scope, backend validation is correct):**
 
-**Bug A — `settlementMethod` missing on "Confirm — book this servicer":**
+**Bug A - `settlementMethod` missing on "Confirm - book this servicer":**
 - `proposals.component.ts:227`: `select()` POSTs `{ proposalId }` only, no `settlementMethod`.
-- Backend `selectProposal()` (`booking.service.ts:106-114`) requires `settlementMethod` for pay_later quotes — throws 400.
-- Fix: Add `settlementMethod` to the POST body. The user already chose it in the quote form's Bill step (Step 4) — persist it through to the proposals page (e.g., store in component state or a shared service, or add a selector inside the confirmation modal).
+- Backend `selectProposal()` (`booking.service.ts:106-114`) requires `settlementMethod` for pay_later quotes - throws 400.
+- Fix: Add `settlementMethod` to the POST body. The user already chose it in the quote form's Bill step (Step 4) - persist it through to the proposals page (e.g., store in component state or a shared service, or add a selector inside the confirmation modal).
 
-**Bug B — Quote form maps `paymentTiming`/`settlementMethod` to legacy `paymentMode`:**
+**Bug B - Quote form maps `paymentTiming`/`settlementMethod` to legacy `paymentMode`:**
 - `quote-form.component.ts:1097-1100`: Maps `{ paymentTiming, settlementMethod }` → legacy `paymentMode` string (`'pay_now'`/`'cash'`/`'pay_later'`).
 - `'cash'` is a *settlement method*, not a *payment mode*. The quote is stamped with `paymentMode = 'cash'`, confusing downstream logic.
-- Backend route validates `'cash'` as valid paymentMode (permissive), so it passes through — but `selectProposal()` reads `paymentMode` and cannot recover the original settlement method choice.
+- Backend route validates `'cash'` as valid paymentMode (permissive), so it passes through - but `selectProposal()` reads `paymentMode` and cannot recover the original settlement method choice.
 - Fix: Always send `paymentMode` as `'pay_now'` or `'pay_later'` only. Store the actual settlement method (`'cash'`/`'gateway'`/`'credit'`) in a separate field on the quote creation payload. The backend may need a new optional `settlementMethod` field on `POST /quotes`.
 
-**Backend reconciliation (minor — read-only review):**
-- The backend route `POST /quotes/:id/select` marks `settlementMethod` as `optional()` but the service requires it for pay_later. This is intentional — the validation is permissive at the route level and strict at the service level. No change needed.
+**Backend reconciliation (minor - read-only review):**
+- The backend route `POST /quotes/:id/select` marks `settlementMethod` as `optional()` but the service requires it for pay_later. This is intentional - the validation is permissive at the route level and strict at the service level. No change needed.
 
 **DoD:**
 - `ng build` exit 0
@@ -1735,15 +1735,15 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 
 **Fix summary (Bug A):** Added settlement method radio selector (Credit/card, Cash on completion) inside the confirmation modal on the proposals page, shown only when `paymentMode !== 'pay_now'`. Component now calls `GET /quotes/:id` on init to determine `paymentMode`, defaulting settlement method to `credit`.
 
-**Fix summary (Bug B):** `doSubmit()` in `quote-form.component.ts` — `paymentMode` mapping now produces only `'pay_now'` or `'pay_later'` (eliminated legacy `'cash'`). Sends `settlementMethod` as a separate field for pay_later bookings. `loadPreset()` handler updated to map `paymentMode: 'pay_later'` → `paymentTiming: 'pay_later'` + `settlementMethod: 'credit'`.
+**Fix summary (Bug B):** `doSubmit()` in `quote-form.component.ts` - `paymentMode` mapping now produces only `'pay_now'` or `'pay_later'` (eliminated legacy `'cash'`). Sends `settlementMethod` as a separate field for pay_later bookings. `loadPreset()` handler updated to map `paymentMode: 'pay_later'` → `paymentTiming: 'pay_later'` + `settlementMethod: 'credit'`.
 
-**Docs:** `api-doc.md` updated for `POST /quotes/:id/select` — `settlementMethod` now documented.
+**Docs:** `api-doc.md` updated for `POST /quotes/:id/select` - `settlementMethod` now documented.
 
 ---
 
-## Session 2026-05-28 11:17 — Visual finding: sticky toolbars "chopped off" on scroll
+## Session 2026-05-28 11:17 - Visual finding: sticky toolbars "chopped off" on scroll
 
-**User report:** The sticky search bar/toolbar on servicer pages looks ugly when scrolling down — it gets "chopped off" from the top edge. Expected: the bar should "stay intact."
+**User report:** The sticky search bar/toolbar on servicer pages looks ugly when scrolling down - it gets "chopped off" from the top edge. Expected: the bar should "stay intact."
 
 **Investigation (read-only):** Two servicer pages have a `.toolbar` with both `position: sticky; top: 0` and `appAutoHide`:
 
@@ -1752,11 +1752,11 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 | Jobs | `frontend/src/app/servicer/pages/jobs.component.ts` | 110, 583-584 |
 | Services | `frontend/src/app/servicer/pages/services.component.ts` | 108, 463-464 |
 
-**Root cause:** `position: sticky; top: 0` pins the toolbar to the viewport top. As the user scrolls down, `appAutoHide` applies `.is-collapsed` which shrinks padding/height — but since the toolbar is stuck at the top, it visually gets "squeezed" and looks cut off from the page. The sticky behavior is also redundant: the toolbar contains only search + filter chips and doesn't need to stay visible while the user reads content below.
+**Root cause:** `position: sticky; top: 0` pins the toolbar to the viewport top. As the user scrolls down, `appAutoHide` applies `.is-collapsed` which shrinks padding/height - but since the toolbar is stuck at the top, it visually gets "squeezed" and looks cut off from the page. The sticky behavior is also redundant: the toolbar contains only search + filter chips and doesn't need to stay visible while the user reads content below.
 
-**Fix (Frontend scope):** Remove `position: sticky; top: 0; z-index: 5` from the `.toolbar` CSS in both files. Let the toolbar scroll naturally with the page content. The `appAutoHide` directive can stay for the idle fade-out, but without `sticky` the toolbar will scroll away as a complete unit — intact, never chopped.
+**Fix (Frontend scope):** Remove `position: sticky; top: 0; z-index: 5` from the `.toolbar` CSS in both files. Let the toolbar scroll naturally with the page content. The `appAutoHide` directive can stay for the idle fade-out, but without `sticky` the toolbar will scroll away as a complete unit - intact, never chopped.
 
-### Task P8-FE-2 — Fix sticky toolbar "chopped off" on servicer jobs + services pages
+### Task P8-FE-2 - Fix sticky toolbar "chopped off" on servicer jobs + services pages
 
 | Field | Value |
 |-------|-------|
@@ -1766,26 +1766,26 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 | Output | Remove `position: sticky; top: 0; z-index: 5` from both `.toolbar` rulesets. No other changes. Verify `ng build` exit 0. |
 | Status | ✅ Complete |
 
-**Verification:** `jobs.component.ts:583-585` + `services.component.ts:463-465` — removed. `tsc --noEmit` zero errors. `ng build` exit 0.
+**Verification:** `jobs.component.ts:583-585` + `services.component.ts:463-465` - removed. `tsc --noEmit` zero errors. `ng build` exit 0.
 
 ---
 
-## Session 2026-05-28 11:30 — Feature spec: 4 servicer + customer experience items
+## Session 2026-05-28 11:30 - Feature spec: 4 servicer + customer experience items
 
 > **Note during session:** User then added a 5th and 6th item (F-E + F-F) immediately after this was written. See below.
 
 ---
 
-### Feature E — Phone number as primary identity + Google Authenticator 2FA (LOWEST priority — defer to very end)
+### Feature E - Phone number as primary identity + Google Authenticator 2FA (LOWEST priority - defer to very end)
 
-**Concept:** Phone number becomes the **primary customer identifier** instead of email. Registration, login, and all customer-contact touchpoints should use phone number as the key field. Email becomes optional/supplementary. Account verification uses **Google Authenticator (TOTP)** — user scans a QR code at registration, then enters 6-digit codes from the app.
+**Concept:** Phone number becomes the **primary customer identifier** instead of email. Registration, login, and all customer-contact touchpoints should use phone number as the key field. Email becomes optional/supplementary. Account verification uses **Google Authenticator (TOTP)** - user scans a QR code at registration, then enters 6-digit codes from the app.
 
 **Why this matters:**
 - Malaysian market reality: people use WhatsApp/phone, not email, for service communication
 - Trust: servicers need a reachable phone number to coordinate job details
 - Verification: prevents fake/spam requests; ensures servicers can actually contact the customer
-- Currently email is primary — but many customers don't check email regularly
-- **Google Authenticator (TOTP) chosen over WhatsApp OTP** — zero ongoing API costs, no third-party dependency, works offline, standard protocol
+- Currently email is primary - but many customers don't check email regularly
+- **Google Authenticator (TOTP) chosen over WhatsApp OTP** - zero ongoing API costs, no third-party dependency, works offline, standard protocol
 
 **How TOTP works here:**
 1. User registers with phone number (primary) + optional email
@@ -1798,10 +1798,10 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 
 **1. Schema & Auth:**
 - `User.phone` becomes **required**, `User.email` becomes **optional**
-- `User.totpSecret` (encrypted string) — stores the TOTP seed
+- `User.totpSecret` (encrypted string) - stores the TOTP seed
 - Registration: phone is required, email is optional, TOTP QR code shown after account creation
 - Login: support **phone + TOTP** in addition to existing email/password
-- Library: `otplib` (npm) — generates secrets, verifies codes, creates QR code URIs
+- Library: `otplib` (npm) - generates secrets, verifies codes, creates QR code URIs
 
 **2. Registration flow:**
 - Default registration: phone number → create password → scan TOTP QR → account active
@@ -1821,16 +1821,16 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 - Show phone only AFTER servicer accepts the job (privacy), NOT on initial incoming quote
 
 **Implementation approach:**
-- **`otplib`** — TOTP generation and verification (~10KB, zero deps)
-- **`qrcode`** — server-side QR code generation (rendered as inline SVG or PNG data URI)
+- **`otplib`** - TOTP generation and verification (~10KB, zero deps)
+- **`qrcode`** - server-side QR code generation (rendered as inline SVG or PNG data URI)
 - TOTP secret encrypted at rest using existing crypto utilities (or stored as-is with DB encryption)
-- No ongoing costs — TOTP is a pure algorithm (RFC 6238)
+- No ongoing costs - TOTP is a pure algorithm (RFC 6238)
 - Fallback: if user loses access to authenticator app, admin can reset TOTP via PIN-gated flow
 
 **Phone number confirmation remark:**
 - Every form where the customer enters their phone number must show a **prominent inline remark** below the phone field: e.g. "Please double-check your phone number. This is how servicers will contact you about your job." or a confirmation dialog after entering the number.
 - Affected forms: registration, quote form Contact step, guest quote form, customer account profile edit, customer preset creation.
-- The remark must be visible BEFORE form submission — not an error message after the fact.
+- The remark must be visible BEFORE form submission - not an error message after the fact.
 
 **Open questions (need design phase):**
 - Should phone-based registration replace email entirely, or sit alongside it?
@@ -1839,17 +1839,17 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 - Should servicers also be phone-primary, or keep email as primary for professional accounts?
 - Recovery flow: what happens when user loses their phone (authenticator app)?
 
-**Scope rating:** LARGE — touches auth, registration, schema, quote/billing pipeline. But **simpler than WhatsApp OTP** since TOTP needs no third-party API, no SMS costs, no external provider integration.
+**Scope rating:** LARGE - touches auth, registration, schema, quote/billing pipeline. But **simpler than WhatsApp OTP** since TOTP needs no third-party API, no SMS costs, no external provider integration.
 
-**🚩 DEFERRED:** User explicitly pushed this to lowest priority — do LAST after all other features (F-A through F-D) are complete.
+**🚩 DEFERRED:** User explicitly pushed this to lowest priority - do LAST after all other features (F-A through F-D) are complete.
 
 
 
-**User provided 4 new feature requirements during CEO review.** All recorded below for future design → plan → execution. None dispatched yet — user explicitly asked to "record first."
+**User provided 4 new feature requirements during CEO review.** All recorded below for future design → plan → execution. None dispatched yet - user explicitly asked to "record first."
 
 ---
 
-### Feature A — Servicer proposal prompt guard on new request
+### Feature A - Servicer proposal prompt guard on new request
 
 **Concept:** When a **new quote request arrives**, the servicer should see an **in-page prompt/guard** (not a background notification) that lets them immediately fill in their proposal details (price, description, line items) and respond. Currently the servicer has to navigate to the Jobs tab, find the pending quote, expand it, and fill the proposal form. The guard makes this flow proactive.
 
@@ -1869,7 +1869,7 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 
 ---
 
-### Feature B — Servicer calendar system (new tab)
+### Feature B - Servicer calendar system (new tab)
 
 **Concept:** A new Calendar tab in the servicer portal sidebar (`/servicer/calendar`) showing a visual calendar (month/week/day view) with booked jobs and available time slots. Auto-assigns available sessions based on servicer's configured working hours and existing bookings.
 
@@ -1894,16 +1894,16 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 
 ---
 
-### Feature C — Customer contact/address presets (Shopee-style)
+### Feature C - Customer contact/address presets (Shopee-style)
 
-**Concept:** Overhaul the customer contact and address system to support **multiple presets** — similar to Shopee checkout where you can save multiple contacts+addresses and pick one per quote request. Each preset = Contact Person + Phone + Address (with Google Places) + Preferred Time Slot (no weekday needed).
+**Concept:** Overhaul the customer contact and address system to support **multiple presets** - similar to Shopee checkout where you can save multiple contacts+addresses and pick one per quote request. Each preset = Contact Person + Phone + Address (with Google Places) + Preferred Time Slot (no weekday needed).
 
 **Key behaviors:**
 - **Customer Account → Settings** section: CRUD presets (Add/Edit/Delete). Each preset has: nickname ("Home", "Office", "Parents' House"), contact name, phone, full address (Places Autocomplete), preferred time slot (time range, no weekday).
-- **New quote request form — Contact step:** Defaults to **empty**. A dropdown/picker shows saved presets. Selecting a preset **auto-fills** all Contact step fields (name, phone, address, time slot). User can still edit fields after auto-fill.
+- **New quote request form - Contact step:** Defaults to **empty**. A dropdown/picker shows saved presets. Selecting a preset **auto-fills** all Contact step fields (name, phone, address, time slot). User can still edit fields after auto-fill.
 - **If customer has zero presets:** The Contact step shows the regular empty form. After filling and submitting the quote, optionally prompt "Save this as a preset for next time?"
-- **Save from form:** While filling the Contact step, user can click "Save as preset" — this creates a new preset from the current form values without leaving the quote flow.
-- **Rename Bill tab → Confirmation:** In the 4-step quote wizard, rename "Bill" (Step 4) to "Confirmation". This step still handles payment timing + method + promo + estimate + agree + submit — only the label changes.
+- **Save from form:** While filling the Contact step, user can click "Save as preset" - this creates a new preset from the current form values without leaving the quote flow.
+- **Rename Bill tab → Confirmation:** In the 4-step quote wizard, rename "Bill" (Step 4) to "Confirmation". This step still handles payment timing + method + promo + estimate + agree + submit - only the label changes.
 
 **Data model scope:**
 - New model `CustomerPreset` or extend existing `UserAddress` with a grouping+preset system
@@ -1918,27 +1918,27 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 
 ---
 
-### Feature D — Customer account: search + filters for all tabs
+### Feature D - Customer account: search + filters for all tabs
 
 **Concept:** Add search bars and filter controls to every list tab in the customer account page, matching the pattern already used on servicer jobs/services pages. Rename "Upcoming Bookings" to just "Upcoming".
 
 **Affected tabs (with current state):**
-1. **Current Quotes** — list of active quote requests. Today: no search, no filters. Add: search by category/servicer name, filter by status (awaiting proposals / proposals received / expired).
-2. **Upcoming Bookings** (rename from "Upcoming Bookings" → **"Upcoming"**) — list of active/pending bookings. Today: no search, no filters. Add: search by servicer name/category, filter by status (pending confirm / confirmed / in progress).
-3. **Order History** — completed/cancelled bookings. Today: no search, no filters. Add: search by servicer name/category/date range, filter by status (completed / cancelled / all), sort by date.
-4. **Rewards** — loyalty points/perks page. Add: search by reward name, filter by tier/redeemable status.
+1. **Current Quotes** - list of active quote requests. Today: no search, no filters. Add: search by category/servicer name, filter by status (awaiting proposals / proposals received / expired).
+2. **Upcoming Bookings** (rename from "Upcoming Bookings" → **"Upcoming"**) - list of active/pending bookings. Today: no search, no filters. Add: search by servicer name/category, filter by status (pending confirm / confirmed / in progress).
+3. **Order History** - completed/cancelled bookings. Today: no search, no filters. Add: search by servicer name/category/date range, filter by status (completed / cancelled / all), sort by date.
+4. **Rewards** - loyalty points/perks page. Add: search by reward name, filter by tier/redeemable status.
 
 **Implementation notes:**
 - Reuse the existing `search-select.component.ts` pattern (fuzzy searchable select) for filter dropdowns
 - Reuse the existing chip filter pattern from servicer jobs page
 - All filters are frontend-only (client-side filtering of already-loaded data) unless data volume demands server-side pagination
-- Rename is a string change only — no functional impact
+- Rename is a string change only - no functional impact
 
 ---
 
 ---
 
-### Bonus — Demo autofill button on guest quote form
+### Bonus - Demo autofill button on guest quote form
 
 **Dispatched + completed in same session (2026-05-28 11:45).** Added an "⚡ Demo: Auto-fill" ghost button to `guest-quote.component.ts` that populates all form fields with sample data (contact, address, date, time slot, budget, payment). `tsc --noEmit` zero errors. `ng build` exit 0. Lazy chunk size: 70 KB.
 
@@ -1950,15 +1950,15 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 |------|-------------|--------|
 | P8-FE | Bug A: settlementMethod on proposal select + Bug B: paymentMode mapping | `2880aac` |
 | P8-FE-2 | Sticky toolbar chopped off (removed position: sticky) | `2880aac` |
-| — | Demo autofill button on guest quote form | `2880aac` |
-| — | Backend regex validation (phone, password, name length on auth + quote routes) | `2880aac` |
-| — | Frontend form validation (maxlength, pattern, submit-side checks on 4 forms) | `2880aac` |
-| — | Local-upload URL missing /v1 prefix | `cf584c7` |
-| — | My Quotes search/sort/filter toolbar | `e4f8682` |
-| — | Notification sound (Web Audio API chime) | `e4f8682` |
-| — | Notification sound admin toggle + PIN gate fix | `7edbfb4` |
-| — | Chat message sound setting + Web Audio chime | `9e7b01a` |
-| — | Typing sound setting + Web Audio click | *(pending)* |
+| - | Demo autofill button on guest quote form | `2880aac` |
+| - | Backend regex validation (phone, password, name length on auth + quote routes) | `2880aac` |
+| - | Frontend form validation (maxlength, pattern, submit-side checks on 4 forms) | `2880aac` |
+| - | Local-upload URL missing /v1 prefix | `cf584c7` |
+| - | My Quotes search/sort/filter toolbar | `e4f8682` |
+| - | Notification sound (Web Audio API chime) | `e4f8682` |
+| - | Notification sound admin toggle + PIN gate fix | `7edbfb4` |
+| - | Chat message sound setting + Web Audio chime | `9e7b01a` |
+| - | Typing sound setting + Web Audio click | *(pending)* |
 
 ### Spec written
 
@@ -1966,7 +1966,7 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 |------|------|--------|
 | Admin Platform Settings Redesign | `docs/superpowers/specs/2026-05-28-admin-settings-redesign.md` | ✅ Approved, written, committed |
 
-### Task summary (all pending — design & dispatch)
+### Task summary (all pending - design & dispatch)
 
 | ID | Feature | Scope | Priority |
 |----|---------|-------|----------|
@@ -1980,9 +1980,9 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 
 ---
 
-## Session 2026-05-28 — Cleanup & label renames (parallel dispatch)
+## Session 2026-05-28 - Cleanup & label renames (parallel dispatch)
 
-### Dispatch — 4 tasks via 3 parallel `general` agents
+### Dispatch - 4 tasks via 3 parallel `general` agents
 
 | Task | Description | Agent | Status |
 |------|-------------|-------|--------|
@@ -1993,9 +1993,9 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 
 ---
 
-## Session 2026-05-28 — Calendar Picker (frontend-only)
+## Session 2026-05-28 - Calendar Picker (frontend-only)
 
-### Task — Visible Calendar Picker
+### Task - Visible Calendar Picker
 | Field | Value |
 |-------|-------|
 | Target | Frontend (general agent) |
@@ -2005,13 +2005,13 @@ Both bugs are in the **Frontend** scope (backend validation is correct — it's 
 New `calendar-picker.component.ts` replaces `type="date"` + radio time slots on customer and guest quote forms. Shared component with month navigation, day grid, time slot pills, collapsible toggle.
 
 ### Files changed
-- `frontend/src/app/shared/calendar-picker.component.ts` — **new**
-- `frontend/src/app/customer/pages/quote-form.component.ts` — replaced date/time with component
-- `frontend/src/app/guest/guest-quote.component.ts` — same replacement
+- `frontend/src/app/shared/calendar-picker.component.ts` - **new**
+- `frontend/src/app/customer/pages/quote-form.component.ts` - replaced date/time with component
+- `frontend/src/app/guest/guest-quote.component.ts` - same replacement
 
 ### Verification
-- `frontend npx tsc --noEmit` — ✅ Pass
-- `frontend ng build --configuration development` — ✅ Pass
+- `frontend npx tsc --noEmit` - ✅ Pass
+- `frontend ng build --configuration development` - ✅ Pass
 
 ### Verification results
 | Gate | Result |
@@ -2019,28 +2019,28 @@ New `calendar-picker.component.ts` replaces `type="date"` + radio time slots on 
 | `backend npx tsc --noEmit` | ✅ Pass (0 errors) |
 | `frontend npx tsc --noEmit` | ✅ Pass (0 errors) |
 | `frontend ng build --configuration development` | ✅ Pass (0 errors, 3 pre-existing NG8107 warnings) |
-| `backend npx jest --passWithNoTests` | ✅ 235 pass (1 pre-existing failure: `booking-lifecycle.test.ts` — Prisma mock setup, unrelated) |
+| `backend npx jest --passWithNoTests` | ✅ 235 pass (1 pre-existing failure: `booking-lifecycle.test.ts` - Prisma mock setup, unrelated) |
 
 ### Files changed
-- `backend/prisma/schema.prisma` — removed `preferredWeekday` from User and QuotePreset
-- `backend/prisma/seed/data/accounts.ts` — removed field + data
-- `backend/prisma/seed/seed.ts` — removed field mapping + data
-- `backend/src/routes/user.routes.ts` — removed validation, response, destructuring
-- `frontend/src/app/customer/pages/account.component.ts` — removed profile + modal fields, renamed labels
-- `frontend/src/app/customer/pages/quote-form.component.ts` — "Bill" → "Confirmation" step label
-- `frontend/src/app/guest/guest-quote.component.ts` — "Bill" → "Confirmation" step label
-- `frontend/src/app/servicer/pages/services.component.ts` — collapsible pricing grid
-- `docs/ai-context/schema-notes.md` — removed `preferred_weekday` mention
-- `docs/api-reference/api-doc.md` — removed example field
-- `docs/ai-context/logs/ceo-log.md` — this entry
-- `TODO.md` — updated F-C items and new session section
+- `backend/prisma/schema.prisma` - removed `preferredWeekday` from User and QuotePreset
+- `backend/prisma/seed/data/accounts.ts` - removed field + data
+- `backend/prisma/seed/seed.ts` - removed field mapping + data
+- `backend/src/routes/user.routes.ts` - removed validation, response, destructuring
+- `frontend/src/app/customer/pages/account.component.ts` - removed profile + modal fields, renamed labels
+- `frontend/src/app/customer/pages/quote-form.component.ts` - "Bill" → "Confirmation" step label
+- `frontend/src/app/guest/guest-quote.component.ts` - "Bill" → "Confirmation" step label
+- `frontend/src/app/servicer/pages/services.component.ts` - collapsible pricing grid
+- `docs/ai-context/schema-notes.md` - removed `preferred_weekday` mention
+- `docs/api-reference/api-doc.md` - removed example field
+- `docs/ai-context/logs/ceo-log.md` - this entry
+- `TODO.md` - updated F-C items and new session section
 
 ---
 
-## Session 2026-05-28 14:14 — Brainstorming CEO recovery (terminal corruption)
+## Session 2026-05-28 14:14 - Brainstorming CEO recovery (terminal corruption)
 
 > Previous session was corrupted in the terminal. User requested continuation as
-> **Brainstorming CEO** — reading codebase, designing specs for the Executing CEO.
+> **Brainstorming CEO** - reading codebase, designing specs for the Executing CEO.
 > The SESSION-HANDOFF.md multi-CEO workflow is in effect.
 
 ### Current state
@@ -2064,10 +2064,10 @@ New `calendar-picker.component.ts` replaces `type="date"` + radio time slots on 
 
 | Spec | Path | What it covers | Status |
 |------|------|----------------|--------|
-| F-D — Customer search/filter | `docs/superpowers/specs/2026-05-28-customer-search-filter.md` | Search + filter chips for Order History & Rewards pages (MyQuotes & MyBookings already done). Frontend-only. | ✅ Ready |
-| F-C — Quote form preset picker (remaining) | `docs/superpowers/specs/2026-05-28-quote-preset-picker.md` | "Save as preset" button inside quote form Contact step (the CRUD + picker dropdown + auto-fill all already exist). | ✅ Ready — small task |
-| F-A — Proposal prompt guard | `docs/superpowers/specs/2026-05-28-proposal-prompt-guard.md` | MVP bottom-bar prompt already built in `servicer-shell.component.ts`. Spec covers upgrade to inline proposal form with customer identity + prefill. | ✅ Ready |
-| F-B — Servicer calendar system | `docs/superpowers/specs/2026-05-28-servicer-calendar.md` | Full-stack: `ServicerSchedule` model exists but is unused. Calendar API + month grid + working hours management + seed data. | ✅ Ready |
+| F-D - Customer search/filter | `docs/superpowers/specs/2026-05-28-customer-search-filter.md` | Search + filter chips for Order History & Rewards pages (MyQuotes & MyBookings already done). Frontend-only. | ✅ Ready |
+| F-C - Quote form preset picker (remaining) | `docs/superpowers/specs/2026-05-28-quote-preset-picker.md` | "Save as preset" button inside quote form Contact step (the CRUD + picker dropdown + auto-fill all already exist). | ✅ Ready - small task |
+| F-A - Proposal prompt guard | `docs/superpowers/specs/2026-05-28-proposal-prompt-guard.md` | MVP bottom-bar prompt already built in `servicer-shell.component.ts`. Spec covers upgrade to inline proposal form with customer identity + prefill. | ✅ Ready |
+| F-B - Servicer calendar system | `docs/superpowers/specs/2026-05-28-servicer-calendar.md` | Full-stack: `ServicerSchedule` model exists but is unused. Calendar API + month grid + working hours management + seed data. | ✅ Ready |
 
 ### ⚠︝ Pre-existing uncommitted work found
 
@@ -2084,11 +2084,11 @@ interrupted by the terminal crash:
 | `shared/shell.component.ts` | Added F-A prompt guard with socket listener + bottom bar | F-A |
 
 **Warning for Executing CEO:** The F-A prompt guard now exists in TWO places:
-`shared/shell.component.ts` (uncommitted — prev session's work) and
+`shared/shell.component.ts` (uncommitted - prev session's work) and
 `servicer-shell.component.ts` (already committed). One should be removed to
 avoid duplication. The servicer-shell version is the correct home.
 
-**F-D is ~95% complete** in the working tree — only `npx tsc --noEmit` + `ng build`
+**F-D is ~95% complete** in the working tree - only `npx tsc --noEmit` + `ng build`
 verification and a "Save as preset" button (F-C) remain.
 
 The Executing CEO should review these uncommitted changes, merge them with any
@@ -2105,7 +2105,7 @@ spec-driven changes, and commit.
 
 ---
 
-## Session 2026-05-28 14:14 — Executing CEO continuation (Phase 9 features)
+## Session 2026-05-28 14:14 - Executing CEO continuation (Phase 9 features)
 
 > Resumed from corrupted previous session. Executed F-D, F-A, F-B directly.
 
@@ -2115,7 +2115,7 @@ spec-driven changes, and commit.
 |---------|--------|---------|
 | F-D | ✅ Complete | Nav rename + search/filter on MyBookings (+status chips), OrderHistory (+search/sort), Rewards (+search/redeemable filter). |
 | F-A | ✅ Complete (MVP) | `ShellComponent`: `quote.new` socket listener → fixed-position toast with "View & respond" button → navigate to `/servicer/jobs`. 60s auto-dismiss, dedup. |
-| F-B | ✅ Complete (MVP) | Backend: `GET /servicer/calendar?month=YYYY-MM` — bookings grouped by date. Frontend: `calendar.component.ts` — month grid, status pills, month nav, today button, legend. |
+| F-B | ✅ Complete (MVP) | Backend: `GET /servicer/calendar?month=YYYY-MM` - bookings grouped by date. Frontend: `calendar.component.ts` - month grid, status pills, month nav, today button, legend. |
 
 ### Verification gates
 
@@ -2130,20 +2130,20 @@ spec-driven changes, and commit.
 
 | ID | Feature | Status |
 |----|---------|--------|
-| F-C | Contact presets — "Save as preset" button | Frontend | ✅ Complete — "Save as preset" ghost button + named modal + backend POST + picker refresh |
+| F-C | Contact presets - "Save as preset" button | Frontend | ✅ Complete - "Save as preset" ghost button + named modal + backend POST + picker refresh |
 | F-E | Phone as primary + TOTP | 🚩 Deferred last | ⬜ Not started |
 
 ### Docs updated
-- `TODO.md` — F-A, F-B, F-D ticked
-- `api-doc.md` — calendar endpoint documented
-- `backend-log.md` — calendar endpoint added
-- `frontend-log.md` — all three features logged
-- `ceo-log.md` — this entry
-- `SESSION-HANDOFF.md` — updated below
+- `TODO.md` - F-A, F-B, F-D ticked
+- `api-doc.md` - calendar endpoint documented
+- `backend-log.md` - calendar endpoint added
+- `frontend-log.md` - all three features logged
+- `ceo-log.md` - this entry
+- `SESSION-HANDOFF.md` - updated below
 
 ---
 
-## Session 2026-05-28 14:55 — Brainstorming: dispatch overlay + auth features
+## Session 2026-05-28 14:55 - Brainstorming: dispatch overlay + auth features
 
 > Design session following up on the "directory system" (which turned into the
 > **job dispatch overlay**) and the calendar system. 6 specs produced.
@@ -2152,7 +2152,7 @@ spec-driven changes, and commit.
 
 - **Brainstorming sessions MUST start by loading the `brainstorming` skill.** The skill's checklist (explore → companion offer → clarify → approaches → present → write spec → self-review → user review → transition) is the canonical process. Do not skip to clarifying questions without loading it first.
 
-- **FAQ sync rule (standing):** Every time the Executing CEO ships a feature or settings change, they MUST update the FAQ knowledge base at `backend/prisma/seed/data/static.ts` to reflect it. The FAQ has been drifting behind the website — this is now a blocking gate. No task is "done" until the FAQ entries are updated for that feature.
+- **FAQ sync rule (standing):** Every time the Executing CEO ships a feature or settings change, they MUST update the FAQ knowledge base at `backend/prisma/seed/data/static.ts` to reflect it. The FAQ has been drifting behind the website - this is now a blocking gate. No task is "done" until the FAQ entries are updated for that feature.
 
 ### Design constraints set during session
 
@@ -2182,7 +2182,7 @@ spec-driven changes, and commit.
 ### Session learnings (process)
 
 - **Brainstorming sessions MUST start by loading the `brainstorming` skill.** The skill's checklist (explore → companion offer → clarify → approaches → present → write spec → self-review → user review → transition) is the canonical process. Do not skip to clarifying questions without loading it first.
-- **FAQ sync rule (standing):** Every time the Executing CEO ships a feature or settings change, they MUST update the FAQ knowledge base at `backend/prisma/seed/data/static.ts` to reflect it. The FAQ has been drifting behind the website — this is now a blocking gate. No task is "done" until the FAQ entries are updated for that feature.
+- **FAQ sync rule (standing):** Every time the Executing CEO ships a feature or settings change, they MUST update the FAQ knowledge base at `backend/prisma/seed/data/static.ts` to reflect it. The FAQ has been drifting behind the website - this is now a blocking gate. No task is "done" until the FAQ entries are updated for that feature.
 
 ### Design constraints set during session
 
@@ -2194,15 +2194,15 @@ spec-driven changes, and commit.
 | Stripe top-up for servicers | Reuse existing `createTopUpSession()`. Webhook credits `servicer.creditBalance`. |
 | Bank account | Stored on Servicer profile. Required before taking jobs. |
 | Onboarding gate | Backend checks `onboarded` flag + requirements before allowing job proposals/confirms. |
-| Promotion triggers | 14 types — all included |
+| Promotion triggers | 14 types - all included |
 | Promo admin UI | New "Promotions" tab under Platform Settings. PIN-gated CRUD. |
 | Platform fee | 20% from servicer |
-| Customer discount | 5% web-wide — implemented as a modular Promotion |
-| Welcome bonus | Top-up ≥ RM 100 → +RM 10 — implemented as a modular Promotion |
+| Customer discount | 5% web-wide - implemented as a modular Promotion |
+| Welcome bonus | Top-up ≥ RM 100 → +RM 10 - implemented as a modular Promotion |
 
 ---
 
-## Session 2026-05-28 15:54 — Customer Rewards System
+## Session 2026-05-28 15:54 - Customer Rewards System
 
 ### Design decisions
 
@@ -2231,46 +2231,46 @@ spec-driven changes, and commit.
 
 ### Total spec portfolio
 
-All 14 specs in `docs/superpowers/specs/` — ready for Executing CEO dispatch.
+All 14 specs in `docs/superpowers/specs/` - ready for Executing CEO dispatch.
 
 ---
 
-## Session 2026-05-28 16:59 — Brainstorming CEO recovery (post-corruption)
+## Session 2026-05-28 16:59 - Brainstorming CEO recovery (post-corruption)
 
 > Terminal was corrupted; user asked for **Parallel Brainstormer** continuation.
 > Another CEO instance is active as Executive. This agent speculates + documents.
 
 ### State at session start
 
-- **Head:** `79a5b90` — 14 commits ahead of `origin/master`
-- **Working tree:** DIRTY — 7 modified + 6 untracked files (deactivation WIP + 4 new specs)
-- **Last 5 commits:** Forgot password, dispatch overlay, settings refinements, 8 brainstorming specs, PIN registration — all shipped by Executing CEO
+- **Head:** `79a5b90` - 14 commits ahead of `origin/master`
+- **Working tree:** DIRTY - 7 modified + 6 untracked files (deactivation WIP + 4 new specs)
+- **Last 5 commits:** Forgot password, dispatch overlay, settings refinements, 8 brainstorming specs, PIN registration - all shipped by Executing CEO
 - **All Phases 1–7 ✅ complete** on committed tree; Phase 9 features F-A through F-D shipped
 
-### Dirty tree audit — Deactivation system (partial WIP)
+### Dirty tree audit - Deactivation system (partial WIP)
 
 The deactivation feature was started but interrupted by the terminal corruption. Status:
 
 | Layer | Status | Issues |
 |-------|--------|--------|
-| Schema (`schema.prisma`) | ✅ Written — User/Servicer `active`, `deactivationCount`, `deactivatedAt` + `BannedEmail` model | Needs `db push` |
-| Service (`deactivate.service.ts`) | ✅ Written — `deactivateUser()` + `deactivateServicer()` | **7 tsc errors** — `notes` field doesn't exist on Booking; stale Prisma client for `active`/`bannedEmail` |
-| Routes (`auth.routes.ts`, `user.routes.ts`, `servicer.routes.ts`) | ✅ Written — registration guard, customer deactivate (password), servicer deactivate (PIN) | Auth routes import `prisma.bannedEmail` — stale client |
-| Frontend customer (`account.component.ts`) | ✅ 3-step Danger Zone modal — warning, reason+password, "DELETE" confirmation | Needs `tsc` + `ng build` verify |
+| Schema (`schema.prisma`) | ✅ Written - User/Servicer `active`, `deactivationCount`, `deactivatedAt` + `BannedEmail` model | Needs `db push` |
+| Service (`deactivate.service.ts`) | ✅ Written - `deactivateUser()` + `deactivateServicer()` | **7 tsc errors** - `notes` field doesn't exist on Booking; stale Prisma client for `active`/`bannedEmail` |
+| Routes (`auth.routes.ts`, `user.routes.ts`, `servicer.routes.ts`) | ✅ Written - registration guard, customer deactivate (password), servicer deactivate (PIN) | Auth routes import `prisma.bannedEmail` - stale client |
+| Frontend customer (`account.component.ts`) | ✅ 3-step Danger Zone modal - warning, reason+password, "DELETE" confirmation | Needs `tsc` + `ng build` verify |
 | Frontend servicer (`account.component.ts`) | ❌ Not started | Must mirror customer UI with PIN instead of password |
 | Admin banned accounts tab | ❌ Not started | Spec ready at `2026-05-28-admin-banned-accounts.md` |
 | `db push` | ❌ Pending | DLL-lock protocol needed |
 
 ### Specs reviewed this session
 
-**4 new untracked spec files** — design docs for already-built features F-A through F-D. Reviewed and ready to commit:
+**4 new untracked spec files** - design docs for already-built features F-A through F-D. Reviewed and ready to commit:
 
 | Spec | Feature | Status |
 |------|---------|--------|
-| `2026-05-28-customer-search-filter.md` | F-D — search/filter on Order History + Rewards | ✅ Built, spec retrospective |
-| `2026-05-28-proposal-prompt-guard.md` | F-A — proposal prompt with inline form | ✅ Built (MVP prompt), spec covers enhancement |
-| `2026-05-28-quote-preset-picker.md` | F-C — "Save as preset" in quote form | ✅ Built, spec retrospective |
-| `2026-05-28-servicer-calendar.md` | F-B — month grid + schedule CRUD | ✅ Built (MVP), spec complete |
+| `2026-05-28-customer-search-filter.md` | F-D - search/filter on Order History + Rewards | ✅ Built, spec retrospective |
+| `2026-05-28-proposal-prompt-guard.md` | F-A - proposal prompt with inline form | ✅ Built (MVP prompt), spec covers enhancement |
+| `2026-05-28-quote-preset-picker.md` | F-C - "Save as preset" in quote form | ✅ Built, spec retrospective |
+| `2026-05-28-servicer-calendar.md` | F-B - month grid + schedule CRUD | ✅ Built (MVP), spec complete |
 
 ### Updated spec
 
@@ -2278,7 +2278,7 @@ The deactivation feature was started but interrupted by the terminal corruption.
 |------|--------|
 | `2026-05-28-deactivate-account.md` | Added implementation-status table + known-issues block for partial WIP |
 
-### Spec portfolio (15 total — all in `docs/superpowers/specs/`)
+### Spec portfolio (15 total - all in `docs/superpowers/specs/`)
 
 | # | Spec | Status |
 |---|------|--------|
@@ -2308,25 +2308,25 @@ The deactivation feature was started but interrupted by the terminal corruption.
 
 ### Recommended next actions for Executing CEO
 
-1. **Push to origin** — 14 commits ahead, including Phase 9 features + PIN + forgot password + dispatch overlay
-2. **Fix deactivation WIP** — fix `notes` field bug in `deactivate.service.ts:21`, run `db push`, verify `tsc`
-3. **Complete deactivation frontend** — Danger Zone section in `servicer/pages/account.component.ts`
-4. **Build admin banned accounts tab** — spec ready at `2026-05-28-admin-banned-accounts.md`
-5. **Build deposit/credit/promotions system** — spec ready (large feature, depends on Stripe which is wired)
-6. **Build customer rewards** — spec ready (large feature)
-7. **F-E (phone+TOTP)** — 🚩 Deferred last, not specced
+1. **Push to origin** - 14 commits ahead, including Phase 9 features + PIN + forgot password + dispatch overlay
+2. **Fix deactivation WIP** - fix `notes` field bug in `deactivate.service.ts:21`, run `db push`, verify `tsc`
+3. **Complete deactivation frontend** - Danger Zone section in `servicer/pages/account.component.ts`
+4. **Build admin banned accounts tab** - spec ready at `2026-05-28-admin-banned-accounts.md`
+5. **Build deposit/credit/promotions system** - spec ready (large feature, depends on Stripe which is wired)
+6. **Build customer rewards** - spec ready (large feature)
+7. **F-E (phone+TOTP)** - 🚩 Deferred last, not specced
 
 ---
 
-## Session 2026-05-28 17:17 — CEO orchestration recovery
+## Session 2026-05-28 17:17 - CEO orchestration recovery
 
 > Terminal was corrupted; user requested CEO continuation to drive the project forward.
 > A parallel brainstormer instance is running alongside this CEO.
 
 ### State audit
 
-**HEAD:** `890713a` — 14 commits ahead of `origin/master`
-**Working tree:** DIRTY — 8 modified + 2 untracked files (deactivation WIP + agent log updates)
+**HEAD:** `890713a` - 14 commits ahead of `origin/master`
+**Working tree:** DIRTY - 8 modified + 2 untracked files (deactivation WIP + agent log updates)
 **Branch:** `master` (single branch, no stale worktrees or branches)
 
 ### Committed work (HEAD `890713a`)
@@ -2356,12 +2356,12 @@ All features shipped by the Executing CEO (committed via prior sessions):
 | File | Change | Status |
 |------|--------|--------|
 | `backend/prisma/schema.prisma` | +`active`, `deactivationCount`, `deactivatedAt` on User/Servicer + new `BannedEmail` model | ⚠︝ Needs `db push` + tsc fix |
-| `backend/src/services/deactivate.service.ts` | NEW — `deactivateUser()` + `deactivateServicer()` | ⚠︝ **Bug: `notes` field referenced on Booking model** (Booking has no `notes` — it's on QuoteRequest). Also stale Prisma client for `active`/`bannedEmail` fields. |
-| `backend/src/routes/auth.routes.ts` | Registration guard — rejects banned emails | ⚠︝ Stale Prisma client (`bannedEmail` not in generated client yet) |
+| `backend/src/services/deactivate.service.ts` | NEW - `deactivateUser()` + `deactivateServicer()` | ⚠︝ **Bug: `notes` field referenced on Booking model** (Booking has no `notes` - it's on QuoteRequest). Also stale Prisma client for `active`/`bannedEmail` fields. |
+| `backend/src/routes/auth.routes.ts` | Registration guard - rejects banned emails | ⚠︝ Stale Prisma client (`bannedEmail` not in generated client yet) |
 | `backend/src/routes/user.routes.ts` | `POST /user/me/deactivate` (password-gated) | ⚠︝ Stale Prisma client |
 | `backend/src/routes/servicer.routes.ts` | `POST /servicer/me/deactivate` (PIN-gated) | ⚠︝ Stale Prisma client |
 | `frontend/src/app/customer/pages/account.component.ts` | 3-step Danger Zone deactivation wizard | ⚠︝ Not yet verified (tsc/build) |
-| `Rerun-Kilo.bat` | Untracked — testing script | — |
+| `Rerun-Kilo.bat` | Untracked - testing script | - |
 | `docs/ai-context/logs/{backend,frontend}-log.md` | Agent log updates from prior sessions | ✅ Pending commit |
 
 **Missing pieces (not started):**
@@ -2374,26 +2374,26 @@ The `notes` field on `Booking` model does NOT exist (it's on `QuoteRequest`, `sc
 ```ts
 data: { status: 'cancelled', notes: `Cancelled on account deactivation: ${reason}` }
 ```
-This causes 7 tsc errors. Fix: remove `notes` from the update, or add a `cancellationReason` field to Booking. Since the cancelled status is already communicated via the booking status field, the `notes` property is cosmetic — safe to drop.
+This causes 7 tsc errors. Fix: remove `notes` from the update, or add a `cancellationReason` field to Booking. Since the cancelled status is already communicated via the booking status field, the `notes` property is cosmetic - safe to drop.
 
 ### Project health summary
 
 | Metric | Value |
 |--------|-------|
 | Committed features | All Phases 1–7 ✅ + Phase 9 F-A/B/C/D ✅ + PIN ✅ + Forgot PW ✅ + Dispatch Overlay ✅ + Settings Refinements ✅ |
-| TODO.md items checked | 160/161 checked ✅ (1 unchecked: F-E phone+TOTP — deferred) |
+| TODO.md items checked | 160/161 checked ✅ (1 unchecked: F-E phone+TOTP - deferred) |
 | Working tree state | DIRTY (deactivation WIP ~289 insertions) |
-| Commits ahead of origin | 14 — **NEEDS PUSH** |
-| Backend `tsc` | Would fail — 7 errors from deactivate.service.ts (notes field) + stale Prisma client |
-| Frontend `ng build` | Would fail — stale deactivation template may have issues |
+| Commits ahead of origin | 14 - **NEEDS PUSH** |
+| Backend `tsc` | Would fail - 7 errors from deactivate.service.ts (notes field) + stale Prisma client |
+| Frontend `ng build` | Would fail - stale deactivation template may have issues |
 | Tests | 235 green (1 pre-existing failure) |
-| Spec portfolio | 15 specs in `docs/superpowers/specs/` — all ready |
-| Origin | 14 commits behind HEAD — **NEEDS PUSH** |
+| Spec portfolio | 15 specs in `docs/superpowers/specs/` - all ready |
+| Origin | 14 commits behind HEAD - **NEEDS PUSH** |
 
 ### Recommended next steps (ordered)
 
-**Phase A — Ship dirty tree (deactivation WIP):**
-1. Fix `deactivate.service.ts:21` — remove `notes` reference from Booking update (Booking has no `notes` field)
+**Phase A - Ship dirty tree (deactivation WIP):**
+1. Fix `deactivate.service.ts:21` - remove `notes` reference from Booking update (Booking has no `notes` field)
 2. Add `cancellationReason` field to Booking schema OR leave it out (status field already communicates cancellation)
 3. Run `db push` (DLL-lock protocol) for schema changes
 4. Fix any remaining tsc errors from stale Prisma client
@@ -2401,16 +2401,16 @@ This causes 7 tsc errors. Fix: remove `notes` from the update, or add a `cancell
 6. Build admin banned accounts tab (spec at `2026-05-28-admin-banned-accounts.md`)
 7. Commit all, push to origin (14 commits currently local-only)
 
-**Phase B — Large features (specs ready):**
-8. Deposit/Credit/Promotions system (large — depends on Stripe, already wired)
-9. Customer Rewards system (large — points engine, vouchers, tiers)
+**Phase B - Large features (specs ready):**
+8. Deposit/Credit/Promotions system (large - depends on Stripe, already wired)
+9. Customer Rewards system (large - points engine, vouchers, tiers)
 
-**Phase C — Deferred:**
-10. F-E — Phone as primary + TOTP (🚩 lowest priority)
+**Phase C - Deferred:**
+10. F-E - Phone as primary + TOTP (🚩 lowest priority)
 
 ### Dispatch decision
 
-The dirty tree deactivation WIP is the **highest-value next target** — it's already 60% built, the schema is written, the backend service and routes exist. The remaining work is:
+The dirty tree deactivation WIP is the **highest-value next target** - it's already 60% built, the schema is written, the backend service and routes exist. The remaining work is:
 - Fix 1 line bug (notes field)
 - Run db push
 - ~100 lines of frontend for servicer deactivation
@@ -2422,9 +2422,9 @@ I recommend dispatching the deactivation fix + completion to a **general agent**
 
 ---
 
-## Session 2026-05-28 17:37 — CEO recovery assessment
+## Session 2026-05-28 17:37 - CEO recovery assessment
 
-> Terminal corrupted — resumed as CEO orchestrator. Previous brainstormer still running.
+> Terminal corrupted - resumed as CEO orchestrator. Previous brainstormer still running.
 > State read: all logs, TODO.md, dirty tree diff, compile gates verified.
 
 ### State audit (verified on disk)
@@ -2436,21 +2436,21 @@ I recommend dispatching the deactivation fix + completion to a **general agent**
 | `ng build --configuration development` | ✅ Exit 0 (3 pre-existing NG8107 warnings) |
 | `npx jest --passWithNoTests` | ✅ 235 pass, 1 pre-existing failure (booking-lifecycle mock drift) |
 | `npx prisma db push` | ✅ Already synced (db + Prisma client regenerated) |
-| `origin/master` | ⚠︝ 15 commits behind HEAD — **NEEDS PUSH** |
+| `origin/master` | ⚠︝ 15 commits behind HEAD - **NEEDS PUSH** |
 
-### Dirty tree vs. previous log — corrections
+### Dirty tree vs. previous log - corrections
 
 The prior session (line 1700) claimed several bugs that are **already resolved**:
 
 | Claim | Actual |
 |-------|--------|
-| `deactivate.service.ts` writes `notes` (doesn't exist) → 7 tsc errors | ✅ Writes `cancelReason` — field EXISTS on Booking. `tsc` passes clean. |
+| `deactivate.service.ts` writes `notes` (doesn't exist) → 7 tsc errors | ✅ Writes `cancelReason` - field EXISTS on Booking. `tsc` passes clean. |
 | Stale Prisma client for `active`/`bannedEmail` | ✅ `db push` already run. Client up to date. |
 | 8 modified files = broken WIP | ✅ All changes compile. Only frontend gaps remain. |
 
 ### Actually remaining
 
-**P9-BE — Banned emails API (backend) — 3 endpoints, small**
+**P9-BE - Banned emails API (backend) - 3 endpoints, small**
 | Field | Value |
 |-------|-------|
 | Target | Backend |
@@ -2459,7 +2459,7 @@ The prior session (line 1700) claimed several bugs that are **already resolved**
 | DoD | `tsc --noEmit` clean. |
 | Status | ⬜ Not started |
 
-**P9-FE-A — Servicer deactivation Danger Zone (frontend)**
+**P9-FE-A - Servicer deactivation Danger Zone (frontend)**
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -2468,16 +2468,16 @@ The prior session (line 1700) claimed several bugs that are **already resolved**
 | Output | `ng build` exit 0. |
 | Status | ⬜ Not started |
 
-**P9-FE-B — Admin banned accounts tab (frontend) — blocked on P9-BE**
+**P9-FE-B - Admin banned accounts tab (frontend) - blocked on P9-BE**
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
-| File | `admin/pages/settings.component.ts` — new "Banned" tab |
+| File | `admin/pages/settings.component.ts` - new "Banned" tab |
 | Spec | Same as P9-BE |
 | Depends on | P9-BE |
 | Status | ⬛ Blocked |
 
-**OPS — Push to origin**
+**OPS - Push to origin**
 | Field | Value |
 |-------|-------|
 | Target | DevOps |
@@ -2494,7 +2494,7 @@ Sequential: `P9-BE` → `P9-FE-B` → `OPS`
 ### Post-Phase-9 roadmap
 
 Two large specs ready at `docs/superpowers/specs/`:
-1. **Deposit/Credit/Promotions** (§12 — two-balance, Stripe top-up, transfer, withdrawal, 14 promo triggers, admin UI)
+1. **Deposit/Credit/Promotions** (§12 - two-balance, Stripe top-up, transfer, withdrawal, 14 promo triggers, admin UI)
 2. **Customer Rewards** (points engine, 4 tiers, vouchers, fee transparency)
 
 Both are substantial multi-day features requiring planning before dispatch.
@@ -2503,15 +2503,15 @@ Both are substantial multi-day features requiring planning before dispatch.
 
 ---
 
-## Session 2026-05-28 17:37 — Parallel CEO: Deactivation system completed + db push
+## Session 2026-05-28 17:37 - Parallel CEO: Deactivation system completed + db push
 
 **Context:** Previous session corrupted. User requested parallel brainstormer to execute delegated tasks.
 
 ### Dirty tree audit completed
 
-**Fix applied — deactivate.service.ts is CORRECT (no bug):**
-- CEO log (line 1752) flagged 'notes' field on Booking — actual code uses 'cancelReason' which EXISTS at schema.prisma:812
-- deactivateUser() uses status ['confirmed','pending_confirm','in_progress'] — all valid BookingStatus enum values
+**Fix applied - deactivate.service.ts is CORRECT (no bug):**
+- CEO log (line 1752) flagged 'notes' field on Booking - actual code uses 'cancelReason' which EXISTS at schema.prisma:812
+- deactivateUser() uses status ['confirmed','pending_confirm','in_progress'] - all valid BookingStatus enum values
 - buildDeactivatedEmail() correctly suffixes _d01, _d02... before the @
 - Auto-ban at >= 10 deactivations works as designed
 
@@ -2519,21 +2519,21 @@ Both are substantial multi-day features requiring planning before dispatch.
 
 | Task | Before | After |
 |---|---|---|
-| Schema db push | Pending (3 User + 3 Servicer fields + BannedEmail model) | Done — 253ms, client regenerated |
+| Schema db push | Pending (3 User + 3 Servicer fields + BannedEmail model) | Done - 253ms, client regenerated |
 | Servicer deactivation UI | Missing | Danger Zone with 3-step PIN-gated wizard added |
 | Admin banned accounts tab | Missing | Banned tab with search, ban, unban, empty state |
 | Backend tsc --noEmit | Would fail (stale Prisma client) | Zero errors |
 | Frontend tsc --noEmit | Would fail (incomplete template) | Zero errors |
 | ng build | Would fail | Exit 0 (pre-existing NG8107 only) |
-| Tests | 235 pass / 1 fail / 4 skip | Unchanged — no regressions |
+| Tests | 235 pass / 1 fail / 4 skip | Unchanged - no regressions |
 | Push to origin | 14 commits ahead | Pending (see below) |
 
 ### Recommended next for Executing CEO
 
-1. **Push dirty commits to origin** — 14 commits ahead; git push origin master from the Windows host
-2. **Build deposit/credit/promotions system** — spec at 2026-05-28-deposit-credit-promotions.md (large, depends on Stripe)
-3. **Build customer rewards** — spec at 2026-05-28-customer-rewards.md (large, points/vouchers/tiers)
-4. **F-E phone+TOTP** — deferred lowest priority
+1. **Push dirty commits to origin** - 14 commits ahead; git push origin master from the Windows host
+2. **Build deposit/credit/promotions system** - spec at 2026-05-28-deposit-credit-promotions.md (large, depends on Stripe)
+3. **Build customer rewards** - spec at 2026-05-28-customer-rewards.md (large, points/vouchers/tiers)
+4. **F-E phone+TOTP** - deferred lowest priority
 
 ## Session 2026-05-28 17:48 � Deposit/Credit/Promotions dispatch (Phase 10)
 
@@ -2832,7 +2832,7 @@ Comparison of User model vs frontend account form:
 
 ---
 
-## Session 2026-05-29 — User-directed priority: Thumbnail Cards + Gradient system
+## Session 2026-05-29 - User-directed priority: Thumbnail Cards + Gradient system
 
 ### User directive
 > "I want prioritize update the thumbnail and gradient first"
@@ -2840,13 +2840,13 @@ Comparison of User model vs frontend account form:
 ### Decision
 Reprioritized the STYLE-RULES.md compliance queue in TODO.md. Two new top-priority items:
 
-**S-P1 — §16 Thumbnail Cards (🔴 HIGH)**
+**S-P1 - §16 Thumbnail Cards (🔴 HIGH)**
 - Convert `home/home.component.ts` from bento `.cat` cards to horizontal `.svc-card` with photo + colour wash + text layers
 - Create `core/category-colors.ts` with slug→colour map
 - Add hero photo/wash layers
 - Spec reference: STYLE-RULES.md §16.1–§16.7
 
-**S-P2 — §2.6 Gradient system audit (🔴 HIGH)**
+**S-P2 - §2.6 Gradient system audit (🔴 HIGH)**
 - Verify all 8 surfaces listed in the gradient application table use correct tokens
 - Ensure solid fallback before gradient override
 - Ensure gradient text omits `color:` property
@@ -2862,11 +2862,11 @@ Both S-P1 and S-P2 are frontend-scope changes (Angular standalone components, in
 Use this prompt to hand off to the next CEO/agent:
 
 ```
-Read docs/ai-context/logs/ceo-log.md "Session 2026-05-29 — User-directed priority" then read TODO.md § "🔴 STYLE-RULES.md compliance — priority queue".
+Read docs/ai-context/logs/ceo-log.md "Session 2026-05-29 - User-directed priority" then read TODO.md § "🔴 STYLE-RULES.md compliance - priority queue".
 
 Two tasks to dispatch in PARALLEL (they are independent):
 
-### Task P1 — §16 Thumbnail Cards
+### Task P1 - §16 Thumbnail Cards
 Target: Frontend
 Files: home/home.component.ts, core/category-icons.ts (create core/category-colors.ts)
 Spec: STYLE-RULES.md §16.1–§16.7, S-P1 in TODO.md
@@ -2879,7 +2879,7 @@ Convert home page from bento .cat cards to horizontal .svc-card thumbnail cards:
 5. Responsive: 2 cols → 1 col at ≤760px
 6. Gate: ng build exit 0
 
-### Task P2 — §2.6 Gradient System Audit & Fix
+### Task P2 - §2.6 Gradient System Audit & Fix
 Target: Frontend (cross-component)
 Spec: STYLE-RULES.md §2.6, S-P2 in TODO.md
 
@@ -2901,7 +2901,7 @@ Run both tasks independently and in parallel. Log results to ceo-log.md.
 
 ---
 
-## Session 2026-05-29 16:16 — STYLE-RULES.md compliance audit
+## Session 2026-05-29 16:16 - STYLE-RULES.md compliance audit
 
 > Requested by user: "check frontend/style-rules.md and see which rules haven't been applied in every aspect in everywhere in the project"
 
@@ -2915,7 +2915,7 @@ Run both tasks independently and in parallel. Log results to ceo-log.md.
 
 ---
 
-### §2 Colour System — ⚠️ VIOLATIONS FOUND
+### §2 Colour System - ⚠️ VIOLATIONS FOUND
 
 **§2.7 Rule: "Always use `var(--color-*)`. No raw hex in component styles."**
 
@@ -2932,11 +2932,11 @@ Found **73+ raw hex values** across component inline styles (severity: moderate-
 | `rewards.component.ts` | `#cd7f32`, `#c0c0c0`, `#ffd700`, `#e5e4e2` | 4 |
 | `chat-widget.component.ts` | `#fff3cd`, `#856404` | 2 |
 | `quote-form.component.ts` | Various raw + fallback combos | ~8 |
-| `snackbar.component.ts` | `#ef4444` (notif-count bg) — borderline, but allowed for decorative non-semantic use | 1 |
+| `snackbar.component.ts` | `#ef4444` (notif-count bg) - borderline, but allowed for decorative non-semantic use | 1 |
 
 **Total: ~65+ raw hex violations in component styles** where `var(--color-*)` should be used.
 
-**§2.7 Rule: "No fallback values — `var(--color-danger, red)` is forbidden."**
+**§2.7 Rule: "No fallback values - `var(--color-danger, red)` is forbidden."**
 | Component | Violation |
 |-----------|-----------|
 | `search-select.component.ts` | `border-radius: var(--radius, 8px)` (×2) |
@@ -2947,7 +2947,7 @@ Found **73+ raw hex values** across component inline styles (severity: moderate-
 | `customer/pages/rewards.component.ts` | `var(--tier-color, #cd7f32)` (×2) |
 | `admin/pages/dashboard.component.ts` | `var(--color-warning, #d97706)` |
 
-**§2.6 — Gradient focus-ring shadow applied correctly** ✅
+**§2.6 - Gradient focus-ring shadow applied correctly** ✅
 - `--shadow-primary` on `.btn-primary:hover` ✅
 - `--gradient-primary` / `--gradient-primary-hover` on `.btn-primary` ✅
 - `--gradient-sidebar` on `.sidebar a.active` ✅
@@ -2961,18 +2961,18 @@ Found **73+ raw hex values** across component inline styles (severity: moderate-
 
 ---
 
-### §3 Typography — ✅ Largely compliant
+### §3 Typography - ✅ Largely compliant
 
 - `--font-display` / `--font-body` defined in `:root` ✅
 - Fonts loaded via Google Fonts in `index.html` ✅
 - Font sizes use `rem` throughout ✅ (no `px` font sizes found)
 - `font-family` set on `body` ✅
 
-**Minor issue:** Some component buttons redeclare `font-family: var(--font-body)` (e.g. search-select, shell component buttons) — technically violates §3.3 "never repeat in components" but is harmless.
+**Minor issue:** Some component buttons redeclare `font-family: var(--font-body)` (e.g. search-select, shell component buttons) - technically violates §3.3 "never repeat in components" but is harmless.
 
 ---
 
-### §4 Spacing System — ✅ Compliant
+### §4 Spacing System - ✅ Compliant
 
 - `--space-*` tokens defined ✅
 - `gap` used on flex/grid containers ✅
@@ -2980,37 +2980,37 @@ Found **73+ raw hex values** across component inline styles (severity: moderate-
 
 ---
 
-### §5 Breakpoints — ⚠️ MINOR INCONSISTENCY
+### §5 Breakpoints - ⚠️ MINOR INCONSISTENCY
 
 - Canonical breakpoints (`560px`, `760px`, `761px`, `1024px`) used correctly ✅
-- **`styles.css` line 507 uses `@media (max-width: 640px)`** — this breakpoint (`640px`) is NOT defined in the spec's canonical breakpoint list. This is used for the table horizontal scroll utility and h1 font-size reduction on very small screens. May be intentional but undocumented.
+- **`styles.css` line 507 uses `@media (max-width: 640px)`** - this breakpoint (`640px`) is NOT defined in the spec's canonical breakpoint list. This is used for the table horizontal scroll utility and h1 font-size reduction on very small screens. May be intentional but undocumented.
 
-**§5.3 Portal shell — Demo bar not hidden on mobile** ⚠️
+**§5.3 Portal shell - Demo bar not hidden on mobile** ⚠️
 - Spec: `| Demo bar | Visible | Visible | Hidden |`
 - `shell.component.ts` mobile breakpoint (`@media (max-width: 760px)`) hides `.btn-pro`, `.demo-msg`, `.page-title` but does NOT hide `.demo-bar`. **VIOLATION.**
 
 ---
 
-### §6 Motion & Animation — ✅ Largely compliant
+### §6 Motion & Animation - ✅ Largely compliant
 
 - `--transition`, `--transition-fast`, `--transition-spring` tokens defined ✅
 - `@keyframes page-enter` matches spec (translateY(10px), 0.35s) ✅
-- `.page-child` staggered animation matches spec (5 children at 0.05s intervals) ✅ — actually goes up to 8 children ✅
+- `.page-child` staggered animation matches spec (5 children at 0.05s intervals) ✅ - actually goes up to 8 children ✅
 - `@media (prefers-reduced-motion: reduce)` present ✅
 
-**Minor:** The `marquee-scroll` and `shimmer` animations in `home.component.ts` are not wrapped in `prefers-reduced-motion: no-preference` — but the global reduce rule in styles.css should catch these via `animation-duration: 0.01ms !important`.
+**Minor:** The `marquee-scroll` and `shimmer` animations in `home.component.ts` are not wrapped in `prefers-reduced-motion: no-preference` - but the global reduce rule in styles.css should catch these via `animation-duration: 0.01ms !important`.
 
 ---
 
-### §7 Component Patterns — ⚠️ MIXED
+### §7 Component Patterns - ⚠️ MIXED
 
-#### §7.1 Cards ✅ — `.card`, `.card-hover` match spec
+#### §7.1 Cards ✅ - `.card`, `.card-hover` match spec
 
-#### §7.2 Buttons ✅ — `.btn-primary`, `.btn-ghost`, `.btn-danger` all correctly defined
+#### §7.2 Buttons ✅ - `.btn-primary`, `.btn-ghost`, `.btn-danger` all correctly defined
 
-#### §7.3 Badges ✅ — All 7 status badge classes defined
+#### §7.3 Badges ✅ - All 7 status badge classes defined
 
-#### §7.4 Forms — ⚠️ 
+#### §7.4 Forms - ⚠️ 
 - Global input/select/textarea styles ✅
 - `.input-error` + `.err` classes ✅
 - Focus ring pattern ✅
@@ -3030,43 +3030,43 @@ Found **73+ raw hex values** across component inline styles (severity: moderate-
 - Signal-based active tab pattern used ✅
 - `.tabs` / `.tab` classes match spec ✅
 
-#### §7.8 Card grids — ⚠️ DOES NOT MATCH SPEC
+#### §7.8 Card grids - ⚠️ DOES NOT MATCH SPEC
 - Spec says: `grid-template-columns: repeat(auto-fit, minmax(300px, 360px))` with `justify-content: center`
 - Home component uses: `repeat(auto-fill, minmax(180px, 1fr))` and `repeat(3, 1fr)`
 - **Uses `auto-fill` instead of `auto-fit`**, different column sizing, no `justify-content: center`
 
-#### §7.9 FAB stack ✅ — Correctly implemented in home + shell
+#### §7.9 FAB stack ✅ - Correctly implemented in home + shell
 
-#### §7.10 Chat panel — Not fully verifiable without reading chat-widget component styles
+#### §7.10 Chat panel - Not fully verifiable without reading chat-widget component styles
 
-#### §7.12 Dropdowns ✅ — `<app-search-select>` fully implements spec:
+#### §7.12 Dropdowns ✅ - `<app-search-select>` fully implements spec:
 - `position: absolute` overlay ✅ | `z-index: 200` ✅ | Fuzzy search (`fuzzyScore()`) ✅
 - `max-height: min(60vh, 18rem)` ✅ | `overscroll-behavior: contain` ✅
 - Keyboard nav (↑/↓/Enter/Esc) ✅ | `ControlValueAccessor` ✅ | Click-outside ✅
 - **BUT:** Uses `var(--radius, 8px)` fallback (violates §2.7) ❌
 
-#### §7.13 Auto-hide directive ✅ — Fully matches spec:
+#### §7.13 Auto-hide directive ✅ - Fully matches spec:
 - Renderer2 outside Angular zone ✅ | is-collapsed/is-idle ✅
 - 30s idle timeout ✅ | Capture-phase scroll listener ✅
 - Modal scroll early-return ✅
 
-#### §7.14 Proposal prompt guard ✅ — Matches spec
+#### §7.14 Proposal prompt guard ✅ - Matches spec
 
-#### §7.15 Search/Filter/Sort triad — ⚠️ GAPS
+#### §7.15 Search/Filter/Sort triad - ⚠️ GAPS
 - `<app-list-toolbar>` shared component exists ✅
 - `queues.component.ts` uses it correctly ✅
 - `my-quotes.component.ts` implements its own toolbar (does NOT use `<app-list-toolbar>`) ❌
 - `users.component.ts` implements its own toolbar ❌
 - Various pages still missing search/filter/sort (documented in TODO.md 🟡 section)
 
-#### §7.16 Top-up prompt guard — ⚠️ DOES NOT MATCH SPEC
+#### §7.16 Top-up prompt guard - ⚠️ DOES NOT MATCH SPEC
 - Spec says: fixed centered blocking overlay (like §7.14) with `position: fixed`, backdrop, body scroll lock
 - **Implementation uses `<app-modal>`** which has: backdrop click DOES dismiss, no body scroll lock, different z-index
 - **Action required:** Either update spec to match implementation, or update implementation to match spec.
 
 ---
 
-### §8 Theme System ✅ — Correctly implemented
+### §8 Theme System ✅ - Correctly implemented
 
 - `ThemeService` with localStorage persistence ✅
 - `data-theme="warm"` / `data-theme="cool"` on `<html>` ✅
@@ -3075,7 +3075,7 @@ Found **73+ raw hex values** across component inline styles (severity: moderate-
 
 ---
 
-### §9 Image & Banner ✅ — Tokens and rules defined, partial implementation
+### §9 Image & Banner ✅ - Tokens and rules defined, partial implementation
 
 - `frontend/src/assets/` exists for bundled SVGs ✅
 - Presigned upload flow documented ✅
@@ -3083,13 +3083,13 @@ Found **73+ raw hex values** across component inline styles (severity: moderate-
 
 ---
 
-### §10 Page Loading States ✅ — Implemented across all major pages
+### §10 Page Loading States ✅ - Implemented across all major pages
 
 - Loading, empty, error, data states found in: home, users, queues, my-quotes, browse, etc.
 
 ---
 
-### §11 Accessibility — ⚠️ PARTIALLY APPLIED
+### §11 Accessibility - ⚠️ PARTIALLY APPLIED
 
 - `aria-label` on icon buttons: theme-toggle ✅, fab-toggle ✅, chat-bubble ✅
 - `role="dialog" aria-modal="true"` on modals ✅
@@ -3100,11 +3100,11 @@ Found **73+ raw hex values** across component inline styles (severity: moderate-
 
 ---
 
-### §13 Desktop/Tablet/Mobile — ⚠️ Demo bar hidden missing (see §5)
+### §13 Desktop/Tablet/Mobile - ⚠️ Demo bar hidden missing (see §5)
 
 ---
 
-### §16 Thumbnail Cards — ❌ NOT IMPLEMENTED
+### §16 Thumbnail Cards - ❌ NOT IMPLEMENTED
 
 This is a **major spec gap**. The spec (added 2026-05-29, §16) describes:
 - `.svc-card` horizontal cards with photo + colour wash + text layers
@@ -3118,11 +3118,11 @@ This is a **major spec gap**. The spec (added 2026-05-29, §16) describes:
 - Hero lacks the photo + wash layers with white text
 
 **Files that need updating per spec (§16.7):**
-- `home/home.component.ts` — bento `.cat` → `.svc-card`; `.grid-bento` → `.svc-grid`; add hero photo/wash layers
-- `customer/pages/browse.component.ts` — may need to reuse `.svc-card`
-- `core/category-icons.ts` — verify category color map exists
+- `home/home.component.ts` - bento `.cat` → `.svc-card`; `.grid-bento` → `.svc-grid`; add hero photo/wash layers
+- `customer/pages/browse.component.ts` - may need to reuse `.svc-card`
+- `core/category-icons.ts` - verify category color map exists
 
-#### §17 Admin Thumbnail Settings — ❌ NOT IMPLEMENTED
+#### §17 Admin Thumbnail Settings - ❌ NOT IMPLEMENTED
 
 - `uiux-settings.component.ts` exists but only shows Notifications, Sounds, Content settings
 - No Thumbnail Settings tab (hero banner upload, category card photos, live previews)
@@ -3156,22 +3156,22 @@ This is a **major spec gap**. The spec (added 2026-05-29, §16) describes:
 
 ---
 
-## Session 2026-05-29 — User-directed priority: STYLE-RULES.md compliance dispatch
+## Session 2026-05-29 - User-directed priority: STYLE-RULES.md compliance dispatch
 
 **Trigger:** User directed two independent frontend tasks in parallel via CEO/orchestrator.
 
-**Source:** TODO.md § "🔴 STYLE-RULES.md compliance — priority queue" (lines 218–253)
+**Source:** TODO.md § "🔴 STYLE-RULES.md compliance - priority queue" (lines 218–253)
 
 **Dispatch strategy:** Two independent tasks, parallel execution via `agent_manager` worktree mode (one worktree per task). Each task operates on its own branch for isolation.
 
 ---
 
-### Task P1 — §16 Thumbnail Cards (home page: bento → svc-card)
+### Task P1 - §16 Thumbnail Cards (home page: bento → svc-card)
 
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
-| Priority | 🔴 High — user-directed first |
+| Priority | 🔴 High - user-directed first |
 | Spec | `frontend/STYLE-RULES.md` §16.1–§16.7 |
 | Input | `home/home.component.ts`, `core/category-icons.ts`, STYLE-RULES.md §16 |
 | Output | Home page converted from bento `.cat` to horizontal `.svc-card`; `core/category-colors.ts` created with slug→hex map; hero photo/wash layers added; responsive 2→1 col at 760px; `ng build` exit 0 |
@@ -3189,12 +3189,12 @@ This is a **major spec gap**. The spec (added 2026-05-29, §16) describes:
 
 ---
 
-### Task P2 — §2.6 Gradient System Audit & Fix
+### Task P2 - §2.6 Gradient System Audit & Fix
 
 | Field | Value |
 |-------|-------|
 | Target | Frontend (cross-component) |
-| Priority | 🔴 High — user-directed second (parallel execution) |
+| Priority | 🔴 High - user-directed second (parallel execution) |
 | Spec | `frontend/STYLE-RULES.md` §2.6 (gradient application table) |
 | Input | Multi-file audit: all 8 surfaces in the gradient table |
 | Output | All 8 surfaces use correct gradient tokens with solid fallback + gradient overrides; gradient text omits `color:`; no `--gradient-primary` in `[data-theme="cool"]` component styles; `ng build` exit 0 |
@@ -3202,14 +3202,14 @@ This is a **major spec gap**. The spec (added 2026-05-29, §16) describes:
 | Status | 🟡 Dispatched 2026-05-29 17:04 |
 
 **Audit checklist (8 surfaces from §2.6 table):**
-1. `.btn-primary` — verify both `--gradient-primary` base + `--gradient-primary-hover` on hover
-2. Shell `.logo` wordmark — verify gradient text using `--gradient-primary` (no `color:` property, uses `-webkit-background-clip: text` + `-webkit-text-fill-color: transparent`)
-3. Shell `.sidebar a.active` — verify uses `--gradient-sidebar`
-4. Home `.brand` wordmark — verify gradient text with `--gradient-primary`
-5. Home `.nav-btn--solid` — verify `--gradient-primary`
-6. Home `.num` step circles — verify `--gradient-primary`
-7. Home `.request-bar` — verify `--gradient-primary`
-8. Home `.page` background — verify `--gradient-hero`
+1. `.btn-primary` - verify both `--gradient-primary` base + `--gradient-primary-hover` on hover
+2. Shell `.logo` wordmark - verify gradient text using `--gradient-primary` (no `color:` property, uses `-webkit-background-clip: text` + `-webkit-text-fill-color: transparent`)
+3. Shell `.sidebar a.active` - verify uses `--gradient-sidebar`
+4. Home `.brand` wordmark - verify gradient text with `--gradient-primary`
+5. Home `.nav-btn--solid` - verify `--gradient-primary`
+6. Home `.num` step circles - verify `--gradient-primary`
+7. Home `.request-bar` - verify `--gradient-primary`
+8. Home `.page` background - verify `--gradient-hero`
 
 **Cross-cutting checks:**
 - Every gradient usage must have explicit solid fallback: `background: var(--color-primary); background: var(--gradient-primary);`
@@ -3219,36 +3219,36 @@ This is a **major spec gap**. The spec (added 2026-05-29, §16) describes:
 
 ---
 
-## Session 2026-05-30 — CEO brainstorm: Category Settings + Listings + Dispatch initiative
+## Session 2026-05-30 - CEO brainstorm: Category Settings + Listings + Dispatch initiative
 
 **Mode:** Plan/brainstorm (CEO). No production code written by CEO; one agent dispatched for SP1.
 
-**Outcome — 4-part initiative, sequenced SP1 → SP2 → SP3 → SP4. Specs:**
+**Outcome - 4-part initiative, sequenced SP1 → SP2 → SP3 → SP4. Specs:**
 - `docs/superpowers/specs/2026-05-30-category-settings-question-schema-design.md` (SP1/SP2/SP3)
 - `docs/superpowers/specs/2026-05-30-live-order-accept-dispatch-design.md` (SP4)
-- `docs/superpowers/plans/2026-05-30-category-settings-sp2.md` (SP2 task-by-task plan — predates published/sort-filter/8-tab deltas; needs reconcile before run)
+- `docs/superpowers/plans/2026-05-30-category-settings-sp2.md` (SP2 task-by-task plan - predates published/sort-filter/8-tab deltas; needs reconcile before run)
 
-**SP1 — Admin nav split (DONE, verified).** Dispatched to executor agent. Created `/admin/category-settings` page (Question Schema placeholder | Budget Ranges | Time Slots), split out of Financial Settings; Financial Settings now Pricing | Rewards | Servicer Rules. Verified: frontend tsc 0 errors, `ng build` exit 0 (only pre-existing bundle-budget + qrcode warnings).
+**SP1 - Admin nav split (DONE, verified).** Dispatched to executor agent. Created `/admin/category-settings` page (Question Schema placeholder | Budget Ranges | Time Slots), split out of Financial Settings; Financial Settings now Pricing | Rewards | Servicer Rules. Verified: frontend tsc 0 errors, `ng build` exit 0 (only pre-existing bundle-budget + qrcode warnings).
 
-**SP2 — Category Settings master-detail (DESIGNED, ready to dispatch).** Searchable category list (search + sort name/#listings + filter chips has-questions/active/top-level/published) + Edit/Delete per row → wide modal, 8 section-tabs: Basics(+publish toggle) | Question Schema (drag-drop @angular/cdk, immutable keys + soft-deactivate, priced-flip allow+warn) | Budget Ranges | Time Slots | Sub-categories | Thumbnail | Copy | Dispatch(stub). New schema fields: published, bannerUrl, cardColor, description. Backend: Zod questionSchemaSchema + immutability check, POST/DELETE/extended-PATCH /admin/categories, question-impact endpoint, active+published-aware consumers. **Phasing: SP2a (core CRUD+questions+budget+slots+published) → SP2b (sub-cat/thumbnail/copy/dispatch tabs).** Executor prompt for SP2a handed to user.
+**SP2 - Category Settings master-detail (DESIGNED, ready to dispatch).** Searchable category list (search + sort name/#listings + filter chips has-questions/active/top-level/published) + Edit/Delete per row → wide modal, 8 section-tabs: Basics(+publish toggle) | Question Schema (drag-drop @angular/cdk, immutable keys + soft-deactivate, priced-flip allow+warn) | Budget Ranges | Time Slots | Sub-categories | Thumbnail | Copy | Dispatch(stub). New schema fields: published, bannerUrl, cardColor, description. Backend: Zod questionSchemaSchema + immutability check, POST/DELETE/extended-PATCH /admin/categories, question-impact endpoint, active+published-aware consumers. **Phasing: SP2a (core CRUD+questions+budget+slots+published) → SP2b (sub-cat/thumbnail/copy/dispatch tabs).** Executor prompt for SP2a handed to user.
 
-**SP3 — Servicer listing wizard (SPEC'D).** Full-page `/servicer/services/new` + `/:id/edit`, 4 steps, progressive disclosure, "Accept mode" step (Prompt default vs Instant auto opt-in).
+**SP3 - Servicer listing wizard (SPEC'D).** Full-page `/servicer/services/new` + `/:id/edit`, 4 steps, progressive disclosure, "Accept mode" step (Prompt default vs Instant auto opt-in).
 
-**SP4 — Live order-accept dispatch (SPEC'D, largest).** Availability gating (isOnline + working-hours ServicerSchedule), rotation 1-servicer-at-a-time, 10s admin-configurable timer, big prompt guard (job/customer/answers/money/Google Map preview/countdown), decline→rotate→async fallback, real isOnline presence wiring, Maps/Waze deep-link on confirm. Folds in parked navigation brainstorm.
+**SP4 - Live order-accept dispatch (SPEC'D, largest).** Availability gating (isOnline + working-hours ServicerSchedule), rotation 1-servicer-at-a-time, 10s admin-configurable timer, big prompt guard (job/customer/answers/money/Google Map preview/countdown), decline→rotate→async fallback, real isOnline presence wiring, Maps/Waze deep-link on confirm. Folds in parked navigation brainstorm.
 
 **Side-items surfaced (parked in TODO):**
-1. 🟡 SECURITY — `POST /dev/seed` has no isProd guard (DB-wipe reachable in prod, PIN-gated). Verified NODE_ENV=production IS set in Railway, so all OTHER /dev guards + rate-limit + demo-block are active. Prod DB currently empty → ~zero impact now. Fix before real data: add isProd guard (reseed real prod via Railway shell). Optional: make NODE_ENV required in env.ts.
-2. Demo-deploy plan — separate Railway **environment** (2 Postgres + 2 Redis + 2 backends; demo runs NODE_ENV=development to unlock demo login + seed; real prod stays locked). Adding isProd guard to /dev/seed also lets demo instance seed freely while prod is safe.
+1. 🟡 SECURITY - `POST /dev/seed` has no isProd guard (DB-wipe reachable in prod, PIN-gated). Verified NODE_ENV=production IS set in Railway, so all OTHER /dev guards + rate-limit + demo-block are active. Prod DB currently empty → ~zero impact now. Fix before real data: add isProd guard (reseed real prod via Railway shell). Optional: make NODE_ENV required in env.ts.
+2. Demo-deploy plan - separate Railway **environment** (2 Postgres + 2 Redis + 2 backends; demo runs NODE_ENV=development to unlock demo login + seed; real prod stays locked). Adding isProd guard to /dev/seed also lets demo instance seed freely while prod is safe.
 
-**Still parked (revisit after SP2-SP4):** itemization (service listing vs line items), seed 3-listing cap, local-upload bug (PUT /files/local-upload missing — blocks job-flow testing for SP3/SP4).
+**Still parked (revisit after SP2-SP4):** itemization (service listing vs line items), seed 3-listing cap, local-upload bug (PUT /files/local-upload missing - blocks job-flow testing for SP3/SP4).
 
 ---
 
-## Session 2026-05-30 (cont.) — Demo deploy + live SP2-agent coordination
+## Session 2026-05-30 (cont.) - Demo deploy + live SP2-agent coordination
 
-**SP2 agent IS STILL RUNNING** — actively rewriting AND committing `frontend/src/app/admin/pages/category-settings.component.ts` (its commits: `e5b3972` cdk, `e75bee6` published in POST, + backend Tasks 1-7 earlier). CEO must NOT edit that file while the agent runs (edits get clobbered; observed twice).
+**SP2 agent IS STILL RUNNING** - actively rewriting AND committing `frontend/src/app/admin/pages/category-settings.component.ts` (its commits: `e5b3972` cdk, `e75bee6` published in POST, + backend Tasks 1-7 earlier). CEO must NOT edit that file while the agent runs (edits get clobbered; observed twice).
 
-### 🔴 BLOCKER the agent keeps reintroducing — apply as FINAL edit after it finishes
+### 🔴 BLOCKER the agent keeps reintroducing - apply as FINAL edit after it finishes
 `category-settings.component.ts` template uses **arrow functions in event bindings** →
 `ng build` fails **NG5002** (Angular templates disallow arrow fns). Lines ~79/83/88:
 ```
@@ -3256,8 +3256,8 @@ This is a **major spec gap**. The spec (added 2026-05-29, §16) describes:
 (change)="filterPublishedOnly.update(v => !v)"
 (change)="filterTopLevel.update(v => !v)"
 ```
-**FIX (final edit, after agent done):** replace each with a method call —
-`toggleHasQuestions()` / `togglePublishedOnly()` / `toggleTopLevel()` — and add to the class:
+**FIX (final edit, after agent done):** replace each with a method call -
+`toggleHasQuestions()` / `togglePublishedOnly()` / `toggleTopLevel()` - and add to the class:
 ```ts
 toggleHasQuestions(): void { this.filterHasQuestions.update((v) => !v); }
 togglePublishedOnly(): void { this.filterPublishedOnly.update((v) => !v); }
@@ -3272,31 +3272,31 @@ with NO trailing pipe, or grep the log for `NG5002`/`X [ERROR]`. SP1's earlier "
 genuine (placeholder component), but SP2's break was hidden once by this.
 
 ### Demo deployment (resolved this session)
-- **Architecture:** separate Railway environments. **Demo** backend `myhomeservicerdemo.up.railway.app` (NODE_ENV unset → dev → demo login/seed on) — health 200, db+redis ok. **Prod** backend `my-home-servicer-production.up.railway.app` (NODE_ENV=production) — health 200. Demo frontend `myhomeservicer.pages.dev`.
-- **Cloudflare link bug FIXED (committed `2811aab`):** Pages `_redirects` cannot proxy to an external origin (the `/api/v1 200` rewrite fell through to the SPA shell → frontend never reached backend). Replaced with **Cloudflare Pages Functions** `frontend/functions/api/[[path]].js` + `frontend/functions/socket.io/[[path]].js` that reverse-proxy to a per-project `BACKEND_URL` env var. `apiBase` stays `/api/v1` (security-notes Layer 1: one build, all envs). `_redirects` reduced to SPA fallback. **User TODO in Cloudflare:** set `BACKEND_URL` per project (demo→demo Railway, prod→prod Railway), Root directory=`frontend`. **Railway TODO:** `APP_URL`=Cloudflare URL (CORS not needed — same-origin via function).
+- **Architecture:** separate Railway environments. **Demo** backend `myhomeservicerdemo.up.railway.app` (NODE_ENV unset → dev → demo login/seed on) - health 200, db+redis ok. **Prod** backend `my-home-servicer-production.up.railway.app` (NODE_ENV=production) - health 200. Demo frontend `myhomeservicer.pages.dev`.
+- **Cloudflare link bug FIXED (committed `2811aab`):** Pages `_redirects` cannot proxy to an external origin (the `/api/v1 200` rewrite fell through to the SPA shell → frontend never reached backend). Replaced with **Cloudflare Pages Functions** `frontend/functions/api/[[path]].js` + `frontend/functions/socket.io/[[path]].js` that reverse-proxy to a per-project `BACKEND_URL` env var. `apiBase` stays `/api/v1` (security-notes Layer 1: one build, all envs). `_redirects` reduced to SPA fallback. **User TODO in Cloudflare:** set `BACKEND_URL` per project (demo→demo Railway, prod→prod Railway), Root directory=`frontend`. **Railway TODO:** `APP_URL`=Cloudflare URL (CORS not needed - same-origin via function).
 
-### Uncommitted CEO changes — HELD until frontend build is green
-- `frontend/src/app/shared/demo-bar.component.ts` — Admin demo button now PIN-gated via DialogService; PIN `5201314` (explicit exception to the 6-digit PIN format; soft gate only — frontend PIN, demo instance). tsc 0.
-- `backend/prisma/seed/seed-admin.ts` — credentials now env-driven (`ADMIN_SEED_EMAIL/PASSWORD/PIN`, fallback to defaults; UUID from email). tsc 0.
-- `backend/.env.example` — added `ADMIN_SEED_*` + a Railway deployment checklist.
-- These are in separate files (safe), but the shared frontend build is broken by the agent's NG5002 — commit only after the fix lands + a real green build.
+### Uncommitted CEO changes - HELD until frontend build is green
+- `frontend/src/app/shared/demo-bar.component.ts` - Admin demo button now PIN-gated via DialogService; PIN `5201314` (explicit exception to the 6-digit PIN format; soft gate only - frontend PIN, demo instance). tsc 0.
+- `backend/prisma/seed/seed-admin.ts` - credentials now env-driven (`ADMIN_SEED_EMAIL/PASSWORD/PIN`, fallback to defaults; UUID from email). tsc 0.
+- `backend/.env.example` - added `ADMIN_SEED_*` + a Railway deployment checklist.
+- These are in separate files (safe), but the shared frontend build is broken by the agent's NG5002 - commit only after the fix lands + a real green build.
 
 ### Admin creation (parked → admin-rescue brainstorm)
-Demo admin: run `seed-admin.ts` in the demo Railway shell (dev mode). Real prod admin: `ADMIN_EMAILS` + Google login (`google-auth.service.ts`) — full mechanism noted. Detailed handling deferred to the admin-rescue session.
+Demo admin: run `seed-admin.ts` in the demo Railway shell (dev mode). Real prod admin: `ADMIN_EMAILS` + Google login (`google-auth.service.ts`) - full mechanism noted. Detailed handling deferred to the admin-rescue session.
 
 ---
 
-## ⏸️ RESUME POINT — paused 2026-05-30 (continue next session)
+## ⏸️ RESUME POINT - paused 2026-05-30 (continue next session)
 
 **Build status:** frontend `ng build` GREEN (real exit 0). The SP2 agent self-fixed its NG5002 (filter chips now `filterX.set(!filterX())`, valid). SP2a is "almost there."
 
-**Uncommitted CEO changes — NOT yet committed (build is green, safe to commit on resume):**
-- `frontend/src/app/shared/demo-bar.component.ts` — Admin demo button PIN-gated; PIN `5201314` (6-digit-format exception); prompts pass `password: true` (masked — already wired, outlet renders type=password).
-- `backend/prisma/seed/seed-admin.ts` — env-driven creds (`ADMIN_SEED_EMAIL/PASSWORD/PIN`).
-- `backend/.env.example` — `ADMIN_SEED_*` + Railway deploy checklist.
-- (Check `git status` on resume — confirm what the SP2 agent committed vs what's still mine.)
+**Uncommitted CEO changes - NOT yet committed (build is green, safe to commit on resume):**
+- `frontend/src/app/shared/demo-bar.component.ts` - Admin demo button PIN-gated; PIN `5201314` (6-digit-format exception); prompts pass `password: true` (masked - already wired, outlet renders type=password).
+- `backend/prisma/seed/seed-admin.ts` - env-driven creds (`ADMIN_SEED_EMAIL/PASSWORD/PIN`).
+- `backend/.env.example` - `ADMIN_SEED_*` + Railway deploy checklist.
+- (Check `git status` on resume - confirm what the SP2 agent committed vs what's still mine.)
 
-**NEXT — new SP2a follow-up brainstorm DECIDED (build on resume):**
+**NEXT - new SP2a follow-up brainstorm DECIDED (build on resume):**
 1. **Seed published rule:** seeded categories created with `published: true`; admin-created NEW categories stay `published: false` (draft). Update seed (`seed.ts` category creation) to set `published: true`. Note: after `db push` added the column (default false), existing rows are unpublished → reseed (demo) or one-time backfill `UPDATE categories SET published=true`.
 2. **Bulk publish:** category list gets row checkboxes + select-all + a "N selected → Publish / Unpublish" action bar. Backend bulk endpoint `POST /admin/categories/bulk-publish {ids, published}`, PIN-gated + audited.
 3. **Visual bugs:** run a design-review pass on the rendered Category Settings page (browser QA), find + fix visual issues.
@@ -3307,9 +3307,9 @@ Demo admin: run `seed-admin.ts` in the demo Railway shell (dev mode). Real prod 
 
 ---
 
-## ⏸️ RESUME POINT — paused 2026-05-30 (session 2)
+## ⏸️ RESUME POINT - paused 2026-05-30 (session 2)
 
-**Demo is LIVE end-to-end.** Cloudflare Pages Function proxy works (`/api/v1/health` 200 through `myhomeservicer.pages.dev`). Demo DB synced (`db:sync` via Postgres Demo public URL) + reseeded → categories published + full demo dataset. Demo bar now shows on deploy (gated on `config.hasDemoData`, not `isDevMode()` — committed `e8447b5`).
+**Demo is LIVE end-to-end.** Cloudflare Pages Function proxy works (`/api/v1/health` 200 through `myhomeservicer.pages.dev`). Demo DB synced (`db:sync` via Postgres Demo public URL) + reseeded → categories published + full demo dataset. Demo bar now shows on deploy (gated on `config.hasDemoData`, not `isDevMode()` - committed `e8447b5`).
 
 **Shipped this session (all pushed to master):**
 - `2811aab` Cloudflare Pages Functions `frontend/functions/api|socket.io/[[path]].js` (external `_redirects` proxy doesn't work → Function reads per-project `BACKEND_URL`).
@@ -3318,15 +3318,15 @@ Demo admin: run `seed-admin.ts` in the demo Railway shell (dev mode). Real prod 
 - `e8447b5` demo bar gate `isDevMode()` → `config.hasDemoData` (was invisible on prod build).
 - Demo creds: `Demo@2026`; admin PIN `1234`; demo-bar Admin button frontend PIN gate `5201314`.
 
-**Railway demo gotchas learned:** seed needs devDep `ts-node` → run reseed LOCALLY against Postgres Demo `DATABASE_PUBLIC_URL` (not in the prod container). `db push` works in-container via `railway ssh`. `railway run` can't reach `postgres.railway.internal` (use public URL). ⚠️ user pasted demo DB public URL+password in chat — rotate Postgres Demo password when convenient.
+**Railway demo gotchas learned:** seed needs devDep `ts-node` → run reseed LOCALLY against Postgres Demo `DATABASE_PUBLIC_URL` (not in the prod container). `db push` works in-container via `railway ssh`. `railway run` can't reach `postgres.railway.internal` (use public URL). ⚠️ user pasted demo DB public URL+password in chat - rotate Postgres Demo password when convenient.
 
-**OPEN — /office-hours IN PROGRESS (re-ask on resume):** designing per-category `questionSchema` (customer quote questions). Only `aircond` seeded today. 10 drafts proposed (plumbing/cleaning/catering/electrician/door-gate/roof/renovation/interior-design/wedding/tutoring) with [P]=priced / [i]=info marks + shared tail (`property_type` + `urgency`). Was about to ask session-scope (focused content-design vs full builder brainstorm vs just-seed). Drafts live in chat; re-present + decide depth per category, then write questionSchema in `backend/prisma/seed/data/static.ts` + reseed. Flag: `property_type` weak for catering/wedding/tutoring-online.
+**OPEN - /office-hours IN PROGRESS (re-ask on resume):** designing per-category `questionSchema` (customer quote questions). Only `aircond` seeded today. 10 drafts proposed (plumbing/cleaning/catering/electrician/door-gate/roof/renovation/interior-design/wedding/tutoring) with [P]=priced / [i]=info marks + shared tail (`property_type` + `urgency`). Was about to ask session-scope (focused content-design vs full builder brainstorm vs just-seed). Drafts live in chat; re-present + decide depth per category, then write questionSchema in `backend/prisma/seed/data/static.ts` + reseed. Flag: `property_type` weak for catering/wedding/tutoring-online.
 
 **Still queued (SP2a follow-ups):** bulk-publish (checkboxes + action bar + `POST /admin/categories/bulk-publish`); visual design-review pass on Category Settings + the quote/new "nav not pushed up on unplug" bug; category banner photos via Gemini (11 main categories, prompts drafted in chat).
 
 ---
 
-## Session 2026-05-31 (cont.) — taxonomy redesign + quote/pricing model + drill-down
+## Session 2026-05-31 (cont.) - taxonomy redesign + quote/pricing model + drill-down
 
 **Category taxonomy redesigned (DONE, committed `c72d2a8`, reseeded to demo DB):** flat 11 →
 **7 parents + 28 children**. Parents = grouping; children = quotable services carrying
@@ -3346,7 +3346,7 @@ wedding→event-planner, tutoring→home-tutoring, etc.). door-gate+roof kept un
   platform (100% servicer), extra above baseline %'d by platform.**
 - **Inspection:** inspection-first flow flag + procedure free-text. (Biggest piece, own phase.)
 - Parked idea: admin avg-listing-price per category/sub-category.
-- NOTE: "urgency fee" was a stray hallucination — removed; not part of the model.
+- NOTE: "urgency fee" was a stray hallucination - removed; not part of the model.
 
 **Question schema content (in progress, user dictates each child one-by-one):** captured pattern =
 `action`(radio,1) × `area`(checkbox min1) × `problem`(checkbox min1), "Other→explain", additive
@@ -3364,26 +3364,26 @@ edits during its run. Thumbnails: new slugs have no images → generic banner un
 
 ---
 
-## Session 2026-05-31 (cont.) — frontend browse drill-down DONE
+## Session 2026-05-31 (cont.) - frontend browse drill-down DONE
 
 **Browse drill-down frontend (DONE, committed):** parent→child category drill-down built.
 
 **Files:**
-- `frontend/src/app/public/children-browse.component.ts` — new standalone component. Reads `parentSlug` from route params, fetches `GET /categories?parent=<slug>`, renders child cards in `.svc-card` style (color wash, background photo, icon, name, price). Handles loading/error/empty states. Child click → quote handoff replicating home's auth logic (logged-in → `/customer/quote/new?category=<id>`, guest → `enterGuestMode` + `/login?intent=quote`).
-- `frontend/src/app/app.routes.ts` — added lazy route `/services/:parentSlug`.
-- `frontend/src/app/home/home.component.ts` — `pick()` now checks `defaultPriceSuggestion`: null → navigate to `/services/:slug` (drill-down), else → existing quote flow.
+- `frontend/src/app/public/children-browse.component.ts` - new standalone component. Reads `parentSlug` from route params, fetches `GET /categories?parent=<slug>`, renders child cards in `.svc-card` style (color wash, background photo, icon, name, price). Handles loading/error/empty states. Child click → quote handoff replicating home's auth logic (logged-in → `/customer/quote/new?category=<id>`, guest → `enterGuestMode` + `/login?intent=quote`).
+- `frontend/src/app/app.routes.ts` - added lazy route `/services/:parentSlug`.
+- `frontend/src/app/home/home.component.ts` - `pick()` now checks `defaultPriceSuggestion`: null → navigate to `/services/:slug` (drill-down), else → existing quote flow.
 
 **Gates:** `npx tsc --noEmit` 0 errors; `npx ng build` exit 0.
 
-**Note:** `customer/pages/browse.component.ts` still routes all categories (including parents) to `/customer/quote/new`. Pre-existing issue; parents will appear without a price line but still navigate to the quote form. Fix deferred — would need parent detection + conditional drill-down or skip.
+**Note:** `customer/pages/browse.component.ts` still routes all categories (including parents) to `/customer/quote/new`. Pre-existing issue; parents will appear without a price line but still navigate to the quote form. Fix deferred - would need parent detection + conditional drill-down or skip.
 
 ---
 
-## Session 2026-06-01 — Avg listing price per category analytics (CEO + executor)
+## Session 2026-06-01 - Avg listing price per category analytics (CEO + executor)
 
 **Request:** Show average active service-listing price per category + sub-category in admin Category Settings. Read-only analytics.
 
-**Task:** Single dispatch — executor agent (general) handling both backend + frontend.
+**Task:** Single dispatch - executor agent (general) handling both backend + frontend.
 
 ### Backend (`admin.routes.ts:512–609`)
 
@@ -3397,7 +3397,7 @@ Extended `GET /admin/categories` with two new response fields:
 **Implementation:**
 - Raw SQL `AVG(base_price)::numeric ROUND(..., 2)` grouped by `category_id`, filtered `deleted_at IS NULL`
 - In-memory `priceMap` + `childMap` index; `aggregateForParent()` computes weighted avg across children
-- `activeListingCount` kept unchanged (direct `_count.services` — pre-existing behavior)
+- `activeListingCount` kept unchanged (direct `_count.services` - pre-existing behavior)
 - Existing `_count`/include unchanged; no performance regression
 
 ### Frontend (`category-settings.component.ts`)
@@ -3412,7 +3412,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 
 ### Code review findings
 - **Info #1:** `activeListingCount` (blue badge) vs `priceStatListingCount` (green badge) diverge on parent rows when parent has direct services. Recommend aligning.
-- **Info #2:** Sub-cats editor tab (modal) doesn't show price badge — main list is covered.
+- **Info #2:** Sub-cats editor tab (modal) doesn't show price badge - main list is covered.
 - All edge cases verified: nulls, zeros, no-children parents, deleted services, Decimal precision chain.
 
 ### Gates
@@ -3425,18 +3425,18 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 | Code review | ✅ 0 critical, 0 warnings, 2 info (non-blocking) |
 
 ### Docs updated
-- `TODO.md` — task ticked under Done 2026-06-01
-- `docs/api-reference/api-doc.md` — `GET /admin/categories` section updated with new fields
-- `docs/ai-context/logs/backend-log.md` — session appended
-- `docs/ai-context/logs/frontend-log.md` — session appended
-- `docs/ai-context/logs/ceo-log.md` — this section
+- `TODO.md` - task ticked under Done 2026-06-01
+- `docs/api-reference/api-doc.md` - `GET /admin/categories` section updated with new fields
+- `docs/ai-context/logs/backend-log.md` - session appended
+- `docs/ai-context/logs/frontend-log.md` - session appended
+- `docs/ai-context/logs/ceo-log.md` - this section
 
-### Status: ✅ COMPLETE — not committed (per original instruction).
+### Status: ✅ COMPLETE - not committed (per original instruction).
 
 
 ---
 
-## Session 2026-06-01 — CEO handoff: taxonomy + questionSchemas + pricing model + drill-down
+## Session 2026-06-01 - CEO handoff: taxonomy + questionSchemas + pricing model + drill-down
 
 ### SHIPPED (committed + pushed + demo DB reseeded + live)
 - **Category taxonomy redesign**: flat 11 → 7 parents + 29 children (2-level). Parents=grouping, children=quotable (carry questionSchema/price/photosEnabled). Map: `docs/ai-context/category-taxonomy.md`. Merchants/budget/quotes remapped to child slugs. (commits c72d2a8 + later)
@@ -3444,9 +3444,9 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 - **Quote+pricing model** (`docs/superpowers/specs/2026-05-31-quote-question-pricing-model-design.md`): global `property_type` (4 opts, reserved key); `photosEnabled` per-category toggle; new question types `quantity` (count stepper) + `number`; `maxSelect`/`minSelect`; `showIf` branching; per-option `durationMin`; travel + supplies PASS-THROUGH fees (baseline 0% platform / extra %'d, max(category,overall), coded separately); inspection `requiresInspection`+`procedure` (flag only, flow STUBBED). 289 backend tests pass.
 - **Browse drill-down**: backend `GET /categories?parent=<slug>` ✅; frontend `children-browse.component` + route `/services/:parentSlug` ✅ (commit f4868bf). Home `pick()` routes parent→/services/:slug, child→quote (verified correct in code).
 - **bcrypt→bcryptjs** + 32 npm-audit fixes (commit 3770818, user-done).
-- Demo bar gate fix (hasDemoData not isDevMode); Cloudflare Pages Function proxy; env empty-NODE_ENV fix; seed published:true — all live.
+- Demo bar gate fix (hasDemoData not isDevMode); Cloudflare Pages Function proxy; env empty-NODE_ENV fix; seed published:true - all live.
 
-### 🔴 OPEN BUG — deep-route chunk MIME (BLOCKS drill-down on live demo)
+### 🔴 OPEN BUG - deep-route chunk MIME (BLOCKS drill-down on live demo)
 - `/services/cleaning-service` direct-load → Angular boots but lazy-loads children-browse chunk via dynamic import RELATIVE to URL → requests `/services/chunk-*.js` → Cloudflare SPA fallback returns index.html (text/html) → MIME error → chunk fails → router falls to ** → NotFound (404 page).
 - Proof: `/chunk-X.js` at ROOT = 200 application/javascript ✓; `/services/chunk-X.js` = 200 text/html ✗. Home + /guest/quote/new work (older routes); only newest /services route breaks.
 - Root cause: Angular `application` builder (esbuild) lazy chunks resolve relative to document URL, ignoring `<base href="/">`. `application` builder does NOT support deployUrl.
@@ -3454,8 +3454,8 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 - NEXT CEO: confirm poll result (background task byncsdi4j). If still text/html → implement _routes.json fix + redeploy + re-QA via gstack browse.
 
 ### Deferred / queued
-- **Pricing pass** per category (priced axes + quantity unit-price×qty in computePrefill — NOT built). Prompt drafted in chat (PARALLEL 1).
-- **Bulk-publish** admin (PARALLEL 2 prompt drafted); **admin avg-price analytics** (PARALLEL 3 drafted). P2+P3 overlap category-settings.component — sequence them.
+- **Pricing pass** per category (priced axes + quantity unit-price×qty in computePrefill - NOT built). Prompt drafted in chat (PARALLEL 1).
+- **Bulk-publish** admin (PARALLEL 2 prompt drafted); **admin avg-price analytics** (PARALLEL 3 drafted). P2+P3 overlap category-settings.component - sequence them.
 - Category banner images (Gemini) for new slugs.
 - `/dev/seed` isProd guard (security TODO). `.gitattributes eol=lf` (CRLF churn).
 - Inspection-first booking flow (stubbed).
@@ -3463,19 +3463,19 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 ### Demo creds / infra
 - Demo: Demo@2026; admin PIN 1234; demo-bar Admin gate PIN 5201314. Demo backend myhomeservicerdemo.up.railway.app (NODE_ENV=development). Frontend myhomeservicer.pages.dev. Reseed: local `npm run db:sync && npm run reseed` against Postgres Demo DATABASE_PUBLIC_URL (devDep ts-node needed → not in prod container). ⚠️ rotate demo DB password (pasted in chat earlier).
 
-### UPDATE (same session) — deep-route chunk MIME: partial fix shipped
+### UPDATE (same session) - deep-route chunk MIME: partial fix shipped
 - Clean rebuild did NOT fix (still text/html after 6 polls) → confirmed config-level, not stale deploy.
-- TRIED + REVERTED: `_routes.json` + `_redirects` asset-rescue rules (guessed Cloudflare syntax, untestable locally — reverted to avoid shipping unverified).
+- TRIED + REVERTED: `_routes.json` + `_redirects` asset-rescue rules (guessed Cloudflare syntax, untestable locally - reverted to avoid shipping unverified).
 - SHIPPED FIX (commit 363117f): made `children-browse` EAGER (component: not loadComponent) in app.routes.ts → no separate lazy chunk for /services/:slug → no relative-chunk 404. Build clean. Fixes the reported drill-down route specifically.
-- ⚠️ SYSTEMIC ISSUE REMAINS: ALL other lazy routes (admin/*, customer/*, servicer/*, guest/quote/new) will MIME-fail the same way on DEEP DIRECT-LOAD / REFRESH (chunk requested relative to deep URL → SPA fallback → text/html). Works now only via client-side nav (chunks load from /). NEXT CEO: implement proper Cloudflare fix — likely `_routes.json` to static-serve assets, OR a build-time absolute base for chunks. Verify on a deep refresh of e.g. /customer/quotes. This is the real fix; eager-load is a band-aid for one route.
+- ⚠️ SYSTEMIC ISSUE REMAINS: ALL other lazy routes (admin/*, customer/*, servicer/*, guest/quote/new) will MIME-fail the same way on DEEP DIRECT-LOAD / REFRESH (chunk requested relative to deep URL → SPA fallback → text/html). Works now only via client-side nav (chunks load from /). NEXT CEO: implement proper Cloudflare fix - likely `_routes.json` to static-serve assets, OR a build-time absolute base for chunks. Verify on a deep refresh of e.g. /customer/quotes. This is the real fix; eager-load is a band-aid for one route.
 
 ---
 
-## Session 2026-06-02 — Bulk dispatch: T1-T4 (4 parallel agents)
+## Session 2026-06-02 - Bulk dispatch: T1-T4 (4 parallel agents)
 
 **State at start:** master clean at 2ab4e2c. 36 merchants in accounts.ts. seed-test.ts still uses old 2-category structure. No Stripe frontend. Customer Rewards partially built (backend endpoints done, frontend gaps).
 
-### Dispatch plan — 4 parallel agents
+### Dispatch plan - 4 parallel agents
 
 | Agent | Tasks | Priority |
 |-------|-------|----------|
@@ -3486,7 +3486,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 
 ---
 
-### Task BE-1 — Soft enforcement: unpaid → block (T1.3)
+### Task BE-1 - Soft enforcement: unpaid → block (T1.3)
 | Field | Value |
 |-------|-------|
 | Target | Backend |
@@ -3495,7 +3495,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 | Output | If customer has unpaid invoices (`invoice.paidAt` is null), block new quote requests and new bookings. Return 402 or appropriate error: "You have an unpaid invoice. Please settle it before requesting new services." |
 | Status | 🟡 Dispatched 2026-06-02 |
 
-### Task BE-2 — STRIPE_PUBLISHABLE_KEY in env.ts (T2)
+### Task BE-2 - STRIPE_PUBLISHABLE_KEY in env.ts (T2)
 | Field | Value |
 |-------|-------|
 | Target | Backend |
@@ -3504,7 +3504,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 | Output | Add `STRIPE_PUBLISHABLE_KEY` to Zod env schema |
 | Status | 🟡 Dispatched 2026-06-02 |
 
-### Task BE-3 — Update seed-test.ts for 36 merchants (T3)
+### Task BE-3 - Update seed-test.ts for 36 merchants (T3)
 | Field | Value |
 |-------|-------|
 | Target | Backend |
@@ -3513,7 +3513,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 | Output | `seed-test.ts` updated to use 6-8 merchants across key categories from the new taxonomy. `check-seed.ts` updated. `npm run seed:test` verified. |
 | Status | 🟡 Dispatched 2026-06-02 |
 
-### Task BE-4 — Review points in doneJob() (T4.1)
+### Task BE-4 - Review points in doneJob() (T4.1)
 | Field | Value |
 |-------|-------|
 | Target | Backend |
@@ -3524,7 +3524,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 
 ---
 
-### Task FE-1 — Itemized proposal composition UI (T1.2)
+### Task FE-1 - Itemized proposal composition UI (T1.2)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -3533,7 +3533,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 | Output | Wire pricing modules into servicer proposal form so they can compose proposals from reusable module blocks. Verify `POST /servicer/proposals` accepts moduleRefs. |
 | Status | 🟡 Dispatched 2026-06-02 |
 
-### Task FE-2 — Stripe card payment frontend (T2)
+### Task FE-2 - Stripe card payment frontend (T2)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -3542,7 +3542,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 | Output | Install `@stripe/stripe-js` + `stripe`. Add `STRIPE_PUBLISHABLE_KEY` to `environment.ts`. Build `StripeCardFormComponent`. Wire into quote-form Bill step when `pay_now`. Call createPaymentIntent → confirmCardPayment. |
 | Status | 🟡 Dispatched 2026-06-02 |
 
-### Task FE-3 — Welcome banner on rewards page (T4.2)
+### Task FE-3 - Welcome banner on rewards page (T4.2)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -3551,7 +3551,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 | Output | First-visit welcome banner on rewards page, stored in localStorage |
 | Status | 🟡 Dispatched 2026-06-02 |
 
-### Task FE-4 — Idle re-engagement banner (T4.3)
+### Task FE-4 - Idle re-engagement banner (T4.3)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -3560,7 +3560,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 | Output | Detect if customer hasn't ordered in 30+ days and show a banner suggesting rewards/discounts |
 | Status | 🟡 Dispatched 2026-06-02 |
 
-### Task FE-5 — Voucher auto-apply in top-up (T4.4)
+### Task FE-5 - Voucher auto-apply in top-up (T4.4)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -3569,7 +3569,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 | Output | In top-up modal, show active vouchers and let customer apply one |
 | Status | 🟡 Dispatched 2026-06-02 |
 
-### Task FE-6 — Notification prefs UI (T4.5)
+### Task FE-6 - Notification prefs UI (T4.5)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -3580,7 +3580,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 
 ---
 
-### Task OPS-1 — Reseed full (T3.4)
+### Task OPS-1 - Reseed full (T3.4)
 | Field | Value |
 |-------|-------|
 | Target | DevOps |
@@ -3592,7 +3592,7 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 
 ---
 
-### Task QA-1 — Verify all gates
+### Task QA-1 - Verify all gates
 | Field | Value |
 |-------|-------|
 | Target | QA |
@@ -3603,9 +3603,9 @@ Null-guarded: only shown when `averagePrice != null && priceStatListingCount > 0
 
 ---
 
-## Session 2026-06-01 (cont.) — deep-route MIME bug: REPRODUCED, misdiagnosed, fixed (CEO + browse)
+## Session 2026-06-01 (cont.) - deep-route MIME bug: REPRODUCED, misdiagnosed, fixed (CEO + browse)
 
-**TL;DR:** The "🔴 systemic deep-route chunk MIME — BLOCKS demo" priority was a **misdiagnosis**. Live browser reproduction proved every deep route already BOOTS and WORKS on direct-load/refresh. The MIME errors are real but **non-fatal**. Shipped a deterministic, locally-verified fix.
+**TL;DR:** The "🔴 systemic deep-route chunk MIME - BLOCKS demo" priority was a **misdiagnosis**. Live browser reproduction proved every deep route already BOOTS and WORKS on direct-load/refresh. The MIME errors are real but **non-fatal**. Shipped a deterministic, locally-verified fix.
 
 ### Method: evidence-first (per `reproduce-dont-theorize` learning)
 Prior sessions theorized + guessed Cloudflare syntax + reverted (untestable locally). This session:
@@ -3623,48 +3623,48 @@ Prior sessions theorized + guessed Cloudflare syntax + reverted (untestable loca
 Live evidence (`/customer/quotes`): app-root 8 children, redirected to /login (works). `/auth/forgot` (lazy, no guard) → h1 "Forgot Password" (works). `/guest/quote/new` → full form (works). `/services/cleaning-service` (eager) → works. Network showed BOTH `/customer/chunk-X.js → 200 2221B` (=index.html, failed preload) AND `/chunk-X.js → 200 807B` (=real chunk, succeeded).
 
 ### Real impact: cosmetic, not blocking
-10 red console errors + ~22KB wasted (10× index.html) + preloads miss (slightly slower first paint) per deep load. No functional breakage. The children-browse eager-load band-aid (363117f) was unnecessary (can revert to lazy later — low priority).
+10 red console errors + ~22KB wasted (10× index.html) + preloads miss (slightly slower first paint) per deep load. No functional breakage. The children-browse eager-load band-aid (363117f) was unnecessary (can revert to lazy later - low priority).
 
-### FIX SHIPPED — `frontend/scripts/postbuild-absolutize.mjs` (option A)
+### FIX SHIPPED - `frontend/scripts/postbuild-absolutize.mjs` (option A)
 Idempotent post-build transform: rewrites relative `href=`/`src=` asset refs in emitted `index.html` to root-absolute (`/chunk-X.js`). Wired via `package.json` `"build": "ng build && node scripts/postbuild-absolutize.mjs"`. Verified locally: 14 refs rewritten, `<base href="/">` + external `https://fonts` untouched. Preloads now hit root → clean console, no waste, all routes.
 
-**Why A over the user's picked `_redirects` asset-404 (option B):** a blanket `/*.js → 404` rule risks 404'ing the REAL root assets (`/main-X.js`) and white-screening the whole site if Cloudflare evaluates `_redirects` before static-asset serving — untestable locally, and shipping it blind while the user was away was unacceptable. A is deterministic, locally verifiable, cannot break root serving. `_redirects` asset-404 logged as a future serve-layer hardening to verify in a controlled deploy.
+**Why A over the user's picked `_redirects` asset-404 (option B):** a blanket `/*.js → 404` rule risks 404'ing the REAL root assets (`/main-X.js`) and white-screening the whole site if Cloudflare evaluates `_redirects` before static-asset serving - untestable locally, and shipping it blind while the user was away was unacceptable. A is deterministic, locally verifiable, cannot break root serving. `_redirects` asset-404 logged as a future serve-layer hardening to verify in a controlled deploy.
 
 ### ⚠️ Deploy requirement
 Cloudflare Pages build command MUST be `npm run build` (NOT bare `ng build`) for the postbuild step to run. Verify in the Cloudflare dashboard. After redeploy, confirm clean console on a deep refresh of e.g. /customer/quotes via browse.
 
 ### Continuation dispatched same session (user heading out, authorized commits+pushes)
-Picked up two well-defined, low-risk security TODOs (see backend-log): `/dev/seed` isProd guard, and the hardcoded `'123456'` PIN fallback in `verifyPin`. Each its own commit + push for traceability. **Both turned out already-mitigated in code (stale TODOs) — removed the dead `/dev/seed` exec endpoint + 3 orphaned imports, corrected the false `verifyPin` docstring. Backend tsc 0, jest 293 pass/0 fail. Commit a8bd654.**
+Picked up two well-defined, low-risk security TODOs (see backend-log): `/dev/seed` isProd guard, and the hardcoded `'123456'` PIN fallback in `verifyPin`. Each its own commit + push for traceability. **Both turned out already-mitigated in code (stale TODOs) - removed the dead `/dev/seed` exec endpoint + 3 orphaned imports, corrected the false `verifyPin` docstring. Backend tsc 0, jest 293 pass/0 fail. Commit a8bd654.**
 
 ### ✅ MIME fix VERIFIED LIVE (post-deploy of commit 5a41be8)
-Deployed index.html now serves absolute asset URLs. Deep-load of /customer/quotes via browse: **0 MIME errors** (was 10), **0** `/customer/chunk-` requests, 21 real root `/chunk-` requests, app boots + redirects to /login. Cloudflare build command is already `npm run build` (transform ran live — the dashboard action I flagged is NOT needed). The deep-route MIME item is fully closed.
+Deployed index.html now serves absolute asset URLs. Deep-load of /customer/quotes via browse: **0 MIME errors** (was 10), **0** `/customer/chunk-` requests, 21 real root `/chunk-` requests, app boots + redirects to /login. Cloudflare build command is already `npm run build` (transform ran live - the dashboard action I flagged is NOT needed). The deep-route MIME item is fully closed.
 
 ### Commits this session (traceable on master)
 - `5a41be8` fix(frontend): absolutize index.html asset URLs to kill deep-route MIME errors
 - `a8bd654` fix(backend): remove dead /dev/seed exec endpoint + correct verifyPin docstring (security)
 
-### Next CEO (suggested, unstarted — needs user input or fresh dispatch)
-- **Pricing pass** per category (priced axes + quantity unit-price × qty in computePrefill) — spec'd, not built.
-- **SP3 listing wizard** — PAUSED pending user's question-schema definitions + brainstorm (do not auto-start).
-- Remaining Stripe gaps (pay-now frontend, gateway settlement stub), customer avatar/email PATCH drops — see TODO.md 🔴 Open Issues.
+### Next CEO (suggested, unstarted - needs user input or fresh dispatch)
+- **Pricing pass** per category (priced axes + quantity unit-price × qty in computePrefill) - spec'd, not built.
+- **SP3 listing wizard** - PAUSED pending user's question-schema definitions + brainstorm (do not auto-start).
+- Remaining Stripe gaps (pay-now frontend, gateway settlement stub), customer avatar/email PATCH drops - see TODO.md 🔴 Open Issues.
 - Low-priority: revert children-browse eager band-aid → lazy; `.gitattributes eol=lf`; category banner images (Gemini).
-- Pending: browser QA of /services/cleaning-service after 363117f deploy settles (curl poll is weak — index.html always 200; must check Angular renders children cards via gstack browse).
+- Pending: browser QA of /services/cleaning-service after 363117f deploy settles (curl poll is weak - index.html always 200; must check Angular renders children cards via gstack browse).
 
 ---
 
-## Session 2026-06-02 — 3 bugs fixed: credit hold bypass, address parsing, preset scan skeleton
+## Session 2026-06-02 - 3 bugs fixed: credit hold bypass, address parsing, preset scan skeleton
 
 **Dispatched by:** User direct request (no CEO delegation)
 
-### Bug 1 — Credit hold incorrectly enforced for gateway payments
+### Bug 1 - Credit hold incorrectly enforced for gateway payments
 **File:** `backend/src/services/quote.service.ts`
 Credit hold checked only `paymentMode === 'pay_now'`, ignoring `settlementMethod`. Gateway (Stripe card) payments were incorrectly requiring wallet balance. Added `settlementMethod` to `CreateQuoteInput`, credit hold now `input.settlementMethod !== 'gateway'`. Also added frontend error handler to route insufficient-credit to top-up overlay.
 
-### Bug 2 — Address auto-fill parsing missed house number
+### Bug 2 - Address auto-fill parsing missed house number
 **File:** `frontend/src/app/customer/pages/quote-form.component.ts`
 `applyPresetObject()` used naive space-split, failing for "No. 12", "12A", "B-2-3", "Lot 1234". New regex handles all common MY address formats. Validation now shows `stepHint` (soft prompt) when number can't be parsed, instead of hard-block.
 
-### Bug 3 — Preset dropdown no loading animation
+### Bug 3 - Preset dropdown no loading animation
 **File:** `frontend/src/app/customer/pages/quote-form.component.ts`
 Changed to lazy load on first toggle with `bw-scan`/`bw-sweep` skeleton rows + staggered delays. Also centered preset buttons (`.preset-row` → `justify-content: center`), widened to `min-width: 140px`, orange auto-fill fill.
 
@@ -3676,8 +3676,8 @@ Changed to lazy load on first toggle with `bw-scan`/`bw-sweep` skeleton rows + s
 | `ng build` | ✅ exit 0 (pre-existing warnings) |
 | `npx jest` | ✅ 298 pass, 0 fail |
 
-### Bug 4 — Bill step wording is misleading (found, NOT fixed)
-**Discovery:** The Bill step shows "Estimated total RM 100" but the backend holds RM 150 (budgetMax). Customer sees RM 100 and gets charged RM 150 — the hold is correct, the display is wrong. Also: "I agree to platform terms" has no link to actual TnC, no non-refundable fee disclosure.
+### Bug 4 - Bill step wording is misleading (found, NOT fixed)
+**Discovery:** The Bill step shows "Estimated total RM 100" but the backend holds RM 150 (budgetMax). Customer sees RM 100 and gets charged RM 150 - the hold is correct, the display is wrong. Also: "I agree to platform terms" has no link to actual TnC, no non-refundable fee disclosure.
 **Spec written:** `docs/superpowers/specs/2026-06-02-bill-step-redesign.md`
 - Honest hold/refund wording: "We'll hold RM 150, ~RM 50 returned automatically"
 - Non-refundable line items (travel fee, inspection fee)
@@ -3700,13 +3700,13 @@ Changed to lazy load on first toggle with `bw-scan`/`bw-sweep` skeleton rows + s
 
 ---
 
-## Session 2026-06-02 — CEO dispatch (parallel tasks)
+## Session 2026-06-02 - CEO dispatch (parallel tasks)
 
 ### Context
 Claude agent already running: bug fixes + SPEC-1 (bill redesign) + SPEC-2 (pricing pass).
 Remaining independent items dispatched in parallel.
 
-### Task 1 — SP2b: Sub-categories editor tab
+### Task 1 - SP2b: Sub-categories editor tab
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -3719,7 +3719,7 @@ Remaining independent items dispatched in parallel.
 **Files:** `frontend/src/app/admin/pages/category-settings.component.ts`, `.css`
 **Gates:** `tsc --noEmit` 0, `ng build` 0
 
-### Task 2 — SP4: dispatch enhancements
+### Task 2 - SP4: dispatch enhancements
 | Field | Value |
 |-------|-------|
 | Target | Backend + Frontend |
@@ -3739,11 +3739,11 @@ Remaining independent items dispatched in parallel.
 | Partially built | 3 | 2 |
 
 ### Commit
-`pending` — waiting for Claude agent to finish before committing all together.
+`pending` - waiting for Claude agent to finish before committing all together.
 
 ---
 
-## Session 2026-06-02 13:03 — TODO.md Open Issues code audit
+## Session 2026-06-02 13:03 - TODO.md Open Issues code audit
 
 **Trigger:** User flagged that the `🔴 Open Issues` section (TODO.md lines 281–330, 479–500) mixes resolved and claimed-open items. Verified every entry against actual source code.
 
@@ -3756,42 +3756,42 @@ For each claimed-open item, traced the relevant code paths to confirm whether th
 |-------|---------|---------------|-------------------|---------|
 | 283–286 | `/dev/seed` endpoint | ✅ RESOLVED | ✅ Correct | OK |
 | 288–290 | `'123456'` PIN fallback | ✅ RESOLVED | ✅ Correct | OK |
-| **292–297** | **Stripe — pay-now no frontend** | **🔴 Open** | **✅ DONE** — `@stripe/stripe-js@^9.7.0` in pkg.json, `StripeCardFormComponent` (152 lines, Elements + `confirmCardPayment()`), `STRIPE_PUBLISHABLE_KEY` in `env.ts`+`environment.ts` | **STALE — shipped by T2** |
-| **299–302** | **Stripe — gateway settlement stub** | **🔴 Open** | **✅ IMPLEMENTED** — `settleBooking()` with `gateway` creates Checkout Session (`createBookingPaymentSession()`). Webhook `checkout.session.completed` → `completeGatewaySettlement()` records txn, deducts platform fee, pays out servicer, marks invoice paid. | **STALE — shipped via Checkout Session flow** |
+| **292–297** | **Stripe - pay-now no frontend** | **🔴 Open** | **✅ DONE** - `@stripe/stripe-js@^9.7.0` in pkg.json, `StripeCardFormComponent` (152 lines, Elements + `confirmCardPayment()`), `STRIPE_PUBLISHABLE_KEY` in `env.ts`+`environment.ts` | **STALE - shipped by T2** |
+| **299–302** | **Stripe - gateway settlement stub** | **🔴 Open** | **✅ IMPLEMENTED** - `settleBooking()` with `gateway` creates Checkout Session (`createBookingPaymentSession()`). Webhook `checkout.session.completed` → `completeGatewaySettlement()` records txn, deducts platform fee, pays out servicer, marks invoice paid. | **STALE - shipped via Checkout Session flow** |
 | 304–305 | Customer avatar upload | ✅ RESOLVED | ✅ Correct | OK |
 | 307–308 | Customer email read-only | ✅ RESOLVED | ✅ Correct | OK |
 | 310–313 | Servicer topup to Stripe | ✅ FIXED | ✅ Correct | OK |
 | 315–317 | Reward calculator on frontend | ✅ FIXED | ✅ Correct | OK |
 | 319–321 | Stripe webhook errors | ✅ FIXED | ✅ Correct | OK |
 | 323–330 | Quote form top-up modal | ✅ FIXED | ✅ Correct | OK |
-| **479–481** | **Customer notification prefs** | **🟡 Open** | **✅ DONE** — `account.component.ts` lines 313–356: Notification Preferences template with per-group toggles (bookingUpdates, proposals, promotions, chatMessages). `saveNotifPrefs()` PATCHes `/user/me` with `notificationPrefs`. Defaults seeded at line 711–716. | **STALE — shipped by T4.5** |
-| **497–500** | **No STRIPE_KEY in env config** | **🟡 Open** | **✅ DONE** — `backend/src/config/env.ts:56` has `STRIPE_PUBLISHABLE_KEY` (Zod schema), `frontend/src/environments/environment.ts:17` has `stripePublishableKey`, `backend/.env.example:113` has entry. | **STALE — shipped by T2** |
+| **479–481** | **Customer notification prefs** | **🟡 Open** | **✅ DONE** - `account.component.ts` lines 313–356: Notification Preferences template with per-group toggles (bookingUpdates, proposals, promotions, chatMessages). `saveNotifPrefs()` PATCHes `/user/me` with `notificationPrefs`. Defaults seeded at line 711–716. | **STALE - shipped by T4.5** |
+| **497–500** | **No STRIPE_KEY in env config** | **🟡 Open** | **✅ DONE** - `backend/src/config/env.ts:56` has `STRIPE_PUBLISHABLE_KEY` (Zod schema), `frontend/src/environments/environment.ts:17` has `stripePublishableKey`, `backend/.env.example:113` has entry. | **STALE - shipped by T2** |
 | 493–495 | Frontend financial calculations | 🟢 Cosmetic | ✅ Correct assessment | OK |
 
-### Notable find — `payment_intent.succeeded` handler missing payout cycle
+### Notable find - `payment_intent.succeeded` handler missing payout cycle
 
-While tracing the Stripe gateway code, discovered that `handlePaymentIntentSucceeded()` (for `pay_now` flow) creates a `gateway_payment` transaction and marks invoice paid but does **NOT** call `completeGatewaySettlement()` — so the servicer payout and platform fee deduction never happen for `pay_now` card payments. The Checkout Session flow (`pay_later` → gateway settlement) does handle this correctly.
+While tracing the Stripe gateway code, discovered that `handlePaymentIntentSucceeded()` (for `pay_now` flow) creates a `gateway_payment` transaction and marks invoice paid but does **NOT** call `completeGatewaySettlement()` - so the servicer payout and platform fee deduction never happen for `pay_now` card payments. The Checkout Session flow (`pay_later` → gateway settlement) does handle this correctly.
 
 This is a **new issue** not currently documented in TODO.md.
 
 ### Bottom line
-`🔴 Open Issues` section is fully stale — every item listed is either already correctly marked resolved, or the work was shipped by T2/T4 and the entry was never cleaned up. The section could be retired entirely.
+`🔴 Open Issues` section is fully stale - every item listed is either already correctly marked resolved, or the work was shipped by T2/T4 and the entry was never cleaned up. The section could be retired entirely.
 
 ---
 
-## Session 2026-06-02 — UX Polish Batch + Office Hours Design
+## Session 2026-06-02 - UX Polish Batch + Office Hours Design
 
 ### Shipped (commit 43671f7)
-- `.card.warn` dark theme text — `color: var(--color-status-open-text)` + global styles.css rule
-- `field-msg` layout — cat-field flex-direction column, no overflow
-- Mobile nav — icon-only on ≤760px (`.nav-label` hidden)
-- Preset address form — `<app-address-fields>` replaces saved-address select; creates address inline
+- `.card.warn` dark theme text - `color: var(--color-status-open-text)` + global styles.css rule
+- `field-msg` layout - cat-field flex-direction column, no overflow
+- Mobile nav - icon-only on ≤760px (`.nav-label` hidden)
+- Preset address form - `<app-address-fields>` replaces saved-address select; creates address inline
 
 ### Office Hours design doc saved
 `~/.gstack/projects/AllergicToAnything-MyServicerDemo/Zen-master-design-20260602-135956.md`
 6 UX areas planned: status colors, cancelled→history, notifications, prompt guard global law, mobile keyboard, seed transactions.
 
-### All remaining work logged in TODO.md — pending dispatch
+### All remaining work logged in TODO.md - pending dispatch
 
 | # | Task | File | Priority |
 |---|------|------|----------|
@@ -3813,7 +3813,7 @@ This is a **new issue** not currently documented in TODO.md.
 
 ---
 
-## Session 2026-06-02 — R4‖R5‖R6 full-parallel wave dispatched
+## Session 2026-06-02 - R4‖R5‖R6 full-parallel wave dispatched
 
 Status check (R1–R6 vs TODO.md): R1 ✅(1 leftover §15.4 verify), R2 ✅, R3 ✅, R4/R5/R6 open. Closeout (QA→design-review→demo deploy) gated behind R4–R6. R2 merged → money logic locked → wave safe to fan out.
 
@@ -3821,9 +3821,9 @@ Status check (R1–R6 vs TODO.md): R1 ✅(1 leftover §15.4 verify), R2 ✅, R3 
 
 | Run | Target | Scope | Status |
 |-----|--------|-------|--------|
-| R4 — UX polish | Frontend | topbar scroll-away, card scanline, §5.4/§7.1 STYLE-RULES docs, payment-history align (5 items). **Owns STYLE-RULES.md this wave.** | ⬜ Dispatched |
-| R5 — retire /admin/settings | Frontend | Phase A read-only map+rehome plan → **CEO approval gate** → Phase B rehome+remove | ⬜ Dispatched (Phase A) |
-| R6 — compliance C-1..C-4 | Frontend+DevOps | hex→var (65+), top-up overlay §7.16, 29 Gemini banners, .gitattributes eol=lf | ⬜ Dispatched |
+| R4 - UX polish | Frontend | topbar scroll-away, card scanline, §5.4/§7.1 STYLE-RULES docs, payment-history align (5 items). **Owns STYLE-RULES.md this wave.** | ⬜ Dispatched |
+| R5 - retire /admin/settings | Frontend | Phase A read-only map+rehome plan → **CEO approval gate** → Phase B rehome+remove | ⬜ Dispatched (Phase A) |
+| R6 - compliance C-1..C-4 | Frontend+DevOps | hex→var (65+), top-up overlay §7.16, 29 Gemini banners, .gitattributes eol=lf | ⬜ Dispatched |
 
 **Hard owner rules:** (1) STYLE-RULES.md = R4 only; R6 hands rule-text to R4. (2) settings components: R5 Phase B lands first, THEN R6 hex sweep over them; R6 sweeps other components in parallel meanwhile. (3) R5 Phase B blocked on CEO approval. (4) no DB reseed this wave. Gates: frontend tsc 0 + ng build 0; per-task commit + Co-Authored-By; own branch per role.
 
@@ -3831,25 +3831,25 @@ Status check (R1–R6 vs TODO.md): R1 ✅(1 leftover §15.4 verify), R2 ✅, R3 
 
 ---
 
-## Session 2026-06-02 (cont.) — DISP-21 object-fit evidence-image sweep dispatched
+## Session 2026-06-02 (cont.) - DISP-21 object-fit evidence-image sweep dispatched
 
-**CEO-direct fix landed** (commit `f97d024`, pushed master): evidence/preview photos that cropped via `object-fit: cover` → `contain` + `var(--color-bg)` letterbox. Fixed `.preview` (servicer Jobs arrival/completion upload modals) + `.job-photo` (dispatch-overlay incoming job photo). Reported as "photo cut off in Upload arrival photo modal" — root cause was `cover` cropping, NOT modal overflow (`app-modal` body already scrolls correctly). Added **STYLE-RULES §9.6.1** (`cover` vs `contain`) as the standing rule.
+**CEO-direct fix landed** (commit `f97d024`, pushed master): evidence/preview photos that cropped via `object-fit: cover` → `contain` + `var(--color-bg)` letterbox. Fixed `.preview` (servicer Jobs arrival/completion upload modals) + `.job-photo` (dispatch-overlay incoming job photo). Reported as "photo cut off in Upload arrival photo modal" - root cause was `cover` cropping, NOT modal overflow (`app-modal` body already scrolls correctly). Added **STYLE-RULES §9.6.1** (`cover` vs `contain`) as the standing rule.
 
-⚠️ **Owner collision:** §9.6.1 edits `STYLE-RULES.md` while **R4 owns that file this wave**. Additive subsection, already committed + pushed — **R4/R6 must rebase onto `f97d024`; do NOT re-add or revert §9.6.1.**
+⚠️ **Owner collision:** §9.6.1 edits `STYLE-RULES.md` while **R4 owns that file this wave**. Additive subsection, already committed + pushed - **R4/R6 must rebase onto `f97d024`; do NOT re-add or revert §9.6.1.**
 
 | Run | Target | Scope | Status |
 |-----|--------|-------|--------|
-| DISP-21b — object-fit sweep | Frontend | Convert remaining evidence/preview images (`cover`→`contain` + `--color-bg`); keep `cover` on avatars + fixed thumbnails (8 classified). Targets: customer booking/before-after photos, chat image attachments + lightbox, review photos, banner-editor/media preview, PDF/doc preview, `background-size: cover` preview divs. **Code-only — §9.6.1 rule already landed; do NOT touch STYLE-RULES.md.** | ⬜ Dispatched |
+| DISP-21b - object-fit sweep | Frontend | Convert remaining evidence/preview images (`cover`→`contain` + `--color-bg`); keep `cover` on avatars + fixed thumbnails (8 classified). Targets: customer booking/before-after photos, chat image attachments + lightbox, review photos, banner-editor/media preview, PDF/doc preview, `background-size: cover` preview divs. **Code-only - §9.6.1 rule already landed; do NOT touch STYLE-RULES.md.** | ⬜ Dispatched |
 
 Gates: frontend `tsc --noEmit` 0 + `ng build` 0; own branch; per-task commit + Co-Authored-By. Full task detail in `TODO.md` (DISP-21a done / DISP-21b open).
 
 ---
 
-## Session 2026-06-08 — Calendar Bug Fix + Route Redesign Spec
+## Session 2026-06-08 - Calendar Bug Fix + Route Redesign Spec
 
 **CEO-direct:** Two items completed this session.
 
-### Fix — Calendar day-click crash (Decimal price)
+### Fix - Calendar day-click crash (Decimal price)
 
 Bug: clicking a day WITH bookings on servicer calendar → modal didn't appear.
 Root cause: Prisma Decimal `price` serialized as string in JSON, template called
@@ -3858,11 +3858,11 @@ fine, so empty days "worked" but booked days didn't.
 
 | Field | Value |
 |-------|-------|
-| Fix | `backend/src/routes/servicer.routes.ts:784` — `Number(b.price)` |
-| Verification | `npx tsc --noEmit` (backend + frontend) — zero errors |
+| Fix | `backend/src/routes/servicer.routes.ts:784` - `Number(b.price)` |
+| Verification | `npx tsc --noEmit` (backend + frontend) - zero errors |
 | Status | ✅ Fixed, not yet committed |
 
-### Spec — App-Wide Route Redesign
+### Spec - App-Wide Route Redesign
 
 Drafted comprehensive route redesign specification covering all 4 roles:
 
@@ -3875,22 +3875,22 @@ Drafted comprehensive route redesign specification covering all 4 roles:
 | Phase 3 | Admin settings + queues nesting |
 | Phase 4 | Dead link fixes + notification routing |
 | Phase 5 | New detail pages (stretch) |
-| Status | 📋 Spec complete — awaiting implementation dispatch |
+| Status | 📋 Spec complete - awaiting implementation dispatch |
 
 ### Dispatch plan (next CEO session)
 
 | Phase | Target Agent | Files | Risk |
 |-------|-------------|-------|------|
-| 1 — Servicer jobs | Frontend | `servicer.routes.ts`, `jobs.component.ts`, `shell`, `calendar` | Medium |
-| 2 — Customer bookings | Frontend | `customer.routes.ts`, `my-bookings`, `order-history`, `shell`, `proposals` | Medium |
-| 3 — Admin nesting | Frontend | `admin.routes.ts`, `shell`, `dashboard`, `setup-wizard` | Low |
-| 4 — Shared/links | Frontend | `chat-widget`, `notification.service`, dead links | Low |
+| 1 - Servicer jobs | Frontend | `servicer.routes.ts`, `jobs.component.ts`, `shell`, `calendar` | Medium |
+| 2 - Customer bookings | Frontend | `customer.routes.ts`, `my-bookings`, `order-history`, `shell`, `proposals` | Medium |
+| 3 - Admin nesting | Frontend | `admin.routes.ts`, `shell`, `dashboard`, `setup-wizard` | Low |
+| 4 - Shared/links | Frontend | `chat-widget`, `notification.service`, dead links | Low |
 
 Each phase should be a separate commit. Push to `master`.
 
 ---
 
-## Session 2026-06-08 (cont.) — Calendar Day Detail Card Redesign
+## Session 2026-06-08 (cont.) - Calendar Day Detail Card Redesign
 
 **CEO-direct:** Implemented the redesigned day detail card inside the calendar modal.
 
@@ -3919,12 +3919,12 @@ Each phase should be a separate commit. Push to `master`.
 
 ### Verification
 
-- `npx tsc --noEmit` — backend: 0 errors, frontend: 0 errors
+- `npx tsc --noEmit` - backend: 0 errors, frontend: 0 errors
 - Status: ✅ Complete, not yet committed
 
 ---
 
-## Session 2026-06-24 14:49 — Group 1 Dispatch (Demo-Critical, Serial)
+## Session 2026-06-24 14:49 - Group 1 Dispatch (Demo-Critical, Serial)
 
 **Trigger:** User: "Execute Group 1 in docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md"
 
@@ -3932,51 +3932,51 @@ Each phase should be a separate commit. Push to `master`.
 
 | Task | Agent | Status |
 |------|-------|--------|
-| S2-BE — lat/lng + Haversine + distanceKm | backend-cowork | 🟡 Dispatched 2026-06-24 14:49 |
-| S2-FE — Render distance km on dispatch card | frontend-cowork | ⬛ Blocked (S2-BE) |
-| SP4-BE — isOnline + schedule gating + rotation | backend-cowork | ⬛ Blocked (S2) |
-| SP4-FE — Google Map preview in accept prompt | frontend-cowork | ⬛ Blocked (SP4-BE) |
-| 7-QA — Verify dispatch overlay end-to-end | qa-cowork | ⬛ Blocked (SP4) |
-| 8-QA — Verify finance engine end-to-end | qa-cowork | ⬛ Blocked (SP4) |
+| S2-BE - lat/lng + Haversine + distanceKm | backend-cowork | 🟡 Dispatched 2026-06-24 14:49 |
+| S2-FE - Render distance km on dispatch card | frontend-cowork | ⬛ Blocked (S2-BE) |
+| SP4-BE - isOnline + schedule gating + rotation | backend-cowork | ⬛ Blocked (S2) |
+| SP4-FE - Google Map preview in accept prompt | frontend-cowork | ⬛ Blocked (SP4-BE) |
+| 7-QA - Verify dispatch overlay end-to-end | qa-cowork | ⬛ Blocked (SP4) |
+| 8-QA - Verify finance engine end-to-end | qa-cowork | ⬛ Blocked (SP4) |
 
-### Dispatch — S2-BE: Add lat/lng + Haversine + distanceKm
+### Dispatch - S2-BE: Add lat/lng + Haversine + distanceKm
 | Field | Value |
 |-------|-------|
 | Target | backend-cowork (via task tool) |
 | Branch | feat/sp3-dispatch-cards |
-| Priority | P1 — Demo-critical |
+| Priority | P1 - Demo-critical |
 | Prompt | See ceo-log.md lines 4184-4238 (PROMPT S2-BE) |
 | Gates | Backend tsc 0 new errors, npm test green, db:reset clean |
-| Status | 🟡 Dispatched — agent running |
+| Status | 🟡 Dispatched - agent running |
 
 ---
 
-## Session 2026-06-24 — Engineering Brief: Remaining 20 Items Dispatch
+## Session 2026-06-24 - Engineering Brief: Remaining 20 Items Dispatch
 
-**CEO:** Project is on `feat/sp3-dispatch-cards`. Demo-blocking items 1-6 are shipped. Items 7 (dispatch overlay verify) and 8 (finance engine verify) are unchecked — blocked on SP4 + S2. The user's engineering brief covers all remaining work across 5 priority tiers.
+**CEO:** Project is on `feat/sp3-dispatch-cards`. Demo-blocking items 1-6 are shipped. Items 7 (dispatch overlay verify) and 8 (finance engine verify) are unchecked - blocked on SP4 + S2. The user's engineering brief covers all remaining work across 5 priority tiers.
 
-### Priority 1 — Demo-critical (must complete before demo)
+### Priority 1 - Demo-critical (must complete before demo)
 **Start order:** S2 → SP4 → 7 → 8
 
-### Priority 2 — Dispatch card polish
+### Priority 2 - Dispatch card polish
 **After P1:** ED → NAV
 
-### Priority 3 — Platform hardening
+### Priority 3 - Platform hardening
 **After P2:** LINK → SP3 → S3 → MAP → RPT → RPP
 
-### Priority 4 — Admin & UX
+### Priority 4 - Admin & UX
 **After P3:** REW → ADM → PW → VAL → SEC → RFG → ITM
 
-### Priority 5 — Stretch
+### Priority 5 - Stretch
 **Last:** FINTECH
 
 ---
 
-### Task S2 — Distance km on dispatch card (Priority 1, first)
+### Task S2 - Distance km on dispatch card (Priority 1, first)
 | Field | Value |
 |-------|-------|
 | Target | Backend (schema + seed + API) → Frontend (render) |
-| Priority | P1 — Demo-critical |
+| Priority | P1 - Demo-critical |
 | Input | `schema.prisma` Servicer model, `servicer-quote.service.ts` `listIncomingQuotes` ~line 288, `frontend/src/app/servicer/pages/incoming-quotes.component.ts` |
 | Output | (a) `lat`/`lng` on Servicer model (schema + migration), (b) seed coordinates for demo servicers, (c) Haversine helper in `backend/src/lib/`, (d) `distanceKm` returned in `listIncomingQuotes` payload, (e) frontend renders "~X km away" on dispatch card face |
 | Blocking | Blocks SP4 (dispatch needs distance for rotation sort). Backend must complete first (schema migration), then Frontend renders. |
@@ -3984,21 +3984,21 @@ Each phase should be a separate commit. Push to `master`.
 
 **Backend sub-tasks:**
 1. Add `lat Decimal?` + `lng Decimal?` to Servicer model in `schema.prisma`. Run `prisma migrate dev --name add_servicer_coords`.
-2. Add `backend/src/lib/haversine.ts` — `haversineKm(lat1, lng1, lat2, lng2): number` using standard Haversine formula, returns 2dp.
+2. Add `backend/src/lib/haversine.ts` - `haversineKm(lat1, lng1, lat2, lng2): number` using standard Haversine formula, returns 2dp.
 3. In `servicer-quote.service.ts` `listIncomingQuotes()` (~line 288), compute `distanceKm = haversineKm(quote.lat, quote.lng, servicer.lat, servicer.lng)` for each quote in the mapped result. Guard: skip when either coord pair is null.
-4. Seed: In `accounts.ts`, add lat/lng to 12 demo servicers (KL/PJ area coordinates — ~3.05-3.20 lat, 101.60-101.70 lng range). `npm run db:reset` verify.
-5. `rtk proxy npx tsc --noEmit` — 0 new errors. `npm test` green.
+4. Seed: In `accounts.ts`, add lat/lng to 12 demo servicers (KL/PJ area coordinates - ~3.05-3.20 lat, 101.60-101.70 lng range). `npm run db:reset` verify.
+5. `rtk proxy npx tsc --noEmit` - 0 new errors. `npm test` green.
 
 **Frontend sub-task:**
 6. In `incoming-quotes.component.ts`, render `distanceKm` as `"~{{ q.distanceKm }} km away"` on the card face (small muted text near the address line). Guard: only when `distanceKm != null`.
 
 ---
 
-### Task SP4 — Full SP4 live-dispatch wiring (Priority 1)
+### Task SP4 - Full SP4 live-dispatch wiring (Priority 1)
 | Field | Value |
 |-------|-------|
 | Target | Backend (isOnline + schedule gating + rotation) + Frontend (Google Map preview) |
-| Priority | P1 — Demo-critical |
+| Priority | P1 - Demo-critical |
 | Input | `dispatch.service.ts`, `dispatch.jobs.ts`, `dispatch-overlay.component.ts`, spec `2026-05-30-live-order-accept-dispatch-design.md` |
 | Output | (a) Wire `isOnline` presence + `ServicerSchedule` working-hours gating into `startDispatchRotation()`. (b) Admin-configurable rotation timer. (c) Decline → rotate to next servicer → async fallback. (d) Google Map preview in accept prompt. |
 | Blocked by | S2 (schedule gating needs distance context; not hard-blocked but best done after) |
@@ -4009,23 +4009,23 @@ Each phase should be a separate commit. Push to `master`.
 1. In `dispatch.service.ts` `startDispatchRotation()`, wrap servicer eligibility with `isOnline` check + `ServicerSchedule` working-hours gate (is current MYT time within the servicer's configured operating hours for the current weekday).
 2. Make rotation timer admin-configurable: read `dispatch_prompt_timeout_seconds` from platform settings (schema field already exists from prior SP4 prep). Default 10s.
 3. Decline handler: on servicer decline via Socket.io, rotate to next eligible servicer immediately. On all-eligible exhausted → `handleDispatchFallback()` (already stubbed).
-4. `rtk proxy npx tsc --noEmit` — 0 new errors. `npm test` green.
+4. `rtk proxy npx tsc --noEmit` - 0 new errors. `npm test` green.
 
 **Frontend sub-task:**
 5. In `dispatch-overlay.component.ts`, add Google Map preview in accept prompt showing job location marker. Use existing `ConfigService.googleMapsApiKey` + Maps JS API. Static map thumbnail is sufficient for MVP (no interactive map needed in the 10s countdown window).
-6. `npx tsc --noEmit` — 0 errors. `ng build` — exit 0.
+6. `npx tsc --noEmit` - 0 errors. `ng build` - exit 0.
 
 ---
 
-### Task 7 — Live dispatch overlay end-to-end verify (Priority 1)
+### Task 7 - Live dispatch overlay end-to-end verify (Priority 1)
 | Field | Value |
 |-------|-------|
 | Target | QA |
-| Priority | P1 — Demo-critical |
+| Priority | P1 - Demo-critical |
 | Blocked by | SP4 |
 | Input | SP4 files + `dispatch-prompt-guard.component.ts` |
 | Output | Walk end-to-end: quote → rotation fires → accept-now overlay with countdown → accept/decline → next servicer on timeout → online/offline guard. Document any failures. |
-| Status | ⬛ Blocked — waiting on SP4 |
+| Status | ⬛ Blocked - waiting on SP4 |
 
 **Verification steps:**
 1. Create a quote → verify it enters dispatch rotation
@@ -4040,11 +4040,11 @@ Each phase should be a separate commit. Push to `master`.
 
 ---
 
-### Task 8 — Finance engine end-to-end verify (Priority 1)
+### Task 8 - Finance engine end-to-end verify (Priority 1)
 | Field | Value |
 |-------|-------|
 | Target | QA |
-| Priority | P1 — Demo-critical |
+| Priority | P1 - Demo-critical |
 | Input | `booking.service.ts` `selectProposal` ~line 89, `stripe.routes.ts` |
 | Output | Walk money path with real numbers: `escrow_hold` → `escrow_release` + `platform_fee` → urgent-fee 20/80 split → admin dashboard. Every number must reconcile. |
 | Status | ⬜ Dispatched |
@@ -4061,7 +4061,7 @@ Each phase should be a separate commit. Push to `master`.
 
 ---
 
-### Task ED — Estimated duration on card face (Priority 2)
+### Task ED - Estimated duration on card face (Priority 2)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -4075,11 +4075,11 @@ Each phase should be a separate commit. Push to `master`.
 1. In `incoming-quotes.component.ts`, add `estimatedDurationMin?: number` to the quote interface (backend already returns this from listing prefill).
 2. Render as `"~{{ q.estimatedDurationMin }} min"` on the card face, near the time/price area.
 3. Guard: only when `estimatedDurationMin != null && estimatedDurationMin > 0`.
-4. `npx tsc --noEmit` — 0 errors. `ng build` — exit 0.
+4. `npx tsc --noEmit` - 0 errors. `ng build` - exit 0.
 
 ---
 
-### Task NAV — Maps/Waze on confirmed booking (Priority 2)
+### Task NAV - Maps/Waze on confirmed booking (Priority 2)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -4094,11 +4094,11 @@ Each phase should be a separate commit. Push to `master`.
 2. Add "Open in Google Maps" and "Open in Waze" buttons using the existing `openMap()` pattern from dispatch card.
 3. Buttons visible when booking status is confirmed, in_progress, or completed.
 4. Use booking address coordinates (lat/lng from quote request).
-5. `npx tsc --noEmit` — 0 errors. `ng build` — exit 0.
+5. `npx tsc --noEmit` - 0 errors. `ng build` - exit 0.
 
 ---
 
-### Task LINK — Route redesign + dead link sweep (Priority 3)
+### Task LINK - Route redesign + dead link sweep (Priority 3)
 | Field | Value |
 |-------|-------|
 | Target | Frontend (routes, quickLinks, chat AI) + Backend (notify linkUrl, Stripe URLs) |
@@ -4119,7 +4119,7 @@ Each phase should be a separate commit. Push to `master`.
 
 ---
 
-### Task SP3 — SP3 listing wizard (Priority 3)
+### Task SP3 - SP3 listing wizard (Priority 3)
 | Field | Value |
 |-------|-------|
 | Target | Frontend (wizard UI) + Backend (create-then-PATCH, routes) |
@@ -4130,20 +4130,20 @@ Each phase should be a separate commit. Push to `master`.
 | Status | ⬜ Dispatched |
 
 **Backend sub-tasks:**
-1. Add `POST /servicer/me/services` — creates service with basics only (categoryId, name, description, basePrice, priceType). Returns `{ id }`.
-2. Add `PATCH /servicer/me/services/:id` — updates full service (pricing modules, tax config, auto-accept settings, question answers).
-3. `rtk proxy npx tsc --noEmit` — 0 errors. `npm test` green.
+1. Add `POST /servicer/me/services` - creates service with basics only (categoryId, name, description, basePrice, priceType). Returns `{ id }`.
+2. Add `PATCH /servicer/me/services/:id` - updates full service (pricing modules, tax config, auto-accept settings, question answers).
+3. `rtk proxy npx tsc --noEmit` - 0 errors. `npm test` green.
 
 **Frontend sub-tasks:**
 4. Create new `servicer/pages/service-wizard.component.ts` as standalone component.
-5. 4 steps: Step 1 — Basics (name, category, description, price, priceType). Step 2 — Pricing & Modules (module picker, service charge, SST). Step 3 — Tax & Config (tax inclusive, SST toggle). Step 4 — Accept Mode (auto-accept toggle, conditions).
+5. 4 steps: Step 1 - Basics (name, category, description, price, priceType). Step 2 - Pricing & Modules (module picker, service charge, SST). Step 3 - Tax & Config (tax inclusive, SST toggle). Step 4 - Accept Mode (auto-accept toggle, conditions).
 6. Routes: `/servicer/services/new` → wizard in create mode. `/servicer/services/:id/edit` → wizard in edit mode.
 7. On create: POST `/servicer/me/services` after Step 1 → get ID → PATCH after each subsequent step. On edit: load existing → PATCH on save.
-8. `npx tsc --noEmit` — 0 errors. `ng build` — exit 0.
+8. `npx tsc --noEmit` - 0 errors. `ng build` - exit 0.
 
 ---
 
-### Task S3 — Seed reform (Priority 3)
+### Task S3 - Seed reform (Priority 3)
 | Field | Value |
 |-------|-------|
 | Target | Backend/DevOps |
@@ -4157,12 +4157,12 @@ Each phase should be a separate commit. Push to `master`.
 1. In `accounts.ts`, audit each servicer's service count. Cap any servicer with >3 listings to 3 (keep most relevant by category).
 2. Add `avatarUrl`/`logoUrl` to servicers M97-M105 (currently missing). Use placeholder URLs or gravatar-style fallbacks.
 3. Add 3 new servicers: Painter (home-improvement), Mover (cleaning-service), Gardener (home-maintenance). Seed services, schedules, deposit, revenue history.
-4. `rtk proxy npx tsc --noEmit` — 0 errors. `npm run db:reset` — clean, 39 merchants.
-5. `npm run seed:test` — exit 0.
+4. `rtk proxy npx tsc --noEmit` - 0 errors. `npm run db:reset` - clean, 39 merchants.
+5. `npm run seed:test` - exit 0.
 
 ---
 
-### Task MAP — In-app map debug (Priority 3)
+### Task MAP - In-app map debug (Priority 3)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -4173,14 +4173,14 @@ Each phase should be a separate commit. Push to `master`.
 | Status | ⬜ Dispatched |
 
 **Sub-tasks:**
-1. Diagnose why `app-map-view` component is broken — likely Google Maps API key loads after component init.
+1. Diagnose why `app-map-view` component is broken - likely Google Maps API key loads after component init.
 2. Fix: ensure `ConfigService` resolves before map component initializes. Use `APP_INITIALIZER` or route resolver, or defer map init until config is loaded.
 3. Verify map renders with marker at expected coordinates.
-4. `npx tsc --noEmit` — 0 errors. `ng build` — exit 0.
+4. `npx tsc --noEmit` - 0 errors. `ng build` - exit 0.
 
 ---
 
-### Task RPT — Servicer report button (Priority 3)
+### Task RPT - Servicer report button (Priority 3)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -4195,11 +4195,11 @@ Each phase should be a separate commit. Push to `master`.
 2. Add report button to History view.
 3. Add report button to dispatch overlay (during active dispatch).
 4. Reuse existing report modal pattern from customer side (`POST /bookings/:id/report`).
-5. `npx tsc --noEmit` — 0 errors. `ng build` — exit 0.
+5. `npx tsc --noEmit` - 0 errors. `ng build` - exit 0.
 
 ---
 
-### Task RPP — Admin reports list polish (Priority 3)
+### Task RPP - Admin reports list polish (Priority 3)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -4213,11 +4213,11 @@ Each phase should be a separate commit. Push to `master`.
 1. Redesign admin Reports tab: card-based layout instead of raw table rows.
 2. Show: report category, reporter name, booking/service context, status badge, timestamp.
 3. Wire notification: new report triggers admin notification.
-4. `npx tsc --noEmit` — 0 errors. `ng build` — exit 0.
+4. `npx tsc --noEmit` - 0 errors. `ng build` - exit 0.
 
 ---
 
-### Task REW — Customer rewards / deposit-credit promotions (Priority 4)
+### Task REW - Customer rewards / deposit-credit promotions (Priority 4)
 | Field | Value |
 |-------|-------|
 | Target | Backend + Frontend |
@@ -4231,7 +4231,7 @@ Each phase should be a separate commit. Push to `master`.
 
 ---
 
-### Task ADM — Admin banned-accounts, deactivate-account, customer search/filter (Priority 4)
+### Task ADM - Admin banned-accounts, deactivate-account, customer search/filter (Priority 4)
 | Field | Value |
 |-------|-------|
 | Target | Backend + Frontend |
@@ -4245,7 +4245,7 @@ Each phase should be a separate commit. Push to `master`.
 
 ---
 
-### Task PW — Forgot-password + settings refinements + PIN-registration (Priority 4)
+### Task PW - Forgot-password + settings refinements + PIN-registration (Priority 4)
 | Field | Value |
 |-------|-------|
 | Target | Backend + Frontend |
@@ -4259,7 +4259,7 @@ Each phase should be a separate commit. Push to `master`.
 
 ---
 
-### Task VAL — Cancel reason presets + form validation UX + admin footer wiring (Priority 4)
+### Task VAL - Cancel reason presets + form validation UX + admin footer wiring (Priority 4)
 | Field | Value |
 |-------|-------|
 | Target | Frontend + Backend |
@@ -4271,7 +4271,7 @@ Each phase should be a separate commit. Push to `master`.
 
 ---
 
-### Task SEC — IDOR audit + Decimal-as-string coercion + global-search fields (Priority 4)
+### Task SEC - IDOR audit + Decimal-as-string coercion + global-search fields (Priority 4)
 | Field | Value |
 |-------|-------|
 | Target | Backend |
@@ -4283,13 +4283,13 @@ Each phase should be a separate commit. Push to `master`.
 **Sub-tasks:**
 1. grep all routes with `:id` params. For each, verify the handler checks that the resource belongs to the authenticated user (or admin override).
 2. Common patterns to verify: `Booking.userId === req.user.id`, `QuoteRequest.userId === req.user.id`, `ServicerService.servicerId === req.user.servicer.id`.
-3. Check all API responses for Decimal fields — ensure they are serialized as strings (or `Number()` converted) — Prisma Decimal serializes to `{ "$numberDecimal": "..." }` by default unless explicitly converted.
-4. Check `global-search` endpoint coverage — does it search across all relevant models?
-5. `rtk proxy npx tsc --noEmit` — 0 errors.
+3. Check all API responses for Decimal fields - ensure they are serialized as strings (or `Number()` converted) - Prisma Decimal serializes to `{ "$numberDecimal": "..." }` by default unless explicitly converted.
+4. Check `global-search` endpoint coverage - does it search across all relevant models?
+5. `rtk proxy npx tsc --noEmit` - 0 errors.
 
 ---
 
-### Task RFG — routeFor() relative-path guard (Priority 4)
+### Task RFG - routeFor() relative-path guard (Priority 4)
 | Field | Value |
 |-------|-------|
 | Target | Frontend |
@@ -4299,17 +4299,17 @@ Each phase should be a separate commit. Push to `master`.
 | Status | ⬜ Dispatched |
 
 **Sub-tasks:**
-1. Create `frontend/src/app/core/route-for.ts` — exports `routeFor()` function that returns typed paths.
+1. Create `frontend/src/app/core/route-for.ts` - exports `routeFor()` function that returns typed paths.
 2. Pattern: `routeFor('customer', 'bookings', 'upcoming')` → `/customer/bookings/upcoming`.
 3. Replace magic strings in all `router.navigate(['/customer/bookings/...'])` calls with `routeFor()`.
-4. `npx tsc --noEmit` — 0 errors. `ng build` — exit 0.
+4. `npx tsc --noEmit` - 0 errors. `ng build` - exit 0.
 
 ---
 
-### Task ITM — Itemization (Priority 4)
+### Task ITM - Itemization (Priority 4)
 | Field | Value |
 |-------|-------|
-| Target | Docs only — deferred execution |
+| Target | Docs only - deferred execution |
 | Priority | P4 |
 | Input | N/A |
 | Output | Document design: service listing vs line items. Defer execution until SP3-SP4 land. |
@@ -4317,14 +4317,14 @@ Each phase should be a separate commit. Push to `master`.
 
 ---
 
-### Task FINTECH — Full fintech P1-P5 (Priority 5, Stretch)
+### Task FINTECH - Full fintech P1-P5 (Priority 5, Stretch)
 | Field | Value |
 |-------|-------|
 | Target | Backend |
-| Priority | P5 — Stretch |
+| Priority | P5 - Stretch |
 | Input | Spec `2026-06-23-admin-dashboard-financial-redesign.md` §Fintech roadmap |
 | Output | P1 Wallet model + BalanceCheckpoint, P2 Fee engine, P3 Saved payments, P4 Escrow automation, P5 Reporting. Build in order. |
-| Status | ⬜ Dispatched — last in queue |
+| Status | ⬜ Dispatched - last in queue |
 
 ---
 
@@ -4356,10 +4356,10 @@ Each phase should be a separate commit. Push to `master`.
 
 ### Dispatch order
 ```
-Phase A (sequential, Priority 1 — demo-critical):
+Phase A (sequential, Priority 1 - demo-critical):
   S2 (Backend) → S2 (Frontend after migration)
   → SP4 (Backend) → SP4 (Frontend)
-  → 7 (QA — verify) → 8 (QA — verify)
+  → 7 (QA - verify) → 8 (QA - verify)
 
 Phase B (parallel after Phase A):
   ED (Frontend) ∥ NAV (Frontend)
@@ -4379,7 +4379,7 @@ Phase E (stretch):
 
 ---
 
-### Session 2026-06-12 (cont.) — Toast notification sound + bigger snackbar toasts
+### Session 2026-06-12 (cont.) - Toast notification sound + bigger snackbar toasts
 
 **CEO directly implemented** (single-domain frontend change, no multi-agent coordination needed).
 
@@ -4395,18 +4395,18 @@ Phase E (stretch):
 
 ### Changes made
 
-1. **`toast.service.ts`** — Added audio playback on success/error action toasts:
+1. **`toast.service.ts`** - Added audio playback on success/error action toasts:
    - Injects `ApiService` to load `notification_sound_enabled` admin setting
    - `AudioContext` unlock on first user click/touch (browser autoplay policy)
    - `playSound()`: success → `NotificationCard.wav`, error → `Notification_Job.wav`, volume 0.4
    - Info toasts remain silent
 
-2. **`notification.service.ts`** — Added sound to poll-based toast creation:
+2. **`notification.service.ts`** - Added sound to poll-based toast creation:
    - `refresh()` now calls `playNotificationSound()` for the first new unread notification
    - Added `unlockAudio()` matching the ToastService pattern
    - Called from `start()` alongside existing `checkSoundSetting()`
 
-3. **`snackbar.component.ts`** — Full visual size increase:
+3. **`snackbar.component.ts`** - Full visual size increase:
    - Width 330→420px, padding 0.7→1rem, border-radius 10→12px
    - Message font 0.88→0.95rem, type font 0.7→0.75rem, icon 1→1.15rem
    - Shadow heavier, gap 0.6→0.75rem, dismiss button 0.8→0.9rem
@@ -4419,7 +4419,7 @@ Phase E (stretch):
 
 ---
 
-## Session 2026-06-22 (p.m.) — Skeleton animation unified + loading UX polish
+## Session 2026-06-22 (p.m.) - Skeleton animation unified + loading UX polish
 
 **Branch**: `feat/sp3-dispatch-cards`
 
@@ -4440,36 +4440,36 @@ Refactored entire skeleton loading system across 6 components. Extracted shared 
 
 ---
 
-## Session 2026-06-23 — Dispatch-card initiative (5 plans)
+## Session 2026-06-23 - Dispatch-card initiative (5 plans)
 
 **Branch**: `feat/sp3-dispatch-cards` | **Commit mode**: per-task, no AI trailer
 
-### STEP 0 — Known unknowns resolved (read-only)
+### STEP 0 - Known unknowns resolved (read-only)
 
 #### (a) Booking model field names
-- **Booking.scheduledDate** (DateTime, line 918) — canonical date field for bookings. Plans reference `preferredDate` (which lives on `QuoteRequest`). Plans 2 & 4 MUST use `scheduledDate`.
-- **Booking.timeSlot** (TimeSlot enum, line 919) — matches plans.
+- **Booking.scheduledDate** (DateTime, line 918) - canonical date field for bookings. Plans reference `preferredDate` (which lives on `QuoteRequest`). Plans 2 & 4 MUST use `scheduledDate`.
+- **Booking.timeSlot** (TimeSlot enum, line 919) - matches plans.
 - **Booking has NO `estimatedDurationMin` field**. `estimated_duration_minutes` exists on `ServicerService` (line 615) and `default_estimated_duration_minutes` on `Category` (line 718). Plan 2 Task 1's `countSlotJobs` must adjust: either omit duration sum, or join through servicer service/category for a rough estimate. Adjust `select` in the booking query accordingly.
-- **QuoteRequest.preferredDate** (line 820) and `timeSlot` (line 819) used in the feed `.map` — these fields stay.
+- **QuoteRequest.preferredDate** (line 820) and `timeSlot` (line 819) used in the feed `.map` - these fields stay.
 
-#### (b) `quote.matched` socket event — EXISTS (no backend change needed)
+#### (b) `quote.matched` socket event - EXISTS (no backend change needed)
 In `booking.service.ts:335-347`, `selectProposal` already emits:
 ```typescript
 emitToServicers(broadcasts.map(b => b.servicerId), 'quote.matched', { quoteId });
 ```
 Plan 2 Task 5 needs only frontend subscription to `this.socket.on('quote.matched')`. No backend emit to add.
 
-#### (c) URL emitter — s3.ts:31 is WRONG, file.service.ts:75 is RIGHT
+#### (c) URL emitter - s3.ts:31 is WRONG, file.service.ts:75 is RIGHT
 - **Mount**: `apiRouter` at `/api/v1` (app.ts:77), `filesRouter` at `/files` (routes/index.ts:223) → full path = `/api/v1/files/local-upload/:fileId`
-- **file.service.ts:75**: `/api/v1/files/local-upload/${file.id}` — **CORRECT** (and is the LIVE emitter for the presign→confirm flow; `isS3Configured()` gates it)
-- **s3.ts:31** (fallback inside `presignUpload`): `/api/files/local-upload/${key}` — **WRONG** prefix (`/api` not `/api/v1`) and uses `key` instead of `fileId`. However this path is likely dead code in local dev because `file.service.ts:73` checks `isS3Configured()` and only calls `presignUpload` for S3. Still should be fixed for defensive consistency.
+- **file.service.ts:75**: `/api/v1/files/local-upload/${file.id}` - **CORRECT** (and is the LIVE emitter for the presign→confirm flow; `isS3Configured()` gates it)
+- **s3.ts:31** (fallback inside `presignUpload`): `/api/files/local-upload/${key}` - **WRONG** prefix (`/api` not `/api/v1`) and uses `key` instead of `fileId`. However this path is likely dead code in local dev because `file.service.ts:73` checks `isS3Configured()` and only calls `presignUpload` for S3. Still should be fixed for defensive consistency.
 - **Plan 3 Task 1 adjustment**: Fix s3.ts:31 to match the correct URL. Also note: the frontend upload flow goes through `file.service.ts`'s presign→PUT→confirm pipeline (already correct). Only fix the `s3.ts` dead path.
 
 #### Plan field-name adjustments needed before coding:
-- **Plan 2 Task 1**: `countSlotJobs` query must select `Booking.scheduledDate` (not `preferredDate`). No `estimatedDurationMin` on Booking — use 0 or drop from the initial slot-load. The `select` block at Step 5 must be `select: { scheduledDate: true, timeSlot: true }` and `estDurationMin` default to 0.
+- **Plan 2 Task 1**: `countSlotJobs` query must select `Booking.scheduledDate` (not `preferredDate`). No `estimatedDurationMin` on Booking - use 0 or drop from the initial slot-load. The `select` block at Step 5 must be `select: { scheduledDate: true, timeSlot: true }` and `estDurationMin` default to 0.
 - **Plan 2 Task 5**: Backend emit already exists; just note this in the plan instructions.
 - **Plan 3 Task 1**: `s3.ts:31` fix to align with `/api/v1/files/local-upload/:fileId`.
-- **Plan 4 Task 1**: Calendar uses `scheduledDate` (line 838/842). `countSlotJobs` must also use `scheduledDate` — coherence is inherently correct if both use the same field. Add `estimatedDurationMin` consideration.
+- **Plan 4 Task 1**: Calendar uses `scheduledDate` (line 838/842). `countSlotJobs` must also use `scheduledDate` - coherence is inherently correct if both use the same field. Add `estimatedDurationMin` consideration.
 
 ---
 
@@ -4477,22 +4477,22 @@ Plan 2 Task 5 needs only frontend subscription to `this.socket.on('quote.matched
 
 | Plan | Agent | Depends on | Status |
 |------|-------|------------|--------|
-| Plan 1 (backend foundation) | backend-cowork | — | ⬜ Dispatched |
+| Plan 1 (backend foundation) | backend-cowork | - | ⬜ Dispatched |
 | Plan 2 (card visual) | frontend-cowork | Plan 1 | ⬜ Waiting |
 | Plan 3 (upload fix + quote images) | backend-cowork | Plan 1 | ⬜ Waiting |
 | Plan 4 (calendar polish) | frontend-cowork | Plan 1 + Plan 2 Task 1 | ⬜ Waiting |
-| Plan 5 (customer polish) | frontend-cowork | — (independent) | ⬜ Waiting |
+| Plan 5 (customer polish) | frontend-cowork | - (independent) | ⬜ Waiting |
 
 Plan 1 goes first (gatekeeper: schema + timing). Then Plan 2 + Plan 3 can run in parallel (both depend on Plan 1). Plan 4 after Plan 2 Task 1 (needs slot-load coherence). Plan 5 runs independently (C1 immediate, C2 after route-shape confirm).
 
 ---
 
-### DISPATCH — Plan 1: Backend Foundation
+### DISPATCH - Plan 1: Backend Foundation
 Agent: backend-cowork (ses_10c38517dffebAopZQeHEXR99p)
 → ✅ COMPLETED. 9 tasks, 290 tests pass. Schema migration applied.
   Commit range: 223f797..6c6cbc9 (9 commits)
 
-### DISPATCH — Plan 2: Card Visual + Plan 3: Upload Fix (parallel)
+### DISPATCH - Plan 2: Card Visual + Plan 3: Upload Fix (parallel)
 Plan 2 agent: frontend-cowork (ses_10c244afcffeUZB4KKdtyT1Lkj)
 → ✅ COMPLETED. 5 tasks (1 backend + 4 frontend). slot-load test 3/3.
   Commits: bb68714..07737f7
@@ -4501,7 +4501,7 @@ Plan 3 agent: backend-cowork (ses_10c244651ffeFya0j2V50xMR9z)
 → ✅ COMPLETED. 6 tasks. s3.ts URL fix + images pipeline + quote-form upload + lightbox.
   Commits: b62baee..19af01a
 
-### DISPATCH — Plan 4: Calendar + Plan 5: Customer Journey (parallel)
+### DISPATCH - Plan 4: Calendar + Plan 5: Customer Journey (parallel)
 Plan 4 agent: frontend-cowork (ses_10c1660a6ffepLbT0qJ1zB9SRC)
 → ✅ COMPLETED. 3 tasks. CRITICAL FIX: isUrgent carry-through to Booking in selectProposal + dispatch accept paths. Calendar coherence confirmed.
   Commits: 68149fc..2cbf39a
@@ -4543,7 +4543,7 @@ Plan 5 agent: frontend-cowork (ses_10c162e85ffeHET67B15IUaVe0)
 
 ---
 
-### DISPATCH — Remaining items 2, 3, 5, 6 (parallel dispatch)
+### DISPATCH - Remaining items 2, 3, 5, 6 (parallel dispatch)
 
 **Item 2 (Auto-accept):** backend-cowork (ses_10c053311fferiFYHk5N6SepaP)
 → ✅ COMPLETED. 4 commits. evaluateAutoAcceptGates wired into broadcast, listing preview endpoint created, dispatch.service.ts MYT bug fixed.
@@ -4554,7 +4554,7 @@ Plan 5 agent: frontend-cowork (ses_10c162e85ffeHET67B15IUaVe0)
   Commit: 0e5eadd
 
 **Item 5 (Chat quote flow):** frontend-cowork (ses_10c03ca81ffequkvuYyaXq1yb1)
-→ ✅ COMPLETED. 1 commit. "Submit Quote Directly" button in chat widget — POSTs directly to /quotes, bypasses the form. Navigates to quotes list on success.
+→ ✅ COMPLETED. 1 commit. "Submit Quote Directly" button in chat widget - POSTs directly to /quotes, bypasses the form. Navigates to quotes list on success.
   Commit: 511c244
 
 **Item 6 (Admin dashboard backend):** backend-cowork (ses_10bf4c2c8ffe2opnN94QadQZkC)
@@ -4567,7 +4567,7 @@ Plan 5 agent: frontend-cowork (ses_10c162e85ffeHET67B15IUaVe0)
 
 ---
 
-## FINAL STATUS — Session 2026-06-23: DONE
+## FINAL STATUS - Session 2026-06-23: DONE
 
 ### All demo-blocking items completed
 
@@ -4592,7 +4592,7 @@ Plan 5 agent: frontend-cowork (ses_10c162e85ffeHET67B15IUaVe0)
 
 ---
 
-## Session 2026-06-24 — Granular Agent Execution Prompts
+## Session 2026-06-24 - Granular Agent Execution Prompts
 
 > Each prompt below is self-contained and copy-paste ready for the assigned agent.
 > Run verification commands after each task. Commit per task with Conventional Commits.
@@ -4600,11 +4600,11 @@ Plan 5 agent: frontend-cowork (ses_10c162e85ffeHET67B15IUaVe0)
 
 ---
 
-### PHASE A — Demo-Critical (sequential)
+### PHASE A - Demo-Critical (sequential)
 
 ---
 
-#### 🔧 PROMPT S2-BE — Backend: Add lat/lng to Servicer + Haversine + distanceKm in feed
+#### 🔧 PROMPT S2-BE - Backend: Add lat/lng to Servicer + Haversine + distanceKm in feed
 
 ```
 You are the Backend agent. Execute Task S2-BE on branch feat/sp3-dispatch-cards.
@@ -4614,7 +4614,7 @@ and return distanceKm in listIncomingQuotes.
 
 DO NOT touch the frontend. Backend only.
 
-STEP 1 — Schema migration:
+STEP 1 - Schema migration:
 - Open backend/prisma/schema.prisma
 - Find the Servicer model
 - Add two fields:
@@ -4624,13 +4624,13 @@ STEP 1 — Schema migration:
 - Run: cd backend && npx prisma migrate dev --name add_servicer_coords
 - Restart the server
 
-STEP 2 — Haversine helper:
+STEP 2 - Haversine helper:
 - Create backend/src/lib/haversine.ts with:
     export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number
     // Standard Haversine formula, returns distance in km rounded to 2 decimal places
     // Guard: if any param is null/NaN, return 0
 
-STEP 3 — Wire into listIncomingQuotes:
+STEP 3 - Wire into listIncomingQuotes:
 - Open backend/src/services/servicer-quote.service.ts
 - Find listIncomingQuotes() function (~line 288)
 - In the mapped return object, add: distanceKm: compute distance between
@@ -4639,7 +4639,7 @@ STEP 3 — Wire into listIncomingQuotes:
 - Ensure the servicer object is included in the Prisma query select so
   lat/lng are available (if not already included, add servicer: { select: { id, lat, lng } })
 
-STEP 4 — Seed coordinates:
+STEP 4 - Seed coordinates:
 - Open backend/prisma/seed/data/accounts.ts
 - For each of the 36 servicers, add lat/lng values in the KL/PJ area:
   - Range: lat 3.05-3.20, lng 101.60-101.70
@@ -4648,12 +4648,12 @@ STEP 4 — Seed coordinates:
     some around Cheras (3.10, 101.72), some around Damansara (3.13, 101.63)
 - Also add lat/lng to seed-test.ts servicers
 
-STEP 5 — Verify:
+STEP 5 - Verify:
 - rtk proxy npx tsc --noEmit → 0 new errors (8 pre-existing OK)
 - npm test → all green (196 pass, 6 pre-existing failures OK)
 - npm run db:reset → clean, 36 merchants with coords
 
-STEP 6 — Docs:
+STEP 6 - Docs:
 - Update docs/ai-context/schema-notes.md: add lat/lng fields under Servicer model
 - Update docs/ai-context/logs/backend-log.md: log this session
 
@@ -4662,7 +4662,7 @@ COMMIT: feat(servicer): add lat/lng coordinates + Haversine distance to dispatch
 
 ---
 
-#### 🔧 PROMPT S2-FE — Frontend: Render distance km on dispatch card
+#### 🔧 PROMPT S2-FE - Frontend: Render distance km on dispatch card
 
 ```
 You are the Frontend agent. Execute Task S2-FE on branch feat/sp3-dispatch-cards.
@@ -4671,23 +4671,23 @@ PREREQUISITE: Backend must have completed S2-BE (lat/lng + distanceKm in API res
 
 TASK: Render "~X km away" on the dispatch card face.
 
-STEP 1 — Add distanceKm to IncomingQuote interface:
+STEP 1 - Add distanceKm to IncomingQuote interface:
 - Open frontend/src/app/servicer/pages/incoming-quotes.component.ts
 - Find the IncomingQuote interface (or equivalent type)
 - Add: distanceKm?: number;
 
-STEP 2 — Render on card face:
+STEP 2 - Render on card face:
 - In the template, find where the address or location is displayed on the card
 - Add a small muted text element: "~{{ q.distanceKm }} km away"
 - Guard with @if: only show when q.distanceKm != null && q.distanceKm > 0
 - Style: font-size: 0.8rem; color: var(--color-muted); margin-top: 2px;
 - Place it near the address line or below the location info
 
-STEP 3 — Verify:
+STEP 3 - Verify:
 - npx tsc --noEmit → 0 errors
 - ng build --configuration development → exit 0
 
-STEP 4 — Docs:
+STEP 4 - Docs:
 - Update docs/ai-context/logs/frontend-log.md: log this session
 
 COMMIT: feat(servicer): render distance km on dispatch card face
@@ -4695,7 +4695,7 @@ COMMIT: feat(servicer): render distance km on dispatch card face
 
 ---
 
-#### 🔧 PROMPT SP4-BE — Backend: Wire isOnline presence + schedule gating into dispatch rotation
+#### 🔧 PROMPT SP4-BE - Backend: Wire isOnline presence + schedule gating into dispatch rotation
 
 ```
 You are the Backend agent. Execute Task SP4-BE on branch feat/sp3-dispatch-cards.
@@ -4705,42 +4705,42 @@ PREREQUISITE: S2 (lat/lng on Servicer) should be done first (not hard-blocked).
 TASK: Wire isOnline presence + ServicerSchedule working-hours gating into
 startDispatchRotation(). Make rotation timer admin-configurable.
 
-STEP 1 — Read the current dispatch flow:
+STEP 1 - Read the current dispatch flow:
 - Open backend/src/services/dispatch.service.ts
 - Find startDispatchRotation() function
 - Trace how servicers are currently selected for rotation
 - Open backend/src/jobs/dispatch.jobs.ts to understand the BullMQ job
 
-STEP 2 — Add isOnline presence gate:
+STEP 2 - Add isOnline presence gate:
 - In the servicer eligibility check within startDispatchRotation():
   - Load servicer's isOnline status (from Servicer model or Redis presence tracking)
   - Exclude servicers with isOnline: false from rotation
   - If a servicer goes offline mid-rotation, handle gracefully
 
-STEP 3 — Add working-hours gate:
+STEP 3 - Add working-hours gate:
 - Query ServicerSchedule for the dispatching servicer
 - Check: current MYT time is within today's operating hours for this servicer
 - Compute MYT correctly: new Date(now.getTime() + 8 * 3600_000)
 - Derive currentDay (weekday string like 'mon', 'tue') and currentHour from MYT
 - Exclude servicers not currently in their working hours
 
-STEP 4 — Admin-configurable rotation timer:
+STEP 4 - Admin-configurable rotation timer:
 - The setting dispatch_prompt_timeout_seconds already exists in platform_settings
   (from prior SP4 prep). Read it with resolveSetting() inside dispatch.service.ts
 - Default: 10 seconds
 - Apply this timeout to the accept/decline countdown sent to the frontend
 
-STEP 5 — Decline → rotate flow:
+STEP 5 - Decline → rotate flow:
 - In the Socket.io handler for dispatch.decline:
   - Remove the declining servicer from the eligible pool for this quote
   - Immediately call startDispatchRotation() with the remaining pool
   - If pool exhausted, call handleDispatchFallback() (already stubbed)
 
-STEP 6 — Verify:
+STEP 6 - Verify:
 - rtk proxy npx tsc --noEmit → 0 new errors
-- npm test → all green (none should break — dispatch tests are sparse)
+- npm test → all green (none should break - dispatch tests are sparse)
 
-STEP 7 — Docs:
+STEP 7 - Docs:
 - Update docs/ai-context/logs/backend-log.md: log this session
 
 COMMIT: feat(dispatch): wire isOnline + working-hours gating + configurable rotation timer
@@ -4748,7 +4748,7 @@ COMMIT: feat(dispatch): wire isOnline + working-hours gating + configurable rota
 
 ---
 
-#### 🔧 PROMPT SP4-FE — Frontend: Google Map preview in dispatch accept prompt
+#### 🔧 PROMPT SP4-FE - Frontend: Google Map preview in dispatch accept prompt
 
 ```
 You are the Frontend agent. Execute Task SP4-FE on branch feat/sp3-dispatch-cards.
@@ -4757,11 +4757,11 @@ PREREQUISITE: Backend SP4-BE should be done first.
 
 TASK: Add Google Map preview thumbnail to the dispatch overlay accept prompt.
 
-STEP 1 — Open dispatch-overlay.component.ts:
+STEP 1 - Open dispatch-overlay.component.ts:
 - frontend/src/app/shared/dispatch-overlay.component.ts
 - Find the accept prompt template (the big overlay with countdown + job details)
 
-STEP 2 — Add static map thumbnail:
+STEP 2 - Add static map thumbnail:
 - Use Google Static Maps API (no JS SDK needed):
   https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=14&size=400x200&markers=color:red%7C{lat},{lng}&key={apiKey}
 - Get the API key from ConfigService (already loaded at app init)
@@ -4770,11 +4770,11 @@ STEP 2 — Add static map thumbnail:
 - Show loading skeleton while image loads
 - Add label: "📍 Job Location"
 
-STEP 3 — Verify:
+STEP 3 - Verify:
 - npx tsc --noEmit → 0 errors
 - ng build --configuration development → exit 0
 
-STEP 4 — Docs:
+STEP 4 - Docs:
 - Update docs/ai-context/logs/frontend-log.md: log this session
 
 COMMIT: feat(dispatch): add Google Map preview thumbnail to accept prompt
@@ -4782,7 +4782,7 @@ COMMIT: feat(dispatch): add Google Map preview thumbnail to accept prompt
 
 ---
 
-#### 🔧 PROMPT 7-QA — QA: Verify live dispatch overlay end-to-end
+#### 🔧 PROMPT 7-QA - QA: Verify live dispatch overlay end-to-end
 
 ```
 You are the QA agent. Execute Task 7 on branch feat/sp3-dispatch-cards.
@@ -4841,7 +4841,7 @@ VERIFICATION CHECKLIST:
 
 8. Test working-hours guard:
    - Verify a servicer whose schedule shows "not working now" is excluded
-   - (Schedule data is seeded — check seed data for a servicer with narrow hours)
+   - (Schedule data is seeded - check seed data for a servicer with narrow hours)
 
 9. Test edge cases:
    - All servicers offline → fallback notification to customer
@@ -4854,7 +4854,7 @@ For each test: PASS / FAIL with evidence (screenshot description, log excerpt, o
 
 ---
 
-#### 🔧 PROMPT 8-QA — QA: Verify finance engine end-to-end
+#### 🔧 PROMPT 8-QA - QA: Verify finance engine end-to-end
 
 ```
 You are the QA agent. Execute Task 8 on branch feat/sp3-dispatch-cards.
@@ -4908,11 +4908,11 @@ For each test: PASS / FAIL with specific transaction amounts and assertions.
 
 ---
 
-### PHASE B — Dispatch Card Polish + Platform (can parallel after Phase A)
+### PHASE B - Dispatch Card Polish + Platform (can parallel after Phase A)
 
 ---
 
-#### 🔧 PROMPT ED — Frontend: Estimated duration on dispatch card
+#### 🔧 PROMPT ED - Frontend: Estimated duration on dispatch card
 
 ```
 You are the Frontend agent. Execute Task ED on branch feat/sp3-dispatch-cards.
@@ -4940,25 +4940,25 @@ COMMIT: feat(servicer): show estimated duration on dispatch card
 
 ---
 
-#### 🔧 PROMPT NAV — Frontend: Maps/Waze deep-link on confirmed booking
+#### 🔧 PROMPT NAV - Frontend: Maps/Waze deep-link on confirmed booking
 
 ```
 You are the Frontend agent. Execute Task NAV on branch feat/sp3-dispatch-cards.
 
 TASK: Add Google Maps + Waze deep-link buttons to the booking detail view.
 
-STEP 1 — Find booking detail views:
+STEP 1 - Find booking detail views:
 - Customer side: frontend/src/app/customer/pages/my-bookings.component.ts
   (the expanded booking card or detail view)
 - Servicer side: frontend/src/app/servicer/pages/jobs.component.ts
   (the active job detail view)
 
-STEP 2 — Reuse openMap() pattern:
+STEP 2 - Reuse openMap() pattern:
 - The dispatch card already has an openMap() method that creates Google Maps + Waze
   deep-link URLs. Find it in incoming-quotes.component.ts or a shared utility.
 - Copy the pattern or extract to a shared helper.
 
-STEP 3 — Add buttons:
+STEP 3 - Add buttons:
 - In each booking detail view, when status is confirmed/in_progress/completed:
   - "🗺 Open in Google Maps" button → https://www.google.com/maps/dir/?api=1&destination={lat},{lng}
   - "🚗 Open in Waze" button → https://waze.com/ul?ll={lat},{lng}&navigate=yes
@@ -4975,7 +4975,7 @@ COMMIT: feat(booking): add Maps/Waze deep-link buttons to booking detail
 
 ---
 
-#### 🔧 PROMPT LINK — Full: Route redesign + dead link sweep
+#### 🔧 PROMPT LINK - Full: Route redesign + dead link sweep
 
 ```
 You are a Full-Stack agent. Execute Task LINK on branch feat/sp3-dispatch-cards.
@@ -4983,7 +4983,7 @@ You are a Full-Stack agent. Execute Task LINK on branch feat/sp3-dispatch-cards.
 TASK: Full dead link audit across backend notifications, Stripe URLs, frontend routes,
 servicer quickLinks, and chat AI prompts. Fix all broken paths.
 
-PART 1 — Backend notification linkUrl audit:
+PART 1 - Backend notification linkUrl audit:
   grep for "linkUrl:" in backend/src/services/booking.service.ts
   grep for "linkUrl:" in backend/src/services/quote.service.ts
   grep for "linkUrl:" in backend/src/services/admin.service.ts
@@ -4995,32 +4995,32 @@ PART 1 — Backend notification linkUrl audit:
     - /admin/queues → admin/queues route
   Fix any stale paths.
 
-PART 2 — Stripe return URLs:
+PART 2 - Stripe return URLs:
   grep for "return_url" or "success_url" or "cancel_url" in:
     - backend/src/lib/stripe.ts
     - backend/src/routes/stripe.routes.ts
   Ensure they point to actual frontend routes.
   If they use a base URL, verify it matches the current domain.
 
-PART 3 — Frontend routes:
+PART 3 - Frontend routes:
   - Open frontend/src/app/customer/customer.routes.ts
   - Open frontend/src/app/admin/admin.routes.ts
   - Check for nesting opportunities: admin/settings/*, customer/bookings/*
-  - Do NOT restructure radically — just fix nesting where routes are flat
+  - Do NOT restructure radically - just fix nesting where routes are flat
 
-PART 4 — Servicer quickLinks:
+PART 4 - Servicer quickLinks:
   - Open frontend/src/app/servicer/servicer-shell.component.ts
-  - Check every nav item's routerLink — verify the target route exists
+  - Check every nav item's routerLink - verify the target route exists
   - Open frontend/src/app/servicer/pages/dashboard.component.ts
   - Check quick-action buttons (e.g., "View Jobs", "Add Service")
 
-PART 5 — Chat AI prompt routes:
+PART 5 - Chat AI prompt routes:
   - Open backend/src/services/chat.service.ts
   - Find the system prompt (BASE_PROMPT or buildSystemPrompt)
   - Audit every hardcoded route suggestion in the prompt
   - Update to match current frontend route tree
 
-PART 6 — grep old paths:
+PART 6 - grep old paths:
   rg "/bookings/active" backend/src/ frontend/src/
   rg "/customer/quote/new" backend/src/ frontend/src/
   rg "/customer/chat" backend/src/ frontend/src/
@@ -5037,7 +5037,7 @@ COMMIT: fix(links): sweep notification URLs, Stripe returns, route paths, chat p
 
 ---
 
-#### 🔧 PROMPT S3 — Backend/DevOps: Seed reform
+#### 🔧 PROMPT S3 - Backend/DevOps: Seed reform
 
 ```
 You are the DevOps agent. Execute Task S3 on branch feat/sp3-dispatch-cards.
@@ -5045,20 +5045,20 @@ You are the DevOps agent. Execute Task S3 on branch feat/sp3-dispatch-cards.
 TASK: Cap servicers at 3 listings, add avatar/logoUrl for M97-M105,
 seed painting/moving/gardening servicers.
 
-STEP 1 — Cap listings at 3:
+STEP 1 - Cap listings at 3:
   - Open backend/prisma/seed/data/accounts.ts
   - For each servicer, if they have >3 active services, keep only the 3
     most relevant (by category match). Delete the extra service definitions.
   - Keep service data consistent (pricing modules, auto-accept settings).
 
-STEP 2 — Add avatar/logoUrl for M97-M105:
+STEP 2 - Add avatar/logoUrl for M97-M105:
   - In accounts.ts, find servicers M97 through M105
   - If avatarUrl/logoUrl is missing, add a placeholder URL:
     Use gravatar-style: https://ui-avatars.com/api/?name={BusinessName}&background=random&size=128
     OR a local asset path
   - Also set on the User record for that servicer
 
-STEP 3 — New servicers:
+STEP 3 - New servicers:
   - Add 3 new servicer entries:
     1. Painter (category: home-improvement → painting)
        - Business name: "Fresh Coat Painting"
@@ -5075,11 +5075,11 @@ STEP 3 — New servicers:
   - Each needs: User record, Servicer record, schedules, deposit, services,
     pricing modules, revenue history (match existing pattern)
 
-STEP 4 — Reseed:
+STEP 4 - Reseed:
   - npm run db:reset → clean, should now be 39 merchants
   - npm run seed:test → exit 0
 
-STEP 5 — Verify:
+STEP 5 - Verify:
   - rtk proxy npx tsc --noEmit → 0 errors
   - Update docs/ai-context/seed-plan.md with new servicer list
 
@@ -5088,33 +5088,33 @@ COMMIT: feat(seed): cap listings at 3, add M97-M105 avatars, seed painter/mover/
 
 ---
 
-### PHASE C — Platform Hardening (parallel where possible)
+### PHASE C - Platform Hardening (parallel where possible)
 
 ---
 
-#### 🔧 PROMPT MAP — Frontend: Fix app-map-view component
+#### 🔧 PROMPT MAP - Frontend: Fix app-map-view component
 
 ```
 You are the Frontend agent. Execute Task MAP on branch feat/sp3-dispatch-cards.
 
 TASK: Fix the broken app-map-view component (API-key load / init timing issue).
 
-STEP 1 — Diagnose:
+STEP 1 - Diagnose:
   - Open frontend/src/app/shared/map-view.component.ts (or app-map-view.component.ts)
   - Check how it initializes the Google Map
   - Check if it reads the API key from ConfigService (which loads via APP_INITIALIZER)
   - The bug: component init fires before ConfigService resolves → map fails
 
-STEP 2 — Fix:
+STEP 2 - Fix:
   - Option A: Defer map init until ConfigService.googleMapsApiKey is available.
     Use a signal or observable: if (!key) { setTimeout or wait for config ready }
   - Option B: Use a route resolver that waits for config before navigating to the
     map route, ensuring the key is loaded before component init.
-  - Option C: Make the component reactive — watch configService.googleMapsApiKey$
+  - Option C: Make the component reactive - watch configService.googleMapsApiKey$
     and init the map only when the key arrives.
-  - Recommend: Option C — most robust, handles lazy routes too.
+  - Recommend: Option C - most robust, handles lazy routes too.
 
-STEP 3 — Verify the map renders:
+STEP 3 - Verify the map renders:
   - A marker at the expected coordinates
   - Map controls work (zoom, pan)
   - No console errors about missing API key
@@ -5128,30 +5128,30 @@ COMMIT: fix(map): defer Google Maps init until API key resolves from ConfigServi
 
 ---
 
-#### 🔧 PROMPT RPT — Frontend: Servicer report button
+#### 🔧 PROMPT RPT - Frontend: Servicer report button
 
 ```
 You are the Frontend agent. Execute Task RPT on branch feat/sp3-dispatch-cards.
 
 TASK: Add "Report a Problem" button to Active Jobs, History, and dispatch overlay.
 
-STEP 1 — Active Jobs:
+STEP 1 - Active Jobs:
   - Open frontend/src/app/servicer/pages/jobs.component.ts
   - In the Active/In Progress job card, add a "Report" button (ghost, small)
   - On click: open a modal with reason textarea + submit
   - POST /bookings/:id/report with { reason, category: 'servicer_report' }
 
-STEP 2 — History:
+STEP 2 - History:
   - Same file, History tab
   - Add report button to completed/cancelled bookings
   - Same modal pattern
 
-STEP 3 — Dispatch overlay:
+STEP 3 - Dispatch overlay:
   - Open frontend/src/app/shared/dispatch-overlay.component.ts
   - Add a small "Report Issue" link at the bottom of the accept prompt
   - On click: open report modal (customer or system issue)
 
-STEP 4 — Reuse modal:
+STEP 4 - Reuse modal:
   - Check if there's a shared report-modal component. If not, reuse the
     customer-side report pattern from chat.component.ts or proposals.component.ts
 
@@ -5164,14 +5164,14 @@ COMMIT: feat(servicer): add report button to Active Jobs, History, and dispatch 
 
 ---
 
-#### 🔧 PROMPT RPP — Frontend: Admin reports list polish
+#### 🔧 PROMPT RPP - Frontend: Admin reports list polish
 
 ```
 You are the Frontend agent. Execute Task RPP on branch feat/sp3-dispatch-cards.
 
-TASK: Polish the admin Reports tab — card rendering, category data, notification wiring.
+TASK: Polish the admin Reports tab - card rendering, category data, notification wiring.
 
-STEP 1 — Redesign reports tab:
+STEP 1 - Redesign reports tab:
   - Open frontend/src/app/admin/pages/queues.component.ts
   - Find the Reports tab section
   - Replace raw table/list with card-based layout:
@@ -5183,11 +5183,11 @@ STEP 1 — Redesign reports tab:
       - Timestamp
       - Expand to see full reason text
 
-STEP 2 — Category display:
-  - Read the report.category field — map it to a display name + icon
+STEP 2 - Category display:
+  - Read the report.category field - map it to a display name + icon
   - Create a small category-to-icon map utility
 
-STEP 3 — Notification wiring:
+STEP 3 - Notification wiring:
   - Check if admin gets a notification when a new report is filed
   - If not: in the backend report creation handler, add a call to
     notify() or createNotification() for admin users
@@ -5202,7 +5202,7 @@ COMMIT: feat(admin): card-based report list with category display and notificati
 
 ---
 
-#### 🔧 PROMPT SP3 — Full: SP3 listing wizard
+#### 🔧 PROMPT SP3 - Full: SP3 listing wizard
 
 ```
 You are a Full-Stack agent. Execute Task SP3 on branch feat/sp3-dispatch-cards.
@@ -5213,15 +5213,15 @@ create-then-PATCH save. Routes: /services/new + /:id/edit.
 
 === BACKEND ===
 
-STEP 1 — Create endpoint:
+STEP 1 - Create endpoint:
   - backend/src/routes/servicer.routes.ts
-  - POST /servicer/me/services — creates service with basics only:
+  - POST /servicer/me/services - creates service with basics only:
     { categoryId, name, description, basePrice, priceType }
     Returns { id, ...service }
   - Validation: categoryId required, name required, basePrice positive
 
-STEP 2 — Extended PATCH:
-  - PATCH /servicer/me/services/:id — updates full service:
+STEP 2 - Extended PATCH:
+  - PATCH /servicer/me/services/:id - updates full service:
     { name?, description?, basePrice?, priceType?, moduleRefs?,
       serviceChargeRate?, taxInclusive?, sstApplies?,
       autoAccept?, autoAcceptConditions?, autoAcceptMessage?,
@@ -5235,12 +5235,12 @@ STEP 3:
 
 === FRONTEND ===
 
-STEP 4 — Create service-wizard.component.ts:
+STEP 4 - Create service-wizard.component.ts:
   - New standalone component at frontend/src/app/servicer/pages/service-wizard.component.ts
   - Route: /servicer/services/new → wizard in create mode
   - Route: /servicer/services/:id/edit → wizard in edit mode
 
-STEP 5 — Step 1: Basics
+STEP 5 - Step 1: Basics
   - Category picker (searchable dropdown)
   - Service name (text input)
   - Description (textarea)
@@ -5248,28 +5248,28 @@ STEP 5 — Step 1: Basics
   - Price type (fixed/hourly radio)
   - On "Next": POST /servicer/me/services → get id → proceed to step 2
 
-STEP 6 — Step 2: Pricing & Modules
+STEP 6 - Step 2: Pricing & Modules
   - Load pricing modules: GET /servicer/pricing-modules
   - Module picker: toggle modules on/off, overridePrice per module
   - Service charge rate override (optional)
   - On "Next": PATCH /servicer/me/services/:id with pricing data
 
-STEP 7 — Step 3: Tax & Config
+STEP 7 - Step 3: Tax & Config
   - Tax inclusive toggle
   - SST applies toggle (only if servicer is SST registered)
   - On "Next": PATCH /servicer/me/services/:id with tax config
 
-STEP 8 — Step 4: Accept Mode
+STEP 8 - Step 4: Accept Mode
   - Auto-accept toggle
   - If enabled: autoAcceptMessage text, autoAcceptConditions config
   - "Save & Finish": PATCH /servicer/me/services/:id → navigate to /servicer/services
 
-STEP 9 — Edit mode:
+STEP 9 - Edit mode:
   - /servicer/services/:id/edit loads existing service via GET /servicer/me/services/:id
   - Pre-fills all 4 steps from loaded data
   - Each "Next" does PATCH (partial update)
 
-STEP 10 — Stepper UI:
+STEP 10 - Stepper UI:
   - 4-step indicator at top: ○ Basics → ○ Pricing → ○ Tax → ○ Accept
   - Current step highlighted, completed steps show ✓
   - Back button on steps 2-4
@@ -5282,12 +5282,12 @@ VERIFY:
   - Update services.component.ts list: "Add Service" button → navigates to /servicer/services/new
   - Keep existing services.component.ts for the list view (the 1151-line monolith stays for listing, wizard is for create/edit only)
 
-COMMIT: feat(servicer): SP3 listing wizard — 4-step create-then-PATCH with /services/new + /:id/edit
+COMMIT: feat(servicer): SP3 listing wizard - 4-step create-then-PATCH with /services/new + /:id/edit
 ```
 
 ---
 
-### PHASE D — Admin & UX (sequential)
+### PHASE D - Admin & UX (sequential)
 
 Each of the following tasks follows the standard pattern:
 - Read the referenced spec file if available
@@ -5331,11 +5331,11 @@ Each of the following tasks follows the standard pattern:
 **Task ITM** (Itemization design):
   Docs only
   Write docs/ai-context/itemization-design.md describing service listing vs line items
-  No code changes — defer execution until SP3-SP4 land
+  No code changes - defer execution until SP3-SP4 land
 
 ---
 
-### PHASE E — Stretch
+### PHASE E - Stretch
 
 **Task FINTECH** (Full fintech P1-P5):
   Spec: docs/superpowers/specs/2026-06-23-admin-dashboard-financial-redesign.md §Fintech roadmap
@@ -5372,13 +5372,13 @@ LAST:
 
 ---
 
-## Session 2026-06-24 14:57 — Task MAP dispatched (user-directed, outside Group sequence)
+## Session 2026-06-24 14:57 - Task MAP dispatched (user-directed, outside Group sequence)
 
 **Trigger:** User: "Execute Task MAP" from dispatch plan.
 
 **Context:** Group 1 (S2-BE) was dispatched at 14:49. Working tree has uncommitted S2-BE changes. Task MAP is independent (frontend-only, zero shared state with Group 1).
 
-### Task MAP — Fix app-map-view component (Google Maps init timing)
+### Task MAP - Fix app-map-view component (Google Maps init timing)
 | Field | Value |
 |-------|-------|
 | Target | frontend-cowork |
@@ -5389,21 +5389,21 @@ LAST:
 | Gates | Frontend tsc 0, ng build exit 0 |
 | Status | 🟡 Dispatched 2026-06-24 14:57 |
 
-### Task MAP — COMPLETED ✅
+### Task MAP - COMPLETED ✅
 | Field | Value |
 |-------|-------|
 | Completed | 2026-06-24 15:xx |
 | Agent | frontend-cowork |
-| Changes | `map-view.component.ts` — retry guard in loadMapsApi() + timer cleanup in ngOnDestroy() |
+| Changes | `map-view.component.ts` - retry guard in loadMapsApi() + timer cleanup in ngOnDestroy() |
 | Gates | tsc 0, committed db8fca4 |
 
 ---
 
-## Session 2026-06-24 15:08 — Tasks MAP ✓ → LINK → PW (user-directed sequence)
+## Session 2026-06-24 15:08 - Tasks MAP ✓ → LINK → PW (user-directed sequence)
 
 **Trigger:** User: "Execute Task MAP. → LINK → PW"
 
-### Task LINK — Route redesign + dead link sweep
+### Task LINK - Route redesign + dead link sweep
 | Field | Value |
 |-------|-------|
 | Target | general (full-stack) |
@@ -5413,7 +5413,7 @@ LAST:
 | Changes | 1 dead linkUrl fixed in admin.routes.ts; 20 linkUrls + 4 Stripe URLs + 60 routerLinks + chat prompts audited |
 | Commit | d29de26 |
 
-### Task PW — Forgot-password + settings + PIN-registration
+### Task PW - Forgot-password + settings + PIN-registration
 | Field | Value |
 |-------|-------|
 | Target | general (full-stack) |
@@ -5425,7 +5425,7 @@ LAST:
 
 ---
 
-## Session 2026-06-24 16:33 — Task SP3 Dispatch
+## Session 2026-06-24 16:33 - Task SP3 Dispatch
 
 ### Audit findings (pre-dispatch)
 Backend POST/PATCH /servicer/me/services endpoints already exist with ownership gating (ownedService).
@@ -5433,7 +5433,7 @@ Frontend `listing-wizard.component.ts` is a full 4-step wizard (Basics, Options 
 `services-listings.component.ts` already navigates to `/servicer/services/new` and `/servicer/services/:id/edit`.
 Only remaining work: route wiring.
 
-### Task SP3 — SP3 listing wizard
+### Task SP3 - SP3 listing wizard
 | Field | Value |
 |-------|-------|
 | Target | general (full-stack) |
@@ -5448,7 +5448,7 @@ Only remaining work: route wiring.
 
 ---
 
-## Session 2026-06-24 17:06 — Task 7-QA: Dispatch Overlay Verification
+## Session 2026-06-24 17:06 - Task 7-QA: Dispatch Overlay Verification
 
 **Trigger:** User: "Read docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md. Execute Task 7-QA."
 
@@ -5461,7 +5461,7 @@ Only remaining work: route wiring.
 | SP4-FE (Google Map preview) | ✅ Done | Static map thumbnail in dispatch-prompt-guard, mounted in shell |
 | Servers running | ❌ Not running | Ports 3000/4200 not listening |
 
-### Task 7-QA — Verify dispatch overlay end-to-end
+### Task 7-QA - Verify dispatch overlay end-to-end
 | Field | Value |
 |-------|-------|
 | Target | qa-cowork |
@@ -5474,13 +5474,13 @@ Only remaining work: route wiring.
 ### Results Summary
 | Test | Result |
 |------|--------|
-| 1 — Quote enters dispatch rotation | ✅ PASS |
-| 2 — Servicer receives prompt with full UI | ✅ PASS |
-| 3 — ACCEPT → booking created | ✅ PASS |
-| 4 — DECLINE → rotation skips to next | ✅ PASS |
-| 5 — TIMEOUT → auto-decline + rotate | ✅ PASS |
-| 6 — OFFLINE exclusion from rotation | ✅ PASS (functional) |
-| 7 — Working hours exclusion | ✅ PASS |
+| 1 - Quote enters dispatch rotation | ✅ PASS |
+| 2 - Servicer receives prompt with full UI | ✅ PASS |
+| 3 - ACCEPT → booking created | ✅ PASS |
+| 4 - DECLINE → rotation skips to next | ✅ PASS |
+| 5 - TIMEOUT → auto-decline + rotate | ✅ PASS |
+| 6 - OFFLINE exclusion from rotation | ✅ PASS (functional) |
+| 7 - Working hours exclusion | ✅ PASS |
 
 ### New Bugs Filed
 | ID | Severity | Description |
@@ -5496,16 +5496,16 @@ Only remaining work: route wiring.
 - `TODO.md`: Item 7 ticked as **VERIFIED**; SP4 live-dispatch PLATFORM POLISH updated
 
 ### Remaining in Group 1 (Step 1.4)
-- **Task 8-QA** — Verify finance engine end-to-end (unblocked, independent of 7-QA)
+- **Task 8-QA** - Verify finance engine end-to-end (unblocked, independent of 7-QA)
 
 ---
 
-## Session 2026-06-24 19:22 — E2E QA Harness: Pre-Flight + Group A
+## Session 2026-06-24 19:22 - E2E QA Harness: Pre-Flight + Group A
 
 > **Source:** `docs/superpowers/plans/2026-06-24-e2e-qa-harness-dispatch.md`
 > **Branch:** `feat/sp3-dispatch-cards`
 > **Rule:** NO commits until told.
-> **State:** Working tree DIRTY — multiple uncommitted changes.
+> **State:** Working tree DIRTY - multiple uncommitted changes.
 > **⚠ Do NOT re-dispatch:** Tasks from `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` are already in-flight.
 
 ### Pre-Flight Results (run 19:25-19:30 MYT)
@@ -5516,14 +5516,14 @@ Only remaining work: route wiring.
 | frontend `tsc --noEmit` | ✅ PASS | 0 errors |
 | `npm run db:reset` | ✅ PASS | 21 migrations applied, seed: 7 parent+34 child cats, 1107 bulk bookings, 36 servicers |
 | `npm run seed:test` | ✅ PASS | 9/9 lifecycle scenarios seeded |
-| backend `npm run dev` | ✅ RUNNING | API on :3000. Redis `ECONNREFUSED` — pre-existing (not needed for harness infra setup) |
+| backend `npm run dev` | ✅ RUNNING | API on :3000. Redis `ECONNREFUSED` - pre-existing (not needed for harness infra setup) |
 | frontend `ng serve` | ✅ RUNNING | Build 26.9s, `http://localhost:4200/` |
 
 **Pre-Flight verdict:** ALL PASS. Ready to dispatch Group A.
 
 ---
 
-### Group A — Infrastructure (est. 1h 10m, cutoff 1h 55m)
+### Group A - Infrastructure (est. 1h 10m, cutoff 1h 55m)
 
 Tasks 1, 2, 3, 4, 4b are **independent** (different files, different scopes). They can run in parallel.
 
@@ -5531,7 +5531,7 @@ Tasks 1, 2, 3, 4, 4b are **independent** (different files, different scopes). Th
 
 ---
 
-### Task 1 — Install Playwright + scaffold config
+### Task 1 - Install Playwright + scaffold config
 
 | Field | Value |
 |-------|-------|
@@ -5562,7 +5562,7 @@ DO NOT commit. Work on branch feat/sp3-dispatch-cards.
 
 ---
 
-### Task 2 — Build StepLogger (incremental, crash-proof)
+### Task 2 - Build StepLogger (incremental, crash-proof)
 
 | Field | Value |
 |-------|-------|
@@ -5596,7 +5596,7 @@ DO NOT commit. Work on branch feat/sp3-dispatch-cards.
 
 ---
 
-### Task 3 — Build auth helpers (login as demo users)
+### Task 3 - Build auth helpers (login as demo users)
 
 | Field | Value |
 |-------|-------|
@@ -5625,7 +5625,7 @@ DO NOT commit. Work on branch feat/sp3-dispatch-cards.
 
 ---
 
-### Task 4 — Build DB check helpers (Prisma assertions)
+### Task 4 - Build DB check helpers (Prisma assertions)
 
 | Field | Value |
 |-------|-------|
@@ -5656,7 +5656,7 @@ DO NOT commit. Work on branch feat/sp3-dispatch-cards.
 
 ---
 
-### Task 4b — Build seed helpers (DB reset + seed:test wrappers)
+### Task 4b - Build seed helpers (DB reset + seed:test wrappers)
 
 | Field | Value |
 |-------|-------|
@@ -5718,7 +5718,7 @@ tests/e2e/
 
 Group B is **serial** after Group A per the dispatch plan.
 
-**Next: Group B — Task 5 (Frontend, est 15 min, cutoff 20 min)**
+**Next: Group B - Task 5 (Frontend, est 15 min, cutoff 20 min)**
 - Create `tests/e2e/helpers/socket-watcher.ts` (waitForSocketEvent, listenForSocketEvents, getCapturedEvents)
 - Expose Socket.io on `window.__SOCKET__` in `frontend/src/app/core/socket.service.ts` (dev mode only)
 
@@ -5728,9 +5728,9 @@ Dispatch suggestion for Group B (Task 5) in next CEO turn. Waiting for user sign
 
 ---
 
-## Session 2026-06-24 19:42 — Group B (Task 5) + Group C Dispatch
+## Session 2026-06-24 19:42 - Group B (Task 5) + Group C Dispatch
 
-### Group B — Task 5: Socket watcher + window.__SOCKET__ expose ✅
+### Group B - Task 5: Socket watcher + window.__SOCKET__ expose ✅
 
 | Field | Value |
 |-------|-------|
@@ -5741,8 +5741,8 @@ Dispatch suggestion for Group B (Task 5) in next CEO turn. Waiting for user sign
 | Cutoff | 20 min (19:50) |
 
 **Files created/modified:**
-- `tests/e2e/helpers/socket-watcher.ts` — created (3 functions: `waitForSocketEvent`, `listenForSocketEvents`, `getCapturedEvents`)
-- `frontend/src/app/core/services/socket.service.ts` — modified (96→107 lines, 3 `window.__SOCKET__` expose gates: after first connect, after reconnect, null-out in disconnect)
+- `tests/e2e/helpers/socket-watcher.ts` - created (3 functions: `waitForSocketEvent`, `listenForSocketEvents`, `getCapturedEvents`)
+- `frontend/src/app/core/services/socket.service.ts` - modified (96→107 lines, 3 `window.__SOCKET__` expose gates: after first connect, after reconnect, null-out in disconnect)
 
 **Gates:**
 - `frontend/ npx tsc --noEmit` → 0 errors ✅
@@ -5751,12 +5751,12 @@ Dispatch suggestion for Group B (Task 5) in next CEO turn. Waiting for user sign
 
 ---
 
-### Group C — Task 6: Build Scenario 1 (full happy path template)
+### Group C - Task 6: Build Scenario 1 (full happy path template)
 
 | Field | Value |
 |-------|-------|
 | Target | QA (`general` agent) |
-| Priority | CRITICAL — gateway for all 28 remaining scenarios |
+| Priority | CRITICAL - gateway for all 28 remaining scenarios |
 | Estimate | 45 min |
 | Cutoff | 50 min (20:33 MYT) |
 | Input | `docs/superpowers/specs/2026-06-24-e2e-qa-harness.md` Scenario 1 (lines 312-387), `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` Task 6 (lines 561-710) |
@@ -5768,7 +5768,7 @@ Dispatch suggestion for Group B (Task 5) in next CEO turn. Waiting for user sign
 **Dispatch prompt for Group C agent:**
 
 ```
-Task: Build Scenario 1 (full happy path) — the template all other scenarios follow.
+Task: Build Scenario 1 (full happy path) - the template all other scenarios follow.
 
 Read first:
 1. docs/superpowers/specs/2026-06-24-e2e-qa-harness.md lines 312-387 (Scenario 1 spec)
@@ -5813,7 +5813,7 @@ If the test runs, great. If it fails, analyze:
 
 Iterate up to 3 times to get the scenario passing. If still failing after 3 iterations, report exact failures and root cause.
 
-Log everything to docs/ai-context/logs/qa-log.md. Append, don't overwrite. Section: "## Session 2026-06-24 — E2E QA Harness Task 6 (Group C)"
+Log everything to docs/ai-context/logs/qa-log.md. Append, don't overwrite. Section: "## Session 2026-06-24 - E2E QA Harness Task 6 (Group C)"
 
 Return:
 - The final spec file path and line count
@@ -5828,15 +5828,15 @@ Return:
 
 | Metric | Value |
 |--------|-------|
-| File | `tests/e2e/scenarios/01-happy-path.spec.ts` — 515 lines, 14 test steps |
+| File | `tests/e2e/scenarios/01-happy-path.spec.ts` - 515 lines, 14 test steps |
 | Run result | **12 passed, 2 failed (86%)** |
 | Selector fixes | 6 adaptations applied (email input name, sign-in button text, @demo.local domain, aircond→aircond, db-check HTTP fallback, API v1 prefix) |
 
 **Failures:**
 | Step | Failure | Root Cause |
 |------|---------|------------|
-| 1.3 — Aircon Service category | Categories API returns 0 items | `seed-test.ts` does not set `published: true` on categories; backend filters `where: { published: true }` |
-| 1.4 — Quote form step 1 | Cascading from 1.3 | Not on quote form page because no categories loaded |
+| 1.3 - Aircon Service category | Categories API returns 0 items | `seed-test.ts` does not set `published: true` on categories; backend filters `where: { published: true }` |
+| 1.4 - Quote form step 1 | Cascading from 1.3 | Not on quote form page because no categories loaded |
 
 **Root cause:** `backend/prisma/seed/seed-test.ts` creates categories via `prisma.category.upsert()` but does not include `published: true`. The backend `/api/v1/categories` route filters `where: { published: true }`, so the frontend sees 0 categories.
 
@@ -5846,14 +5846,14 @@ Return:
 
 ---
 
-### Group C Fix — Seed published:true hotfix
+### Group C Fix - Seed published:true hotfix
 
 | Field | Value |
 |-------|-------|
 | Target | Backend (general agent) |
-| Priority | CRITICAL — blocks Group D |
+| Priority | CRITICAL - blocks Group D |
 | Estimate | 5 min |
-| Input | `backend/prisma/seed/seed-test.ts` — add `published: true` to all category upsert/create calls |
+| Input | `backend/prisma/seed/seed-test.ts` - add `published: true` to all category upsert/create calls |
 | Output | seed-test.ts updated, `npm run seed:test` passes, Scenario 1 re-run → 14/14 pass |
 | Status | ⬜ Dispatched |
 

@@ -17,7 +17,7 @@ import { userRouter } from './user.routes';
 import { bookingsRouter } from './bookings.routes';
 import { filesRouter } from './files.routes';
 import { adminRouter } from './admin.routes';
-// Admin rescue DISABLED 2026-06-03 — import preserved for re-enable
+// Admin rescue DISABLED 2026-06-03 - import preserved for re-enable
 // import { adminRescueRouter } from './admin-rescue.routes';
 import { llmKeysRouter } from './llm-keys.routes';
 import { chatRouter } from './chat.routes';
@@ -62,7 +62,7 @@ apiRouter.get(
 );
 
 /**
- * GET /config/public — public (non-sensitive) client-side configuration.
+ * GET /config/public - public (non-sensitive) client-side configuration.
  * No auth required. Only returns values safe for browser exposure:
  * - googleClientId: OAuth client ID (embedded in the redirect URL, public by design)
  * - googleMapsApiKey: API key (should be referrer-restricted in GCP Console)
@@ -101,7 +101,7 @@ apiRouter.get(
 );
 
 /**
- * GET /config/demo-status — checks whether demo data exists in the database.
+ * GET /config/demo-status - checks whether demo data exists in the database.
  * No auth required. Used by the frontend to decide whether to show the demo bar.
  */
 apiRouter.get(
@@ -115,7 +115,7 @@ apiRouter.get(
 );
 
 /**
- * POST /config/demo-gate — verify the shared DEMO LOGIN-GATE PIN.
+ * POST /config/demo-gate - verify the shared DEMO LOGIN-GATE PIN.
  *
  * This is the demo-only portal-entry speedbump shown by the route guard when a
  * demo account enters /admin, /servicer, or /customer. It is a FIXED shared PIN
@@ -143,7 +143,7 @@ apiRouter.post(
 );
 
 /**
- * GET /session — validate the caller's access token and return the current
+ * GET /session - validate the caller's access token and return the current
  * principal, rebuilt fresh from the database.
  *
  * The frontend calls this once at startup so logged-in UI ("My portal", portal
@@ -177,7 +177,7 @@ apiRouter.use('/auth', authRouter);
 
 // ── Public postcode lookup ───────────────────────────────────────────────────
 /**
- * GET /postcodes/lookup?q=47300 — public postcode-to-district+state lookup.
+ * GET /postcodes/lookup?q=47300 - public postcode-to-district+state lookup.
  * No auth required. Used by the address auto-fill on the quote form.
  */
 apiRouter.get(
@@ -201,7 +201,7 @@ apiRouter.get(
   }),
 );
 
-// ── Phase 2 — Quote flow ─────────────────────────────────────────────────────
+// ── Phase 2 - Quote flow ─────────────────────────────────────────────────────
 apiRouter.use('/user', userRouter);
 apiRouter.use('/user', customerRewardsRouter);
 apiRouter.use('/categories', categoriesRouter);
@@ -218,19 +218,19 @@ apiRouter.use('/servicer/modules', servicerModuleRouter);
 // ── Servicer WhatsApp message presets (SP-3 dispatch) ─────────────────────────
 apiRouter.use('/servicer/wa-presets', servicerWaPresetRouter);
 
-// ── Phase 3 — Booking ────────────────────────────────────────────────────────
+// ── Phase 3 - Booking ────────────────────────────────────────────────────────
 apiRouter.use('/bookings', bookingsRouter);
 apiRouter.use('/files', filesRouter);
 
-// ── Phase 4 — Admin + Chat ───────────────────────────────────────────────────
+// ── Phase 4 - Admin + Chat ───────────────────────────────────────────────────
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/admin/llm-keys', llmKeysRouter);
 apiRouter.use('/chat', chatRouter);
 
-// ── Admin Rescue (Tier 2 + Tier 3) — DISABLED 2026-06-03 — not needed for demo
+// ── Admin Rescue (Tier 2 + Tier 3) - DISABLED 2026-06-03 - not needed for demo
 // apiRouter.use('/auth/admin', adminRescueRouter);
 
-// ── Phase 5 — Rewards ────────────────────────────────────────────────────────
+// ── Phase 5 - Rewards ────────────────────────────────────────────────────────
 apiRouter.use('/rewards', rewardsRouter);
 apiRouter.use('/admin', adminRewardsRouter);
 
@@ -241,13 +241,13 @@ apiRouter.use('/notifications', notificationsRouter);
 apiRouter.use('/stripe', stripeRouter);
 
 /**
- * POST /dev/demo-login — instant login as a demo account by role or email.
+ * POST /dev/demo-login - instant login as a demo account by role or email.
  * Skips the rate limiter and lockout check for the known demo accounts.
  * Hard-blocked in production.
  *
  * Accepts either:
- *   { role: 'customer' | 'servicer' | 'admin' }  — maps to 3 canonical accounts
- *   { email: '...@demo.local' }                   — any seeded demo account
+ *   { role: 'customer' | 'servicer' | 'admin' }  - maps to 3 canonical accounts
+ *   { email: '...@demo.local' }                   - any seeded demo account
  *
  * Email is guarded to @demo.local domain only (BE-013 hardening).
  */
@@ -290,7 +290,7 @@ apiRouter.post(
 );
 
 /**
- * POST /dev/reseed — wipe + reload demo data. A demo/development convenience
+ * POST /dev/reseed - wipe + reload demo data. A demo/development convenience
  * surfaced as a top-navbar button; any signed-in user may trigger it. It is
  * hard-blocked in production (runReseed throws when NODE_ENV=production).
  */
@@ -313,7 +313,7 @@ apiRouter.post(
 );
 
 /**
- * POST /dev/seed-quote — generates one demo open quote request (from a random
+ * POST /dev/seed-quote - generates one demo open quote request (from a random
  * demo customer) so the servicer incoming-quotes feed can be shown live.
  * Development only.
  */
@@ -324,7 +324,7 @@ apiRouter.post(
 );
 
 /**
- * POST /dev/seed-proposal — generates one demo servicer proposal for an open
+ * POST /dev/seed-proposal - generates one demo servicer proposal for an open
  * quote request, so the customer's proposals feed can be shown filling up
  * live. When a customer triggers it, it targets one of their own open quotes.
  * Development only.
@@ -339,7 +339,7 @@ apiRouter.post(
 );
 
 /**
- * POST /dev/topup — instantly credits the signed-in account's balance. A
+ * POST /dev/topup - instantly credits the signed-in account's balance. A
  * demo convenience behind the topbar "Top-Up" panel; works for customer and
  * servicer accounts (not admin) and is hard-blocked in production.
  */
@@ -363,7 +363,7 @@ apiRouter.post(
 );
 
 /**
- * POST /dev/points — awards 500 demo points to the signed-in customer.
+ * POST /dev/points - awards 500 demo points to the signed-in customer.
  * Hard-blocked in production. Only for customer accounts.
  */
 apiRouter.post(
@@ -391,7 +391,7 @@ apiRouter.post(
 );
 
 /**
- * GET /search?q=... — global search across the signed-in user's data.
+ * GET /search?q=... - global search across the signed-in user's data.
  * Returns matching items with label, type, icon, and the route to navigate to.
  */
 apiRouter.get(
@@ -426,14 +426,14 @@ apiRouter.get(
       for (const j of jobs) {
         const cat = j.quoteRequest?.category?.name ?? '';
         if (cat.toLowerCase().includes(q)) {
-          results.push({ id: j.id, label: `${cat} — RM${j.price}`, type: 'Job', icon: '🔧', route: `/servicer/jobs` });
+          results.push({ id: j.id, label: `${cat} - RM${j.price}`, type: 'Job', icon: '🔧', route: `/servicer/jobs` });
         }
       }
       for (const s of services) {
         results.push({ id: s.id, label: s.title, type: 'Service', icon: '📋', route: `/servicer/services` });
       }
       for (const inv of invoices) {
-        results.push({ id: inv.id, label: `${inv.invoiceNumber} — RM${inv.total}`, type: 'Invoice', icon: '🧾', route: `/servicer/invoices` });
+        results.push({ id: inv.id, label: `${inv.invoiceNumber} - RM${inv.total}`, type: 'Invoice', icon: '🧾', route: `/servicer/invoices` });
       }
     } else if (role === 'customer') {
       const [quotes, bookings] = await Promise.all([
@@ -451,13 +451,13 @@ apiRouter.get(
       for (const qr of quotes) {
         const cat = qr.category?.name ?? '';
         if (cat.toLowerCase().includes(q)) {
-          results.push({ id: qr.id, label: `${cat} — RM${qr.budgetMin ?? '?'}-${qr.budgetMax ?? '?'}`, type: 'Quote', icon: '📄', route: `/customer/quotes` });
+          results.push({ id: qr.id, label: `${cat} - RM${qr.budgetMin ?? '?'}-${qr.budgetMax ?? '?'}`, type: 'Quote', icon: '📄', route: `/customer/quotes` });
         }
       }
       for (const b of bookings) {
         const cat = b.quoteRequest?.category?.name ?? '';
         if (cat.toLowerCase().includes(q)) {
-          results.push({ id: b.id, label: `${cat} — RM${b.price} (${b.status})`, type: 'Booking', icon: '📅', route: `/customer/bookings` });
+          results.push({ id: b.id, label: `${cat} - RM${b.price} (${b.status})`, type: 'Booking', icon: '📅', route: `/customer/bookings` });
         }
       }
     } else if (role === 'admin') {

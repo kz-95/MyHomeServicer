@@ -97,7 +97,7 @@ function checkTriggerConditions(
 ): boolean {
   switch (triggerType) {
     case 'topup_any':
-      // Fires on every top-up — no extra conditions
+      // Fires on every top-up - no extra conditions
       return true;
 
     case 'topup_min_amount':
@@ -147,16 +147,16 @@ function checkTriggerConditions(
       return true;
 
     case 'signup_bonus':
-      // One-time welcome bonus — maxPerUser: 1 enforces "once only"
+      // One-time welcome bonus - maxPerUser: 1 enforces "once only"
       // No additional conditions beyond period and per-user limit
       return true;
 
     case 'referral_giver':
     case 'referral_receiver':
-      // Referral rewards — period + maxPerUser enforced at the outer level
+      // Referral rewards - period + maxPerUser enforced at the outer level
       // conditions.referredUserId can narrow it further if needed
       if (conditions.referredUserId != null) {
-        // Caller must pass context.userId matching the referred party — skip for now
+        // Caller must pass context.userId matching the referred party - skip for now
         // (full referral flow is post-V1; this is the evaluation hook)
       }
       return true;

@@ -1,4 +1,4 @@
-# Serena — Semantic Code Tools (Kilo Code)
+﻿# Serena - Semantic Code Tools (Kilo Code)
 
 **Usage**: Navigate and edit code at the symbol level instead of reading and
 rewriting whole files. Lower token cost, more precise edits.

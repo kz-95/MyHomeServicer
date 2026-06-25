@@ -29,7 +29,7 @@ import { TIME_SLOTS } from '../lib/time-slots';
 /** Customer-facing quote endpoints. */
 export const quotesRouter = Router();
 
-/** GET /quotes/budget-ranges — public budget brackets for the quote form.
+/** GET /quotes/budget-ranges - public budget brackets for the quote form.
  *  Accepts optional ?categoryId to return category-specific ranges. */
 quotesRouter.get(
   '/budget-ranges',
@@ -51,7 +51,7 @@ quotesRouter.get(
   }),
 );
 
-/** GET /quotes/estimate — canonical budget-based estimate for the Bill step (public). */
+/** GET /quotes/estimate - canonical budget-based estimate for the Bill step (public). */
 quotesRouter.get(
   '/estimate',
   asyncHandler(async (req, res) => {
@@ -134,7 +134,7 @@ quotesRouter.get(
   }),
 );
 
-/** POST /quotes/guest — public guest quote submission (no auth). */
+/** POST /quotes/guest - public guest quote submission (no auth). */
 quotesRouter.post(
   '/guest',
   quoteLimiter,
@@ -201,10 +201,10 @@ quotesRouter.post(
             },
           });
         } catch (stripeErr) {
-          // Leave the quote pending_payment and un-broadcast — no payment was
+          // Leave the quote pending_payment and un-broadcast - no payment was
           // taken, so it must not reach servicers. The guest can retry; the
           // response carries no stripeUrl so the client knows checkout failed.
-          logger.warn('Failed to create Stripe session for guest pay_now — quote left pending_payment, not broadcast', {
+          logger.warn('Failed to create Stripe session for guest pay_now - quote left pending_payment, not broadcast', {
             quoteId: result.id,
             error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr),
           });
@@ -261,7 +261,7 @@ const createValidators = [
   body('targetServicerId').optional({ values: 'null' }).isUUID(),
 ];
 
-/** POST /quotes — submit a new quote request. */
+/** POST /quotes - submit a new quote request. */
 quotesRouter.post(
   '/',
   quoteLimiter,
@@ -272,7 +272,7 @@ quotesRouter.post(
   }),
 );
 
-/** GET /quotes — list the customer's quotes. */
+/** GET /quotes - list the customer's quotes. */
 quotesRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -281,7 +281,7 @@ quotesRouter.get(
   }),
 );
 
-/** GET /quotes/:id — single quote with full detail. */
+/** GET /quotes/:id - single quote with full detail. */
 quotesRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -289,7 +289,7 @@ quotesRouter.get(
   }),
 );
 
-/** GET /quotes/:id/proposals — bundled proposals for the quote. */
+/** GET /quotes/:id/proposals - bundled proposals for the quote. */
 quotesRouter.get(
   '/:id/proposals',
   asyncHandler(async (req, res) => {
@@ -297,7 +297,7 @@ quotesRouter.get(
   }),
 );
 
-/** POST /quotes/:id/select — pick a proposal and create a booking. */
+/** POST /quotes/:id/select - pick a proposal and create a booking. */
 quotesRouter.post(
   '/:id/select',
   idempotency,
@@ -315,7 +315,7 @@ quotesRouter.post(
   }),
 );
 
-/** POST /quotes/:id/cancel — cancel an open quote with reason + PIN. */
+/** POST /quotes/:id/cancel - cancel an open quote with reason + PIN. */
 quotesRouter.post(
   '/:id/cancel',
   idempotency,
@@ -338,7 +338,7 @@ quotesRouter.post(
   }),
 );
 
-/** PATCH /quotes/:id — update non-pricing fields on an open quote. */
+/** PATCH /quotes/:id - update non-pricing fields on an open quote. */
 quotesRouter.patch(
   '/:id',
   validate([
@@ -354,7 +354,7 @@ quotesRouter.patch(
   }),
 );
 
-/** POST /quotes/:id/repost — repost an expired quote. */
+/** POST /quotes/:id/repost - repost an expired quote. */
 quotesRouter.post(
   '/:id/repost',
   quoteLimiter,

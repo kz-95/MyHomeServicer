@@ -2,7 +2,7 @@
   "name": "myhomeservicer-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "My Home Servicer marketplace — Express + TypeScript REST API",
+  "description": "My Home Servicer marketplace - Express + TypeScript REST API",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -12,16 +12,17 @@
     "start": "node dist/index.js",
     "start:worker": "node dist/worker.js",
     "lint": "eslint \"src/**/*.ts\"",
+    "typecheck:seed": "tsc -p tsconfig.seed.json",
     "test": "jest --passWithNoTests",
     "test:e2e": "cross-env RUN_E2E=1 jest --passWithNoTests",
-    "seed": "ts-node --transpile-only prisma/seed/seed.ts",
+    "seed": "npm run typecheck:seed && ts-node --transpile-only prisma/seed/seed.ts",
     "seed:admin": "ts-node --transpile-only prisma/seed/seed-admin.ts",
-    "seed:test": "ts-node --transpile-only prisma/seed/seed-test.ts",
+    "seed:test": "npm run typecheck:seed && ts-node --transpile-only prisma/seed/seed-test.ts",
     "seed:settings": "ts-node --transpile-only prisma/seed/seed-settings.ts",
     "seed:modules": "ts-node --transpile-only prisma/seed/seed-sp3-modules.ts",
     "unseed": "ts-node --transpile-only prisma/seed/unseed.ts",
-    "reseed": "ts-node --transpile-only prisma/seed/unseed.ts && ts-node --transpile-only prisma/seed/seed.ts",
-    "reseed:test": "ts-node --transpile-only prisma/seed/unseed.ts && ts-node --transpile-only prisma/seed/seed-test.ts",
+    "reseed": "npm run typecheck:seed && ts-node --transpile-only prisma/seed/unseed.ts && ts-node --transpile-only prisma/seed/seed.ts",
+    "reseed:test": "npm run typecheck:seed && ts-node --transpile-only prisma/seed/unseed.ts && ts-node --transpile-only prisma/seed/seed-test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:migrate": "prisma migrate dev",
@@ -34,7 +35,7 @@
     "tar": "7.5.15"
   },
   "prisma": {
-    "seed": "ts-node --transpile-only prisma/seed/seed.ts"
+    "seed": "tsc -p tsconfig.seed.json && ts-node --transpile-only prisma/seed/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1057.0",

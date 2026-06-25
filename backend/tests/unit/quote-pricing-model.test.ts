@@ -1,12 +1,12 @@
 /**
- * Unit tests — Quote Question + Pricing Model (2026-05-31)
+ * Unit tests - Quote Question + Pricing Model (2026-05-31)
  *
  * Covers:
  *  1. Travel fee split (baseline 0% / extra platform-%'d)
  *  2. Supplies fee split (same rule, coded separately)
- *  3. showIf — hidden questions skipped in computePrefill pricing
- *  4. maxSelect / minSelect — Zod schema accepts the fields
- *  5. computePrefill with durationMin — sums estimated job time
+ *  3. showIf - hidden questions skipped in computePrefill pricing
+ *  4. maxSelect / minSelect - Zod schema accepts the fields
+ *  5. computePrefill with durationMin - sums estimated job time
  *  6. Reserved key 'property_type' rejected by questionItemSchema
  */
 
@@ -42,7 +42,7 @@ function pricedQ(key: string, optionValues: string[], opts?: { showIf?: { questi
 
 // ── 1. Travel fee split ───────────────────────────────────────────────────────
 
-describe('calcTravelFeeSplit — baseline 0% / extra platform-%', () => {
+describe('calcTravelFeeSplit - baseline 0% / extra platform-%', () => {
   const PLATFORM_RATE = dec(0.20); // 20%
   const OVERALL_BASELINE = dec(20); // RM 20
 
@@ -104,7 +104,7 @@ describe('calcTravelFeeSplit — baseline 0% / extra platform-%', () => {
 
 // ── 2. Supplies fee split ─────────────────────────────────────────────────────
 
-describe('calcSuppliesFeeSplit — same rule as travel, coded separately', () => {
+describe('calcSuppliesFeeSplit - same rule as travel, coded separately', () => {
   const PLATFORM_RATE = dec(0.20);
   const OVERALL_BASELINE = dec(30); // RM 30 for supplies
 
@@ -135,9 +135,9 @@ describe('calcSuppliesFeeSplit — same rule as travel, coded separately', () =>
   });
 });
 
-// ── 3. showIf — hidden questions skipped in computePrefill pricing ────────────
+// ── 3. showIf - hidden questions skipped in computePrefill pricing ────────────
 
-describe('computePrefill — showIf hidden questions are excluded from pricing', () => {
+describe('computePrefill - showIf hidden questions are excluded from pricing', () => {
   it('question hidden by showIf is not priced even if customer had an answer', () => {
     const schema = [
       pricedQ('clean_for', ['leather_sofa', 'single_mattress']),
@@ -152,7 +152,7 @@ describe('computePrefill — showIf hidden questions are excluded from pricing',
       sofa_size: { '2_seater': { price: 80, notOffered: false } },
     };
 
-    // Customer selected only mattress (no sofa) — sofa_size should be hidden
+    // Customer selected only mattress (no sofa) - sofa_size should be hidden
     const result = computePrefill(
       { clean_for: ['single_mattress'], sofa_size: '2_seater' },
       schema,
@@ -181,7 +181,7 @@ describe('computePrefill — showIf hidden questions are excluded from pricing',
       sofa_size: { '3_seater': { price: 50, notOffered: false } },
     };
 
-    // Customer selected leather sofa — sofa_size IS visible
+    // Customer selected leather sofa - sofa_size IS visible
     const result = computePrefill(
       { clean_for: ['leather_sofa'], sofa_size: '3_seater' },
       schema,
@@ -205,9 +205,9 @@ describe('computePrefill — showIf hidden questions are excluded from pricing',
   });
 });
 
-// ── 4. maxSelect / minSelect — Zod schema accepts these fields ────────────────
+// ── 4. maxSelect / minSelect - Zod schema accepts these fields ────────────────
 
-describe('questionItemSchema — maxSelect / minSelect', () => {
+describe('questionItemSchema - maxSelect / minSelect', () => {
   it('accepts maxSelect on a checkbox question', () => {
     const item = {
       key: 'area',
@@ -244,7 +244,7 @@ describe('questionItemSchema — maxSelect / minSelect', () => {
 
 // ── 4b. showIf field in Zod schema ────────────────────────────────────────────
 
-describe('questionItemSchema — showIf', () => {
+describe('questionItemSchema - showIf', () => {
   it('accepts a valid showIf with questionKey + includesAny', () => {
     const item = {
       key: 'sofa_size',
@@ -273,7 +273,7 @@ describe('questionItemSchema — showIf', () => {
 
 // ── 4c. Reserved key 'property_type' rejected ────────────────────────────────
 
-describe('questionItemSchema — reserved key rejection', () => {
+describe('questionItemSchema - reserved key rejection', () => {
   it('rejects property_type as a question key', () => {
     const item = { key: 'property_type', label: 'Property type', type: 'radio' };
     const result = questionItemSchema.safeParse(item);
@@ -288,7 +288,7 @@ describe('questionItemSchema — reserved key rejection', () => {
 
 // ── 5. computePrefill with durationMin ───────────────────────────────────────
 
-describe('computePrefill — durationMin accumulation', () => {
+describe('computePrefill - durationMin accumulation', () => {
   it('sums durationMin across selected options', () => {
     const schema = [pricedQ('aircon_service', ['wall_chemical', 'wall_general'])];
     const modifiers: OptionPriceMap = {
@@ -330,7 +330,7 @@ describe('computePrefill — durationMin accumulation', () => {
       clean_for: { single_mattress: { price: 60, durationMin: 30, notOffered: false } },
       sofa_size: { '3_seater': { price: 80, durationMin: 20, notOffered: false } },
     };
-    // sofa_size hidden — its durationMin should not be counted
+    // sofa_size hidden - its durationMin should not be counted
     const result = computePrefill(
       { clean_for: ['single_mattress'], sofa_size: '3_seater' },
       schema,
@@ -339,7 +339,7 @@ describe('computePrefill — durationMin accumulation', () => {
     expect(result!.estimatedDurationMin).toBe(30); // only clean_for contributes
   });
 
-  it('partial — only some options have durationMin', () => {
+  it('partial - only some options have durationMin', () => {
     const schema = [pricedQ('action', ['install', 'repair'])];
     const modifiers: OptionPriceMap = {
       action: {
@@ -357,9 +357,9 @@ describe('computePrefill — durationMin accumulation', () => {
   });
 });
 
-// ── 6b. questionItemSchema — quantity and number types ────────────────────────
+// ── 6b. questionItemSchema - quantity and number types ────────────────────────
 
-describe('questionItemSchema — quantity type', () => {
+describe('questionItemSchema - quantity type', () => {
   it('accepts quantity type with options', () => {
     const item = {
       key: 'curtain_sizes',
@@ -385,7 +385,7 @@ describe('questionItemSchema — quantity type', () => {
   });
 });
 
-describe('questionItemSchema — number type', () => {
+describe('questionItemSchema - number type', () => {
   it('accepts number type (single numeric input)', () => {
     const item = {
       key: 'attendees',
@@ -406,7 +406,7 @@ describe('questionItemSchema — number type', () => {
   });
 });
 
-describe('questionSchemaSchema — accepts mixed types including quantity and number', () => {
+describe('questionSchemaSchema - accepts mixed types including quantity and number', () => {
   it('validates a schema with checkbox, radio, text, quantity, and number questions', () => {
     const schema = [
       { key: 'action', label: 'Action', type: 'radio', required: true, options: [{ value: 'install', label: 'Install' }] },
@@ -425,7 +425,7 @@ describe('questionSchemaSchema — accepts mixed types including quantity and nu
   });
 });
 
-describe('computePrefill — quantity pricing (unit-price × qty)', () => {
+describe('computePrefill - quantity pricing (unit-price × qty)', () => {
   it('computes unit-price × quantity for each option and sums', () => {
     const schema = [
       {
@@ -529,7 +529,7 @@ describe('computePrefill — quantity pricing (unit-price × qty)', () => {
   });
 });
 
-describe('computePrefill — multi-axis additive with quantity + checkbox/radio', () => {
+describe('computePrefill - multi-axis additive with quantity + checkbox/radio', () => {
   it('sums quantity and checkbox/radio priced axes together', () => {
     const schema = [
       {
@@ -560,7 +560,7 @@ describe('computePrefill — multi-axis additive with quantity + checkbox/radio'
   });
 });
 
-describe('computePrefill — number type is always informational (no pricing)', () => {
+describe('computePrefill - number type is always informational (no pricing)', () => {
   it('number question never contributes to pricing regardless of value', () => {
     const schema = [
       { key: 'cameras', label: 'How many cameras?', type: 'number' as const, priced: false },
@@ -578,7 +578,7 @@ describe('computePrefill — number type is always informational (no pricing)', 
 
 // ── 6. optionPriceMapSchema accepts durationMin ───────────────────────────────
 
-describe('optionPriceMapSchema — durationMin field (backward-compatible)', () => {
+describe('optionPriceMapSchema - durationMin field (backward-compatible)', () => {
   it('accepts entry with durationMin', () => {
     const raw = {
       aircon_service: {

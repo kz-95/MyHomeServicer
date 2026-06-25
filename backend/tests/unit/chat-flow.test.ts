@@ -1,9 +1,9 @@
 /**
- * Unit tests — deterministic quote-flow card logic.
+ * Unit tests - deterministic quote-flow card logic.
  *
  * Pins the behaviour of the two PURE functions that drive the in-chat quote flow:
- *   - nextStepBlocks(collected)        — fixed field order, never skips ahead
- *   - computeNextCards(collected, answered, questions, lang) — the card-confirm turn
+ *   - nextStepBlocks(collected)        - fixed field order, never skips ahead
+ *   - computeNextCards(collected, answered, questions, lang) - the card-confirm turn
  *     short-circuit (LLM skipped): next field / next question / review, with dedup + i18n.
  *
  * These are the flow's load-bearing invariants. Keeping them under test means a future
@@ -36,7 +36,7 @@ function question(key: string, required = false) {
   };
 }
 
-describe('nextStepBlocks — fixed quote field order', () => {
+describe('nextStepBlocks - fixed quote field order', () => {
   it('asks date + time first when nothing is collected', () => {
     expect(keys(nextStepBlocks([]))).toEqual(['preferredDate', 'timeSlot']);
   });
@@ -76,7 +76,7 @@ describe('nextStepBlocks — fixed quote field order', () => {
   });
 });
 
-describe('computeNextCards — card-confirm turn (LLM skipped)', () => {
+describe('computeNextCards - card-confirm turn (LLM skipped)', () => {
   it('emits date + time when nothing is collected', () => {
     expect(keys(computeNextCards([], [], []))).toEqual(['preferredDate', 'timeSlot']);
   });
@@ -135,7 +135,7 @@ describe('computeNextCards — card-confirm turn (LLM skipped)', () => {
   });
 });
 
-describe('extractAddress — free-text address crediting (breaks the address loop)', () => {
+describe('extractAddress - free-text address crediting (breaks the address loop)', () => {
   it('captures an address with a 5-digit postcode', () => {
     expect(extractAddress('88 jalan pju 5/20, kota damansara, petaling jaya 47810')).toContain('47810');
   });
@@ -160,7 +160,7 @@ describe('extractAddress — free-text address crediting (breaks the address loo
   });
 });
 
-describe('extractAddress — strips conversational filler (rojak wrapper)', () => {
+describe('extractAddress - strips conversational filler (rojak wrapper)', () => {
   it('drops "eh boss, ... lor, can help anot?" around the address', () => {
     const got = extractAddress('eh boss, 18 jalan tempua 5, bandar puchong jaya 47100 lor, can help anot?');
     expect(got).toBe('18 jalan tempua 5, bandar puchong jaya 47100');
@@ -178,7 +178,7 @@ describe('extractAddress — strips conversational filler (rojak wrapper)', () =
   });
 });
 
-describe('extractName — registers a typed name, rejects junk', () => {
+describe('extractName - registers a typed name, rejects junk', () => {
   it('captures an explicit lead-in and drops a trailing filler word', () => {
     expect(extractName("eh boss, name's lina lah, can help anot?")).toBe('Lina');
     expect(extractName("i'm hafiz")).toBe('Hafiz');
@@ -197,7 +197,7 @@ describe('extractName — registers a typed name, rejects junk', () => {
   });
 });
 
-describe('matchQuestionAnswer — confirms a typed radio answer in any language', () => {
+describe('matchQuestionAnswer - confirms a typed radio answer in any language', () => {
   const areaQ = {
     type: 'radio',
     options: [
@@ -214,7 +214,7 @@ describe('matchQuestionAnswer — confirms a typed radio answer in any language'
     expect(matchQuestionAnswer(areaQ, 'toilet_wc')).toBe('toilet_wc');
   });
 
-  it('matches a localized (zh / ms) label — the i18n loop fix', () => {
+  it('matches a localized (zh / ms) label - the i18n loop fix', () => {
     expect(matchQuestionAnswer(areaQ, '浴缸')).toBe('bathtub');
     expect(matchQuestionAnswer(areaQ, 'Tandas')).toBe('toilet_wc');
   });
@@ -223,7 +223,7 @@ describe('matchQuestionAnswer — confirms a typed radio answer in any language'
     expect(matchQuestionAnswer(areaQ, 'eh boss, bathtub sia, can help anot?')).toBe('bathtub');
   });
 
-  it('matches a LONG rojak-wrapped option (>60 chars) — the component loop fix', () => {
+  it('matches a LONG rojak-wrapped option (>60 chars) - the component loop fix', () => {
     // The old global 60-char cap rejected this exact shape; the question was never
     // marked answered and the card re-emitted forever (ChatQA_Log_005312062601).
     expect(
@@ -240,7 +240,7 @@ describe('matchQuestionAnswer — confirms a typed radio answer in any language'
   });
 });
 
-describe('matchQuestionAnswer — checkbox free-text credits the answer (loop fix)', () => {
+describe('matchQuestionAnswer - checkbox free-text credits the answer (loop fix)', () => {
   const heavyQ = {
     type: 'checkbox',
     options: [
@@ -252,21 +252,21 @@ describe('matchQuestionAnswer — checkbox free-text credits the answer (loop fi
   const airconQ = {
     type: 'checkbox',
     options: [
-      { value: 'wall_chemical', label: 'Wall Unit — Chemical Cleaning (Recommended)', labelI18n: { ms: 'Unit Dinding — Pencucian Kimia (Disyorkan)' } },
-      { value: 'wall_general', label: 'Wall Unit — General Cleaning' },
+      { value: 'wall_chemical', label: 'Wall Unit - Chemical Cleaning (Recommended)', labelI18n: { ms: 'Unit Dinding - Pencucian Kimia (Disyorkan)' } },
+      { value: 'wall_general', label: 'Wall Unit - General Cleaning' },
     ],
   };
 
-  it('credits a localized checkbox label (冰箱 → fridge) as an array — the run-1 heavy_items loop', () => {
+  it('credits a localized checkbox label (冰箱 → fridge) as an array - the run-1 heavy_items loop', () => {
     expect(matchQuestionAnswer(heavyQ, '冰箱')).toEqual(['fridge']);
   });
 
   it('credits the exact English option label (case-insensitive)', () => {
-    expect(matchQuestionAnswer(airconQ, 'wall unit — chemical cleaning (recommended)')).toEqual(['wall_chemical']);
+    expect(matchQuestionAnswer(airconQ, 'wall unit - chemical cleaning (recommended)')).toEqual(['wall_chemical']);
   });
 
-  it('credits the ms option label — the run-3/5 aircon_service loop', () => {
-    expect(matchQuestionAnswer(airconQ, 'Unit Dinding — Pencucian Kimia (Disyorkan)')).toEqual(['wall_chemical']);
+  it('credits the ms option label - the run-3/5 aircon_service loop', () => {
+    expect(matchQuestionAnswer(airconQ, 'Unit Dinding - Pencucian Kimia (Disyorkan)')).toEqual(['wall_chemical']);
   });
 
   it('credits multiple options mentioned in one free-text answer', () => {
@@ -278,7 +278,7 @@ describe('matchQuestionAnswer — checkbox free-text credits the answer (loop fi
   });
 });
 
-describe('wantsFieldEdit — confirmation must not count as an edit (redundant-card fix)', () => {
+describe('wantsFieldEdit - confirmation must not count as an edit (redundant-card fix)', () => {
   it('a confirmation containing "correct" is NOT an edit', () => {
     expect(wantsFieldEdit('yes that is all correct, please continue')).toBe(false);
     expect(wantsFieldEdit('looks correct')).toBe(false);

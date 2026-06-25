@@ -65,10 +65,10 @@ export async function sendOtpToRescueEmail(reason: string, ip: string, userAgent
     },
   });
 
-  const subject = '[URGENT] MyHomeServicer Admin Recovery — Action Required';
+  const subject = '[URGENT] MyHomeServicer Admin Recovery - Action Required';
   const body = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MyHomeServicer — Super Admin Recovery
+MyHomeServicer - Super Admin Recovery
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 A recovery request was made for the MyHomeServicer admin panel.
@@ -169,5 +169,5 @@ export async function resetAdminPassword(token: string, newPassword: string, new
     action: 'admin.rescue.completed',
     newValue: {},
   });
-  logger.warn('Admin rescue completed — all credentials reset', { adminId: admin.id });
+  logger.warn('Admin rescue completed - all credentials reset', { adminId: admin.id });
 }

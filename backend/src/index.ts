@@ -19,7 +19,7 @@ async function main(): Promise<void> {
 
   server.listen(env.PORT, env.HOST, () => {
     const addr = env.HOST === '0.0.0.0' ? 'localhost' : env.HOST;
-    logger.info(`API listening on http://${addr}:${env.PORT} (${env.NODE_ENV}) — bound to ${env.HOST}`);
+    logger.info(`API listening on http://${addr}:${env.PORT} (${env.NODE_ENV}) - bound to ${env.HOST}`);
   });
 
   const shutdown = async (signal: string): Promise<void> => {

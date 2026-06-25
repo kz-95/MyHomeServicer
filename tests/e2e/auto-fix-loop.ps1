@@ -1,4 +1,4 @@
-# tests/e2e/auto-fix-loop.ps1
+﻿# tests/e2e/auto-fix-loop.ps1
 # Runs each E2E scenario, captures failures, writes .fixer-prompt.txt, waits for human fix, re-runs.
 param(
   [string]$ScenarioPattern = "*",
@@ -66,7 +66,7 @@ Common issues:
 - Dispatch event not received → check isOnline/schedule setup
 - Dialog not found → check component uses native `<dialog>`
 
-UI DESIGN GUARDRAIL — DO NOT REVERT INTENTIONAL DESIGN
+UI DESIGN GUARDRAIL - DO NOT REVERT INTENTIONAL DESIGN
 If the failure is a visual/layout mismatch (screenshot diff, wrong dimensions,
 wrong text position, wrong button order):
 - The current UI may have been intentionally redesigned.

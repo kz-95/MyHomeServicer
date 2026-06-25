@@ -1,5 +1,5 @@
 /**
- * Unit tests — credit service: computeFee() bridge to the canonical
+ * Unit tests - credit service: computeFee() bridge to the canonical
  * computePlatformFee() from money.ts.
  *
  * The old computeCharge / PlatformCharge duality is removed. computeFee
@@ -16,7 +16,7 @@ jest.mock('../../src/services/settings.service', () => ({
 
 const mockGetPlatformFeeRate = getPlatformFeeRate as jest.MockedFunction<typeof getPlatformFeeRate>;
 
-describe('computeFee — async bridge', () => {
+describe('computeFee - async bridge', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

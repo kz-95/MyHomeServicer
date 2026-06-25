@@ -1,4 +1,4 @@
-# Caveman — Ultra-Compressed Replies (Kilo Code)
+﻿# Caveman - Ultra-Compressed Replies (Kilo Code)
 
 **Usage**: Cut reply token usage ~75% by speaking terse while keeping full
 technical accuracy.

@@ -83,8 +83,8 @@ function emptyForm(): FormState {
     newAddressLat: undefined,
     newAddressLng: undefined,
     budgetIndex: '',
-    paymentTiming: 'pay_later',
-    settlementMethod: 'cash',
+    paymentTiming: 'pay_now',
+    settlementMethod: 'gateway',
     agreeTerms: false,
     answers: {},
   };
@@ -363,45 +363,20 @@ function emptyForm(): FormState {
             <div class="card pane">
               <h2>Payment</h2>
 
-              <!-- Payment timing -->
+              <!-- Payment timing - guest: card only -->
               <div class="qgroup">
-                <span class="qlabel">When would you like to pay?</span>
+                <span class="qlabel">Payment method</span>
                 <div class="opts">
-                  <label class="opt timing-opt" [class.timing-opt--on]="f.paymentTiming === 'pay_now'">
-                    <input type="radio" name="payTiming" [checked]="f.paymentTiming === 'pay_now'" (change)="f.paymentTiming = 'pay_now'; onTimingChange()" />
+                  <label class="opt timing-opt timing-opt--on">
                     <div class="timing-body">
-                      <strong>Pay now</strong>
-                      <span class="muted">Charged at proposal acceptance, held in escrow until the job is done</span>
-                    </div>
-                  </label>
-                  <label class="opt timing-opt" [class.timing-opt--on]="f.paymentTiming === 'pay_later'">
-                    <input type="radio" name="payTiming" [checked]="f.paymentTiming === 'pay_later'" (change)="f.paymentTiming = 'pay_later'; onTimingChange()" />
-                    <div class="timing-body">
-                      <strong>Pay later</strong>
-                      <span class="muted">Nothing charged now - invoice issued after the job is complete</span>
+                      <strong>Credit / Debit card</strong>
+                      <span class="muted">Pay upfront via Stripe. Your payment is held in escrow until the job is done.</span>
                     </div>
                   </label>
                 </div>
+                <span class="muted hint"><a [routerLink]="[routeFor('register')]">Create an account</a> for more payment options.</span>
               </div>
-
-              <!-- Settlement method - pay_later only -->
-              @if (f.paymentTiming === 'pay_later') {
-                <div class="qgroup">
-                  <span class="qlabel">Settlement method</span>
-                  <div class="opts">
-                    <label class="opt">
-                      <input type="radio" name="payMethod" [checked]="f.settlementMethod === 'gateway'" (change)="f.settlementMethod = 'gateway'" />
-                      <span>Credit / Debit card <span class="muted">(pay via Stripe after job done)</span></span>
-                    </label>
-                    <label class="opt">
-                      <input type="radio" name="payMethod" [checked]="f.settlementMethod === 'cash'" (change)="f.settlementMethod = 'cash'" />
-                      <span>Cash <span class="muted">(pay servicer directly after job done)</span></span>
-                    </label>
-                  </div>
-                  <span class="muted hint"><a [routerLink]="[routeFor('register')]">Create an account</a> to pay with wallet credit.</span>
-                </div>
-                <p class="no-charge-note muted">No charge until a servicer accepts your request.</p>
-              }
+              <p class="no-charge-note muted">Your card is charged only when a servicer accepts your request.</p>
 
               <!-- Canonical estimate card -->
               <div class="est-card">
@@ -750,7 +725,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     const categoryParam = this.route.snapshot.queryParamMap.get('category');
     if (categoryParam) this.f.categoryId = categoryParam;
 
-    // Chat prefill is the most recent intent — let it win over older saved guest
+    // Chat prefill is the most recent intent - let it win over older saved guest
     // data so we never overwrite what the assistant just collected.
     const saved = this.auth.getGuestData();
     if (saved && !this.chatPrefillData) this.restoreForm(saved);
@@ -807,7 +782,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   }
 
   /** Re-apply question answers from the chat prefill after onCategoryChange clears
-   *  f.answers — mirrors the budget recovery in loadBudgetRanges' callback. Called
+   *  f.answers - mirrors the budget recovery in loadBudgetRanges' callback. Called
    *  only from load(), never from user-triggered onCategoryChange, so it never
    *  force-writes stale answers over a different user-picked category. */
   private reapplyChatAnswers(): void {
@@ -820,7 +795,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
   /**
    * Pick the budget bracket for the chat's prefilled budget, against the loaded ranges:
    *   1. the explicit index from the chat budget card, if it's in range;
-   *   2. else the bracket that CONTAINS the free-text amount (budgetMax, then budgetMin) —
+   *   2. else the bracket that CONTAINS the free-text amount (budgetMax, then budgetMin) -
    *      or the highest open-ended bracket if it exceeds them all;
    *   3. else the first bracket.
    * Without (2), a free-text amount ("rm1580") carried no index and silently fell to
@@ -850,7 +825,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
           const child = (r.data ?? []).find((c) => c.id === this.f.categoryId);
           if (child) this.parentId.set(child.parentCategoryId ?? '');
           this.onCategoryChange(this.f.categoryId);
-          // onCategoryChange clears f.answers — restoring from the chat prefill after
+          // onCategoryChange clears f.answers - restoring from the chat prefill after
           // the category locks so the collected question answers are not lost.
           this.reapplyChatAnswers();
           // The chat's budget bracket is applied in loadBudgetRanges' callback (it needs
@@ -1168,7 +1143,7 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     await dwell();
     this.goToContact();
     if (this.step() === 1) {
-      out.push(`  FORM ISSUE: blocked at page 1 — "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
+      out.push(`  FORM ISSUE: blocked at page 1 - "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
       return out;
     }
 
@@ -1176,11 +1151,11 @@ export class GuestQuoteComponent implements OnInit, OnDestroy {
     await dwell();
     this.goToSummary();
     if (this.step() === 2) {
-      out.push(`  FORM ISSUE: blocked at page 2 — "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
+      out.push(`  FORM ISSUE: blocked at page 2 - "${this.stepError()}" [${[...this.fieldErrors].join(", ")}]`);
       return out;
     }
 
-    out.push(`FORM page 3 (Summary) reached OK — verified, stopping (no submit): ${snap()}`);
+    out.push(`FORM page 3 (Summary) reached OK - verified, stopping (no submit): ${snap()}`);
     await dwell(); // hold on the summary so it's visible at the end of the demo
     return out;
   }

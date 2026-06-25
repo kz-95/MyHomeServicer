@@ -1,19 +1,19 @@
-# Chat Bot + QA Harness Flow Diagrams
+﻿# Chat Bot + QA Harness Flow Diagrams
 
 > **Legend**
-> - **Block / Card / ActionBlock** = `[action:quote_options]...[/action]` — a structured UI component (date picker, address form, service picker) rendered in the chat bubble. Distinct from plain text.
-> - **Text** = plain chat message with no action block — shows in bubble but no interactive card.
+> - **Block / Card / ActionBlock** = `[action:quote_options]...[/action]` - a structured UI component (date picker, address form, service picker) rendered in the chat bubble. Distinct from plain text.
+> - **Text** = plain chat message with no action block - shows in bubble but no interactive card.
 > - **State variables (per-turn)**:
->   - `selectedCategory` — user tapped or text-confirmed a service
->   - `lockedCategory` — `category_lock` emitted (silent, no card)
->   - `collectedFields` — fields with non-empty values in `prefillData()` (client sends via `collectedKeys()`)
->   - `missingFields` — derived from `nextStepBlocks`: what's still needed this turn
->   - `answeredQuestions` — service-question keys already answered (client sends via `answeredQuestions()`)
+>   - `selectedCategory` - user tapped or text-confirmed a service
+>   - `lockedCategory` - `category_lock` emitted (silent, no card)
+>   - `collectedFields` - fields with non-empty values in `prefillData()` (client sends via `collectedKeys()`)
+>   - `missingFields` - derived from `nextStepBlocks`: what's still needed this turn
+>   - `answeredQuestions` - service-question keys already answered (client sends via `answeredQuestions()`)
 > - **Terminal outcomes**: PASS (review reached + all fields present + no qualityFail), FAIL (stalled/looping/language/unsupported/timeout/terminal)
 
 ---
 
-## 1. Backend: sendToAi — main orchestration (chat.service.ts)
+## 1. Backend: sendToAi - main orchestration (chat.service.ts)
 
 ```mermaid
 flowchart TD
@@ -220,7 +220,7 @@ flowchart TD
     for ONE closest category
     with humble 1-line reason:
     'Many cleaners also handle
-    laundry — tap to check'
+    laundry - tap to check'
     Goal: real path forward,
     not tone-deaf upsell"]
     R5 --> R_END
@@ -234,7 +234,7 @@ flowchart TD
 
 ---
 
-## 4. Frontend: QA Harness — automated booking test (chat-qa-harness.ts)
+## 4. Frontend: QA Harness - automated booking test (chat-qa-harness.ts)
 
 ```mermaid
 flowchart TD
@@ -271,7 +271,7 @@ flowchart TD
     • then up to 25s for reply
     • 250ms post-settle buffer"]
 
-    WAIT --> FLUSH["📋 flush() — log new messages
+    WAIT --> FLUSH["📋 flush() - log new messages
     ┌────────────────────────────────┐
     │ Per-message: USER/BOT + txt   │
     │ + block tags                   │
@@ -439,7 +439,7 @@ flowchart TD
 
 ---
 
-## 5. Frontend: Address card — client-side flow (chat-widget.component.ts)
+## 5. Frontend: Address card - client-side flow (chat-widget.component.ts)
 
 ```mermaid
 flowchart TD
@@ -515,7 +515,7 @@ flowchart TD
 
 ---
 
-## 6. Backend: collectingFields — deterministic extraction (sendToAi internals)
+## 6. Backend: collectingFields - deterministic extraction (sendToAi internals)
 
 ```mermaid
 flowchart TD
@@ -729,7 +729,7 @@ sequenceDiagram
     Note over B: zero tokens · zero 429 · zero hallucination
 ```
 
-### Reject/stall recovery — named-service card inject
+### Reject/stall recovery - named-service card inject
 If a selection-phase reply names a catalog service but emits no card, the backend injects it.
 
 ```mermaid
@@ -742,9 +742,9 @@ flowchart TD
 ```
 
 ### Catalog + personas
-- **New services**: Painting (Home Improvement), Moving + Gardening (Home Maintenance) — own
+- **New services**: Painting (Home Improvement), Moving + Gardening (Home Maintenance) - own
   question schemas (non-essential questions skippable), budget ranges, card images. repaint→
   Painting, movers→Moving, lawn→Gardening map by name.
-- **New QA personas**: `typing_shortcut` / `typing_adhd` — never tap a card, type every answer
+- **New QA personas**: `typing_shortcut` / `typing_adhd` - never tap a card, type every answer
   (shortcut SMS style / erratic kid input). See [chat-qa-harness.md](chat-qa-harness.md).
 - **Failed-send retry**: one auto-retry after ~3.5 s before "Could not send message".

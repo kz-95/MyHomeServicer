@@ -80,7 +80,7 @@ servicerModuleRouter.patch(
   }),
 );
 
-/** DELETE /servicer/modules/:id — soft-disable. */
+/** DELETE /servicer/modules/:id - soft-disable. */
 servicerModuleRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {

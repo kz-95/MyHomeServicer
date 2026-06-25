@@ -1,4 +1,4 @@
-﻿import { Job } from 'bullmq';
+import { Job } from 'bullmq';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
@@ -24,14 +24,14 @@ const pushPayload = z.object({
   linkReorder: z.string().optional(),
 });
 
-/** invoice.generate — builds the INVOICE row + PDF for a completed booking. */
+/** invoice.generate - builds the INVOICE row + PDF for a completed booking. */
 async function handleInvoiceGenerate(job: Job): Promise<void> {
   const { bookingId, servicerId } = invoicePayload.parse(job.data);
   await generateInvoice(bookingId, servicerId);
 }
 
 /**
- * promo.credit_payback — for a platform promo used on a booking, reimburses
+ * promo.credit_payback - for a platform promo used on a booking, reimburses
  * the servicer via credit balance once the job is done + payment confirmed.
  * Idempotent: skips if a redemption is already recorded for the booking.
  */
@@ -86,10 +86,10 @@ async function handlePromoCreditPayback(job: Job): Promise<void> {
       });
     }
   });
-  logger.info('promo.credit_payback — servicer reimbursed', { bookingId, discount });
+  logger.info('promo.credit_payback - servicer reimbursed', { bookingId, discount });
 }
 
-/** withdrawal.notify — alerts all admins of a pending withdrawal request. */
+/** withdrawal.notify - alerts all admins of a pending withdrawal request. */
 async function handleWithdrawalNotify(job: Job): Promise<void> {
   const { withdrawalId, servicerId } = withdrawalPayload.parse(job.data);
   const servicer = await prisma.servicer.findUnique({ where: { id: servicerId } });
@@ -101,10 +101,10 @@ async function handleWithdrawalNotify(job: Job): Promise<void> {
       message: `${servicer?.businessName ?? 'A servicer'} submitted a withdrawal request for review.`,
     });
   }
-  logger.info('withdrawal.notify — admins alerted', { withdrawalId });
+  logger.info('withdrawal.notify - admins alerted', { withdrawalId });
 }
 
-/** notification.push — generic non-blocking notification dispatcher. */
+/** notification.push - generic non-blocking notification dispatcher. */
 async function handleNotificationPush(job: Job): Promise<void> {
   const payload = pushPayload.parse(job.data);
   await notify(payload);

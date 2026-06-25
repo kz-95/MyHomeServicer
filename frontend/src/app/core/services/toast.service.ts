@@ -29,7 +29,7 @@ export class ToastService {
   /** Whether notification sounds are enabled (loaded from admin settings). */
   readonly soundEnabled = signal(true);
 
-  /** Audio context unlocked flag — browsers block autoplay before first user gesture. */
+  /** Audio context unlocked flag - browsers block autoplay before first user gesture. */
   private audioUnlocked = false;
 
   constructor() {
@@ -94,7 +94,7 @@ export class ToastService {
   /** Plays a short chime for success/error action toasts when sound is enabled. */
   private playSound(level: ToastLevel): void {
     if (!this.soundEnabled()) return;
-    // Info toasts are silent — only success and error get audio feedback.
+    // Info toasts are silent - only success and error get audio feedback.
     if (level === 'info') return;
     const file = level === 'error'
       ? 'assets/sounds/Notification_Job.wav'
@@ -104,7 +104,7 @@ export class ToastService {
       audio.volume = 0.4;
       audio.play().catch(() => {});
     } catch {
-      // Audio not available — silently ignore
+      // Audio not available - silently ignore
     }
   }
 }

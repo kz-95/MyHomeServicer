@@ -3,7 +3,7 @@
  *
  * Reads GOOGLE_MAPS_API_KEY from process.env. Geocodes a free-form address
  * string into a { lat, lng } pair. Returns null when the address cannot be
- * resolved (no results or API error) — the caller decides whether to reject
+ * resolved (no results or API error) - the caller decides whether to reject
  * or proceed without coordinates.
  */
 
@@ -63,7 +63,7 @@ export interface AddressValidation {
   street?: string;
   /** Postal code, when resolvable. */
   postcode?: string;
-  /** City / district (locality), when resolvable — maps to the quote form's District. */
+  /** City / district (locality), when resolvable - maps to the quote form's District. */
   city?: string;
   /** State (administrative_area_level_1), when resolvable. */
   state?: string;

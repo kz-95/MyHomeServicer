@@ -1,4 +1,4 @@
-# Category Settings SP2 — Category CRUD + Question Schema Editor
+﻿# Category Settings SP2 - Category CRUD + Question Schema Editor
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -29,7 +29,7 @@
 
 ---
 
-## Task 1 — Add `questionSchemaSchema` + immutability check to json-schemas.ts
+## Task 1 - Add `questionSchemaSchema` + immutability check to json-schemas.ts
 
 **Files:**
 - Modify: `backend/src/lib/json-schemas.ts`
@@ -79,12 +79,12 @@ export function checkQuestionSchemaImmutability(
   for (const existingQ of existing) {
     const incomingQ = incoming.find((q) => q.key === existingQ.key);
     if (!incomingQ) {
-      return `Question key "${existingQ.key}" cannot be removed — set active: false to deactivate it.`;
+      return `Question key "${existingQ.key}" cannot be removed - set active: false to deactivate it.`;
     }
     for (const existingOpt of existingQ.options ?? []) {
       const found = (incomingQ.options ?? []).find((o) => o.value === existingOpt.value);
       if (!found) {
-        return `Option value "${existingOpt.value}" in question "${existingQ.key}" cannot be removed — set active: false to deactivate it.`;
+        return `Option value "${existingOpt.value}" in question "${existingQ.key}" cannot be removed - set active: false to deactivate it.`;
       }
     }
   }
@@ -108,7 +108,7 @@ git commit -m "feat: add questionSchemaSchema Zod + immutability check to json-s
 
 ---
 
-## Task 2 — Unit tests for questionSchemaSchema + immutability check
+## Task 2 - Unit tests for questionSchemaSchema + immutability check
 
 **Files:**
 - Create: `backend/tests/unit/question-schema.test.ts`
@@ -142,7 +142,7 @@ const base: QuestionSchema = [
 
 // ── questionSchemaSchema ──────────────────────────────────────────────────────
 
-describe('questionSchemaSchema — valid', () => {
+describe('questionSchemaSchema - valid', () => {
   it('parses minimal item', () => {
     expect(questionSchemaSchema.safeParse([{ key: 'q', label: 'Q', type: 'text' }]).success).toBe(true);
   });
@@ -159,7 +159,7 @@ describe('questionSchemaSchema — valid', () => {
   });
 });
 
-describe('questionSchemaSchema — invalid', () => {
+describe('questionSchemaSchema - invalid', () => {
   it('rejects unsupported type', () => {
     expect(questionSchemaSchema.safeParse([{ key: 'q', label: 'Q', type: 'select' }]).success).toBe(false);
   });
@@ -174,7 +174,7 @@ describe('questionSchemaSchema — invalid', () => {
 
 // ── checkQuestionSchemaImmutability ──────────────────────────────────────────
 
-describe('immutability — allowed changes', () => {
+describe('immutability - allowed changes', () => {
   it('returns null for identical schema', () => {
     expect(checkQuestionSchemaImmutability(base, base)).toBeNull();
   });
@@ -207,7 +207,7 @@ describe('immutability — allowed changes', () => {
   });
 });
 
-describe('immutability — violations', () => {
+describe('immutability - violations', () => {
   it('errors when question key removed', () => {
     const err = checkQuestionSchemaImmutability(base, base.filter((q) => q.key !== 'notes'));
     expect(err).toMatch(/notes/);
@@ -240,7 +240,7 @@ git commit -m "test: unit tests for questionSchemaSchema and immutability check"
 
 ---
 
-## Task 3 — Extend PATCH /admin/categories/:id
+## Task 3 - Extend PATCH /admin/categories/:id
 
 **Files:**
 - Modify: `backend/src/routes/admin.routes.ts`
@@ -255,7 +255,7 @@ import { Prisma } from '@prisma/client';
 
 - [ ] **Step 2: Add `questionSchemaSchema` and `checkQuestionSchemaImmutability` to the json-schemas import**
 
-The existing line imports from `../lib/json-schemas` — find it and add the new exports. The line will look like:
+The existing line imports from `../lib/json-schemas` - find it and add the new exports. The line will look like:
 
 ```typescript
 import {
@@ -273,7 +273,7 @@ import { questionSchemaSchema, checkQuestionSchemaImmutability } from '../lib/js
 - [ ] **Step 3: Replace the full PATCH /categories/:id handler (lines ~252-283)**
 
 ```typescript
-/** PATCH /admin/categories/:id — update category fields. PIN-gated. */
+/** PATCH /admin/categories/:id - update category fields. PIN-gated. */
 adminRouter.patch(
   '/categories/:id',
   requirePin,
@@ -353,12 +353,12 @@ Expected: 0 errors.
 
 ```bash
 git add backend/src/routes/admin.routes.ts
-git commit -m "feat: extend PATCH /admin/categories/:id — name, icon, questionSchema, defaults"
+git commit -m "feat: extend PATCH /admin/categories/:id - name, icon, questionSchema, defaults"
 ```
 
 ---
 
-## Task 4 — Add POST /admin/categories
+## Task 4 - Add POST /admin/categories
 
 **Files:**
 - Modify: `backend/src/routes/admin.routes.ts`
@@ -374,7 +374,7 @@ function toSlug(s: string): string {
 - [ ] **Step 2: Add POST /admin/categories after the PATCH handler**
 
 ```typescript
-/** POST /admin/categories — create a new category. PIN-gated. */
+/** POST /admin/categories - create a new category. PIN-gated. */
 adminRouter.post(
   '/categories',
   requirePin,
@@ -439,7 +439,7 @@ git commit -m "feat: add POST /admin/categories endpoint"
 
 ---
 
-## Task 5 — Add DELETE /admin/categories/:id (soft-delete + guard)
+## Task 5 - Add DELETE /admin/categories/:id (soft-delete + guard)
 
 **Files:**
 - Modify: `backend/src/routes/admin.routes.ts`
@@ -449,7 +449,7 @@ git commit -m "feat: add POST /admin/categories endpoint"
 - [ ] **Step 1: Add DELETE handler after the POST handler**
 
 ```typescript
-/** DELETE /admin/categories/:id — soft-delete. Blocked when active listings or open
+/** DELETE /admin/categories/:id - soft-delete. Blocked when active listings or open
  *  quote requests exist. PIN-gated. */
 adminRouter.delete(
   '/categories/:id',
@@ -513,7 +513,7 @@ git commit -m "feat: add DELETE /admin/categories/:id with soft-delete + listing
 
 ---
 
-## Task 6 — Add GET /admin/categories/:id/question-impact
+## Task 6 - Add GET /admin/categories/:id/question-impact
 
 **Files:**
 - Modify: `backend/src/routes/admin.routes.ts`
@@ -524,7 +524,7 @@ Uses `prisma.$queryRaw` with PostgreSQL `?` (JSONB hasKey) operator because Pris
 
 ```typescript
 /** GET /admin/categories/:id/question-impact?key=<questionKey>
- *  Returns { key, count } — number of MerchantService rows whose modifiers JSONB
+ *  Returns { key, count } - number of MerchantService rows whose modifiers JSONB
  *  contains the given question key. Used by the editor to warn before deactivating
  *  a question or flipping its priced flag. */
 adminRouter.get(
@@ -567,7 +567,7 @@ git commit -m "feat: add GET /admin/categories/:id/question-impact endpoint"
 
 ---
 
-## Task 7 — Add `active` filter to all three consumers
+## Task 7 - Add `active` filter to all three consumers
 
 **Files:**
 - Modify: `backend/src/services/servicer-quote.service.ts`
@@ -675,7 +675,7 @@ git commit -m "feat: filter active !== false questions/options in all three cons
 
 ---
 
-## Task 8 — Install @angular/cdk
+## Task 8 - Install @angular/cdk
 
 - [ ] **Step 1: Check the exact Angular version in use**
 
@@ -713,7 +713,7 @@ git commit -m "feat: add @angular/cdk for drag-drop in question schema editor"
 
 ---
 
-## Task 9 — Rewrite category-settings.component.ts as master-detail
+## Task 9 - Rewrite category-settings.component.ts as master-detail
 
 SP1's tab layout (Question Schema placeholder | Budget Ranges | Time Slots) is **replaced** by a master-detail page: searchable category list + wide modal editor (Basics | Question Schema | Budget Ranges | Time Slots sections).
 
@@ -832,7 +832,7 @@ interface QForm {
     <!-- ═══════════ Editor modal ═══════════ -->
     @if (editorOpen()) {
       <app-modal [open]="true" [wide]="true"
-                 [title]="editTarget() ? 'Edit — ' + editTarget()!.name : 'New category'"
+                 [title]="editTarget() ? 'Edit - ' + editTarget()!.name : 'New category'"
                  (closed)="closeEditor()">
 
         <div class="section-tabs">
@@ -847,7 +847,7 @@ interface QForm {
           <div class="section-body">
             <label>Name *<input [(ngModel)]="basics.name" name="cname" required /></label>
             @if (!editTarget()) {
-              <label>Slug <span class="muted small">(optional — auto-generated from name)</span>
+              <label>Slug <span class="muted small">(optional - auto-generated from name)</span>
                 <input [(ngModel)]="basics.slug" name="cslug" />
               </label>
             } @else {
@@ -882,7 +882,7 @@ interface QForm {
             @if (!editTarget()) {
               <p class="muted">Save basics first to enable schema editing.</p>
             } @else {
-              <p class="muted small">Drag rows to reorder. Keys and option values are locked after first save — deactivate instead of removing.</p>
+              <p class="muted small">Drag rows to reorder. Keys and option values are locked after first save - deactivate instead of removing.</p>
 
               <div cdkDropList (cdkDropListDropped)="dropQuestion($event)" class="schema-list">
                 @for (q of editorSchema(); track q.key; let qi = $index) {
@@ -990,9 +990,9 @@ interface QForm {
 
           <label>Type
             <select [(ngModel)]="qf.type" name="qt">
-              <option value="radio">Radio — pick one</option>
-              <option value="checkbox">Checkbox — pick many</option>
-              <option value="text">Text — free answer</option>
+              <option value="radio">Radio - pick one</option>
+              <option value="checkbox">Checkbox - pick many</option>
+              <option value="text">Text - free answer</option>
             </select>
           </label>
           <label class="inline-check">
@@ -1429,7 +1429,7 @@ export class AdminCategorySettingsComponent implements OnInit {
 }
 ```
 
-- [ ] **Step 2: Check if `ApiService` has generic `patch<T>` and `post<T>` — if it returns `Observable<any>` instead, remove the generic type parameters**
+- [ ] **Step 2: Check if `ApiService` has generic `patch<T>` and `post<T>` - if it returns `Observable<any>` instead, remove the generic type parameters**
 
 ```
 cd frontend && npx tsc --noEmit 2>&1 | head -30
@@ -1459,7 +1459,7 @@ git commit -m "feat: rewrite category-settings as master-detail with CRUD, quest
 
 ---
 
-## Task 10 — Update docs
+## Task 10 - Update docs
 
 **Files:**
 - Modify: `docs/ai-context/schema-notes.md`
@@ -1471,10 +1471,10 @@ git commit -m "feat: rewrite category-settings as master-detail with CRUD, quest
 
 ```markdown
 ### Category (updated SP2)
-- `questionSchema` (Json?) — `Array<{ key, label, type: 'checkbox'|'radio'|'text', required?, priced?, description?, sortOrder?, active?, options?: Array<{ value, label, sortOrder?, active? }> }>`. `key` and option `value` are **immutable after first save**. Set `active: false` to soft-deactivate (hidden from new forms; existing data preserved). Validated by `questionSchemaSchema` in `backend/src/lib/json-schemas.ts`. Immutability enforced by `checkQuestionSchemaImmutability` on every PATCH.
-- `deletedAt` — soft-delete timestamp. Filtered out by `GET /categories` and admin list. Blocked by DELETE endpoint when active `MerchantService` or open `QuoteRequest` exist.
-- `defaultPriceSuggestion` (Decimal?) — starting price hint shown to customers.
-- `defaultEstimatedDurationMinutes` (Int?) — duration hint for quote form.
+- `questionSchema` (Json?) - `Array<{ key, label, type: 'checkbox'|'radio'|'text', required?, priced?, description?, sortOrder?, active?, options?: Array<{ value, label, sortOrder?, active? }> }>`. `key` and option `value` are **immutable after first save**. Set `active: false` to soft-deactivate (hidden from new forms; existing data preserved). Validated by `questionSchemaSchema` in `backend/src/lib/json-schemas.ts`. Immutability enforced by `checkQuestionSchemaImmutability` on every PATCH.
+- `deletedAt` - soft-delete timestamp. Filtered out by `GET /categories` and admin list. Blocked by DELETE endpoint when active `MerchantService` or open `QuoteRequest` exist.
+- `defaultPriceSuggestion` (Decimal?) - starting price hint shown to customers.
+- `defaultEstimatedDurationMinutes` (Int?) - duration hint for quote form.
 ```
 
 - [ ] **Step 2: In api-doc.md, find or create the Admin › Categories section and add**
@@ -1496,7 +1496,7 @@ No PIN required. Returns `{ key, count }` where `count` is the number of `Mercha
 - [ ] **Step 3: In tech-stack.md, add CDK entry**
 
 ```markdown
-- `@angular/cdk` (^17.3.0) — Angular Component Dev Kit. Used for drag-drop reorder in the admin Question Schema editor (`DragDropModule` from `@angular/cdk/drag-drop`).
+- `@angular/cdk` (^17.3.0) - Angular Component Dev Kit. Used for drag-drop reorder in the admin Question Schema editor (`DragDropModule` from `@angular/cdk/drag-drop`).
 ```
 
 - [ ] **Step 4: In TODO.md, mark SP2 complete**
@@ -1521,7 +1521,7 @@ git commit -m "docs: document SP2 category CRUD, questionSchema shape, new endpo
 - ✅ Basics: name, slug (create-only), icon, imageUrl, defaultPriceSuggestion, defaultEstimatedDurationMinutes (Tasks 3, 4, 9)
 - ✅ Question Schema list with drag-drop reorder (Task 9)
 - ✅ Add/Edit question: label, type, required, priced, description, options (Task 9)
-- ✅ Key locked after first save; option value locked after first save (Task 9 — shown readonly, generated on create)
+- ✅ Key locked after first save; option value locked after first save (Task 9 - shown readonly, generated on create)
 - ✅ `active` toggle on questions and options (Task 9)
 - ✅ Drag-drop on options (Task 9)
 - ✅ Budget Ranges per-category in detail editor (Task 9)
@@ -1533,7 +1533,7 @@ git commit -m "docs: document SP2 category CRUD, questionSchema shape, new endpo
 - ✅ `active !== false` in all three consumers (Task 7)
 - ✅ `@angular/cdk` install (Task 8)
 - ✅ Docs (Task 10)
-- ⚠️ **Priced-flag flip warning via impact endpoint**: The spec says show a warning before flipping `priced`. This is a UX enhancement inside `saveQuestion()` — before saving a flipped priced flag on an existing question, call `GET /admin/categories/:id/question-impact?key=...` and show a confirm dialog if `count > 0`. **Add this to Task 9 Step 1** in `saveQuestion()`: detect priced flag change on an existing question, fetch impact, confirm. This is in-browser and requires the editTarget to exist. Implementation note: make the call in `saveQuestion()` before pushing to `editorSchema`, inside a `this.api.get(...)` callback that wraps the push.
+- ⚠️ **Priced-flag flip warning via impact endpoint**: The spec says show a warning before flipping `priced`. This is a UX enhancement inside `saveQuestion()` - before saving a flipped priced flag on an existing question, call `GET /admin/categories/:id/question-impact?key=...` and show a confirm dialog if `count > 0`. **Add this to Task 9 Step 1** in `saveQuestion()`: detect priced flag change on an existing question, fetch impact, confirm. This is in-browser and requires the editTarget to exist. Implementation note: make the call in `saveQuestion()` before pushing to `editorSchema`, inside a `this.api.get(...)` callback that wraps the push.
 
 **Placeholder scan:** No TBD, no "implement later", no "similar to" references found.
 

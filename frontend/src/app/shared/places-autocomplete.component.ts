@@ -300,7 +300,7 @@ export class PlacesAutocompleteComponent implements OnInit, AfterViewInit, OnDes
           }
         }
 
-        // Update the input value — only show the street portion, not the full
+        // Update the input value - only show the street portion, not the full
         // formatted address with postcode/city/state/country.
         const display = street || formatted;
         el.value = display;

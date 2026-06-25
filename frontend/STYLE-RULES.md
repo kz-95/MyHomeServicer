@@ -1,8 +1,8 @@
-# Style Rules — My Home Servicer
+﻿# Style Rules - My Home Servicer
 
 > **Design direction:** Warm Editorial / Artisanal Marketplace
-> **Date:** 2026-05-25 (rev. 2026-06-03 — quote form UX overhaul, §7.4-§7.7 added, §7.5→§7.20 renumbered)
-> **Status:** ✅ Active — supersedes the audit-oriented `UI-UX-GUIDELINES.md` (deleted).
+> **Date:** 2026-05-25 (rev. 2026-06-03 - quote form UX overhaul, §7.4-§7.7 added, §7.5→§7.20 renumbered)
+> **Status:** ✅ Active - supersedes the audit-oriented `UI-UX-GUIDELINES.md` (deleted).
 > This is the **prescriptive source of truth** for all frontend styling.
 
 ---
@@ -10,9 +10,9 @@
 ## 1. Design Direction
 
 **Tone:** Warm, trustworthy, refined, editorial. Like a high-end print magazine
-for home living — not a tech dashboard.
+for home living - not a tech dashboard.
 
-**What makes this unforgettable:** The burnt-orange(`--color-primary: #e07a3a`) and warm cream palette creates an immediate sense of warmth and craft. Cards use a three-layer stack — full-bleed photo → primary-colour washout gradient → white text — with staggered content reveal.
+**What makes this unforgettable:** The burnt-orange(`--color-primary: #e07a3a`) and warm cream palette creates an immediate sense of warmth and craft. Cards use a three-layer stack - full-bleed photo → primary-colour washout gradient → white text - with staggered content reveal.
 
 **Target audience:** Malaysian homeowners and independent service providers.
 The design should feel local and grounded, not generic and globalised.
@@ -24,12 +24,12 @@ The design should feel local and grounded, not generic and globalised.
 ### 2.1 Brand palette
 
 ```
---color-primary:        #e07a3a   burnt orange — CTA, links, active states
+--color-primary:        #e07a3a   burnt orange - CTA, links, active states
 --color-primary-dark:   #c05e28   hover / pressed
 --color-primary-light:  #f5e0d0   badge bg, light tint
---color-bg:             #faf7f2   warm cream — page canvas
+--color-bg:             #faf7f2   warm cream - page canvas
 --color-surface:        #ffffff   cards, panels, inputs
---color-border:         #e8e0d8   warm beige — dividers, borders
+--color-border:         #e8e0d8   warm beige - dividers, borders
 --color-text:           #2c2420   warm charcoal
 --color-muted:          #6b6258   warm stone (darkened for 4.5:1 AA contrast)
 --color-text-inverse:   #f5f0ea   light text on dark surfaces
@@ -48,7 +48,7 @@ The design should feel local and grounded, not generic and globalised.
 --color-promo-bg:       #f0ebf5
 --color-promo-text:     #5a3a6c
 --color-promo-border:   #ddd6e8
---color-accent:         #c4903a    Yellow orange — secondary brand element
+--color-accent:         #c4903a    Yellow orange - secondary brand element
 --color-accent-bg:      #edf3ea
 ```
 
@@ -66,7 +66,7 @@ The design should feel local and grounded, not generic and globalised.
 
 ### 2.3b Status display names and badge mapping
 
-Map human-readable display names to the §2.3 badge tokens. Use the shared `statusBadgeClass(status)` utility (`shared/status-badge.util.ts`) — it returns the CSS class string `badge badge-{token}` so every page renders badges consistently.
+Map human-readable display names to the §2.3 badge tokens. Use the shared `statusBadgeClass(status)` utility (`shared/status-badge.util.ts`) - it returns the CSS class string `badge badge-{token}` so every page renders badges consistently.
 
 | Display name      | Backend status    | Badge token |
 | ----------------- | ----------------- | ----------- |
@@ -79,7 +79,7 @@ Map human-readable display names to the §2.3 badge tokens. Use the shared `stat
 | Paid              | `paid`            | `paid`      |
 | Pending (generic) | `pending`         | `pending`   |
 
-**`statusBadgeClass(status: string): string`** — returns `'badge badge-open'`, `'badge badge-progress'`, etc. Import from `shared/status-badge.util.ts`. Never hand-roll per-page badge class logic.
+**`statusBadgeClass(status: string): string`** - returns `'badge badge-open'`, `'badge badge-progress'`, etc. Import from `shared/status-badge.util.ts`. Never hand-roll per-page badge class logic.
 
 ### 2.4 Elevation & shadows
 
@@ -103,7 +103,7 @@ Map human-readable display names to the §2.3 badge tokens. Use the shared `stat
 Gradients add depth to flat-colored surfaces without changing brand hue. Always pair with a solid `var(--color-*)` fallback on the same property so the cascade is explicit.
 
 ```css
-/* Warm (default) — day primary gradients use a richer terracotta base #c95a3c
+/* Warm (default) - day primary gradients use a richer terracotta base #c95a3c
    (deeper/redder than the flat --color-primary #e07a3a; intentional, see formula) */
 --gradient-primary: linear-gradient(135deg, #c95a3c 0%, #d4784a 100%)
   --gradient-primary-hover: linear-gradient(135deg, #a8472e 0%, #c95a3c 100%)
@@ -144,21 +144,21 @@ Gradients add depth to flat-colored surfaces without changing brand hue. Always 
 
 **Gradient formula:**
 
-- **Day** primary gradients use a richer terracotta base `#c95a3c` — deeper and redder than the flat `--color-primary` (`#e07a3a`). Intentional: flat fills stay the lighter `#e07a3a`; gradients deepen for depth. `--gradient-primary`: `#c95a3c → #d4784a` (lighter end). `--gradient-primary-hover`: `#a8472e → #c95a3c` (reversed for press depth). `--gradient-sidebar`: `#c95a3c → #a8472e` (pressed/inset feel).
+- **Day** primary gradients use a richer terracotta base `#c95a3c` - deeper and redder than the flat `--color-primary` (`#e07a3a`). Intentional: flat fills stay the lighter `#e07a3a`; gradients deepen for depth. `--gradient-primary`: `#c95a3c → #d4784a` (lighter end). `--gradient-primary-hover`: `#a8472e → #c95a3c` (reversed for press depth). `--gradient-sidebar`: `#c95a3c → #a8472e` (pressed/inset feel).
 - **Night** primary gradients use the flat copper `#d4884a` AS their base (gradient base = flat primary, no offset). `--gradient-primary`: `#d4884a → #df9854`. `--gradient-primary-hover`: `#b8702e → #d4884a`. `--gradient-sidebar`: `#d4884a → #b8702e`.
-- `--gradient-accent`: `#c4903a → #d4a84a` — **identical in both themes**. Amber/gold reads on both cream and dark stone.
-- `--gradient-hero`: not primary-derived — day = cream wash, night = stone wash.
+- `--gradient-accent`: `#c4903a → #d4a84a` - **identical in both themes**. Amber/gold reads on both cream and dark stone.
+- `--gradient-hero`: not primary-derived - day = cream wash, night = stone wash.
 
 **Other rules:**
 
 - Always write `background: var(--color-primary); background: var(--gradient-primary);` so the solid fallback is explicit before the gradient override.
-- Gradient text uses `-webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;` — omit `color:` entirely.
+- Gradient text uses `-webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;` - omit `color:` entirely.
 - Never apply `--gradient-primary` inside `[data-theme="cool"]` component styles without testing both themes.
 
 ### 2.7 Rules
 
 - Always use `var(--color-*)`. No raw hex in component styles.
-- No fallback values — `var(--color-danger, red)` is forbidden.
+- No fallback values - `var(--color-danger, red)` is forbidden.
 - If a component needs a tint not in `:root`, add it to `:root` first.
 
 ---
@@ -200,7 +200,7 @@ Loaded in `index.html`:
 
 ### 3.3 Rules
 
-- `font-family` is set on `body` — never repeat in components.
+- `font-family` is set on `body` - never repeat in components.
 - Use `--font-display` for h1, h2, and major section headers.
 - Use `--font-body` for everything else.
 - All text sizes in `rem`. No `px` for font sizes.
@@ -242,10 +242,10 @@ Loaded in `index.html`:
 
 | Name | Width      | Layout mode                             |
 | ---- | ---------- | --------------------------------------- |
-| sm   | ≤ 560px    | Narrow mobile — single column, stacked  |
-| md   | 561-760px  | Tablet narrow — sidebar collapses       |
-| lg   | 761-1023px | Small desktop — sidebar visible (180px) |
-| xl   | ≥ 1024px   | Full desktop — sidebar at 220px         |
+| sm   | ≤ 560px    | Narrow mobile - single column, stacked  |
+| md   | 561-760px  | Tablet narrow - sidebar collapses       |
+| lg   | 761-1023px | Small desktop - sidebar visible (180px) |
+| xl   | ≥ 1024px   | Full desktop - sidebar at 220px         |
 
 ### 5.2 Media query cheat sheet
 
@@ -273,11 +273,11 @@ Loaded in `index.html`:
 | Demo bar      | Visible       | Visible          | Visible (wraps)     |
 | Content pad   | 1.5rem 2rem   | 1.25rem 1.5rem   | 1rem                |
 
-**Topbar behaviour:** The topbar / home topnav is a **normal element at the top of the page — no `position: sticky`, no animation.** It sits at the top of the layout and **scrolls away with the page** on scroll-down; it does not stay glued to the viewport, collapse, or fade. In the portal shell it stays at the top simply because it is the top flex row while `.body` scrolls internally (§15.4) — not via `sticky`. The earlier auto-hide / idle-fade via `appAutoHide` is **deprecated** (§7.16). The demo bar is the one exception — pinned at the very top via `position: sticky; top: 0` (§5.5).
+**Topbar behaviour:** The topbar / home topnav is a **normal element at the top of the page - no `position: sticky`, no animation.** It sits at the top of the layout and **scrolls away with the page** on scroll-down; it does not stay glued to the viewport, collapse, or fade. In the portal shell it stays at the top simply because it is the top flex row while `.body` scrolls internally (§15.4) - not via `sticky`. The earlier auto-hide / idle-fade via `appAutoHide` is **deprecated** (§7.16). The demo bar is the one exception - pinned at the very top via `position: sticky; top: 0` (§5.5).
 
 **Flex scroll rule:** Any flex child with `overflow-y: auto` must have
 `min-height: 0`. Without it, the flex item cannot shrink below its content
-height and the overflow scrollbar never engages — content appears "chopped"
+height and the overflow scrollbar never engages - content appears "chopped"
 at the bottom of the container.
 
 ### 5.4 Mobile keyboard push
@@ -299,7 +299,7 @@ a form has a custom scroll container outside `.content-main`.
 
 ### 5.5 Demo Bar
 
-Rendered only when `config.hasDemoData` is true. Pins at the top of the page via `position: sticky; top: 0; z-index: 200` — above shell content, below modals (z-index 9999).
+Rendered only when `config.hasDemoData` is true. Pins at the top of the page via `position: sticky; top: 0; z-index: 200` - above shell content, below modals (z-index 9999).
 
 **Visibility:**
 
@@ -307,9 +307,9 @@ Rendered only when `config.hasDemoData` is true. Pins at the top of the page via
 | --------------- | ---------------------------- |
 | Desktop ≥761    | Visible                      |
 | Tablet 761–1023 | Visible                      |
-| Mobile ≤760     | Visible — `flex-wrap: wrap`, auto height, `overflow: visible` so dropdown menus escape (§7.15); dropdown `z-index: 9000` (rev. 2026-06-19; previously hidden) |
+| Mobile ≤760     | Visible - `flex-wrap: wrap`, auto height, `overflow: visible` so dropdown menus escape (§7.15); dropdown `z-index: 9000` (rev. 2026-06-19; previously hidden) |
 
-**Theme-aware tokens — no raw hex or hardcoded rgba:**
+**Theme-aware tokens - no raw hex or hardcoded rgba:**
 
 | Element                                          | Token                             |
 | ------------------------------------------------ | --------------------------------- |
@@ -323,18 +323,18 @@ Rendered only when `config.hasDemoData` is true. Pins at the top of the page via
 | Gold accent (badge, underlines, scrollbar thumb) | `var(--color-warning)`            |
 | Hover underline from center animation            | `var(--color-warning)` (see §6.4) |
 
-### 5.6 Portal topbar — phone (logged-in shell)
+### 5.6 Portal topbar - phone (logged-in shell)
 
-Distinct from the home/guest topnav (§12.2). The portal shell topbar (`shell.component.ts` —
+Distinct from the home/guest topnav (§12.2). The portal shell topbar (`shell.component.ts` -
 customer / servicer / admin) on phone (≤560px):
 
-- **Account name stays.** `.account` keeps `.uname` + `.utype` (the signed-in identity) — never
+- **Account name stays.** `.account` keeps `.uname` + `.utype` (the signed-in identity) - never
   a Login/Sign-up button, since the user is already in.
 - **Logout becomes a far-right on/off SVG switch.** Replace the "Sign out" text button with a
   small on/off toggle pinned to the far right of the bar; flipping it signs out.
 - **Shared baseline for all three roles.** Admin uses exactly this (account name + far-right
   on/off logout switch). Customer and servicer share the same baseline and add role-specific
-  items later (TBD — capture when defined).
+  items later (TBD - capture when defined).
 
 ---
 
@@ -403,8 +403,8 @@ customer / servicer / admin) on phone (≤560px):
 | Buttons  | Hover   | Background shift                     | 0.25s  |
 | Cards    | Hover   | Lift -2px + shadow                   | 0.25s  |
 | Sidebar  | Hover   | translateX(2px)                      | 0.2s   |
-| Modal    | Open    | Backdrop fade 0.2s, spring-pop 0.35s | —      |
-| Toast    | Appear  | Slide up, hold 5s, fade out          | —      |
+| Modal    | Open    | Backdrop fade 0.2s, spring-pop 0.35s | -      |
+| Toast    | Appear  | Slide up, hold 5s, fade out          | -      |
 | Demo bar | Hover   | Gold underline from center           | 0.25s  |
 
 ### 6.5 Rules
@@ -431,13 +431,13 @@ anchors to the viewport when **no ancestor** has a `transform`, `filter`,
 `transform: translateY(...)` (stagger/fade reveals) **everywhere**, so a fixed
 overlay declared inside a page component re-anchors to that transformed ancestor
 and gets clipped, mis-centered, and scroll-trapped. You cannot reliably "just
-place it outside the animated element" — the tree changes as features grow.
+place it outside the animated element" - the tree changes as features grow.
 
-**THE RULE — every centered dialog/prompt/guard/confirm MUST use a native
+**THE RULE - every centered dialog/prompt/guard/confirm MUST use a native
 top-layer `<dialog>`:**
 
 1. **Use `<app-modal>`.** It wraps a native `<dialog>` driven by `showModal()`,
-   which renders in the browser **top layer** — immune to ancestor `transform` /
+   which renders in the browser **top layer** - immune to ancestor `transform` /
    `overflow` / `z-index` / `contain`, and viewport-centered by the UA. This is
    the *only* approved way to make a centered modal. It works **no matter where**
    the `<app-modal>` tag sits in the component tree.
@@ -445,7 +445,7 @@ top-layer `<dialog>`:**
 2. **NEVER hand-roll a `position: fixed` backdrop** for a centered dialog. No
    `.backdrop { position: fixed; inset: 0 }` + `.panel` inside a page or shared
    component. If `<app-modal>`'s chrome doesn't fit (custom header, countdown,
-   multi-panel), use a **raw native `<dialog>`** element with `showModal()` —
+   multi-panel), use a **raw native `<dialog>`** element with `showModal()` -
    never a fixed div. Pattern: `<dialog #dlg>` + `(cancel)="$event.preventDefault()"`
    + drive `dlg.showModal()/dlg.close()` from your `open` signal via `effect()`,
    centered box styled on the `<dialog>`, dim via `::backdrop`. See
@@ -453,24 +453,24 @@ top-layer `<dialog>`:**
    canonical raw-dialog implementation.
 
 3. **No z-index racing.** The top layer sits above all normal content
-   automatically — do **not** invent `z-index: 9999`. (Stacking between two
+   automatically - do **not** invent `z-index: 9999`. (Stacking between two
    simultaneously-open `showModal()` dialogs follows call order, last-opened on
-   top — keep "one guard at a time", rule 8.)
+   top - keep "one guard at a time", rule 8.)
 
 4. **Sizing & scroll.** Dialog box: `max-width: min(<W>, calc(100vw - 2rem));
    max-height: calc(100dvh - 4rem)`. Inner panel scrolls:
    `overflow-y: auto; overscroll-behavior: contain`. Header + footer (title, ✕,
-   action buttons) sit **outside** the scroll region — always visible. Use
+   action buttons) sit **outside** the scroll region - always visible. Use
    `100dvh` (dynamic viewport) so mobile browser chrome never crops the box.
 
 5. **Body scroll lock is automatic.** `showModal()` makes the page inert and
-   blocks background scroll — do **not** manually toggle `body { overflow:
+   blocks background scroll - do **not** manually toggle `body { overflow:
    hidden }` (the old rule; it caused iOS scroll-position loss).
 
 6. **Backdrop click + Esc.** Drag-safe close: only dismiss when **both**
    mousedown and mouseup land on the `<dialog>` element itself (the letterbox
    around the panel), never on a drag that started inside. Native Esc fires the
-   `cancel` event — `preventDefault()` it and route through your own close so the
+   `cancel` event - `preventDefault()` it and route through your own close so the
    parent stays the single owner of `open`. Non-dismissible guards (e.g. dispatch
    countdown) `preventDefault()` `cancel` with no close.
 
@@ -484,8 +484,8 @@ top-layer `<dialog>`:**
 
 **Corner-anchored chrome is exempt** (toasts, FAB, a bell/notification dropdown,
 a searchable-select panel): those are **not** centered modals. Anchor them with
-`position: absolute` relative to their trigger, or — only if they must live at
-the app root in `shell.component` (no transformed ancestor) — `position: fixed`.
+`position: absolute` relative to their trigger, or - only if they must live at
+the app root in `shell.component` (no transformed ancestor) - `position: fixed`.
 Never copy the root-level fixed pattern into a page/feature component.
 
 **Migration checklist when you add or touch a popup:**
@@ -503,7 +503,7 @@ Never copy the root-level fixed pattern into a page/feature component.
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 1.25rem 1.25rem 1.5rem; /* 24px bottom buffer — see §7.1.2 */
+  padding: 1.25rem 1.25rem 1.5rem; /* 24px bottom buffer - see §7.1.2 */
 }
 .card-hover:hover {
   box-shadow: var(--shadow-md);
@@ -514,15 +514,15 @@ Never copy the root-level fixed pattern into a page/feature component.
 
 #### 7.1.2 Bottom buffer (every card)
 
-Every `.card` keeps **≥1.5rem (24px) bottom padding** — slightly more than the
-20px sides/top — so a trailing action or button row never hugs the card's bottom
+Every `.card` keeps **≥1.5rem (24px) bottom padding** - slightly more than the
+20px sides/top - so a trailing action or button row never hugs the card's bottom
 edge. Rules:
 
 - A card's last child (action `.actions` row, button pair, footer note) sits inside
   the card padding. Never zero or shrink the card's `padding-bottom`, and never pull
   the buttons flush to the border.
 - `.actions` rows provide their own `margin-top` for separation from the body, but
-  rely on the card's bottom padding for the buffer below — do not give `.actions`
+  rely on the card's bottom padding for the buffer below - do not give `.actions`
   a negative bottom margin.
 - Applies app-wide to the global `.card`; component-scoped cards inherit it and must
   not override `padding-bottom` smaller than 1.5rem.
@@ -539,7 +539,7 @@ one-by-one with a stagger (70ms interval). Rules:
   skeleton `.svc-card` or `.bw-card`. The sweep uses `--color-primary` gradient.
 - **Stagger signal:** use a `visibleCount = signal(0)` that increments every 70ms
   inside an interval started on load; clear on destroy.
-- **`prefers-reduced-motion`:** set `visibleCount` to the full count immediately —
+- **`prefers-reduced-motion`:** set `visibleCount` to the full count immediately -
   no stagger animation.
 - **Pages that implement this:** home, browse, children-browse, my-bookings, proposals,
   servicer/services.
@@ -556,7 +556,7 @@ one-by-one with a stagger (70ms interval). Rules:
 edge, on BOTH axes** (vertical and inline). The global `button` base is
 `padding: 0.625rem 1rem` (10px vertical × 16px horizontal). Compact variants
 (`.btn-sm`, `.btn-xs`, `.chip`, pills) may use a smaller font and tighter inline
-padding but **never drop below 0.625rem (10px) on either axis** — they grow taller to
+padding but **never drop below 0.625rem (10px) on either axis** - they grow taller to
 meet the vertical minimum rather than crowding the text against the border. This is a
 deliberate app-wide minimum (taller compact controls), not a per-surface choice.
 Icon-only buttons are exempt from the inline-text floor but keep ≥10px box padding
@@ -564,28 +564,28 @@ around the glyph.
 
 ### 7.3 Badges
 
-Use `<span class="badge badge-{status}">Label</span>` — global in `styles.css`.
+Use `<span class="badge badge-{status}">Label</span>` - global in `styles.css`.
 
 ### 7.4 Forms
 
 - Global input/select/textarea styles in `styles.css` (font-size, padding, border, border-radius, focus ring).
-- Validation: `[class.input-error]="condition"` — global `.input-error` class handles `border-color: var(--color-danger)` + `box-shadow: var(--focus-ring-danger)`.
-- Error message: `<span class="err">Message</span>` — uses global `.err` class (persistent validation only, not transient feedback).
-- Label pattern: `<label><span>Field name<span class="req"> *</span></span><input /></label>` with `flex-direction: column; gap: 0.3rem`. **Required indicators (`<span class="req">`) must be wrapped in an inner `<span>` together with the label text** — never placed directly inside the `<label>` as a solo flex item, because `flex-direction: column` would push `*` to a new line.
+- Validation: `[class.input-error]="condition"` - global `.input-error` class handles `border-color: var(--color-danger)` + `box-shadow: var(--focus-ring-danger)`.
+- Error message: `<span class="err">Message</span>` - uses global `.err` class (persistent validation only, not transient feedback).
+- Label pattern: `<label><span>Field name<span class="req"> *</span></span><input /></label>` with `flex-direction: column; gap: 0.3rem`. **Required indicators (`<span class="req">`) must be wrapped in an inner `<span>` together with the label text** - never placed directly inside the `<label>` as a solo flex item, because `flex-direction: column` would push `*` to a new line.
 - Never set `width`, `padding`, `font-size`, or `border-radius` on inputs inside components unless overriding a special case.
 - Focus ring: `var(--focus-ring)` for normal, `var(--focus-ring-danger)` for error state.
 - Never remove `outline` on focus without a visible replacement.
 
-### 7.4.1 Phone number inputs — `<app-phone-input>` (rule)
+### 7.4.1 Phone number inputs - `<app-phone-input>` (rule)
 
-**Every contact-phone input in the app uses the shared `<app-phone-input>` component** (`frontend/src/app/shared/phone-input.component.ts`) — never a bare `<input type="tel">`.
+**Every contact-phone input in the app uses the shared `<app-phone-input>` component** (`frontend/src/app/shared/phone-input.component.ts`) - never a bare `<input type="tel">`.
 
 - **Why:** the customer base is international (e.g. people in Malaysia using WhatsApp numbers from other countries). Phone validation must be **global, not Malaysia-only**.
 - **What it is:** a country-code prefix `<select>` (default **🇲🇾 +60**, dropdown of common codes) + the local-number input. It is a `ControlValueAccessor`, so it drops into any form exactly like an input via `[(ngModel)]` / `formControlName` and reads/writes a single full E.164-style string (e.g. `+60123456789`).
-- **Validation rule:** a phone is valid when it matches `^\+\d{7,15}$` after stripping spaces/dashes/parentheses (E.164 range). Use the exported `isValidPhone()` helper — do **not** re-implement a per-form or Malaysia-specific regex.
+- **Validation rule:** a phone is valid when it matches `^\+\d{7,15}$` after stripping spaces/dashes/parentheses (E.164 range). Use the exported `isValidPhone()` helper - do **not** re-implement a per-form or Malaysia-specific regex.
 - **Default prefix:** `+60`. Users from other countries pick their own code from the dropdown.
 - **Already wired:** customer + servicer account (settings), customer + guest quote forms, customer + servicer registration, admin users, and the in-chat quote assistant's combined contact card. New phone fields must use it too.
-- Country-code list lives once in `PHONE_PREFIXES` (same file) — add codes there, never duplicate the list per form.
+- Country-code list lives once in `PHONE_PREFIXES` (same file) - add codes there, never duplicate the list per form.
 
 ### 7.5 Form subtitle row (`.sub-row`)
 
@@ -618,7 +618,7 @@ Use `<span class="badge badge-{status}">Label</span>` — global in `styles.css`
 - Both guest and customer quote forms have a "⚡ Demo: Auto-fill" button.
 - Guest form: always visible (above stepper). Customer form: visible when `config.hasDemoData`, placed above Name | Phone No in Step 2.
 - Customer demo autofill checks saved presets first (uses default or first preset), falls back to guest-style demo data.
-- The existing preset section ("Save as Preset" / "Auto-fill (use preset)") stays below the address fields — independent from the demo autofill.
+- The existing preset section ("Save as Preset" / "Auto-fill (use preset)") stays below the address fields - independent from the demo autofill.
 
 ### 7.8 Modals
 
@@ -628,7 +628,7 @@ Patterns:
 
 - Backdrop: `var(--color-backdrop)`.
 - Modal: `var(--shadow-lg)`, `border-radius: var(--radius)`.
-- Actions: `<div class="modal-actions">` (global class — flex row, right-aligned, `gap: 0.5rem`, `margin-top: 1rem`).
+- Actions: `<div class="modal-actions">` (global class - flex row, right-aligned, `gap: 0.5rem`, `margin-top: 1rem`).
 - For native-style confirm/prompt dialogs (e.g. "Are you sure?"), use `DialogService.confirm()` and `DialogService.prompt()` which route through `app-dialog-outlet`.
 - **Backdrop close requires press AND release on the backdrop.** Track the
   pointer with `(mousedown)`/`(mouseup)` and only close when _both_ the press
@@ -637,11 +637,11 @@ Patterns:
   releases on the backdrop must **not** close it. Applies to `app-modal` and
   `app-dialog-outlet` (confirm/alert/prompt). Never close on a bare `(click)`.
 
-- **Placement is now irrelevant — `<app-modal>` uses a native top-layer
+- **Placement is now irrelevant - `<app-modal>` uses a native top-layer
   `<dialog>`** (`showModal()`), so it renders correctly **anywhere** in the tree,
   even inside `transform`-animated wrappers. (Superseded the old "must be placed
   outside any animated element" rule, which was a fragile workaround for the
-  `position: fixed` clipping bug. See **§7.0 Overlays & Modals Law** — hand-rolled
+  `position: fixed` clipping bug. See **§7.0 Overlays & Modals Law** - hand-rolled
   fixed backdrops for centered dialogs are banned.)
 - **All modal scrollable containers must have `overscroll-behavior: contain`**
   to prevent scroll chaining (scrolling the modal content must not scroll the
@@ -663,18 +663,18 @@ The floating AI Help Assistant has a desktop and a mobile presentation:
 
 - **Desktop:** a docked panel (`position: fixed; bottom/right: 1.5rem; width: 480px; height: 750px; z-index: 999`) with a transparent full-viewport backdrop at `z-index: 998` that closes the panel on click.
 - **Mobile (≤640px):** the panel **takes over the whole screen** (`inset: 0`, no border/radius) and the backdrop is **dimmed** (`var(--color-backdrop)`) so nothing behind it can be tapped while the chat is open. Tap the backdrop or close to return to the page. Never leave the page tappable behind an open mobile chat.
-- **Status mark:** a dot before the status text — `var(--color-success)` (green) when reachable, blinking (`statusPulse`) while active; grey only when explicitly offline. The AI is HTTP-reachable, so it defaults to active and a dropped realtime socket must NOT grey it out.
+- **Status mark:** a dot before the status text - `var(--color-success)` (green) when reachable, blinking (`statusPulse`) while active; grey only when explicitly offline. The AI is HTTP-reachable, so it defaults to active and a dropped realtime socket must NOT grey it out.
 
 ### 7.9 Toasts
 
 Use `ToastService.success()` / `.error()` / `.info()`.
 Toasts auto-dismiss after 4.5s (action toasts) or 5s (notification toasts).
-Never use inline `<p class="err">` for transient feedback — use `ToastService` instead.
+Never use inline `<p class="err">` for transient feedback - use `ToastService` instead.
 Inline `.err` is appropriate only for persistent validation messages (field errors, page-level load errors).
 
-**Reward / points feedback uses the brand primary — never success-green.** Anything tied to
+**Reward / points feedback uses the brand primary - never success-green.** Anything tied to
 the rewards/points system (the redeem/earn `.flash` on the Rewards page, points-earned toasts)
-uses `var(--color-primary)` — orange in day, copper at night, flipping with the theme. Reserve
+uses `var(--color-primary)` - orange in day, copper at night, flipping with the theme. Reserve
 `var(--color-success)` green for generic "saved / done" confirmations. Rewards carry the brand
 accent so they read as a perk, not a plain system-success; a green reward message on the white
 day surface looks off.
@@ -684,7 +684,7 @@ day surface looks off.
 Multi-section pages use one shared **pill tab-bar** pattern (admin Accounts,
 admin Review Queues, AI Chat Settings, Platform/Money/Category Settings, FAQ,
 servicer Jobs, servicer Calendar). The active tab is a filled pill matching the
-sidebar active link — **no underline tabs** (rev. 2026-06-12; the old
+sidebar active link - **no underline tabs** (rev. 2026-06-12; the old
 `border-bottom` underline pattern is retired):
 
 ```css
@@ -713,7 +713,7 @@ sidebar active link — **no underline tabs** (rev. 2026-06-12; the old
   box-shadow: 0 1px 6px rgba(201, 90, 60, 0.2);
 }
 .tab .n {
-  /* count chip — inverts on the active pill */
+  /* count chip - inverts on the active pill */
   border-radius: 999px;
   padding: 0.05rem 0.5rem;
 }
@@ -752,8 +752,8 @@ comfortable width and the group stays centered on any screen:
 The customer/servicer/admin shell shows a fixed bottom-right `.fab-stack`
 (`bottom/right: 2rem`, `flex-direction: column`, `align-items: flex-end`):
 
-- `.fab-toggle` — small minimize/expand caret, always visible.
-- `.fab-bubbles` — wraps the bubbles: the **chat bubble (3rem circle)** and, for
+- `.fab-toggle` - small minimize/expand caret, always visible.
+- `.fab-bubbles` - wraps the bubbles: the **chat bubble (3rem circle)** and, for
   customers, the **request bar rendered as a compact 3rem circle** (not a wide bar).
 - **Collapse hides the bubbles AND drops the toggle to the corner:**
   `.fab-stack.collapsed .fab-bubbles { max-height: 0; opacity: 0; overflow: hidden; }`
@@ -779,8 +779,8 @@ compact input makes the popup open under the calendar icon.
 **All dropdowns must overlay the background (never clip under a parent).**
 Every dropdown menu, popover, autocomplete list, datepicker, or select picker
 must use `position: absolute` (or `fixed` for detached menus) with an explicit
-`z-index` so it renders **above** (overlays) the surrounding page content — never clipped or
-pushed by elements below it. Never rely on `overflow: visible` on a parent — margins, transforms,
+`z-index` so it renders **above** (overlays) the surrounding page content - never clipped or
+pushed by elements below it. Never rely on `overflow: visible` on a parent - margins, transforms,
 or **`overflow: hidden` on an ancestor** (common on nav/topbars, e.g. the home `.topnav`) will
 clip the dropdown. If the container must clip or scroll, detach the dropdown with
 `position: fixed` (or a CDK overlay) so it escapes the clip and overlays the page. The shared `<app-search-select>` component and any
@@ -799,12 +799,12 @@ its height and scroll, never grow unbounded:
 etc.) should use a searchable dropdown:
 
 - A filter input at the top of the open menu.
-- **Fuzzy search** — match by case-insensitive subsequence so typos and partial
+- **Fuzzy search** - match by case-insensitive subsequence so typos and partial
   words still match (e.g. "ac dr" → "AC Doctor Malaysia"); rank closer matches
   first and show them as live suggestions while typing.
 - Keep the matched list scrollable per the threshold rule above.
 - Implemented once as the shared **`<app-search-select>`**
-  (`shared/search-select.component.ts`) — reuse it, don't hand-roll per page.
+  (`shared/search-select.component.ts`) - reuse it, don't hand-roll per page.
   It's a `ControlValueAccessor` (drops into `[(ngModel)]`/reactive forms like a
   native `<select>`), takes `[options]` (`{ value, label }[]`), `placeholder`,
   and `searchPlaceholder` inputs, and exports `fuzzyScore(query, text)` for the
@@ -813,10 +813,10 @@ etc.) should use a searchable dropdown:
   budget span). When the option labels derive from other state, drive
   `[options]` from a `computed()` over signals so they stay reactive.
 
-- Sort static list contents alphabetically — group headings A→Z and items A→Z
+- Sort static list contents alphabetically - group headings A→Z and items A→Z
   within each group (unless ranked by search relevance).
 
-### 7.16 Auto-hiding nav bars — ⚠️ DEPRECATED
+### 7.16 Auto-hiding nav bars - ⚠️ DEPRECATED
 
 > **Deprecated 2026-06-02.** The auto-hide / scroll-away / 30s-idle fade is dropped. The
 > topbar and home topnav are now **normal always-on sticky elements with no animation**
@@ -840,7 +840,7 @@ Sticky nav/header bars use the shared `appAutoHide` directive
 - Listeners run outside Angular's zone; the directive toggles classes via
   `Renderer2` (no change-detection churn on scroll/move).
 - The scroll source differs by layout (window for public pages; the scrolling
-  content container inside the portal shell) — wire the directive to the element
+  content container inside the portal shell) - wire the directive to the element
   that actually scrolls.
 - The directive uses capture-phase `window` scroll listener, which catches
   scroll events from **all** elements including modals. To prevent modal scroll
@@ -852,19 +852,19 @@ Sticky nav/header bars use the shared `appAutoHide` directive
 > **See §7.0 first.** This guard is **bottom-centre, corner-anchored** chrome
 > mounted at the app root (`shell.component`, no transformed ancestor), so its
 > `position: fixed` is exempt from the centered-dialog ban. A **centered**
-> dispatch/accept prompt must instead use a native top-layer `<dialog>` — see
+> dispatch/accept prompt must instead use a native top-layer `<dialog>` - see
 > `dispatch-prompt-guard.component.ts`. Do not copy this fixed pattern into a
 > page/feature component.
 
 When a new incoming quote arrives, a fixed-position prompt guard appears at the
 bottom-centre of the viewport to surface the opportunity immediately. This is a
-**blocking overlay pattern** — the prompt must be the user's primary focus.
+**blocking overlay pattern** - the prompt must be the user's primary focus.
 
 **Hard rules:**
 
 1. **Always visible on-screen.** The prompt guard uses `position: fixed; z-index: 9999`
    so it renders above every other element including modals, FAB stacks, and
-   topbars. Never race a `z-index` — use the explicit layer.
+   topbars. Never race a `z-index` - use the explicit layer.
 
 2. **Disable background scroll.** When the prompt guard is open:
 
@@ -876,7 +876,7 @@ bottom-centre of the viewport to surface the opportunity immediately. This is a
    ```
 
    Apply on mount, remove on dismiss. Do NOT use `position: fixed` on `<body>`
-   — iOS Safari loses its scroll position.
+   - iOS Safari loses its scroll position.
 
 3. **Only the prompt scrolls.** The prompt guard body uses:
 
@@ -890,14 +890,14 @@ bottom-centre of the viewport to surface the opportunity immediately. This is a
    ```
 
 4. **Dismiss options must remain reachable.** The close (✕) button and any
-   action buttons must sit outside the scrollable body — pinned to the
-   prompt guard's header or footer — so they remain visible regardless of
+   action buttons must sit outside the scrollable body - pinned to the
+   prompt guard's header or footer - so they remain visible regardless of
    content length.
 
 5. **Backdrop must be visible.** A full-screen semi-transparent backdrop
    (`var(--color-backdrop)`) behind the prompt guard provides visual
    separation and signals that the page is temporarily locked. Clicking
-   the backdrop does NOT dismiss (unlike modals) — the prompt guard is
+   the backdrop does NOT dismiss (unlike modals) - the prompt guard is
    intentionally blocking.
 
 6. **Restore scroll on dismiss.** After the guard closes (manually or via
@@ -929,7 +929,7 @@ bottom-centre of the viewport to surface the opportunity immediately. This is a
 
 **Rules:**
 
-- One prompt guard per page — never stack multiple guards.
+- One prompt guard per page - never stack multiple guards.
 - The `quote.new` socket event deduplicates by quote ID; a second event
   does not spawn a second guard while one is already open.
 - Auto-dismiss after 60s of no interaction (timer pauses on mouseenter,
@@ -939,7 +939,7 @@ bottom-centre of the viewport to surface the opportunity immediately. This is a
   `border-radius: var(--radius) var(--radius) 0 0` and snaps to the
   bottom edge.
 
-### 7.18 Data tables — search + filter + sort
+### 7.18 Data tables - search + filter + sort
 
 Every page section that presents a list or table of data must include three
 controls as a **mandatory triad**:
@@ -961,9 +961,9 @@ controls as a **mandatory triad**:
 
 **Reusable toolbar:** All list/table pages use `<app-list-toolbar>` (`shared/list-toolbar.component.ts`) with content projection:
 
-- `toolbar-search` — search input element
-- `toolbar-filters` — chip group or filter controls
-- `toolbar-sort` — sort dropdown or direction toggle
+- `toolbar-search` - search input element
+- `toolbar-filters` - chip group or filter controls
+- `toolbar-sort` - sort dropdown or direction toggle
 
 ```html
 <app-list-toolbar>
@@ -1043,7 +1043,7 @@ follows the same blocking overlay pattern as §7.17.
 
 2. **Full-screen backdrop.** A semi-transparent backdrop at `z-index: 9998`
    covers the entire viewport. Clicking the backdrop does NOT dismiss (the guard
-   is intentionally blocking — user must tap Cancel or Top Up).
+   is intentionally blocking - user must tap Cancel or Top Up).
 
 3. **Body scroll locked.** When the prompt is open:
 
@@ -1065,9 +1065,9 @@ follows the same blocking overlay pattern as §7.17.
    on both frontend and backend.
 
 6. **Two action paths:**
-   - **Top Up** — calls backend `/user/me/topup` which creates a Stripe Checkout
+   - **Top Up** - calls backend `/user/me/topup` which creates a Stripe Checkout
      session and redirects. Backend validates the RM 10 minimum.
-   - **Demo top-up** — calls `/dev/topup` (instant credit, dev-only, blocked in
+   - **Demo top-up** - calls `/dev/topup` (instant credit, dev-only, blocked in
      production). Updates local balance for immediate use.
 
 **Template structure (quote-form.component.ts):**
@@ -1093,30 +1093,30 @@ follows the same blocking overlay pattern as §7.17.
 ### 7.20 Site footer (`<app-site-footer>` / `.sf`)
 
 The shared footer (`shared/site-footer.component.ts`, class `.sf`) renders on every
-page — via `shell.component.ts` (portal pages) and `app.component.ts` (guest/public
+page - via `shell.component.ts` (portal pages) and `app.component.ts` (guest/public
 pages). Rules:
 
 - **Top margin ≥300px on every page.** `.sf` keeps **`margin-top: 300px` minimum** so
   the footer never crowds the page content above it and there is always a clear band of
   whitespace before it, on every route. Do not shrink or zero this per-page.
 - The inner content stays width-capped (`.sf-inner` `max-width: var(--content-max)`,
-  centered) — the 300px buffer is on the outer `.sf`, not the inner padding.
+  centered) - the 300px buffer is on the outer `.sf`, not the inner padding.
 
 ---
 
-## 8. Theme System — Warm (Day) / Night (Stone + Copper)
+## 8. Theme System - Warm (Day) / Night (Stone + Copper)
 
 ### 8.1 How it works
 
 Two themes coexist via `data-theme` attribute on `<html>`:
 
-- `data-theme="warm"` (default) — burnt orange + cream editorial palette
-- `data-theme="cool"` — deep stone + copper night palette
+- `data-theme="warm"` (default) - burnt orange + cream editorial palette
+- `data-theme="cool"` - deep stone + copper night palette
 
 The `ThemeService` (`core/services/theme.service.ts`) manages the toggle,
 persists the choice to `localStorage`, and applies the attribute.
 
-Both themes share the same **warm character** — night mode is not a cold blue
+Both themes share the same **warm character** - night mode is not a cold blue
 inversion, it is the same brand at low light. The copper primary `#d4884a` sits
 in the same warm-orange family as the day primary `#e07a3a`.
 
@@ -1148,7 +1148,7 @@ Add to any top nav or shell:
 
 ### 8.4 Rules
 
-- All colour tokens use `var(--color-*)` — themes swap the variable values.
+- All colour tokens use `var(--color-*)` - themes swap the variable values.
 - Components never know about the theme; they just reference variables.
 - Status badges swap per-theme via `[data-theme="cool"]` overrides in `:root`.
 - The toggle is a `.theme-toggle` pill button (defined globally in `styles.css`).
@@ -1175,15 +1175,15 @@ Add to any top nav or shell:
 ### 9.2 Where images are stored
 
 - **System-owned images** (logo, icons, empty-state illustrations, default
-  templates) — live in `frontend/src/assets/images/`, bundled with the app.
+  templates) - live in `frontend/src/assets/images/`, bundled with the app.
   No network round-trip for these. Accessed via `/assets/images/{name}.svg`.
 
 - **User-generated and admin-managed images** (banners, profile photos,
-  booking photos, documents) — stored in S3. The backend issues presigned
+  booking photos, documents) - stored in S3. The backend issues presigned
   upload URLs via `POST /files/presign`; the browser uploads directly to S3.
   Upload confirmation is sent to `POST /files/:id/confirm`.
 
-- **Invoice PDFs** — generated server-side with `pdf-lib`, uploaded to S3
+- **Invoice PDFs** - generated server-side with `pdf-lib`, uploaded to S3
   automatically by the `invoice.generate` BullMQ job.
 
 ### 9.3 Admin-managed images (via admin panel)
@@ -1232,24 +1232,24 @@ profile with the returned file URL.
 | Servicer cover        | 1200×300px       | 4:1          | Top of servicer profile  |
 | Servicer avatar       | 400×400px        | 1:1          | Circular crop            |
 | Booking photo         | 1920×1080px      | 16:9         | Before/after job photos  |
-| Empty state           | CSS only         | —            | Gradient + SVG icon      |
+| Empty state           | CSS only         | -            | Gradient + SVG icon      |
 
 #### 9.6.1 `object-fit`: `cover` vs `contain` (never crop evidence)
 
 Picking the wrong `object-fit` is why photos appear "cut off" inside modals and
 cards. The two have opposite jobs:
 
-- **`object-fit: cover`** — fills a **fixed decorative frame** and **crops**
+- **`object-fit: cover`** - fills a **fixed decorative frame** and **crops**
   whatever overflows. Use **only** where the frame shape matters more than seeing
   the whole image: circular avatars, square category/list thumbnails, hero/cover
   banners. These are intentional crops.
-- **`object-fit: contain`** — shows the **whole image**, letterboxed, **never
+- **`object-fit: contain`** - shows the **whole image**, letterboxed, **never
   crops**. Use for any image the user must read in full.
 
 **Hard rule: evidence / preview images MUST use `contain`, never `cover`.**
 This covers upload previews (arrival/completion photos), incoming job photos,
 before/after shots, lightbox/zoom, and document previews. Cropping a photo the
-user uploaded as proof — or needs to assess a job — hides the very content it
+user uploaded as proof - or needs to assess a job - hides the very content it
 exists to show.
 
 ```css
@@ -1258,14 +1258,14 @@ exists to show.
 .job-photo {
   width: 100%;
   max-height: 220px; /* cap height; width drives the scale */
-  object-fit: contain; /* show the whole photo — never crop */
+  object-fit: contain; /* show the whole photo - never crop */
   background: var(--color-bg); /* clean letterbox fill */
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
 }
 ```
 
-Decorative frames (avatars, thumbnails) keep `cover` — that crop is deliberate.
+Decorative frames (avatars, thumbnails) keep `cover` - that crop is deliberate.
 
 ### 9.7 Future: image management UI
 
@@ -1288,7 +1288,7 @@ Planned servicer features (not yet built):
 The core image pipeline is implemented: presigned S3 upload flow (`POST /files/presign`
 → direct S3 upload → `POST /files/:id/confirm`), admin category icon/banner fields,
 servicer cover-banner field, and CSS fallback placeholders for null image URLs. The two
-remaining UIs — admin banner manager and servicer photo gallery — are future work (§9.7).
+remaining UIs - admin banner manager and servicer photo gallery - are future work (§9.7).
 Live task state lives in `TODO.md`, not in this file.
 
 ---
@@ -1297,10 +1297,10 @@ Live task state lives in `TODO.md`, not in this file.
 
 Every data-fetching page must handle:
 
-1. **Loading** — skeleton shimmer (preferred) or spinner.
-2. **Empty** — meaningful empty state with illustration + CTA.
-3. **Error** — error card with retry button.
-4. **Data** — the actual content.
+1. **Loading** - skeleton shimmer (preferred) or spinner.
+2. **Empty** - meaningful empty state with illustration + CTA.
+3. **Error** - error card with retry button.
+4. **Data** - the actual content.
 
 ---
 
@@ -1323,13 +1323,13 @@ Real section order, top → bottom (one centred column, §12.1 alignment):
 TOP NAV   brand · search · login / join              (sticky)
 ──────────────────────────────────────────────────────────
 HERO      full-bleed photo + theme-bg wash (§16.4)
-          h1 + subtitle + search bar — text in var(--color-text)
+          h1 + subtitle + search bar - text in var(--color-text)
 ──────────────────────────────────────────────────────────
-BROWSE    "Browse services" — §16 thumbnail card grid   (.cats)
+BROWSE    "Browse services" - §16 thumbnail card grid   (.cats)
 ──────────────────────────────────────────────────────────
-TRUST     "Trusted by homeowners" — testimonial marquee (.testimonials)
+TRUST     "Trusted by homeowners" - testimonial marquee (.testimonials)
 ──────────────────────────────────────────────────────────
-HOW       "How it works" — 4 steps, horizontal          (.how → .how-inner)
+HOW       "How it works" - 4 steps, horizontal          (.how → .how-inner)
 ──────────────────────────────────────────────────────────
 FOOTER    sitemap + company / support / legal
 ```
@@ -1337,17 +1337,17 @@ FOOTER    sitemap + company / support / legal
 ### 12.1 Section alignment contract (all section titles align)
 
 Every top-level home section's inner content shares ONE horizontal alignment, so all
-section headings — "Browse services", "Trusted by homeowners", "How it works" — left-align
+section headings - "Browse services", "Trusted by homeowners", "How it works" - left-align
 to the same x. Each section's inner wrapper uses an identical contract:
 
 ```css
 max-width: var(--content-max); /* 1100px */
 margin: 0 auto; /* centre the column */
-padding-inline: 1.5rem; /* home section gutter — SAME value on every section */
+padding-inline: 1.5rem; /* home section gutter - SAME value on every section */
 ```
 
 - **Full-bleed band** (section has its own background/border, e.g. `.how`): put the contract
-  on an **inner wrapper** (`.how-inner`), not the band — the band stretches edge-to-edge but its
+  on an **inner wrapper** (`.how-inner`), not the band - the band stretches edge-to-edge but its
   content still aligns to the same gutter.
 - **Flush section** (`.cats`, `.testimonials`): apply the contract to the section element directly.
 - **Never** drop or change `padding-inline` on one section. That is the exact bug where
@@ -1360,13 +1360,13 @@ On phone (≤560px) the home/guest top nav strips to one compact row of essentia
 
 | Item               | Desktop / tablet               | Phone (≤560px)                                                   |
 | ------------------ | ------------------------------ | ---------------------------------------------------------------- |
-| Brand              | logo icon + "My Home Servicer" | **wordmark text only** — drop the `.logo-icon` image             |
+| Brand              | logo icon + "My Home Servicer" | **wordmark text only** - drop the `.logo-icon` image             |
 | Search             | inline search field            | hidden (the hero has its own search)                             |
-| Theme toggle       | dot + "Day"/"Night" label      | **dot only** — hide the label text, keep `.dot`                  |
+| Theme toggle       | dot + "Day"/"Night" label      | **dot only** - hide the label text, keep `.dot`                  |
 | Log in / My portal | shown                          | shown                                                            |
 | Join as Servicer   | shown                          | **hidden** (secondary CTA; still reachable from the page/footer) |
 
-Result: a phone bar of **brand text · theme dot · Log in** — three light items, no wrap, no crowding.
+Result: a phone bar of **brand text · theme dot · Log in** - three light items, no wrap, no crowding.
 
 ---
 
@@ -1390,14 +1390,14 @@ Result: a phone bar of **brand text · theme dot · Log in** — three light ite
 > See §9 (Image & Banner System) for the full image strategy including hosting,
 > editing permissions, and specs. This section covers presentational details.
 
-Visual decoration mixes CSS patterns with real imagery — cards load per-category
+Visual decoration mixes CSS patterns with real imagery - cards load per-category
 placeholder images from `assets/Images/` (plus admin-managed S3 banners, §16) and icons
 are bundled Lucide SVGs. Pure-CSS techniques remain for ornaments and skeleton loaders:
 
 | Element          | Technique                 | Notes                                  |
 | ---------------- | ------------------------- | -------------------------------------- |
 | Hero ornament    | CSS concentric rings      | Pure CSS, no image file needed         |
-| Category icons   | Lucide SVG (`<app-icon>`) | Bundled vector set — not emoji         |
+| Category icons   | Lucide SVG (`<app-icon>`) | Bundled vector set - not emoji         |
 | Empty states     | SVG icon + text           | Simple illustration with muted styling |
 | Skeleton loading | CSS gradient shimmer      | `@keyframes shimmer` animation         |
 
@@ -1454,7 +1454,7 @@ Links inside the sidebar are stacked vertically with `gap: 0.25rem`:
 
 ### 15.3 Mobile adaptation
 
-On screens ≤760px the sidebar collapses to a full-width horizontal scrollable row — border-radius is removed so it sits flush:
+On screens ≤760px the sidebar collapses to a full-width horizontal scrollable row - border-radius is removed so it sits flush:
 
 ```css
 @media (max-width: 760px) {
@@ -1474,15 +1474,15 @@ On screens ≤760px the sidebar collapses to a full-width horizontal scrollable 
 ```
 
 **No visible horizontal scrollbar.** The mobile horizontal row scrolls by swipe/drag but must
-hide its scrollbar — `scrollbar-width: none` + `.sidebar nav::-webkit-scrollbar { display: none }`.
+hide its scrollbar - `scrollbar-width: none` + `.sidebar nav::-webkit-scrollbar { display: none }`.
 A side-scroll bar at the bottom of the sidebar is useless clutter. The desktop sidebar must not
 overflow on the x-axis at all (only the vertical `nav` scroll of §15.4 is allowed).
 
 ### 15.4 Viewport height fit (desktop/tablet)
 
-**The sidebar must always fit the available empty space height — never taller, never shorter.**
+**The sidebar must always fit the available empty space height - never taller, never shorter.**
 On desktop/tablet (≥761px) it fills exactly the space beside the content
-(`100vh − demo bar − topbar`) and stops at the bottom edge of the screen — no gap below it,
+(`100vh − demo bar − topbar`) and stops at the bottom edge of the screen - no gap below it,
 no page-level scrollbar, never short above the fold. The fit comes from the flex height chain
 below (`.shell` 100vh → `.body` `flex: 1`), so it tracks the remaining space automatically as
 the demo bar / topbar change height.
@@ -1501,7 +1501,7 @@ This is achieved by the shell height chain (no explicit height on `.sidebar`):
   overflow: hidden;
 } /* sidebar + content row */
 .sidebar {
-  /* no height — flex-stretches to fill .body, i.e. 100vh − topbar */
+  /* no height - flex-stretches to fill .body, i.e. 100vh − topbar */
   display: flex;
   flex-direction: column;
   min-height: 0; /* allow shrink so internal scroll engages */
@@ -1522,14 +1522,14 @@ This is achieved by the shell height chain (no explicit height on `.sidebar`):
   `.shell` (100vh) → `.body` (`flex: 1; overflow: hidden`) chain so it tracks the
   viewport exactly, including after the topbar height changes.
 - **The component host must relay the stretch.** `.sidebar` lives inside the
-  `<app-shell-nav>` host — the host, not `.sidebar`, is the actual flex child of
+  `<app-shell-nav>` host - the host, not `.sidebar`, is the actual flex child of
   `.body`. The host therefore needs `:host { display: flex; flex-direction: column;
 min-height: 0 }` and `.sidebar { flex: 1 }`. Without the `:host` rule the `.body`
   flex-stretch never reaches `.sidebar`, which collapses to its content height and
   stops short of the viewport (the 2026-06-03 bug: sidebar 389px on an 800px viewport).
   Mobile override: `.sidebar { flex: none }` so it stays a short horizontal row.
 - If nav links exceed the available height, the **sidebar's own `nav` scrolls**
-  (`overflow-y: auto` + `min-height: 0`) — the page never scrolls to reveal sidebar
+  (`overflow-y: auto` + `min-height: 0`) - the page never scrolls to reveal sidebar
   items. This is the §5.3 flex-scroll rule applied to the sidebar.
 - Pinned footer items (theme toggle, sign-out) sit outside the scrolling `nav` so
   they stay glued to the bottom edge regardless of link count.
@@ -1547,24 +1547,24 @@ copy is always legible; the photo side is admin-managed (see §9). Until a photo
 is set, a per-category placeholder image from `assets/Images/` shows.
 
 > Think: the left ~60% is a coloured "label" you can always read; the right side is a
-> window onto a photo of that service. Direction is fixed — colour LEFT → photo RIGHT.
+> window onto a photo of that service. Direction is fixed - colour LEFT → photo RIGHT.
 
-**One canonical card.** All three grids that use this pattern — the home "Browse services"
-grid, the customer **Browse** page, and the public **`/services/:category`** drill-down —
+**One canonical card.** All three grids that use this pattern - the home "Browse services"
+grid, the customer **Browse** page, and the public **`/services/:category`** drill-down -
 MUST use the single `.svc-card` / `.svc-grid` spec in §16.3. Do not hand-tune heights or
 column counts per page; divergent per-page cards are the exact bug this section prevents.
 
 ### 16.1 Layer stack (front→back)
 
 ```
-z-index 3 (front) — Body: icon, name, price/CTA — white text
-z-index 2         — Wash: linear-gradient(90deg, var(--cat-color) … transparent 74%)
-z-index 1         — Photo: full-bleed, watermark-cropped (scale 1.12, top), placeholder fallback
-z-index 0 (base)  — Card shell: var(--color-surface), border, shadow
+z-index 3 (front) - Body: icon, name, price/CTA - white text
+z-index 2         - Wash: linear-gradient(90deg, var(--cat-color) … transparent 74%)
+z-index 1         - Photo: full-bleed, watermark-cropped (scale 1.12, top), placeholder fallback
+z-index 0 (base)  - Card shell: var(--color-surface), border, shadow
 ```
 
 The photo sits below the wash so the category-colour gradient overlays the image on the
-left. The wash colour is **per-category** (`--cat-color`, fallback `var(--color-primary)`) —
+left. The wash colour is **per-category** (`--cat-color`, fallback `var(--color-primary)`) -
 not a fixed brand colour. White body text on the wash stays readable.
 
 ### 16.2 Tokens
@@ -1575,7 +1575,7 @@ shell reuses §7.1: `1px var(--color-border)`, `var(--radius)`, `var(--shadow)`;
 `translateY(-2px)` + `var(--shadow-md)` + `border-color: var(--color-primary-light)`. Text
 on the wash: `#fff` (title + CTA) · `rgba(255,255,255,0.88)` (price/description).
 
-### 16.3 Service card — the one canonical spec
+### 16.3 Service card - the one canonical spec
 
 Used by home, customer browse, and the public drill-down via the shared `.svc-card` /
 `.svc-grid` classes (or a shared `<app-service-card>` component). The grid follows the
@@ -1610,7 +1610,7 @@ Used by home, customer browse, and the public drill-down via the shared `.svc-ca
 ```
 
 ```css
-/* Canonical grid — auto-fit so columns adapt with no per-page breakpoints:
+/* Canonical grid - auto-fit so columns adapt with no per-page breakpoints:
    ~3 cols desktop, 2 on tablet, 1 on a phone, all from one rule. */
 .svc-grid {
   display: grid;
@@ -1627,7 +1627,7 @@ Used by home, customer browse, and the public drill-down via the shared `.svc-ca
   display: flex;
   align-items: stretch;
   overflow: hidden;
-  min-height: 100px; /* canonical height — identical on every page */
+  min-height: 100px; /* canonical height - identical on every page */
   text-align: left;
   cursor: pointer;
   background: var(--color-surface);
@@ -1645,7 +1645,7 @@ Used by home, customer browse, and the public drill-down via the shared `.svc-ca
   border-color: var(--color-primary-light);
 }
 
-/* 1 — photo; scale + top-anchor crops the AI-art watermark at the bottom edge */
+/* 1 - photo; scale + top-anchor crops the AI-art watermark at the bottom edge */
 .svc-photo {
   position: absolute;
   inset: 0;
@@ -1658,7 +1658,7 @@ Used by home, customer browse, and the public drill-down via the shared `.svc-ca
   transform-origin: top center;
 }
 
-/* 2 — wash: per-category colour left → transparent right */
+/* 2 - wash: per-category colour left → transparent right */
 .svc-wash {
   position: absolute;
   inset: 0;
@@ -1672,7 +1672,7 @@ Used by home, customer browse, and the public drill-down via the shared `.svc-ca
   );
 }
 
-/* 3 — body: white text, left ~60% */
+/* 3 - body: white text, left ~60% */
 .svc-body {
   position: relative;
   z-index: 3;
@@ -1709,7 +1709,7 @@ Used by home, customer browse, and the public drill-down via the shared `.svc-ca
   font-weight: 600;
   color: #fff;
 }
-/* Phone: drop the CTA text — the whole card is tappable, so "Request a quote →"
+/* Phone: drop the CTA text - the whole card is tappable, so "Request a quote →"
    only crowds the narrow card. Hide it, keep the price. */
 @media (max-width: 560px) {
   .svc-cta {
@@ -1719,11 +1719,11 @@ Used by home, customer browse, and the public drill-down via the shared `.svc-ca
 ```
 
 > The customer Browse page currently uses `bw-*` clones of these classes. Unify it to
-> `.svc-card` (or the shared component) — see the §16 dispatch task in TODO.
+> `.svc-card` (or the shared component) - see the §16 dispatch task in TODO.
 
-### 16.4 Hero — dynamic theme-bg wash
+### 16.4 Hero - dynamic theme-bg wash
 
-Same photo+wash idea, but the wash is **not** a brand or dark colour — it is a
+Same photo+wash idea, but the wash is **not** a brand or dark colour - it is a
 **theme-background washout** driven by `var(--color-bg)`, so it is cream in day and deep
 stone at night, flipping automatically with `[data-theme]`. Hero text uses
 `var(--color-text)` / `var(--color-muted)` (NOT white) so it reads on either wash. An edge
@@ -1749,7 +1749,7 @@ mask fades both horizontal ends.
 ```
 
 ```css
-/* Section itself does NOT clip — no overflow/mask here (see "Hero search dropdown
+/* Section itself does NOT clip - no overflow/mask here (see "Hero search dropdown
    must not be clipped" below). */
 .hero {
   position: relative;
@@ -1781,7 +1781,7 @@ mask fades both horizontal ends.
   background-repeat: no-repeat;
   background-position: center;
 }
-/* theme-bg washout — flips day/night automatically */
+/* theme-bg washout - flips day/night automatically */
 .hero-wash {
   position: absolute;
   inset: 0;
@@ -1821,13 +1821,13 @@ This supersedes the stale "tablet 2.2rem" in §13 and "2rem ≤560" in §3.2.
 
 **Photo layers never tile.** Every photo layer (`.hero-photo`, `.svc-photo`) sets
 `background-repeat: no-repeat` alongside `background-size: cover`. When an admin zoom
-(`bgZoom`) drops below 100% a missing `no-repeat` makes the image repeat/tile — most
+(`bgZoom`) drops below 100% a missing `no-repeat` makes the image repeat/tile - most
 visible on phones, where a wide banner is scaled small. `cover` + `no-repeat` is the
 baseline.
 
 **Phone: hero banner zooms to FIT.** On phone (≤560px) the hero photo switches to
 `background-size: contain` (+ `background-position: center`) so the **whole** banner is
-visible, scaled to fit the short hero — no crop. Because the admin zoom is applied as an
+visible, scaled to fit the short hero - no crop. Because the admin zoom is applied as an
 inline `[style.background-size]`, the phone override needs `!important` to win:
 
 ```css
@@ -1845,27 +1845,27 @@ reads as part of the theme wash.
 **Hero search dropdown must not be clipped.** The hero search suggestions (`.search-dropdown`,
 `position: absolute; top: 100%; z-index: 200`) open _below_ the search bar, past the hero's
 bottom edge. Therefore the hero **section** must NOT set `overflow: hidden` or `mask-image`
-— both clip descendants and would cut the dropdown off (z-index can't rescue a clipped
+- both clip descendants and would cut the dropdown off (z-index can't rescue a clipped
 element). Put the overflow clip + edge mask on the **`.hero-bg`** layer (photo + wash only);
 the section stays unclipped so the dropdown overlays the section below. Same principle as the
 topnav (§7.15): a nav/hero that hosts a dropdown cannot clip its own overflow.
 
 **Hero top spacing.** The topnav is a normal element directly above the hero (it scrolls with
-the page — not sticky, §5.3). Give the hero enough `padding-top` for breathing room above the
-h1 ("Home service, sorted.") — more on phone, where the nav row is taller.
+the page - not sticky, §5.3). Give the hero enough `padding-top` for breathing room above the
+h1 ("Home service, sorted.") - more on phone, where the nav row is taller.
 
 **Phone: drop the edge mask, keep the wash.** The horizontal edge fade
 (`mask-image: linear-gradient(90deg, transparent 2%, … transparent 98%)`, now on `.hero-bg`)
 is a desktop/tablet flourish. On phone (≤560px) set `.hero-bg { mask-image: none; -webkit-mask-image: none }`
-so the banner fills edge-to-edge — but keep `.hero-wash` (the theme-bg overlay still applies).
+so the banner fills edge-to-edge - but keep `.hero-wash` (the theme-bg overlay still applies).
 
 **Hero search bar text stays dark.** The hero search input has a fixed white background
 (`.hero-search-white input { background: #fff }`) in BOTH themes, so its text + placeholder
-must use a fixed **dark** colour (the day `--color-text`, `#2c2420`) — never `var(--color-text)`,
+must use a fixed **dark** colour (the day `--color-text`, `#2c2420`) - never `var(--color-text)`,
 which flips to cream in night theme and renders white-on-white (invisible). This is one of the
 few places a hardcoded colour is correct, because the surface it sits on is theme-independent.
 
-### 16.5 Admin settings — Zoom / X / Y
+### 16.5 Admin settings - Zoom / X / Y
 
 Each card photo supports three admin-adjustable background properties (stored in
 the `Category` model as `bgZoom`, `bgPosX`, `bgPosY`):
@@ -1891,20 +1891,20 @@ the `Category` model as `bgZoom`, `bgPosX`, `bgPosY`):
 
 Three stacked layers inside one positioned container:
 
-1. **Photo layer** (bottom) — fills the card, `background-size: cover`.
-2. **Colour wash** (middle) — a `90deg` gradient: solid category colour on the
+1. **Photo layer** (bottom) - fills the card, `background-size: cover`.
+2. **Colour wash** (middle) - a `90deg` gradient: solid category colour on the
    left → transparent by ~70–76%, so the photo shows on the right.
-3. **Body** (top) — icon, title, one-line description, price/CTA. **White text.**
+3. **Body** (top) - icon, title, one-line description, price/CTA. **White text.**
 
 **Direction is fixed:** gradient runs **left (colour) → right (transparent)**.
 Never reverse it; never put the photo on the left.
 
 ---
 
-## 8.0 Form Validation UX — Required Inputs, Per-Field Errors, Validation Nudges
+## 8.0 Form Validation UX - Required Inputs, Per-Field Errors, Validation Nudges
 
 > **Applies to every form across customer, servicer, and admin portals.**
-> This is NOT optional — it is a code quality standard that all agents must follow.
+> This is NOT optional - it is a code quality standard that all agents must follow.
 
 ### The problem
 
@@ -1913,7 +1913,7 @@ LLM-generated forms almost always lack per-field validation UX. The typical patt
 - One generic error message at the top ("Please fill all required fields")
 - Validation only fires on form submit, not on blur or input
 
-### The rule — every form must have these four things
+### The rule - every form must have these four things
 
 #### 8.1 Required field indicator
 
@@ -1954,7 +1954,7 @@ Each input with validation gets its own error message directly below it. Never s
 }
 ```
 
-#### 8.3 Validation nudge — when to show errors
+#### 8.3 Validation nudge - when to show errors
 
 | Event | Behavior |
 |-------|----------|
@@ -1999,18 +1999,18 @@ submit(): void {
 
 ### Existing forms that need this treatment
 
-- [ ] `quote-form.component.ts` — Customer quote request
-- [ ] `my-bookings.component.ts` — Report issue modal
-- [ ] `shell.component.ts` — Servicer proposal response card
-- [ ] `jobs.component.ts` — Servicer report issue (new)
-- [ ] `users.component.ts` — Admin edit account modal
-- [ ] `category-settings.component.ts` — Admin category editor
-- [ ] `settings.component.ts` — Admin settings form
-- [ ] `money-settings.component.ts` — Admin financial settings
-- [ ] `faq.component.ts` — Admin FAQ editor
+- [ ] `quote-form.component.ts` - Customer quote request
+- [ ] `my-bookings.component.ts` - Report issue modal
+- [ ] `shell.component.ts` - Servicer proposal response card
+- [ ] `jobs.component.ts` - Servicer report issue (new)
+- [ ] `users.component.ts` - Admin edit account modal
+- [ ] `category-settings.component.ts` - Admin category editor
+- [ ] `settings.component.ts` - Admin settings form
+- [ ] `money-settings.component.ts` - Admin financial settings
+- [ ] `faq.component.ts` - Admin FAQ editor
 
 ### Reference
 
 - Follow the existing Angular template-driven forms pattern (`[(ngModel)]`) already used throughout the app.
 - This section replaces any ad-hoc form validation patterns. If you see a form missing per-field errors, fix it.
-- Do NOT use a shared `showAllErrors` boolean — use per-field `touched` signals so each field validates independently.
+- Do NOT use a shared `showAllErrors` boolean - use per-field `touched` signals so each field validates independently.

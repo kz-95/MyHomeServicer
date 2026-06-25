@@ -45,12 +45,12 @@ function isWithinOperatingHours(operatingHours: unknown): boolean {
 }
 
 /**
- * servicer.online_sync — runs every 5 minutes. For every servicer that has
+ * servicer.online_sync - runs every 5 minutes. For every servicer that has
  * operatingHours set (non-empty array), checks if the current time falls
  * within today's operating hours and sets isOnline accordingly.
  *
  * Servicers with empty operatingHours are left untouched (always-on mode).
- * Manual isOnline toggles are overwritten on the next cron cycle — the
+ * Manual isOnline toggles are overwritten on the next cron cycle - the
  * servicer can manually go offline but will be brought back online at the
  * start of their next operating window.
  */
@@ -79,7 +79,7 @@ async function handleServicerOnlineSync(): Promise<void> {
   }
 
   if (turnedOn > 0 || turnedOff > 0) {
-    logger.info('servicer.online_sync — statuses updated', { turnedOn, turnedOff });
+    logger.info('servicer.online_sync - statuses updated', { turnedOn, turnedOff });
   }
 }
 

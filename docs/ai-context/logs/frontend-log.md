@@ -1,15 +1,61 @@
-# Frontend Agent Log
+﻿# Frontend Agent Log
 
-> Single-writer log — only the **Frontend** agent writes here.
+> Single-writer log - only the **Frontend** agent writes here.
 
-## Session 2026-06-25 — SP-3 Redesign Full Implementation
+## Session 2026-06-25 - UX Polish: Job Cards + Payment Flow + Dispatch Overlay
+
+**Branch:** `feat/ux-polish`
+
+### Active job card redesign
+- Two-column layout: left (info) + right (actions in 2-per-row pairs)
+- Session-first hierarchy: date - time - session name as primary text
+- Bigger left-column fonts (title 1.2rem, timer 0.95rem, customer 1rem)
+- Status badge uses global `statusBadgeClass` utility (colored pills)
+- Cancel button removed from card (moved to Details → Report → Cancel)
+- Map button fixed: `lat`/`lng` surfaced flat in `listServicerJobs` response
+- Distance km computed server-side via Haversine (servicer coords → job coords)
+- Pending card: distance km tag + map button (lat/lng already in response)
+
+### Dispatch overlay redesign
+- Panels reordered: Customer → Instructions → Map → Job Details → Contact Visibility
+- Map panel with direct Google Maps/Waze links (click redirect)
+- Question answer display from `serviceDetails` JSON
+- Arrival photo as toggle button (not auto-displayed)
+- Servicer contact visibility panel populated (email/phone from API)
+- API: `getServicerJob` flattened to return `customerName`, `address`, `lat`, `lng`, `servicerEmail`, `servicerPhone`
+- Emoji icons replaced with Lucide SVG `<app-icon>` (clipboard, phone, map-pin, chevrons)
+- IconComponent import added to dispatch overlay
+
+### Payment flow fixes
+- **Guest mode:** locked to card-only. Default `paymentTiming` = `pay_now`. Removed pay_later + settlement picker. Single "Credit/Debit card" option with Stripe Checkout redirect.
+- **Registered pay_later:** removed card option. Only wallet credit + cash remain.
+- **Registered pay_now:** removed card option. Only wallet credit.
+- Card payment path only available for guest checkout now.
+
+### Job card - pending
+- Distance km display on pending quote card
+- `IncomingQuote` interface: added `distanceKm?: number | null`
+- Map button (already existed, lat/lng already in backend response)
+
+### Job card - active
+- Backend `listServicerJobs`: loads servicer `lat`/`lng`, computes `distanceKm` per job
+- Frontend `Job` interface: added `distanceKm?: number | null`
+- Active card displays: `RM 120 - 60 min - Pay now - 3.2 km`
+
+### Unseed fix
+- `clear.ts`: added `servicerModule.deleteMany()` + `servicerWaPreset.deleteMany()` before `servicer.deleteMany()` (FK constraint)
+
+### Em-dash cleanup
+- All em-dashes (`-`) replaced with hyphens (`-`) in `.ts`, `.md`, `.css` files (JSON files restored after corruption)
+
+## Session 2026-06-25 - SP-3 Redesign Full Implementation
 
 **Scope:** Full SP-3 redesign: spec → schema → modules CRUD → listing form → auto-accept engine → seeding.
 
 ### Architecture decisions (recorded in spec §17)
 
 - **Scrapped:** Simple/Advanced split, mode chooser, all 5 old wizards
-- **New:** One unified `listing-form.component.ts` — Label (internal), Title (customer), Description (internal), Proposal Preset, Enable Auto, Modules picker (min 1)
+- **New:** One unified `listing-form.component.ts` - Label (internal), Title (customer), Description (internal), Proposal Preset, Enable Auto, Modules picker (min 1)
 - **Module model:** Each module maps `questionKey + optionValue → price + durationMin + SKU`
 - **Three match paths:** Broadcast (category), Manual accept (category), Auto-accept (modules Q-match + budget + availability + coverage)
 - **Tab order:** Modules first + default tab (logical flow: create modules → attach to listings)
@@ -54,30 +100,30 @@
 
 ### Commits on feat/sp3-dispatch-cards
 
-1. `66b5950` — spec update: tab order swap + §17 redesign
-2. `cb9bd30` — scrap old wizards, extend schema, record all docs
-3. `fca678a` — modules CRUD: backend + frontend with new fields
-4. `40f7ebf` — new unified listing form component
-5. `1f526ca` — auto-accept engine: Q-match + pricing via module rows
-6. `82486ba` — module seeding script for 4 categories
+1. `66b5950` - spec update: tab order swap + §17 redesign
+2. `cb9bd30` - scrap old wizards, extend schema, record all docs
+3. `fca678a` - modules CRUD: backend + frontend with new fields
+4. `40f7ebf` - new unified listing form component
+5. `1f526ca` - auto-accept engine: Q-match + pricing via module rows
+6. `82486ba` - module seeding script for 4 categories
 
 
 ### Issues addressed
 
-1. **Routes pointed to old wizard** — `/servicer/services/new` and `/:id/edit` loaded the old `listing-wizard.component.ts` instead of the SP-3 components (`listing-create`, `listing-simple`, `listing-advanced`). The new components existed but were unreachable.
+1. **Routes pointed to old wizard** - `/servicer/services/new` and `/:id/edit` loaded the old `listing-wizard.component.ts` instead of the SP-3 components (`listing-create`, `listing-simple`, `listing-advanced`). The new components existed but were unreachable.
 
-2. **Delete dialog not appearing** — `menuId.set(null)` was called before `dialog.confirm()`, which in some browser event sequences could suppress the dialog. Fixed by moving `menuId.set(null)` inside the subscription callback (after dialog resolves).
+2. **Delete dialog not appearing** - `menuId.set(null)` was called before `dialog.confirm()`, which in some browser event sequences could suppress the dialog. Fixed by moving `menuId.set(null)` inside the subscription callback (after dialog resolves).
 
-3. **Expanded card bare modules section** — showed only "N attached" count. Updated to show each module name with `included` vs `add-on` kind tag.
+3. **Expanded card bare modules section** - showed only "N attached" count. Updated to show each module name with `included` vs `add-on` kind tag.
 
-4. **Pricing options showed raw keys** — showed `qKey` (e.g. "property_type") instead of the question label (e.g. "Type of property"). Fixed via `questionLabel()` resolver.
+4. **Pricing options showed raw keys** - showed `qKey` (e.g. "property_type") instead of the question label (e.g. "Type of property"). Fixed via `questionLabel()` resolver.
 
-5. **Missing "Preview as customer"** — Added a preview button in the expanded card that opens a modal showing title, description, included modules, jobs offered, and base price.
+5. **Missing "Preview as customer"** - Added a preview button in the expanded card that opens a modal showing title, description, included modules, jobs offered, and base price.
 
 ### Files changed
 
-- `frontend/src/app/servicer/servicer.routes.ts` — replaced old wizard routes with SP-3 components (listing-create, listing-simple, listing-advanced)
-- `frontend/src/app/servicer/pages/services-listings.component.ts` — added `ModuleLookup` interface, module data loading, `moduleRefName()`, `moduleRefKind()`, `questionLabel()`, `previewListing()` helpers; updated expanded card template; added preview modal; fixed delete flow
+- `frontend/src/app/servicer/servicer.routes.ts` - replaced old wizard routes with SP-3 components (listing-create, listing-simple, listing-advanced)
+- `frontend/src/app/servicer/pages/services-listings.component.ts` - added `ModuleLookup` interface, module data loading, `moduleRefName()`, `moduleRefKind()`, `questionLabel()`, `previewListing()` helpers; updated expanded card template; added preview modal; fixed delete flow
 
 ### Docs removed (stale/misleading)
 
@@ -87,26 +133,26 @@
 - `npx tsc --noEmit` → 0 errors ✅
 - `npx ng build --configuration development` → exit 0 ✅
 
-## Session 2026-06-24 — E2E QA Harness Task 3
+## Session 2026-06-24 - E2E QA Harness Task 3
 
-**Scope:** `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` lines 252–314 — Group A, Task 3: Build auth helpers.
+**Scope:** `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` lines 252–314 - Group A, Task 3: Build auth helpers.
 
 ### Work done
 
 1. Created directory `tests/e2e/helpers/` (did not exist previously).
 2. Created `tests/e2e/helpers/auth-helpers.ts` (2023 bytes, 46 lines):
    - `DEMO_USERS` record: 8 demo accounts (3 customers, 4 servicers, 1 admin) with email + role.
-   - `loginAs(page, userKey, log)` — fills email/password, submits, waits for redirect away from `/login`.
-   - `logout(page)` — navigates to `/login`, clicks logout button if present.
-   - `getScreenshotPath(scenarioId, stepNum)` — zero-padded path under `E2E_RUN_DIR` or `logs/e2e-default`.
+   - `loginAs(page, userKey, log)` - fills email/password, submits, waits for redirect away from `/login`.
+   - `logout(page)` - navigates to `/login`, clicks logout button if present.
+   - `getScreenshotPath(scenarioId, stepNum)` - zero-padded path under `E2E_RUN_DIR` or `logs/e2e-default`.
 
 ### Issues
 - None. File created successfully.
 
 ### Commit
-- Not committed (as instructed — do not commit).
+- Not committed (as instructed - do not commit).
 
-## Session 2026-06-24 — Task NAV: Maps/Waze on confirmed booking (customer side)
+## Session 2026-06-24 - Task NAV: Maps/Waze on confirmed booking (customer side)
 
 **Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Group 2, Task NAV.
 
@@ -114,13 +160,13 @@
 
 **File:** `frontend/src/app/customer/pages/my-bookings.component.ts`
 
-1. **Booking interface** — added `lat?: number | null`, `lng?: number | null`, `address?: string | null` fields (data already returned by backend `listBookings()`).
+1. **Booking interface** - added `lat?: number | null`, `lng?: number | null`, `address?: string | null` fields (data already returned by backend `listBookings()`).
 
-2. **`openJobMap()` method** — generates Google Maps directions or Waze navigate URL from `b.lat`/`b.lng`, opens in new tab with `noopener`.
+2. **`openJobMap()` method** - generates Google Maps directions or Waze navigate URL from `b.lat`/`b.lng`, opens in new tab with `noopener`.
 
-3. **Template** — Maps + Waze buttons rendered in the `right` div after the status badge for `confirmed`, `in_progress`, `completed` bookings when coords are present.
+3. **Template** - Maps + Waze buttons rendered in the `right` div after the status badge for `confirmed`, `in_progress`, `completed` bookings when coords are present.
 
-4. **CSS** — `.map-link` style: inline-looking link button using `var(--color-primary)`, underline, no padding/background, hover → `var(--color-text)`.
+4. **CSS** - `.map-link` style: inline-looking link button using `var(--color-primary)`, underline, no padding/background, hover → `var(--color-text)`.
 
 ### Gates
 - `npx tsc --noEmit` → EXIT 0 ✅
@@ -132,20 +178,20 @@
 
 ---
 
-## Session 2026-06-23 — Item 6: Admin Financial Dashboard
+## Session 2026-06-23 - Item 6: Admin Financial Dashboard
 
-**Scope:** `TODO.md` item 6 — Admin financial dashboard: stats cards, revenue chart, category breakdown, urgent fee line.
+**Scope:** `TODO.md` item 6 - Admin financial dashboard: stats cards, revenue chart, category breakdown, urgent fee line.
 
 ### Work done
 
-**File:** `frontend/src/app/admin/pages/dashboard.component.ts` — full rewrite (~331→~360 lines)
+**File:** `frontend/src/app/admin/pages/dashboard.component.ts` - full rewrite (~331→~360 lines)
 
 #### 1. Financial stats cards (replaced old stubs)
-- 4 stat cards: Total Revenue (`totalTopUps + totalFees`), Platform Fees (`totalFees`), Escrow Held (`totalEscrow`), Pending Payouts (`pendingPayouts`) — all RM-formatted with `| number:'1.2-2'`.
+- 4 stat cards: Total Revenue (`totalTopUps + totalFees`), Platform Fees (`totalFees`), Escrow Held (`totalEscrow`), Pending Payouts (`pendingPayouts`) - all RM-formatted with `| number:'1.2-2'`.
 - Below: Today card (`todayTopUps + todayFees` with breakdown) + Urgent Fee Revenue card (`urgentFeeRevenue` with platform share `urgentFeePlatformShare`). Urgent card has red left-border accent.
 
 #### 2. Revenue line chart (replaced bar chart)
-- Hand-rolled SVG `<polyline>` chart — no new dependencies (project has zero charting libs).
+- Hand-rolled SVG `<polyline>` chart - no new dependencies (project has zero charting libs).
 - Two overlaid lines: Revenue (solid primary) + Fees (dashed amber `--color-warning`).
 - SVG-inline legend, grid lines at 25/50/75/100% of max, date X-axis labels.
 - Range toggle: 7d / 30d / 90d (was 7d/30d only). Wired to `GET /admin/dashboard/financial?days=` param.
@@ -164,7 +210,7 @@
 - Distinct `urgent-highlight` class with red left-border.
 
 #### Interfaces added
-- `FinancialDashboard`, `CategoryBreakdown`, `DailyRevenuePoint` — match the expected `GET /admin/dashboard/financial` response shape.
+- `FinancialDashboard`, `CategoryBreakdown`, `DailyRevenuePoint` - match the expected `GET /admin/dashboard/financial` response shape.
 
 #### Retained
 - Pending queues section (withdrawals, appeals, category requests, reports) from old `GET /admin/dashboard`.
@@ -176,19 +222,19 @@
 
 ---
 
-## Session 2026-06-23 — Plan 4: Servicer Calendar Polish + Coherence
+## Session 2026-06-23 - Plan 4: Servicer Calendar Polish + Coherence
 
-**Scope:** `docs/superpowers/plans/2026-06-23-servicer-calendar-polish.md` — 3 tasks.
+**Scope:** `docs/superpowers/plans/2026-06-23-servicer-calendar-polish.md` - 3 tasks.
 
-### Task 1 — Coherence check
+### Task 1 - Coherence check
 - Verified calendar endpoint (`servicer.routes.ts:838`) uses `Booking.scheduledDate`.
 - Verified `countSlotJobs` (`servicer-quote.service.ts:21`) uses `b.scheduledDate`.
-- Both use same field — already coherent. No code change.
+- Both use same field - already coherent. No code change.
 
-### Task 2 — Today emphasis + urgent marker
+### Task 2 - Today emphasis + urgent marker
 **Backend changes (3 files):**
 - `servicer.routes.ts`: added `isUrgent: true` to calendar endpoint select + output mapping.
-- `booking.service.ts` `selectProposal`: added `isUrgent: quote.isUrgent ?? false` and `urgentFee: quote.urgentFee ?? null` to `tx.booking.create` data — **critical gap fix** (without this, bookings never carry the urgent flag from quotes, so calendar urgent dots would never render).
+- `booking.service.ts` `selectProposal`: added `isUrgent: quote.isUrgent ?? false` and `urgentFee: quote.urgentFee ?? null` to `tx.booking.create` data - **critical gap fix** (without this, bookings never carry the urgent flag from quotes, so calendar urgent dots would never render).
 - `dispatch.service.ts`: added `isUrgent`/`urgentFee` to quoteRequest select + `tx.booking.create` data (same gap, dispatch path).
 
 **Frontend changes (1 file):**
@@ -196,23 +242,23 @@
   - `CalendarBooking` interface: added `isUrgent?: boolean`.
   - Template: added `@if (b.isUrgent) { <span class="dot-urgent"></span> }` inside day-booking pill.
   - CSS: added `.cal-cell.today { outline: 2px solid var(--color-primary); outline-offset: -2px; }` for today emphasis.
-  - CSS: added `.dot-urgent` — 6px red circle next to booking label.
-  - Note: today detection already worked via `makeDay()` → `isToday` field + `[class.today]` binding — only the outline CSS was missing.
+  - CSS: added `.dot-urgent` - 6px red circle next to booking label.
+  - Note: today detection already worked via `makeDay()` → `isToday` field + `[class.today]` binding - only the outline CSS was missing.
 
-### Task 3 — Verify
+### Task 3 - Verify
 - Frontend `npx tsc --noEmit`: 0 errors ✅
 - Frontend `ng build --configuration development`: green ✅
-- Backend `npx tsc --noEmit`: 8 pre-existing errors in unrelated files (routes/index.ts, admin.service.ts, credit.service.ts) — my 3 changed files compile clean ✅
+- Backend `npx tsc --noEmit`: 8 pre-existing errors in unrelated files (routes/index.ts, admin.service.ts, credit.service.ts) - my 3 changed files compile clean ✅
 
 ### Key finding: `selectProposal` isUrgent carry-through GAP
-`selectProposal` was NOT copying `isUrgent`/`urgentFee` from `QuoteRequest` to `Booking`. The quote has these fields (Plan 1 schema migration), but `tx.booking.create` never referenced them. Same gap in `dispatch.service.ts`. Without this fix, the calendar would show zero urgent dots regardless of how many urgent bookings exist — because the Booking table never had the flag set. Fixed in both paths.
+`selectProposal` was NOT copying `isUrgent`/`urgentFee` from `QuoteRequest` to `Booking`. The quote has these fields (Plan 1 schema migration), but `tx.booking.create` never referenced them. Same gap in `dispatch.service.ts`. Without this fix, the calendar would show zero urgent dots regardless of how many urgent bookings exist - because the Booking table never had the flag set. Fixed in both paths.
 
 ### Commit
 `feat(servicer): calendar today-emphasis, urgent marker, isUrgent carry-through to booking` (4 files, +54/-7 lines)
 
 ---
 
-## Session 2026-06-12 — SP-5 Servicer Business Profile restructure
+## Session 2026-06-12 - SP-5 Servicer Business Profile restructure
 
 **`/servicer/account` rewrite:**
 - Complete rewrite of `account.component.ts` (~1770→~812 lines) as single Business Profile page (no personal tab).
@@ -234,21 +280,21 @@
 **Nav cleanup:**
 - Removed redundant dashboard/stats block (earnings chart, stat-row, chart) from jobs component history tab. History view now shows only the jobs list.
 
-**Follow-up 2026-06-12 — Operating hours CRUD editor:**
+**Follow-up 2026-06-12 - Operating hours CRUD editor:**
 - Replaced fixed 7-day grid with a dynamic CRUD list: [Add time range] button, [day select] + [time from] + [time to] + [× delete] per entry.
 - Supports multiple ranges per day for rest breaks (e.g. Mon 9-12 and Mon 2-5).
 - Initial: replaced limited dropdown selects (8-11AM open, 5-10PM close only) with free-form `HH:MM` (24h) text inputs with regex validation and auto-format on input (`"9"`→`"09:00"`, `"1130"`→`"11:30"`).
 - Save validates all entries have both open+close in valid HH:MM format.
 - Backend payload unchanged (weekday-keyed object `{mon: {open,close}, ...}`).
 
-## Session 2026-06-04 — LLM API Keys admin page UX overhaul
+## Session 2026-06-04 - LLM API Keys admin page UX overhaul
 
-**Scope:** Full UX rebuild of `/admin/settings/api-keys` — model dropdowns, validation, fetch, delete guards, CSS fixes.
+**Scope:** Full UX rebuild of `/admin/settings/api-keys` - model dropdowns, validation, fetch, delete guards, CSS fixes.
 
 **Work done:**
 - Model field: `<datalist>` → `<select>` dropdown populated from Fetch button response.
 - Fetch button restored as separate action (left of Save), not bundled into Save.
-- Existing saved keys: displayed as disabled password field `••••••••` — edit blocked, delete & re-add only.
+- Existing saved keys: displayed as disabled password field `••••••••` - edit blocked, delete & re-add only.
 - Required fields: `*` in placeholder, `.input-error` red border + inline `.save-error` red text on empty submit.
 - Delete: trash-2 icon via `IconComponent` + `DialogService.confirm()` guard (no more bare delete button).
 - `maskKey()` simplified: first 3 chars + 14 masked bullets for view mode display.
@@ -266,7 +312,7 @@
 
 ---
 
-## Session 2026-06-02 — RUN 4: UX polish batch
+## Session 2026-06-02 - RUN 4: UX polish batch
 
 **Scope:** Topbar scroll-away, card scan-on-load, STYLE-RULES leftover docs, order-ID display.
 
@@ -297,7 +343,7 @@
 
 ---
 
-## Session 2026-06-02 — Bulk dispatch FE-1 through FE-6
+## Session 2026-06-02 - Bulk dispatch FE-1 through FE-6
 
 **Scope:** 6 frontend tasks from CEO dispatch:
 1. FE-1: Itemized proposal composition UI (pricing modules in proposal form)
@@ -309,26 +355,26 @@
 
 **Work done:**
 
-### FE-1 — Pricing modules in proposal form
+### FE-1 - Pricing modules in proposal form
 - `jobs.component.ts`: Added `PricingModule`, `ModuleRef` interfaces; pricing module signals; `loadPricingModules()`; module picker UI with toggle/override helpers; `moduleRefs` in proposal payload
 
-### FE-2 — Stripe card payment frontend
+### FE-2 - Stripe card payment frontend
 - Installed `@stripe/stripe-js` package
 - `environment.ts` + `environment.prod.ts`: Added `stripePublishableKey: ''`
 - `stripe-card-form.component.ts`: NEW standalone component using `@stripe/stripe-js` for card element, `confirmCardPayment`, loading/error states, Pay/Cancel buttons
 - `quote-form.component.ts`: Added gateway settlement for pay_now; card payment state machine (cardStep, clientSecret, onGatewaySelect, onCardPaymentSuccess); card form renders when gateway selected; settlementMethod sent in payload
 - `proposals.component.ts`: Added card payment state; gateway option under pay_now; initCardPayment(), onCardPaymentSuccess()
 
-### FE-3 — Welcome banner
+### FE-3 - Welcome banner
 - `rewards.component.ts`: First-visit welcome banner with localStorage key `rewards_welcome_seen`
 
-### FE-4 — Idle re-engagement banner
+### FE-4 - Idle re-engagement banner
 - `shell.component.ts`: Updated re-engagement banner text for rewards/discounts when no recent booking
 
-### FE-5 — Voucher auto-apply
+### FE-5 - Voucher auto-apply
 - `shell.component.ts`: Added ActiveVoucher interface; activeVouchers signal; onTopUpAmountChange() fetches GET /rewards/active-vouchers; radio select applies voucher as promo code
 
-### FE-6 — Notification prefs UI
+### FE-6 - Notification prefs UI
 - `account.component.ts`: Added NotificationPrefs interface; notification preferences section with toggles for bookingUpdates/proposals/promotions/chatMessages (in-app + email); load from GET /user/me; save to PATCH /user/me
 
 **Gates:**
@@ -352,13 +398,13 @@
 | **Phase 6 Identity Avatars POST-MVP (P6-FE)** | **650** |
 | **Category Thumbnails POST-MVP (§15)** | **701** |
 | **Plan 2 Dispatch Card Visual Redesign** | **1712** |
-| **Task RFG — routeFor() typed path helper** | **2020** |
+| **Task RFG - routeFor() typed path helper** | **2020** |
 
 ---
 
 ## Rules
 
-- Use Angular standalone components — no NgModules
+- Use Angular standalone components - no NgModules
 - Inline templates and styles (no separate .html/.css files per component)
 - Angular signals for state management
 - Design tokens via `var(--color-*)`, never hardcoded hex
@@ -370,33 +416,33 @@
 
 ## Sessions
 
-### Session 2026-06-01 — Footer sitemap + How-it-works + quote chat auto-open
+### Session 2026-06-01 - Footer sitemap + How-it-works + quote chat auto-open
 
 **Goal:** Footer should list parent categories with their children (not a stale
 "Services" list); home "How it works" should match the real flow; help chat
 should auto pop-out on the quote form.
 
 **Work done (frontend tsc 0 on each):**
-1. **`site-footer.component.ts`** (commit `dd9b3c1`) — replaced the single
+1. **`site-footer.component.ts`** (commit `dd9b3c1`) - replaced the single
    "Services" column (its `/services/plumbing|cleaning|aircond` slugs were stale
    and 404'd) with 7 parent-category columns mirroring the seed taxonomy:
    Cleaning, Repair, Event, Improvement, Maintenance, Training, Tech & IT. Each
    lists its child services, all linking to the parent browse page
-   `/services/:parentSlug` (ChildrenBrowseComponent — the only public category
+   `/services/:parentSlug` (ChildrenBrowseComponent - the only public category
    route; children have no page of their own). Company/Support/Legal kept. Static
-   — will drift if admin adds categories (candidate to wire to `/categories`).
-2. **`home.component.ts`** (commit `f6ad6a0`) — refined "How it works" from 3
+   - will drift if admin adds categories (candidate to wire to `/categories`).
+2. **`home.component.ts`** (commit `f6ad6a0`) - refined "How it works" from 3
    generic steps to the real 4-step lifecycle: Request a quote → Get proposals →
    Pick & book → Track & pay. `.steps` grid `repeat(3,1fr)` → `repeat(auto-fit,
    minmax(180px,1fr))` so the 4th card lays out responsively. (Commit bundled the
-   parallel home-redesign WIP — same file, co-edited; tsc-clean.)
-3. **`shell.component.ts`** (commit `d75a014`) — on `/quote/new` the shell used
+   parallel home-redesign WIP - same file, co-edited; tsc-clean.)
+3. **`shell.component.ts`** (commit `d75a014`) - on `/quote/new` the shell used
    to auto-*collapse* the FAB stack; now it auto pops-out the help chat once on
    entry (`widget.open()`) and keeps the bubble floating. One-shot
    `quoteChatAutoOpened` guard (reset when leaving the route) fires it once per
    visit and never reopens after a manual close (router events don't fire on
    close). Customer `/customer/quote/new` only; guest `/guest/quote/new` is a
-   public route outside the shell — not yet covered.
+   public route outside the shell - not yet covered.
 
 **Note:** Repo has a background auto-committer (Git-Commit-Pusher/kilo) + a
 parallel agent editing `home.component.ts`; verified each edit compiles, committed
@@ -404,15 +450,15 @@ only my task's files (footer/shell standalone; home bundled the co-editor's WIP)
 
 ---
 
-### Session 2026-05-25 — Servicer shell bug fix + component survey
+### Session 2026-05-25 - Servicer shell bug fix + component survey
 
 **Goal:** Fix known nav bugs in servicer shell, survey all remaining servicer components for polish issues, typecheck.
 
 **Work done:**
-1. Removed dead nav link `/servicer/incoming-quotes` (no matching route — was merged into the Jobs board).
+1. Removed dead nav link `/servicer/incoming-quotes` (no matching route - was merged into the Jobs board).
 2. Fixed duplicate `⚙️` icon on "Notification Settings" nav item → changed to `🛎️`.
-3. Fixed null-byte corruption at end of `servicer-shell.component.ts` (Write tool artifact) — stripped with python `rstrip(b'\x00')`.
-4. Surveyed five servicer page components — no additional bugs found:
+3. Fixed null-byte corruption at end of `servicer-shell.component.ts` (Write tool artifact) - stripped with python `rstrip(b'\x00')`.
+4. Surveyed five servicer page components - no additional bugs found:
    - `deposit.component.ts` ✅
    - `dashboard.component.ts` ✅ (direct HttpClient PDF export confirmed correct via auth interceptor URL check)
    - `account.component.ts` ✅ (presign→S3 PUT→confirm flow correct)
@@ -422,7 +468,7 @@ only my task's files (footer/shell standalone; home bundled the co-editor's WIP)
 
 ---
 
-### Session 2026-05-25 — "Servicer must not quote himself" (frontend pass)
+### Session 2026-05-25 - "Servicer must not quote himself" (frontend pass)
 
 **Goal:** Secondary / defence-in-depth frontend pass for the self-quote bug
 (backend BE-044…BE-047). Ensure a quote created by a servicer's own paired
@@ -430,23 +476,23 @@ customer account ("customer mode") never renders in the servicer's Pending
 column or incoming-quotes feed.
 
 **Surfaces reviewed:**
-- `servicer/pages/jobs.component.ts` — Jobs board "Pending" column. Renders
+- `servicer/pages/jobs.component.ts` - Jobs board "Pending" column. Renders
   `quotes()`, populated solely by `GET /servicer/quotes` in `loadQuotes()`.
-- `servicer/pages/incoming-quotes.component.ts` — incoming-quotes feed (legacy,
-  now unrouted — see FE-001; kept for reference). Renders `quotes()`, populated
+- `servicer/pages/incoming-quotes.component.ts` - incoming-quotes feed (legacy,
+  now unrouted - see FE-001; kept for reference). Renders `quotes()`, populated
   solely by `GET /servicer/quotes` in `load()`.
 
-**Finding — no frontend code change required or appropriate:**
+**Finding - no frontend code change required or appropriate:**
 1. Both components are pure projections of `GET /servicer/quotes`
    (`listIncomingQuotes`). Backend BE-045 now excludes self-quotes from that
    response at the DB query, so neither the Pending column nor the feed can
    render one.
 2. The `quote.new` socket handler in both components only triggers a re-fetch
-   of that same (now self-filtered) endpoint — the socket payload is never
+   of that same (now self-filtered) endpoint - the socket payload is never
    rendered directly. Backend BE-044 additionally drops the self-servicer from
    the `quote.new` emit target set, so the servicer's socket never receives
    their own quote.
-3. The frontend has **no self-quote signal** — the `IncomingQuote` interface
+3. The frontend has **no self-quote signal** - the `IncomingQuote` interface
    exposes no field identifying the originating customer, and exposing one
    would be an unnecessary API-contract change. Adding a frontend filter would
    therefore be dead code, contrary to the "keep it minimal" mandate.
@@ -455,7 +501,7 @@ column or incoming-quotes feed.
    both display `e.message` (toast / `error` signal), so the new `403 FORBIDDEN`
    from BE-047 is shown to the user verbatim with no change needed.
 
-**Outcome:** FE-004 — verified, no code change. Self-quotes are fully prevented
+**Outcome:** FE-004 - verified, no code change. Self-quotes are fully prevented
 from rendering by the backend fixes; the frontend correctly reflects them.
 
 **Verification:** Close code reading only (no live stack this session). No
@@ -463,7 +509,7 @@ frontend files modified, so the existing `tsc --noEmit` clean state stands.
 
 ---
 
-### Session 2026-05-25 — Category-icon rendering bug (FE-005)
+### Session 2026-05-25 - Category-icon rendering bug (FE-005)
 
 **Goal:** Fix the "Find a Service" cards displaying raw Lucide icon NAMES
 ("wind", "sparkles", "chef-hat", "wrench") as their big heading instead of an
@@ -471,15 +517,15 @@ icon glyph.
 
 **Root cause:**
 - `customer/pages/browse.component.ts` (template line 56):
-  `<div class="icon">{{ cat.icon || '🏠' }}</div>` — bound `cat.icon` straight
+  `<div class="icon">{{ cat.icon || '🏠' }}</div>` - bound `cat.icon` straight
   to text. `Category.icon` holds a Lucide icon NAME string, not an emoji, so
   the literal name rendered. The `.icon` div is `font-size: 1.8rem`, so the
   name looked like the card heading; the real `<strong>{{ cat.name }}</strong>`
   below looked like a subtitle.
-- `home/home.component.ts` (template line 114): identical pattern —
+- `home/home.component.ts` (template line 114): identical pattern -
   `<span class="cat-ic">{{ cat.icon || '🏠' }}</span>` (`.cat-ic` is 1.8rem).
 
-**Icon convention in this app:** there is **no Lucide / icon-font library** —
+**Icon convention in this app:** there is **no Lucide / icon-font library** -
 `lucide-angular` is not in `frontend/package.json` and no `src` file imports it.
 The established pattern (portal sidebars `customer-shell` / `servicer-shell` /
 `admin-shell`, rendered via `shell.component.ts` `<span class="nav-ic">{{ item.icon }}</span>`)
@@ -489,7 +535,7 @@ seeded with Lucide names instead of emoji, so the emoji-expecting templates
 printed the names verbatim.
 
 **Fix:**
-- New file `frontend/src/app/core/category-icons.ts` — exports
+- New file `frontend/src/app/core/category-icons.ts` - exports
   `categoryIcon(icon)`, a pure resolver mapping Lucide icon names → closest
   emoji (`wind`→💨, `sparkles`→✨, `chef-hat`→🧑‍🍳, `wrench`→🔧, plus a few
   likely future names). Unknown non-empty values pass through unchanged
@@ -497,18 +543,18 @@ printed the names verbatim.
 - `browse.component.ts`: added `import { categoryIcon }`; added class field
   `protected readonly iconFor = categoryIcon;`; template line 56
   `{{ cat.icon || '🏠' }}` → `{{ iconFor(cat.icon) }}`.
-- `home.component.ts`: same — import, `iconFor` field, template line 114
+- `home.component.ts`: same - import, `iconFor` field, template line 114
   `{{ cat.icon || '🏠' }}` → `{{ iconFor(cat.icon) }}`.
-- Card layout unchanged ([icon] → name → from RM X → Request a quote link) —
+- Card layout unchanged ([icon] → name → from RM X → Request a quote link) -
   already correct; only the icon binding was wrong.
 
 **Components surveyed for the same bug:** grep of all `*.ts` for `.icon` /
-`categor` — only `browse.component.ts` and `home.component.ts` render a
+`categor` - only `browse.component.ts` and `home.component.ts` render a
 category icon. Other category usages are `<select>` dropdowns
-(`servicer-register`) and checkboxes (`notification-settings`) with no icon —
+(`servicer-register`) and checkboxes (`notification-settings`) with no icon -
 not affected. Both buggy components fixed.
 
-**Verification:** Close code reading only — environment cannot run
+**Verification:** Close code reading only - environment cannot run
 `npm install` / `ng serve` / `tsc` (Windows-native `node_modules`). Types
 check by inspection: `cat.icon` is `string | undefined`; `categoryIcon`
 accepts `string | null | undefined`; `iconFor` exposed as a class field so
@@ -524,47 +570,47 @@ the template can invoke it. Live re-check to be done separately.
 
 ## UX / Design Notes
 
-- **Design direction:** Warm Editorial — DM Serif Display (headings) + Outfit (body), terracotta `#c95a3c` primary.
-- **Two-theme system:** `data-theme="warm"` (day default) / `data-theme="cool"` (night — Deep Stone + Copper). Both share warm character; night is NOT a cold/blue inversion.
+- **Design direction:** Warm Editorial - DM Serif Display (headings) + Outfit (body), terracotta `#c95a3c` primary.
+- **Two-theme system:** `data-theme="warm"` (day default) / `data-theme="cool"` (night - Deep Stone + Copper). Both share warm character; night is NOT a cold/blue inversion.
 - **Gradient rule:** start = base primary, end = +5° warmer hue, +4–5% L. Never bleach past +8% L. See STYLE-RULES §2.6.
 - **Gradient text:** remove `color:`; set `background: var(--gradient-*)`, `-webkit-background-clip: text`, `-webkit-text-fill-color: transparent`, `background-clip: text`. Transition changes from `color` to `opacity`.
 - **Icon convention:** emoji glyphs (not Lucide library, not icon font). STYLE-RULES §14.
-- **All animations** must be wrapped in `@media (prefers-reduced-motion: no-preference)` — hard rule.
+- **All animations** must be wrapped in `@media (prefers-reduced-motion: no-preference)` - hard rule.
 
 ---
 
 ## Bug Log
 
-- **FE-001** (2026-05-25, fixed): Dead nav link `/servicer/incoming-quotes` in `servicer-shell.component.ts` — route never existed after Jobs board consolidation. Removed the nav item.
+- **FE-001** (2026-05-25, fixed): Dead nav link `/servicer/incoming-quotes` in `servicer-shell.component.ts` - route never existed after Jobs board consolidation. Removed the nav item.
 - **FE-002** (2026-05-25, fixed): Duplicate `⚙️` icon on "Notification Settings" nav item. Changed to `🛎️`.
-- **FE-003** (2026-05-25, fixed): Null bytes appended to end of `servicer-shell.component.ts` by Write tool — caused TS1127 errors on typecheck. Stripped with `python3 rstrip(b'\x00')`.
-- **FE-004** (2026-05-25, verified — no code change): "Servicer must not quote himself." The Jobs "Pending" column (`jobs.component.ts`) and the legacy incoming-quotes feed (`incoming-quotes.component.ts`) are pure projections of `GET /servicer/quotes`, which backend BE-045 now filters to exclude the servicer's own paired-customer quotes; BE-044 also drops the self-servicer from the `quote.new` socket emit. Frontend has no self-quote signal to filter on, so no FE change is needed or appropriate. Proposal-submit error handling already surfaces the new BE-047 `403 FORBIDDEN` message.
-- **FE-005** (2026-05-25, fixed): Category cards on the customer "Find a Service" page (`browse.component.ts`) and the public home page (`home.component.ts`) rendered the raw Lucide icon NAME ("wind", "sparkles", "chef-hat", "wrench") as text where an icon glyph belongs. Both templates bound `{{ cat.icon || '🏠' }}` directly, but `Category.icon` holds a Lucide name and the app has no icon library — the convention is emoji glyphs (matching the portal sidebars). Added `core/category-icons.ts` with a `categoryIcon()` Lucide-name→emoji resolver and wired both templates to `iconFor(cat.icon)`. Card layout (icon → name → price → CTA) was already correct and left unchanged.
+- **FE-003** (2026-05-25, fixed): Null bytes appended to end of `servicer-shell.component.ts` by Write tool - caused TS1127 errors on typecheck. Stripped with `python3 rstrip(b'\x00')`.
+- **FE-004** (2026-05-25, verified - no code change): "Servicer must not quote himself." The Jobs "Pending" column (`jobs.component.ts`) and the legacy incoming-quotes feed (`incoming-quotes.component.ts`) are pure projections of `GET /servicer/quotes`, which backend BE-045 now filters to exclude the servicer's own paired-customer quotes; BE-044 also drops the self-servicer from the `quote.new` socket emit. Frontend has no self-quote signal to filter on, so no FE change is needed or appropriate. Proposal-submit error handling already surfaces the new BE-047 `403 FORBIDDEN` message.
+- **FE-005** (2026-05-25, fixed): Category cards on the customer "Find a Service" page (`browse.component.ts`) and the public home page (`home.component.ts`) rendered the raw Lucide icon NAME ("wind", "sparkles", "chef-hat", "wrench") as text where an icon glyph belongs. Both templates bound `{{ cat.icon || '🏠' }}` directly, but `Category.icon` holds a Lucide name and the app has no icon library - the convention is emoji glyphs (matching the portal sidebars). Added `core/category-icons.ts` with a `categoryIcon()` Lucide-name→emoji resolver and wired both templates to `iconFor(cat.icon)`. Card layout (icon → name → price → CTA) was already correct and left unchanged.
 
 ---
 
-### Session 2026-05-26 — Demo bar, budget ranges, chat links, proposal confirm, misc fixes
+### Session 2026-05-26 - Demo bar, budget ranges, chat links, proposal confirm, misc fixes
 
 **Scope:** Multiple feature additions and UX fixes across frontend.
 
 **Work done:**
-1. **Demo bar on public pages** — Created `shared/demo-bar.component.ts` and added `<app-demo-bar />` to `HomeComponent` and `GuestQuoteComponent` so the demo login bar appears on the home page and the guest quote page.
-2. **Per-category budget ranges in admin** — Redesigned `admin/pages/settings.component.ts` to show a category dropdown; each category has its own budget range presets. Saves in per-category format `{ ranges: { [categoryId]: [...] } }`.
-3. **Customer/Guest quote forms** — Updated `quote-form.component.ts` and `guest-quote.component.ts` to fetch budget ranges per-category via `GET /quotes/budget-ranges?categoryId=xxx`.
-4. **Chatbot hyperlinks** — Added `formatMessage()` in `chat.component.ts` that converts markdown `[label](/path)` links to clickable `<a>` tags. Links in assistant messages now navigate to Angular routes. Backend `chat.service.ts` system prompt updated to instruct the AI to use links.
-5. **Reseed/Clear modal** — Updated `shell.component.ts` reseed modal with separate "Clear data" and "Reset demo data" buttons side by side. Both show independent loading/error states. Added `POST /dev/clear` support on the frontend.
-6. **Button rewording** — "+Demo proposal" → "+Proposal" in `shell.component.ts`.
-7. **Demo Home signs out** — `DemoBarComponent.goHome()` and `ShellComponent.demoGoHome()` now call `auth.logout()` + `notifications.stop()` before navigating to `/`. The logo in the shell (separate method) navigates without signing out.
-8. **Top-up credit validation** — `confirmAfterTopUp()` now re-checks the credit balance before submitting; shows an error instead of blindly proceeding when insufficient.
-9. **Quote confirmation redirect** — After successful quote submission, navigates immediately to `/customer/quotes?submitted=true` instead of showing a 2.5s overlay. `MyQuotesComponent` shows a success banner when `submitted` query param is present.
-10. **Proposal selection confirmation** — Added modal confirmation prompt before selecting a servicer proposal in `proposals.component.ts`. Uses shared `ModalComponent`.
-11. **Credit balance signal fix** — Changed `creditBalance` from `computed` to regular `signal` in `quote-form.component.ts` so demo top-up properly updates the displayed balance (computed signals don't re-evaluate on object mutations).
+1. **Demo bar on public pages** - Created `shared/demo-bar.component.ts` and added `<app-demo-bar />` to `HomeComponent` and `GuestQuoteComponent` so the demo login bar appears on the home page and the guest quote page.
+2. **Per-category budget ranges in admin** - Redesigned `admin/pages/settings.component.ts` to show a category dropdown; each category has its own budget range presets. Saves in per-category format `{ ranges: { [categoryId]: [...] } }`.
+3. **Customer/Guest quote forms** - Updated `quote-form.component.ts` and `guest-quote.component.ts` to fetch budget ranges per-category via `GET /quotes/budget-ranges?categoryId=xxx`.
+4. **Chatbot hyperlinks** - Added `formatMessage()` in `chat.component.ts` that converts markdown `[label](/path)` links to clickable `<a>` tags. Links in assistant messages now navigate to Angular routes. Backend `chat.service.ts` system prompt updated to instruct the AI to use links.
+5. **Reseed/Clear modal** - Updated `shell.component.ts` reseed modal with separate "Clear data" and "Reset demo data" buttons side by side. Both show independent loading/error states. Added `POST /dev/clear` support on the frontend.
+6. **Button rewording** - "+Demo proposal" → "+Proposal" in `shell.component.ts`.
+7. **Demo Home signs out** - `DemoBarComponent.goHome()` and `ShellComponent.demoGoHome()` now call `auth.logout()` + `notifications.stop()` before navigating to `/`. The logo in the shell (separate method) navigates without signing out.
+8. **Top-up credit validation** - `confirmAfterTopUp()` now re-checks the credit balance before submitting; shows an error instead of blindly proceeding when insufficient.
+9. **Quote confirmation redirect** - After successful quote submission, navigates immediately to `/customer/quotes?submitted=true` instead of showing a 2.5s overlay. `MyQuotesComponent` shows a success banner when `submitted` query param is present.
+10. **Proposal selection confirmation** - Added modal confirmation prompt before selecting a servicer proposal in `proposals.component.ts`. Uses shared `ModalComponent`.
+11. **Credit balance signal fix** - Changed `creditBalance` from `computed` to regular `signal` in `quote-form.component.ts` so demo top-up properly updates the displayed balance (computed signals don't re-evaluate on object mutations).
 
 **Verification:** `npx tsc --noEmit` → 0 errors. `npx ng build --configuration production` → builds clean (pre-existing warnings only).
 
 ---
 
-### Session 2026-05-25-Guest — Guest quote flow, home page polish, app rebrand
+### Session 2026-05-25-Guest - Guest quote flow, home page polish, app rebrand
 
 **Scope:** Public guest quote flow, credit-validated quote submit, home page
 cleanup, search dropdown, app rebrand to MyHomeServicer.
@@ -597,7 +643,7 @@ cleanup, search dropdown, app rebrand to MyHomeServicer.
 **Home page** (`home.component.ts`)
 - Removed `orn-ring` decorative elements.
 - Polished nav buttons: Log in (ghost), My portal (outline), Join as
-  Servicer (solid) — all use consistent `border-radius: 999px`.
+  Servicer (solid) - all use consistent `border-radius: 999px`.
 - Hero search: dropdown with category icon, name, and price on input.
 - Fixed bottom "Request a quote" bar (replaced old FAB).
 - Moved `page-enter` animation off `:host` to inner wrapper so
@@ -624,12 +670,12 @@ cleanup, search dropdown, app rebrand to MyHomeServicer.
 
 ---
 
-### Session 2026-05-26 — Chat UI rewrite + gradient/dark-theme system
+### Session 2026-05-26 - Chat UI rewrite + gradient/dark-theme system
 
 **Scope:** Full UI/UX pass on the customer chat component; global gradient token system; dark theme replacement.
 
-**Chat component (`customer/pages/chat.component.ts`) — full rewrite**
-- Added `AfterViewChecked` implementation with `scrollToBottomOnNext` flag — fixes scroll-to-bottom not firing after AI reply.
+**Chat component (`customer/pages/chat.component.ts`) - full rewrite**
+- Added `AfterViewChecked` implementation with `scrollToBottomOnNext` flag - fixes scroll-to-bottom not firing after AI reply.
 - New header: terracotta circle avatar (SVG chat icon), h1, pulsing green status dot (keyframe `status-pulse`), "Clear chat" button relocated from composer.
 - Animated typing indicator: 3-dot `dot-bounce` keyframe, wrapped in `@media (prefers-reduced-motion: no-preference)`.
 - Empty state: centered bordered circle + SVG chat icon with descriptive copy.
@@ -650,16 +696,16 @@ cleanup, search dropdown, app rebrand to MyHomeServicer.
 Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter. Never bleach past +8% L.
 
 **Applied to surfaces:**
-- `.btn-primary` — `background: var(--gradient-primary)` with solid fallback; hover uses `--gradient-primary-hover`
-- Shell `.logo` + home `.brand` — gradient text via `-webkit-background-clip: text; -webkit-text-fill-color: transparent`
-- `.sidebar a.active` — `--gradient-sidebar` + inset `3px 0` white highlight
-- Home `.page` — `--gradient-hero` background
-- Home `.num` step circles — `--gradient-primary` + terracotta box-shadow
-- Home `.request-bar` — `--gradient-primary` + stronger hover shadow
+- `.btn-primary` - `background: var(--gradient-primary)` with solid fallback; hover uses `--gradient-primary-hover`
+- Shell `.logo` + home `.brand` - gradient text via `-webkit-background-clip: text; -webkit-text-fill-color: transparent`
+- `.sidebar a.active` - `--gradient-sidebar` + inset `3px 0` white highlight
+- Home `.page` - `--gradient-hero` background
+- Home `.num` step circles - `--gradient-primary` + terracotta box-shadow
+- Home `.request-bar` - `--gradient-primary` + stronger hover shadow
 
 **Dark theme replacement (`[data-theme="cool"]`)**
 - Old: generic steel-blue (`#1e3a5f` / `#3b82f6`).
-- New: "Deep Stone + Copper" — `--color-bg: #1c1917` (warm stone-black), `--color-primary: #d4884a` (copper), `--color-surface: #28231e`, `--color-text: #f5f0e8` (warm cream).
+- New: "Deep Stone + Copper" - `--color-bg: #1c1917` (warm stone-black), `--color-primary: #d4884a` (copper), `--color-surface: #28231e`, `--color-text: #f5f0e8` (warm cream).
 - Night-mode gradient overrides use same formula proportions as day: `--gradient-primary: linear-gradient(135deg, #d4884a 0%, #df9854 100%)`, accent identical to day (`#c4903a → #d4a84a`), hero darkens inward (`#28221a → #1c1917 → #14110e`).
 - Gradient consistency fix: night `--gradient-primary` end was `#e8a868` (11% ΔL, washed out/peachy). Corrected to `#df9854` (4% ΔL matching day proportions). Night `--gradient-accent` direction was reversed vs day; unified to `#c4903a → #d4a84a`.
 
@@ -672,15 +718,15 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 
 ---
 
-### Session 2026-05-26 — FAB collapse toggle + chat bubble resize
+### Session 2026-05-26 - FAB collapse toggle + chat bubble resize
 
 **Scope:** Both `home.component.ts` and `browse.component.ts` FAB stack.
 
 **Work done:**
-1. **Chat bubble enlarged** — `3rem × 3rem` → `3.5rem × 3.5rem`; SVG icon `20px` → `22px`. Collapsed state reduces to `2.75rem × 2.75rem`.
-2. **Minimize toggle** — Added `1.75rem` circular `.fab-toggle` button at top of `.fab-stack`. Clicking toggles `fabCollapsed = signal(false)`. Arrow rendered via CSS `::after` border-triangle (up-pointing, rotates 180° when collapsed via `.fab-stack.collapsed .fab-toggle::after { transform: rotate(180deg) }`). Template is an empty button with `[aria-label]` binding — no SVG (SVG inside small Angular-scoped buttons was unreliable).
-3. **Request bar collapse** — Collapsed state: `max-width: 3.5rem; padding: 0.65rem; justify-content: center; border-radius: 16px` → becomes a `3.5rem × 3.5rem` rounded square matching the chat bubble height (0.65 + 2.2 + 0.65 = 3.5rem). `.rb-text` hides via `max-width: 0; opacity: 0`. `max-width 0.3s ease, border-radius 0.25s ease` added to transition list.
-4. **`[class.collapsed]` binding** — Angular class binding on `.fab-stack` drives all collapsed-state CSS via descendant selectors.
+1. **Chat bubble enlarged** - `3rem × 3rem` → `3.5rem × 3.5rem`; SVG icon `20px` → `22px`. Collapsed state reduces to `2.75rem × 2.75rem`.
+2. **Minimize toggle** - Added `1.75rem` circular `.fab-toggle` button at top of `.fab-stack`. Clicking toggles `fabCollapsed = signal(false)`. Arrow rendered via CSS `::after` border-triangle (up-pointing, rotates 180° when collapsed via `.fab-stack.collapsed .fab-toggle::after { transform: rotate(180deg) }`). Template is an empty button with `[aria-label]` binding - no SVG (SVG inside small Angular-scoped buttons was unreliable).
+3. **Request bar collapse** - Collapsed state: `max-width: 3.5rem; padding: 0.65rem; justify-content: center; border-radius: 16px` → becomes a `3.5rem × 3.5rem` rounded square matching the chat bubble height (0.65 + 2.2 + 0.65 = 3.5rem). `.rb-text` hides via `max-width: 0; opacity: 0`. `max-width 0.3s ease, border-radius 0.25s ease` added to transition list.
+4. **`[class.collapsed]` binding** - Angular class binding on `.fab-stack` drives all collapsed-state CSS via descendant selectors.
 
 **Files changed:** `home/home.component.ts`, `customer/pages/browse.component.ts`.
 
@@ -688,23 +734,23 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 
 ---
 
-### Session 2026-05-26 — FAB stack polish, chat status indicators, S3 local fallback
+### Session 2026-05-26 - FAB stack polish, chat status indicators, S3 local fallback
 
 **Scope:** FAB stack moved to shared ShellComponent, live chat status indicators with rotating edge glow, local file upload fallback when S3 not configured.
 
 **Work done:**
 
-1. **Request-bar uncollapse animation fix** — Added `max-height: 5rem` and `max-height` to transition list in both `home.component.ts` and `browse.component.ts` so the bar smoothly expands in height (previously snapped open).
+1. **Request-bar uncollapse animation fix** - Added `max-height: 5rem` and `max-height` to transition list in both `home.component.ts` and `browse.component.ts` so the bar smoothly expands in height (previously snapped open).
 
 2. **FAB stack moved to ShellComponent** (`shell.component.ts`)
    - Transferred the entire `.fab-stack` (chat bubble + request bar + collapse toggle) from `browse.component.ts` into the shared shell template, gated on `@if (auth.principal()?.role === "customer")`.
-   - `browse.component.ts` FAB code removed — no remaining FAB references.
+   - `browse.component.ts` FAB code removed - no remaining FAB references.
    - `fabCollapsed` signal, `openChat()`, `newQuote()` methods added to `ShellComponent`.
    - FAB persists across all customer pages (browse, chat, quotes, bookings, etc.).
 
 3. **Chat bubble status indicators**
    - `.chat-glow`: rotating edge glow via `@property --chat-angle` + `conic-gradient` + `mask-composite: exclude` (content-box mask). Animation spins the gradient angle only, not the element.
-   - `.chat-status`: bottom-right dot — green `#22c55e` pulse (`active`), amber `#f59e0b` with radial inner animation (`typing`), gray (`offline`).
+   - `.chat-status`: bottom-right dot - green `#22c55e` pulse (`active`), amber `#f59e0b` with radial inner animation (`typing`), gray (`offline`).
    - `.chat-unread`: top-left red pill badge (`min-width: 20px`, cap at "99+").
    - `chatStatus` signal drives `.active`/`.typing` classes; `chatUnread` signal drives badge visibility.
 
@@ -714,44 +760,44 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
    - `chat.unread` event → `chatUnread.set(count)`
    - `chat.typing` event → `chatStatus.set("typing")` with 3s `setTimeout` to revert to `"active"`
 
-5. **Request bar rotating glow** — `.rb-glow`: same `@property --rb-angle` + `conic-gradient` + `mask-composite: exclude` technique as chat bubble, with `transition: background 0.3s ease` for hover effects.
+5. **Request bar rotating glow** - `.rb-glow`: same `@property --rb-angle` + `conic-gradient` + `mask-composite: exclude` technique as chat bubble, with `transition: background 0.3s ease` for hover effects.
 
-6. **Glow inset alignment** — Changed `inset` on both `.chat-glow` and `.rb-glow` from `-3px` to `-2.5px` so the glow ring sits flush with the button edge (padding accounts for the ring).
+6. **Glow inset alignment** - Changed `inset` on both `.chat-glow` and `.rb-glow` from `-3px` to `-2.5px` so the glow ring sits flush with the button edge (padding accounts for the ring).
 
-7. **Hover glow intensification** — `.fab-stack:hover .chat-glow` and `.fab-stack:hover .rb-glow` replace the `background` conic-gradient with a more opaque variant (rgba white from 0.35→0.8, amber 0.25→0.6), achieving ~3× glow intensity on hover.
+7. **Hover glow intensification** - `.fab-stack:hover .chat-glow` and `.fab-stack:hover .rb-glow` replace the `background` conic-gradient with a more opaque variant (rgba white from 0.35→0.8, amber 0.25→0.6), achieving ~3× glow intensity on hover.
 
-8. **Rotating glow technique change** — Replaced `transform: rotate(360deg)` (rotates the entire element) with `@property` registered CSS custom property angle animation — only the gradient rotates, not the element itself.
+8. **Rotating glow technique change** - Replaced `transform: rotate(360deg)` (rotates the entire element) with `@property` registered CSS custom property angle animation - only the gradient rotates, not the element itself.
 
-9. **S3 local file upload fallback** (backend — cross-agent)
+9. **S3 local file upload fallback** (backend - cross-agent)
    - Created `backend/src/lib/local-files.ts`: `saveLocalFile(key, body)` writes to `backend/uploads/`, returns `/api/files/local/{key}`. Exports `UPLOADS_DIR` and `localFilePath(key)`.
-   - `PUT /files/local-upload/:fileId` route in `files.routes.ts` — reads raw body chunks, calls `saveLocalFile(file.s3Key, body)`.
+   - `PUT /files/local-upload/:fileId` route in `files.routes.ts` - reads raw body chunks, calls `saveLocalFile(file.s3Key, body)`.
    - `app.ts`: `express.static(UPLOADS_DIR)` mounted at `/api/files/local`, conditional on `!isS3Configured()`.
    - `s3.ts`: `publicUrl()` returns `/api/files/local/${key}`, `uploadBuffer()` dynamically imports `./local-files` and calls `saveLocalFile()` when S3 env vars are missing.
 
 **Bug fix:** Removed duplicate `@property --rb-angle` + `.rb-glow` + `@keyframes rb-glow-spin` CSS block in `shell.component.ts` (lines 1086–1121 and 1123–1157 were identical, second copy dropped the `transition: background 0.3s ease`). Kept the single block with the transition.
 
-**Verification:** Structure reviewed by exploration agent — all FAB references removed from `browse.component.ts`, all S3 fallback paths confirmed in backend.
+**Verification:** Structure reviewed by exploration agent - all FAB references removed from `browse.component.ts`, all S3 fallback paths confirmed in backend.
 
 ---
 
-### Session 2026-05-28 — Phase 9 features: F-D (search/filters), F-A (proposal prompt), F-B (calendar)
+### Session 2026-05-28 - Phase 9 features: F-D (search/filters), F-A (proposal prompt), F-B (calendar)
 
 **Scope:** Three Phase 9 feature deployments.
 
-**F-D — Customer account search + filters:**
+**F-D - Customer account search + filters:**
 - Renamed "Upcoming Bookings" → "Upcoming" in `customer-shell.component.ts`
 - `my-bookings.component.ts`: Added search bar (servicer name/category) + status filter chips (All/Pending/Confirmed/In progress/Completed/Cancelled) + `filteredBookings` computed
 - `order-history.component.ts`: Added search bar (servicer/category) + sort dropdown (date/price) + `filteredItems` computed. Added `FormsModule` import.
 - `rewards.component.ts`: Added search bars for rewards + activity, redeemable-only toggle chip. Added `FormsModule` import.
 
-**F-A — Servicer proposal prompt guard:**
+**F-A - Servicer proposal prompt guard:**
 - Added `SocketService` subscription for `quote.new` event in `ShellComponent` (gated on `servicer` role)
 - Fixed-position toast at bottom-centre: shows count + category, "View & respond" button navigates to `/servicer/jobs`, dismiss × button, 60s auto-dismiss timer
 - Added `OnDestroy` lifecycle to clean up subscription + timer
 
-**F-B — Servicer calendar system:**
-- New `calendar.component.ts` — month-grid layout with 7-column days, status-coloured booking pills, month nav (◀▶), "Today" button, day padding for prev/next months
-- Backend `GET /servicer/calendar?month=YYYY-MM` — queries bookings by month, groups by date
+**F-B - Servicer calendar system:**
+- New `calendar.component.ts` - month-grid layout with 7-column days, status-coloured booking pills, month nav (◀▶), "Today" button, day padding for prev/next months
+- Backend `GET /servicer/calendar?month=YYYY-MM` - queries bookings by month, groups by date
 - Route `/servicer/calendar` added to `servicer.routes.ts`
 - Nav item "Calendar" added between "My Jobs" and "Service Listings" in `servicer-shell.component.ts`
 
@@ -759,9 +805,9 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 **Build gate:** `npx ng build --configuration development` → exit 0 (pre-existing NG8107 warnings only).
 **Test gate:** 235 pass, 1 pre-existing failure (booking-lifecycle mock drift).
 
-### Session 2026-05-28 — F-C: "Save as preset" button in quote form
+### Session 2026-05-28 - F-C: "Save as preset" button in quote form
 
-**Scope:** Complete the last remaining piece of F-C — let customers save the current contact/address/time-slot as a named preset from within the quote form itself (not just from the account page).
+**Scope:** Complete the last remaining piece of F-C - let customers save the current contact/address/time-slot as a named preset from within the quote form itself (not just from the account page).
 
 **Changes to `quote-form.component.ts`:**
 1. Added `.preset-row` wrapping the existing preset dropdown + new "Save as preset" ghost button (disabled until contact name, number, and address are filled).
@@ -774,7 +820,7 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 
 ---
 
-### Session 2026-05-26 — FAQ expansion, request-bar UX, chat FAB
+### Session 2026-05-26 - FAQ expansion, request-bar UX, chat FAB
 
 **Scope:** Seed FAQ content rewrite, request-bar layout change, floating chat bubble.
 
@@ -789,7 +835,7 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
      conditions, step-by-step servicer booking management.
    - Apply with `npm run seed` in `backend/`.
 
-2. **Request-bar layout — right-anchored FAB** (`browse.component.ts`, `home.component.ts`)
+2. **Request-bar layout - right-anchored FAB** (`browse.component.ts`, `home.component.ts`)
    - Changed `.request-bar` from full-width (`left: 1rem; right: 1rem`) to a
      right-anchored compact pill: `right: 2rem; bottom: 2rem; max-width: 340px`.
    - `position: fixed` moved from `.request-bar` to new `.fab-stack` wrapper.
@@ -808,13 +854,13 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 
 ---
 
-### Session 2026-05-26 — 4-tier chat FAB panel + FAQ tier admin control (IN PROGRESS)
+### Session 2026-05-26 - 4-tier chat FAB panel + FAQ tier admin control (IN PROGRESS)
 
-**Scope:** Role-based chat panel in the floating chat bubble; admin tier selector on FAQ entries. Work paused — to be continued next session.
+**Scope:** Role-based chat panel in the floating chat bubble; admin tier selector on FAQ entries. Work paused - to be continued next session.
 
 **Work completed this session:**
 
-1. **FAQ tier field** (backend — see backend-log for full detail)
+1. **FAQ tier field** (backend - see backend-log for full detail)
    - `Faq` model got `tier String @default("all")`.
    - Seed data `static.ts`: 56 entries carry explicit `tier` values by category.
    - `chat.service.ts buildSystemPrompt(role)` filters FAQ by tier.
@@ -823,7 +869,7 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 
 **Work remaining (next session):**
 
-2. **`ChatFabComponent`** (`frontend/src/app/shared/chat-fab.component.ts`) — NEW standalone component:
+2. **`ChatFabComponent`** (`frontend/src/app/shared/chat-fab.component.ts`) - NEW standalone component:
    - Fixed-position floating chat bubble (separate from request-bar FAB stack).
    - On click: opens an inline panel (not direct navigation).
    - Panel shows tier-based question suggestions derived from `AuthService.principal()?.role`:
@@ -833,24 +879,24 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
      - **Admin**: all questions + quick-nav links + `mailto:example@mail.mail` fallback.
    - Question click → `POST /chat/session { contextType: 'general' }` → navigate to `/customer/chat?session=X&q=<question>`.
 
-3. **`browse.component.ts` + `home.component.ts`** — Replace existing `openChat()` direct-navigate with panel-open toggle; integrate `ChatFabComponent` or embed panel logic inline.
+3. **`browse.component.ts` + `home.component.ts`** - Replace existing `openChat()` direct-navigate with panel-open toggle; integrate `ChatFabComponent` or embed panel logic inline.
 
-4. **`shell.component.ts`** — Add `<app-chat-fab />` so servicer and admin portals get the floating chat FAB.
+4. **`shell.component.ts`** - Add `<app-chat-fab />` so servicer and admin portals get the floating chat FAB.
 
-5. **`chat.component.ts`** — Read `?q` query param on init; after session loads, auto-send the question as a message.
+5. **`chat.component.ts`** - Read `?q` query param on init; after session loads, auto-send the question as a message.
 
-6. **`admin/pages/faq.component.ts`** — Add `tier` field to `FaqEntry` + `FaqForm`, tier checkboxes in the modal, Tier column in the table, `openEdit()` copies `e.tier`, `save()` sends `tier`.
+6. **`admin/pages/faq.component.ts`** - Add `tier` field to `FaqEntry` + `FaqForm`, tier checkboxes in the modal, Tier column in the table, `openEdit()` copies `e.tier`, `save()` sends `tier`.
 
 7. **`tsc --noEmit`** in both `backend/` and `frontend/`.
 
 ---
 
-### Session 2026-05-27 — Demo accounts UI + Google Maps planning docs
+### Session 2026-05-27 - Demo accounts UI + Google Maps planning docs
 
 **Scope:** All demo accounts in navbar/login page, remove old login chips, Google Maps integration plan documented.
 
 **Work done:**
-1. **Login page** (`login.component.ts`): Replaced old 4-chip quick-fill with full account listing — 3 customers, 12 servicers organized by category (Plumbing/Cleaning/Aircond/Catering), Admin. Each chip fills email + password.
+1. **Login page** (`login.component.ts`): Replaced old 4-chip quick-fill with full account listing - 3 customers, 12 servicers organized by category (Plumbing/Cleaning/Aircond/Catering), Admin. Each chip fills email + password.
 2. **Shell demo bar** (`shell.component.ts`): Replaced single Customer/Servicer buttons with click-toggle dropdown menus showing all accounts (Customers: Fresh/Active/Loyal; Servicers: all 12 grouped by category). Added `HostListener` for outside-click dismiss, `stopPropagation` on dropdown containers.
 3. **Demo bar** (`demo-bar.component.ts`): Same dropdown treatment applied to the public home page demo bar.
 4. **Auth service** (`auth.service.ts`): Added `demoLoginByEmail(email)` method calling `/dev/demo-login` with email field.
@@ -859,23 +905,23 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 
 ---
 
-### Session 2026-05-27 — Phase 1 P1-FE (Kilo-2): A11y + avatars + listing card + TIME_SLOTS
+### Session 2026-05-27 - Phase 1 P1-FE (Kilo-2): A11y + avatars + listing card + TIME_SLOTS
 
-**Scope:** All five sub-tasks from the CEO Phase 1 Dispatch. Independent of the money model — no backend/schema changes.
+**Scope:** All five sub-tasks from the CEO Phase 1 Dispatch. Independent of the money model - no backend/schema changes.
 
 **Work done:**
 
 **A. P1 Accessibility:**
-1. Darkened `--color-muted` in `styles.css` — warm `#8c8178` → `#6b6258`, night `#857268` → `#a09384` to clear 4.5:1 AA contrast.
+1. Darkened `--color-muted` in `styles.css` - warm `#8c8178` → `#6b6258`, night `#857268` → `#a09384` to clear 4.5:1 AA contrast.
 2. Added `aria-label` to all icon-only buttons: notification bell, theme-toggle, chat-bubble in `shell.component.ts` and `home.component.ts`.
 3. Added `role="status"` and `aria-live="polite"` to the snackbar element (`snackbar.component.ts`).
 
 **B. P1 Touch targets:**
-4. Added `::after` pseudo-element hit-area expansion to `.notif-bell` (inset -6px), `.fab-toggle` (inset -10px), and global `.theme-toggle` (inset -6px) — all ≥44×44px effective hit areas.
-5. Fixed `.topnav.is-idle` and `.toolbar.is-idle` `pointer-events: none` — added `:hover` and `:focus-within` selectors that restore `pointer-events: auto`.
+4. Added `::after` pseudo-element hit-area expansion to `.notif-bell` (inset -6px), `.fab-toggle` (inset -10px), and global `.theme-toggle` (inset -6px) - all ≥44×44px effective hit areas.
+5. Fixed `.topnav.is-idle` and `.toolbar.is-idle` `pointer-events: none` - added `:hover` and `:focus-within` selectors that restore `pointer-events: auto`.
 
 **C. Servicer logo avatars (§16.1):**
-6. `proposals.component.ts`: Added servicer avatar display in the proposal card header — shows `logoUrl` as a 28px circular `<img>` or initials fallback in a tinted circle. Added `initials()` helper.
+6. `proposals.component.ts`: Added servicer avatar display in the proposal card header - shows `logoUrl` as a 28px circular `<img>` or initials fallback in a tinted circle. Added `initials()` helper.
 7. `my-bookings.component.ts`: Same avatar treatment for the booking card header. Added `initials()` helper.
 
 **D. Servicer listing card redesign (§11):**
@@ -890,29 +936,29 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
    - Mobile stacking preserved via existing responsive grid.
 
 **E. TIME_SLOTS single-source:**
-9. Created `shared/constants/time-slots.ts` — single `TIME_SLOTS` array + `TimeSlot` interface.
+9. Created `shared/constants/time-slots.ts` - single `TIME_SLOTS` array + `TimeSlot` interface.
 10. Updated `quote-form.component.ts` and `guest-quote.component.ts` to import from shared constant; removed inline duplicates.
 
 **Verification:**
-- `npx ng build --configuration development` → **exit 0** (warnings only — pre-existing `NG8107` optional-chain warnings in services template).
+- `npx ng build --configuration development` → **exit 0** (warnings only - pre-existing `NG8107` optional-chain warnings in services template).
 - `npx tsc --noEmit` → **0 errors**.
 - `STYLE-RULES.md` updated with new muted colour values.
 
 ---
 
-### Session 2026-05-27 — Quote flow redesign (4-step Bill, §13)
+### Session 2026-05-27 - Quote flow redesign (4-step Bill, §13)
 
-**Scope:** `customer/pages/quote-form.component.ts` + `guest/guest-quote.component.ts` — 4-step wizard per CEO §13 design.
+**Scope:** `customer/pages/quote-form.component.ts` + `guest/guest-quote.component.ts` - 4-step wizard per CEO §13 design.
 
 **Work done:**
 
-1. **4-step stepper** — Both forms updated from 3 steps to 4: Choose service · Contact · Summary · Bill. Stepper labels updated; mobile label-hide CSS preserved.
+1. **4-step stepper** - Both forms updated from 3 steps to 4: Choose service · Contact · Summary · Bill. Stepper labels updated; mobile label-hide CSS preserved.
 
-2. **Budget moved to Step 1** — Budget range select moved from the old Summary step into Choose service (step 1). Validation in `goToContact()` now includes `budgetIndex`. Budget ranges still load on category change via `loadBudgetRanges()`. Reorder prefill (`matchPrefillBudget`) unchanged.
+2. **Budget moved to Step 1** - Budget range select moved from the old Summary step into Choose service (step 1). Validation in `goToContact()` now includes `budgetIndex`. Budget ranges still load on category change via `loadBudgetRanges()`. Reorder prefill (`matchPrefillBudget`) unchanged.
 
-3. **Step 3 — Summary: clean review** — No money fields. Shows: service, all answered questions, preferred time, preferred date, notes, budget range (display only), contact name/number, address. "Next: Bill →" advances to step 4 with no validation (read-only card).
+3. **Step 3 - Summary: clean review** - No money fields. Shows: service, all answered questions, preferred time, preferred date, notes, budget range (display only), contact name/number, address. "Next: Bill →" advances to step 4 with no validation (read-only card).
 
-4. **Step 4 — Bill** — New final step:
+4. **Step 4 - Bill** - New final step:
    - Payment timing radio (pay_now / pay_later) as styled option cards with description text.
    - Settlement method (credit / gateway for pay_now; credit / gateway / cash for pay_later). Guest form omits credit (no wallet) and shows a "Create an account to pay with wallet credit" hint.
    - `onTimingChange()` resets `settlementMethod` to `credit` (auth) / `gateway` (guest) when switching to pay_now to prevent invalid cash selection.
@@ -921,67 +967,67 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
    - Enhanced estimate box: label + prominent RM amount + note with budget range label and "Final price set by servicer" copy.
    - Agree to terms checkbox + submit validation.
 
-5. **Date input hack removed** — Both forms: `input[type='date'] { max-width: 12rem; }` removed. Date input now full-width within the form column, consistent with all other inputs.
+5. **Date input hack removed** - Both forms: `input[type='date'] { max-width: 12rem; }` removed. Date input now full-width within the form column, consistent with all other inputs.
 
-6. **Backend compat** — `doSubmit()` / `save()` maps new `paymentTiming + settlementMethod` → legacy `paymentMode` field for the current backend: `pay_now` → `pay_now`; `pay_later + cash` → `cash`; `pay_later + other` → `pay_later`. Top-up modal now only triggers for `pay_now + credit` (not gateway).
+6. **Backend compat** - `doSubmit()` / `save()` maps new `paymentTiming + settlementMethod` → legacy `paymentMode` field for the current backend: `pay_now` → `pay_now`; `pay_later + cash` → `cash`; `pay_later + other` → `pay_later`. Top-up modal now only triggers for `pay_now + credit` (not gateway).
 
-7. **`f.paymentMode` removed** — Replaced with `paymentTiming: 'pay_now'|'pay_later'` and `settlementMethod: 'credit'|'gateway'|'cash'`. Reorder prefill maps old `paymentMode` string → new fields. Guest `restoreForm` maps `saved.paymentMode` → new fields.
+7. **`f.paymentMode` removed** - Replaced with `paymentTiming: 'pay_now'|'pay_later'` and `settlementMethod: 'credit'|'gateway'|'cash'`. Reorder prefill maps old `paymentMode` string → new fields. Guest `restoreForm` maps `saved.paymentMode` → new fields.
 
 **Verification:** `npx ng build --configuration development` → **exit 0** (pre-existing warnings only, no new errors).
 
 ---
 
-### Session 2026-05-27 — Claude #3: Invoice page redesign (itemized receipt)
+### Session 2026-05-27 - Claude #3: Invoice page redesign (itemized receipt)
 
-**Scope:** Rebuild invoice display in customer my-bookings + servicer jobs detail as an itemized receipt. No backend changes — all fields already exist on the Invoice model.
+**Scope:** Rebuild invoice display in customer my-bookings + servicer jobs detail as an itemized receipt. No backend changes - all fields already exist on the Invoice model.
 
 **Work done:**
 
-1. **`servicer/pages/jobs.component.ts`** — History tab invoice modal rebuilt:
+1. **`servicer/pages/jobs.component.ts`** - History tab invoice modal rebuilt:
    - Added `InvoiceDetail` interface with all breakdown fields (`lineItems`, `subtotal`, `promoDiscount`, `serviceChargeRate/Amount`, `sstApplies`, `taxInclusive`, `taxRate/Amount`, `tipAmount`, `total`, `platformFee`).
    - Updated `invoiceData` signal type from inline stub to `InvoiceDetail | null`.
-   - Receipt layout: invoice number + issued date + paid badge in header; line items `<table>` with label/amount columns; subtotal breakdown rows (promo as green negative, service charge, SST with rate%, tip — each conditional); bold divider + large primary-coloured total; tax mode badge (inclusive/exclusive pill); muted dashed platform-fee row; Download PDF + Print buttons.
+   - Receipt layout: invoice number + issued date + paid badge in header; line items `<table>` with label/amount columns; subtotal breakdown rows (promo as green negative, service charge, SST with rate%, tip - each conditional); bold divider + large primary-coloured total; tax mode badge (inclusive/exclusive pill); muted dashed platform-fee row; Download PDF + Print buttons.
    - `printInvoice` refactored: uses `Blob` + `URL.createObjectURL` (eliminates `document.write` XSS vector); escapes all user-supplied strings before interpolation into HTML.
 
-2. **`customer/pages/my-bookings.component.ts`** — Added invoice viewing:
+2. **`customer/pages/my-bookings.component.ts`** - Added invoice viewing:
    - Imported `ModalComponent`; added `InvoiceDetail` interface; added `invoiceModalOpen/Loading/Error/Data` signals.
    - "Invoice" button added to completed-booking action row (alongside Reorder).
    - `viewInvoice(b)` fetches `GET /bookings/:id/invoice` and opens the same receipt layout modal.
    - Identical receipt styles added to component styles.
 
-**Gate:** `ng build` exit 0 (pre-existing warnings only — services.component.ts optional-chain + budget).
+**Gate:** `ng build` exit 0 (pre-existing warnings only - services.component.ts optional-chain + budget).
 
 ---
 
-### Session 2026-05-27 — Money/listing epic §2.1/§5/§6 step 9: Admin settings cleanup, servicer business details + tax config, admin account changes queue
+### Session 2026-05-27 - Money/listing epic §2.1/§5/§6 step 9: Admin settings cleanup, servicer business details + tax config, admin account changes queue
 
 **Scope:** Three frontend tasks from the money-listing-epic spec (§2.1, §5, §6 step 9).
 
-**TASK A — Admin settings cleanup (settings.component.ts)**
+**TASK A - Admin settings cleanup (settings.component.ts)**
 - Removed the entire "Platform charge" section from the Platform tab (template lines 170–192: mode selector, value input, save button, message display).
 - Removed `charge`, `chargeSaving`, `chargeMessage`, `chargeIsError` class fields.
 - Removed `platform_charge` read from `ngOnInit()` (lines 370–374).
 - Removed `saveCharge()` method (475–502).
-- The Platform tab now shows only `platform_fee_rate` and Timing & tax — the unified fee under the new canonical model.
+- The Platform tab now shows only `platform_fee_rate` and Timing & tax - the unified fee under the new canonical model.
 - `platform_charge` setting key was already removed from seed data; frontend no longer reads/writes it.
 
-**TASK B — Servicer business details + tax config (account.component.ts)**
+**TASK B - Servicer business details + tax config (account.component.ts)**
 - Extended `ServicerProfile` interface with new epic fields: `entityType`, `businessRegistrationNumber`, `taxNumber`, `sstRegistered`, `sstNumber`, `serviceChargeRate`, `taxInclusive`, `identityChangeRequests`.
 - Added `IdentityChangeRequest` interface (id, status, proposed, reviewedBy, reviewedAt, createdAt).
 - New sections in the template (between Profile and Invoice formatting):
-  - **Identity change request status banner** — conditional section that lists pending/approved/rejected `identityChangeRequests` with badges, proposed changes in `<dl>` grid, and approval/rejection dates.
-  - **Business details section** — legal business name (text), entity type dropdown (Sole Proprietorship/Partnership/Enterprise/Sdn Bhd), business registration number (text), tax number (text). Includes `id-note` explaining admin review when `identityFieldsDirty`.
-  - **Tax config section** — SST registered toggle (CSS custom checkbox `.toggle`), SST number input (conditional on SST toggle), service charge rate % (number), tax inclusive toggle. Changes save directly — no admin review.
+  - **Identity change request status banner** - conditional section that lists pending/approved/rejected `identityChangeRequests` with badges, proposed changes in `<dl>` grid, and approval/rejection dates.
+  - **Business details section** - legal business name (text), entity type dropdown (Sole Proprietorship/Partnership/Enterprise/Sdn Bhd), business registration number (text), tax number (text). Includes `id-note` explaining admin review when `identityFieldsDirty`.
+  - **Tax config section** - SST registered toggle (CSS custom checkbox `.toggle`), SST number input (conditional on SST toggle), service charge rate % (number), tax inclusive toggle. Changes save directly - no admin review.
 - New class signals: `identityChangeRequests`, `savingIdentity`, `identitySavingError`, `savingTax`, `taxSavingError`, `identityFieldsDirty`.
 - New form fields in `f`: `businessLegalName`, `businessEntityType`, `businessRegNumber`, `taxNumber`, `sstRegistered`, `sstNumber`, `serviceChargeRate`, `taxInclusive`.
 - `ngOnInit()` seeds all new fields from profile response.
-- `saveBusinessDetails()` POSTs to `/servicer/me/identity-change-request` with `{ proposed: { entityType?, businessRegistrationNumber?, taxNumber?, sstNumber? } }` — creates an admin-review change request.
-- `saveTaxConfig()` PATCHes `/servicer/me` with `{ sstRegistered, serviceChargeRate, taxInclusive, sstNumber? }` — direct save.
+- `saveBusinessDetails()` POSTs to `/servicer/me/identity-change-request` with `{ proposed: { entityType?, businessRegistrationNumber?, taxNumber?, sstNumber? } }` - creates an admin-review change request.
+- `saveTaxConfig()` PATCHes `/servicer/me` with `{ sstRegistered, serviceChargeRate, taxInclusive, sstNumber? }` - direct save.
 - `onSstToggled()` clears `sstNumber` when SST is toggled off.
 - `formatEntityType()` helper maps enum values to display labels.
 - CSS: `.id-banner` (left border highlight), `.id-req` rows, `.id-req-dl` definition list, `.id-note` (accent notice box), `.two-col` grid row, `.toggle-row` + `.toggle` custom checkbox, status badges for pending/approved/rejected.
 
-**TASK C — Admin Account Changes queue tab (queues.component.ts)**
+**TASK C - Admin Account Changes queue tab (queues.component.ts)**
 - Added `'account'` to `activeTab` union type and added "Account Changes" tab button with pending count badge.
 - New `account` tab template section: search input filtered by servicer name, card rows showing servicer name, proposed changes (entityType, reg no, tax no, sstNumber) in `.id-props` flex row, requested date, and Approve/Reject buttons.
 - New signals: `identityRequests`, `iQuery`.
@@ -994,27 +1040,27 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 
 **Verification:**
 - `npx tsc --noEmit` → **0 errors**.
-- `npx ng build --configuration development` → **exit 0** (warnings only — pre-existing `NG8107` in services.component.ts).
+- `npx ng build --configuration development` → **exit 0** (warnings only - pre-existing `NG8107` in services.component.ts).
 - All three files changed: `settings.component.ts` (~60 lines removed), `account.component.ts` (complete rewrite with ~300 lines added), `queues.component.ts` (complete rewrite with ~100 lines added).
 
 ---
 
-### Session 2026-05-27 — Money/listing epic §2.3/§2.4/§6 step 10: Listing form redesign (sectioned modal)
+### Session 2026-05-27 - Money/listing epic §2.3/§2.4/§6 step 10: Listing form redesign (sectioned modal)
 
 **Scope:** Rebuild the servicer listing modal (`servicer/pages/services.component.ts`) as a sectioned, collapsible-section single form per `money-listing-epic-spec.md` §2.3/§2.4 and `ceo-overview.md` §17.
 
 **Changes to `services.component.ts`:**
 - New `PricingModule` interface added; `Service` interface extended with `moduleRefs?`, `serviceChargeRate?`, `taxInclusive?`, `sstApplies?`.
 - Modal form restructured into **3 collapsible sections** using CSS grid row animation (`grid-template-rows: 1fr → 0fr` with 0.25s ease transition; no JS height measurement):
-  - **Section 1 — Basics:** title, description, category, sub-category, basePrice, priceType, duration.
-  - **Section 2 — Pricing & Modules:** PricingModule library picker (loads from `GET /servicer/pricing-modules?active=true`), per-module price override inputs, service charge rate override (number), tax inclusive toggle (select), SST applies toggle (select), followed by existing option-price grid and tax mode/name/rate fields.
-  - **Section 3 — Auto-accept:** existing conditions toggle + config (budget min/max, time slots).
+  - **Section 1 - Basics:** title, description, category, sub-category, basePrice, priceType, duration.
+  - **Section 2 - Pricing & Modules:** PricingModule library picker (loads from `GET /servicer/pricing-modules?active=true`), per-module price override inputs, service charge rate override (number), tax inclusive toggle (select), SST applies toggle (select), followed by existing option-price grid and tax mode/name/rate fields.
+  - **Section 3 - Auto-accept:** existing conditions toggle + config (budget min/max, time slots).
 - New signals: `pricingModules`, `secBasics`, `secPricing`, `secAutoAccept`.
 - New `blankForm()` fields: `moduleRefs`, `serviceChargeRate`, `taxInclusive`, `sstApplies`.
 - New methods: `isModuleSelected()`, `toggleModule()`, `getModuleOverride()`, `setModuleOverride()`.
 - `ngOnInit()` extended: parallel load of `GET /servicer/pricing-modules?active=true` alongside existing data.
 - `openEdit()` extended: populates new fields from service record.
-- `save()` extended: includes new fields in `PATCH /servicer/me/services/:id` body (backend ignores until wired — spec §2.3 forward-compatible).
+- `save()` extended: includes new fields in `PATCH /servicer/me/services/:id` body (backend ignores until wired - spec §2.3 forward-compatible).
 - Existing search, chips, list-card layout left unchanged.
 - Fixed AOT build error: `sizeToken="xs"` → `sizeToken="sm"` on all 3 section header icons (`IconSize` only accepts `sm|md|lg|xl`).
 
@@ -1022,31 +1068,31 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 
 ---
 
-### Session 2026-05-27 — Quote Form 4-Step Bill (ceo-overview §13 + payment MVP step 7)
+### Session 2026-05-27 - Quote Form 4-Step Bill (ceo-overview §13 + payment MVP step 7)
 
 **Scope:** Redesign both quote forms (`quote-form.component.ts` + `guest-quote.component.ts`) as 4-step wizards with the canonical Bill step. Add `GET /quotes/estimate` backend endpoint.
 
-**Backend — `backend/src/routes/quotes.routes.ts`:**
+**Backend - `backend/src/routes/quotes.routes.ts`:**
 - Added `GET /quotes/estimate` public endpoint (before auth middleware).
 - Params: `categoryId`, `budgetMin`, `budgetMax` (optional), `promoCode` (optional).
 - Computes budget-range midpoint → single mock `LineItem` → calls `computeTotal()` with default config (no service charge, SST-unregistered) → returns `{ subtotal, promoDiscount, promoError?, serviceCharge, sst, total, note }`.
 - Validates promo against `Promotion` table (`isActive`, not expired, under `maxUses`).
 - New imports: `getSstRate`, `computeTotal`, `LineItem`, `ServicerTaxConfig`, `prisma`.
 
-**Frontend — `quote-form.component.ts` (complete rewrite):**
+**Frontend - `quote-form.component.ts` (complete rewrite):**
 
 Step layout restructured:
-- **Step 1 — Choose service:** category dropdown + dynamic questions + budget **visual slider** (`<input type="range">`). First range auto-selected on load. Next button `[disabled]="!categoryId()"` (enabled on category select). Validates category + budget + required questions on Next.
-- **Step 2 — Contact:** contact name/number + address (Places Autocomplete) + preferred date (native date input) + time slot + notes. (Date/time/notes moved here from old step 1.) Validates all on Next.
-- **Step 3 — Summary:** clean review card — service, questions, date/time, notes, contact, address. NO budget/money rows. "Looks good?" prompt. Next calls `goToBill()` which sets step 4 + triggers `fetchEstimate()`.
-- **Step 4 — Bill:** payment timing radios (pay_now / pay_later) → settlement method (credit wallet / cash) shown **only for pay_later** → promo code input + Apply button with loading/success/error feedback → canonical estimate card (subtotal, promo discount, service charge, SST, total from `/quotes/estimate`) → agree checkbox + submit.
+- **Step 1 - Choose service:** category dropdown + dynamic questions + budget **visual slider** (`<input type="range">`). First range auto-selected on load. Next button `[disabled]="!categoryId()"` (enabled on category select). Validates category + budget + required questions on Next.
+- **Step 2 - Contact:** contact name/number + address (Places Autocomplete) + preferred date (native date input) + time slot + notes. (Date/time/notes moved here from old step 1.) Validates all on Next.
+- **Step 3 - Summary:** clean review card - service, questions, date/time, notes, contact, address. NO budget/money rows. "Looks good?" prompt. Next calls `goToBill()` which sets step 4 + triggers `fetchEstimate()`.
+- **Step 4 - Bill:** payment timing radios (pay_now / pay_later) → settlement method (credit wallet / cash) shown **only for pay_later** → promo code input + Apply button with loading/success/error feedback → canonical estimate card (subtotal, promo discount, service charge, SST, total from `/quotes/estimate`) → agree checkbox + submit.
 
 New signals/methods: `estimateData`, `estimateLoading`, `promoApplying`, `promoApplyError`, `promoApplySuccess`, `appliedPromoCode`, `budgetSlider`; `goToBill()`, `fetchEstimate()`, `applyPromo()`, `removePromo()`, `onBudgetSlide()`.
 `estimatedTotal()` computed now derives from `estimateData()` (used by top-up modal credit check).
 Settlement method: only credit wallet / cash shown for pay_later; gateway option removed from UI.
 "No charge until a servicer accepts your request" note shown for pay_later.
 
-**Frontend — `guest-quote.component.ts` (complete rewrite):**
+**Frontend - `guest-quote.component.ts` (complete rewrite):**
 - Same 4-step structure and field redistribution.
 - No promo code (guests have no account to carry it to).
 - Pay later settlement: cash only (no wallet for guests); hint to register for wallet credit.
@@ -1058,7 +1104,7 @@ Settlement method: only credit wallet / cash shown for pay_later; gateway option
 
 ---
 
-### Session 2026-05-28 — Phase 6 Identity Avatars POST-MVP (Task P6-FE)
+### Session 2026-05-28 - Phase 6 Identity Avatars POST-MVP (Task P6-FE)
 
 **Scope:** Three sub-tasks from CEO Phase 6 Dispatch:
 - A. Customer avatar upload on account page
@@ -1066,27 +1112,27 @@ Settlement method: only credit wallet / cash shown for pay_later; gateway option
 - C. Show customer photo on job-accept view
 
 **Backend context:** Backend P6-BE already added `customerAvatarUrl` + `customerName` to:
-- `GET /servicer/quotes` (listIncomingQuotes) — each quote object returns the fields
-- `POST /servicer/quotes/:id/open` (openQuote) — returns `{ proposalPrefill, customerAvatarUrl, customerName }`
-- Self-quote filter: `pairedCustomerEmail` guard in `listIncomingQuotes` DB query already excludes self-quotes — no frontend privacy guard needed
+- `GET /servicer/quotes` (listIncomingQuotes) - each quote object returns the fields
+- `POST /servicer/quotes/:id/open` (openQuote) - returns `{ proposalPrefill, customerAvatarUrl, customerName }`
+- Self-quote filter: `pairedCustomerEmail` guard in `listIncomingQuotes` DB query already excludes self-quotes - no frontend privacy guard needed
 
-**TASK A — Customer avatar upload on account page (`customer/pages/account.component.ts`):**
+**TASK A - Customer avatar upload on account page (`customer/pages/account.component.ts`):**
 - Avatar image size scaled up from 64px → 80px (matching spec: "circular 80px image preview")
 - Added `avatarUrl` field to the `saveProfile()` PATCH body so the avatar URL persists alongside name/phone/etc. (Previously the upload flow patched `/user/me` separately with only `avatarUrl`.)
-- Avatar section already existed (presign→S3/local PUT→confirm flow, initials fallback, remove button) — this session just filled the two gaps: spec size + profile-save persistence.
+- Avatar section already existed (presign→S3/local PUT→confirm flow, initials fallback, remove button) - this session just filled the two gaps: spec size + profile-save persistence.
 
-**TASK B — Customer photo on servicer incoming quotes (`servicer/pages/jobs.component.ts`):**
+**TASK B - Customer photo on servicer incoming quotes (`servicer/pages/jobs.component.ts`):**
 - Added `customerAvatarUrl?: string | null` and `customerName?: string` to `IncomingQuote` interface.
 - Pending column template: new `.customer-row` at top of each quote card showing 40px circular avatar (or initials fallback in tinted circle) + `customerName` when available.
-- Privacy guard: backend already filters self-quotes via `pairedCustomerEmail` in `listIncomingQuotes` — no duplicate frontend check needed.
+- Privacy guard: backend already filters self-quotes via `pairedCustomerEmail` in `listIncomingQuotes` - no duplicate frontend check needed.
 
-**TASK C — Customer photo on job-accept view (`servicer/pages/jobs.component.ts`):**
+**TASK C - Customer photo on job-accept view (`servicer/pages/jobs.component.ts`):**
 - Expanded quote view (proposal form): when a servicer clicks to expand a quote to send a proposal, shows the same 40px avatar + customerName above the proposal form.
 - Added `expandedCustomerAvatar` and `expandedCustomerName` signals, populated from the updated `openQuote` response (`{ proposalPrefill, customerAvatarUrl, customerName }`).
 - `expand()` method updated: clears customer info on collapse; captures from API response on expand.
 - Same `.customer-row` / `.avatar-circle` / `.avatar-fallback` styling pattern as Task B.
 
-**Shared `initials()` helper:** Added to `JobsComponent` — takes `name?: string | null`, returns first letter uppercase (e.g. `'A'` for `'Aisha'`). Uses `'?'` fallback for null/undefined.
+**Shared `initials()` helper:** Added to `JobsComponent` - takes `name?: string | null`, returns first letter uppercase (e.g. `'A'` for `'Aisha'`). Uses `'?'` fallback for null/undefined.
 
 **CSS additions (jobs.component.ts styles):**
 ```css
@@ -1099,20 +1145,20 @@ Settlement method: only credit wallet / cash shown for pay_later; gateway option
 ```
 
 **Files changed:**
-1. `frontend/src/app/customer/pages/account.component.ts` — avatar size 64px→80px, `avatarUrl` in saveProfile() PATCH body
-2. `frontend/src/app/servicer/pages/jobs.component.ts` — IncomingQuote extended (2 new fields), expanded view customer signals (2), `initials()` helper, pending card avatar row, expand view avatar row, 4 new CSS rules
+1. `frontend/src/app/customer/pages/account.component.ts` - avatar size 64px→80px, `avatarUrl` in saveProfile() PATCH body
+2. `frontend/src/app/servicer/pages/jobs.component.ts` - IncomingQuote extended (2 new fields), expanded view customer signals (2), `initials()` helper, pending card avatar row, expand view avatar row, 4 new CSS rules
 
-**Gate:** `npx tsc --noEmit` → **0 errors**. `npx ng build --configuration development` → **exit 0** (pre-existing `NG8107` optional-chain warnings in `services.component.ts` only — no new warnings).
+**Gate:** `npx tsc --noEmit` → **0 errors**. `npx ng build --configuration development` → **exit 0** (pre-existing `NG8107` optional-chain warnings in `services.component.ts` only - no new warnings).
 
 ---
 
-### Session 2026-05-28 — Category Thumbnails POST-MVP (§15)
+### Session 2026-05-28 - Category Thumbnails POST-MVP (§15)
 
 **Scope:** Admin-managed category thumbnails per `ceo-overview.md` §15. Two sub-tasks:
 - A. Admin Thumbnails tab in settings
 - B. Servicer listing card thumbnail
 
-**Sub-task A — Admin Thumbnails tab (`admin/pages/settings.component.ts`):**
+**Sub-task A - Admin Thumbnails tab (`admin/pages/settings.component.ts`):**
 
 1. Added `'thumbnails'` to the `Tab` union type.
 2. Added "Thumbnails" tab button alongside Customer/Servicer/Platform in the tab header bar.
@@ -1121,32 +1167,32 @@ Settlement method: only credit wallet / cash shown for pay_later; gateway option
    - Upload button uses a label-wrapping pattern: clicking triggers the hidden `<input type="file">`, which fires `uploadThumbnail(cat, $event)` on change.
    - Upload flow: `POST /files/presign` → raw `HttpClient.put` to presigned S3 URL → `POST /files/:id/confirm` → `PATCH /admin/categories/:id { imageUrl }`. Reuses the established 3-step upload pattern (logo/avatar upload in servicer/customer account pages).
    - Clear button shown when `imageUrl` exists → calls same PATCH endpoint with `{ imageUrl: null }`.
-   - Loading state per-category via `uploading = signal<Set<string>>` — tracks which category IDs are mid-upload.
+   - Loading state per-category via `uploading = signal<Set<string>>` - tracks which category IDs are mid-upload.
 4. New imports: `HttpClient`, `switchMap` from rxjs.
 5. New signals: `uploading` (Set of uploading category IDs).
 6. New methods: `uploadThumbnail(cat, event)`, `clearThumbnail(cat)`, `refreshCategories()`.
 7. CSS: `.thumb-list`, `.thumb-row`, `.thumb-preview` (80x80 rounded, border, bg), `.thumb-img` (object-fit: cover), `.thumb-empty`, `.thumb-info`, `.thumb-name`, `.thumb-acts`, `.thumb-upload-btn`, `.btn-xs`, `.btn-xs.disabled`.
 8. Category interface extended with `imageUrl?: string | null`.
 
-**Sub-task B — Servicer listing card thumbnail (`servicer/pages/services.component.ts`):**
+**Sub-task B - Servicer listing card thumbnail (`servicer/pages/services.component.ts`):**
 
 1. Extended the `category` inline type in the `Service` interface: added `imageUrl?: string | null`.
 2. Template (line ~119-124): Conditional rendering in `.lc-tile`:
-   - If `s.category?.imageUrl` exists: `<img [src]="s.category!.imageUrl" class="lc-thumb" />` (non-null assertion needed for strict AOT template type-checking — guarded by the `@if`).
+   - If `s.category?.imageUrl` exists: `<img [src]="s.category!.imageUrl" class="lc-thumb" />` (non-null assertion needed for strict AOT template type-checking - guarded by the `@if`).
    - Else: existing `<app-icon>` with `categoryIconFor(...)` as fallback.
 3. CSS: `.lc-thumb { width: 48px; height: 48px; border-radius: var(--radius-sm); object-fit: cover; }`.
 
 **Files changed:**
-1. `frontend/src/app/admin/pages/settings.component.ts` — Thumbnails tab + upload/clear flow (~80 lines added)
-2. `frontend/src/app/servicer/pages/services.component.ts` — conditional thumbnail rendering + CSS (8 lines added)
+1. `frontend/src/app/admin/pages/settings.component.ts` - Thumbnails tab + upload/clear flow (~80 lines added)
+2. `frontend/src/app/servicer/pages/services.component.ts` - conditional thumbnail rendering + CSS (8 lines added)
 
-**Gate:** `npx tsc --noEmit` → **0 errors**. `npx ng build --configuration development` → **exit 0** (pre-existing `NG8107` optional-chain warnings only — unchanged).
+**Gate:** `npx tsc --noEmit` → **0 errors**. `npx ng build --configuration development` → **exit 0** (pre-existing `NG8107` optional-chain warnings only - unchanged).
 
-**Note:** The `PATCH /admin/categories/:id` endpoint used by the upload/clear flow may not yet exist in the backend. The frontend calls are forward-compatible — when the backend wires up the route, thumbnails will work without frontend changes. The `imageUrl` field already exists on the Category model (`schema.prisma` line 602) and is already included in the servicer-services query joins (`servicer-service.service.ts` line 37).
+**Note:** The `PATCH /admin/categories/:id` endpoint used by the upload/clear flow may not yet exist in the backend. The frontend calls are forward-compatible - when the backend wires up the route, thumbnails will work without frontend changes. The `imageUrl` field already exists on the Category model (`schema.prisma` line 602) and is already included in the servicer-services query joins (`servicer-service.service.ts` line 37).
 
 ---
 
-### Session 2026-05-28 — ConfigService (runtime config instead of baked-in env)
+### Session 2026-05-28 - ConfigService (runtime config instead of baked-in env)
 
 **Task:** Move `googleClientId` and `googleMapsApiKey` from compile-time
 `environment.ts` to runtime `GET /config/public` fetch via `ConfigService`.
@@ -1156,7 +1202,7 @@ Settlement method: only credit wallet / cash shown for pay_later; gateway option
   method that fetches `/config/public` via HttpClient. Caches the result
   so all consumers read it synchronously after initialization.
 - Updated `app.config.ts`: Added `APP_INITIALIZER` that calls `config.load()`
-  before the Angular app boots — every component sees resolved values.
+  before the Angular app boots - every component sees resolved values.
 - `environment.ts`: Reverted `googleClientId` and `googleMapsApiKey` back to
   empty strings with updated comments pointing to the backend config endpoint.
 - `auth/login.component.ts`: Injected `ConfigService`, reads `googleClientId`
@@ -1173,29 +1219,29 @@ Settlement method: only credit wallet / cash shown for pay_later; gateway option
 
 ---
 
-### Session 2026-05-28 — Bug fix: settlementMethod missing on proposal select + quote form legacy paymentMode
+### Session 2026-05-28 - Bug fix: settlementMethod missing on proposal select + quote form legacy paymentMode
 
-**Bug A — Proposals page:** `proposals.component.ts` `select()` method (line ~227) POSTed to `/quotes/:id/select` with only `{ proposalId }`, never including `settlementMethod`. For `pay_later` quotes, the backend throws `settlementMethod is required for pay_later bookings`.
+**Bug A - Proposals page:** `proposals.component.ts` `select()` method (line ~227) POSTed to `/quotes/:id/select` with only `{ proposalId }`, never including `settlementMethod`. For `pay_later` quotes, the backend throws `settlementMethod is required for pay_later bookings`.
 
-**Fix (Option B — add settlement method selector in confirmation modal):**
+**Fix (Option B - add settlement method selector in confirmation modal):**
 1. Added `paymentMode` and `settlementMethod` signals.
 2. Added `loadQuote()` method that fetches the quote via `GET /quotes/:id` to know `paymentMode`. Called in `ngOnInit`.
 3. When `paymentMode !== 'pay_now'`, the confirmation modal now shows a "Settlement method" radio group (Credit/card or Cash on completion), defaulting to `credit`.
 4. `select()` now includes `settlementMethod` in the POST body for non-pay_now quotes.
 5. Added CSS for `.settle-opt` styling.
 
-**Bug B — Quote form `doSubmit()` legacy paymentMode:**
+**Bug B - Quote form `doSubmit()` legacy paymentMode:**
 1. Fixed `paymentMode` mapping (line ~1097-1099): was emitting `'cash'` as a legacy paymentMode value. Now always sends `'pay_now'` or `'pay_later'`.
 2. Added `settlementMethod` to the payload for `pay_later` bookings.
 3. Updated `loadPreset()` to explicitly handle `paymentMode: 'pay_later'` (in addition to `pay_now` and `cash`).
 
 **Docs updated:**
-- `docs/api-reference/api-doc.md` — `POST /quotes/:id/select` now documents `settlementMethod` field.
+- `docs/api-reference/api-doc.md` - `POST /quotes/:id/select` now documents `settlementMethod` field.
 
 **Files changed:**
-1. `frontend/src/app/customer/pages/proposals.component.ts` — added quote fetch, settlement method selector in modal, settlement method in POST body, CSS.
-2. `frontend/src/app/customer/pages/quote-form.component.ts` — fixed paymentMode mapping, added settlementMethod to payload, explicit pay_later preset handling.
-3. `docs/api-reference/api-doc.md` — documented settlementMethod on select endpoint.
+1. `frontend/src/app/customer/pages/proposals.component.ts` - added quote fetch, settlement method selector in modal, settlement method in POST body, CSS.
+2. `frontend/src/app/customer/pages/quote-form.component.ts` - fixed paymentMode mapping, added settlementMethod to payload, explicit pay_later preset handling.
+3. `docs/api-reference/api-doc.md` - documented settlementMethod on select endpoint.
 
 **Gate:** `npx tsc --noEmit` ✅ zero errors.
 
@@ -1206,20 +1252,20 @@ Settlement method: only credit wallet / cash shown for pay_later; gateway option
 Added the missing signal declarations and `doDeactivate()` method to `account.component.ts` to complete the 3-step deactivation wizard whose template was already committed.
 
 **Signals added:**
-- `deactivateStep` — `signal(0)` (0=hidden, 1=warning, 2=reason+password, 3=confirm DELETE)
-- `deactivateReason`, `deactivatePassword`, `deactivateConfirm` — string signals bound to `[(ngModel)]`
-- `deactivateError` — `signal<string | null>(null)`
-- `deactivating` — `signal(false)` (disabled state on the submit button)
+- `deactivateStep` - `signal(0)` (0=hidden, 1=warning, 2=reason+password, 3=confirm DELETE)
+- `deactivateReason`, `deactivatePassword`, `deactivateConfirm` - string signals bound to `[(ngModel)]`
+- `deactivateError` - `signal<string | null>(null)`
+- `deactivating` - `signal(false)` (disabled state on the submit button)
 
 **Method added:**
-- `doDeactivate()` — validates confirmation matches "DELETE", POSTs `{ reason, password }` to `/user/me/deactivate`, on success calls `auth.logout()` + navigates to `/` + shows success toast, on error sets `deactivateError` inline, uses `finalize` to reset `deactivating`.
+- `doDeactivate()` - validates confirmation matches "DELETE", POSTs `{ reason, password }` to `/user/me/deactivate`, on success calls `auth.logout()` + navigates to `/` + shows success toast, on error sets `deactivateError` inline, uses `finalize` to reset `deactivating`.
 
 **Gate:** `npx tsc --noEmit` ✅ zero errors (frontend).
-**Build:** `npx ng build --configuration development` ✅ exit 0 (pre-existing NG9 errors in `admin/settings.component.ts` only — unrelated banned-email feature).
+**Build:** `npx ng build --configuration development` ✅ exit 0 (pre-existing NG9 errors in `admin/settings.component.ts` only - unrelated banned-email feature).
 
 ---
 
-### Session 2026-05-28 — Servicer account Danger Zone deactivation wizard (verification)
+### Session 2026-05-28 - Servicer account Danger Zone deactivation wizard (verification)
 
 **Task:** Add Danger Zone section with PIN-based 3-step deactivation wizard to the servicer account page, mirroring the customer account pattern.
 
@@ -1235,13 +1281,13 @@ Added the missing signal declarations and `doDeactivate()` method to `account.co
 - ✅ `AuthService`, `Router`, `ToastService` already injected
 
 **Files verified (no changes needed):**
-1. `frontend/src/app/servicer/pages/account.component.ts` — Danger Zone fully present
+1. `frontend/src/app/servicer/pages/account.component.ts` - Danger Zone fully present
 
 **Gate:** `npx tsc --noEmit` ✅ zero errors.
 
 ---
 
-### Session 2026-05-28 17:37 — Parallel CEO: Banned accounts tab + deactivation completion
+### Session 2026-05-28 17:37 - Parallel CEO: Banned accounts tab + deactivation completion
 
 **Scope:** Complete the deactivation dirty tree. Admin banned accounts tab built; db push executed.
 
@@ -1264,7 +1310,7 @@ Added the missing signal declarations and `doDeactivate()` method to `account.co
 
 ---
 
-### Session 2026-05-28 17:42 — FE verify + fix: Admin Banned Accounts tab
+### Session 2026-05-28 17:42 - FE verify + fix: Admin Banned Accounts tab
 
 **Task:** Verify the "Banned" tab in admin Platform Settings page compiles and works correctly.
 
@@ -1274,23 +1320,23 @@ Added the missing signal declarations and `doDeactivate()` method to `account.co
 - ✅ `ng build --configuration development` exit 0
 
 **Fix applied:**
-1. `core/services/api.service.ts` — `delete()` method updated to accept optional `headers` parameter (was signature-only, missing headers support for PIN-gated deletes).
-2. `admin/pages/settings.component.ts` `doUnban()` — Changed `this.http.delete('/api/v1/admin/banned-emails/...')` (hardcoded base path, missing ApiService consistency) → `this.api.delete('/admin/banned-emails/...', { 'x-action-pin': pin })`.
+1. `core/services/api.service.ts` - `delete()` method updated to accept optional `headers` parameter (was signature-only, missing headers support for PIN-gated deletes).
+2. `admin/pages/settings.component.ts` `doUnban()` - Changed `this.http.delete('/api/v1/admin/banned-emails/...')` (hardcoded base path, missing ApiService consistency) → `this.api.delete('/admin/banned-emails/...', { 'x-action-pin': pin })`.
 
 **Files changed:**
-1. `frontend/src/app/core/services/api.service.ts` — `delete()` now accepts headers
-2. `frontend/src/app/admin/pages/settings.component.ts` — `doUnban()` uses ApiService
+1. `frontend/src/app/core/services/api.service.ts` - `delete()` now accepts headers
+2. `frontend/src/app/admin/pages/settings.component.ts` - `doUnban()` uses ApiService
 
 **Gate:** `npx tsc --noEmit` ✅ zero errors. `npx ng build --configuration development` ✅ exit 0.
 
 ---
 
-### Session 2026-05-28 18:11 — Customer Rewards frontend (steps 6-10, 12)
+### Session 2026-05-28 18:11 - Customer Rewards frontend (steps 6-10, 12)
 
 **Scope:** Build order steps 6-10, 12 from `docs/superpowers/specs/2026-05-28-customer-rewards.md`.
 
 **Files created:**
-1. `admin/pages/money-settings.component.ts` — New top-level admin page at `/admin/money-settings`:
+1. `admin/pages/money-settings.component.ts` - New top-level admin page at `/admin/money-settings`:
    - Platform fee rate + editable fee breakdown (marketing/rewards/ops/margin) with sum validation
    - Rewards program config (points per RM, per review, per referral, welcome points, redemption rate)
    - Tier CRUD table (name, min pts, bonus %, badge color, sort order) via `/rewards/tiers` + `/admin/rewards/tiers/*`
@@ -1299,7 +1345,7 @@ Added the missing signal declarations and `doDeactivate()` method to `account.co
    - Servicer rules + Timing & Tax sections moved from old settings (preserved generic NUM_SETTINGS pattern)
    - All mutations PIN-gated via `PinService`
 
-2. `admin/pages/uiux-settings.component.ts` — New top-level admin page at `/admin/uiux-settings`:
+2. `admin/pages/uiux-settings.component.ts` - New top-level admin page at `/admin/uiux-settings`:
    - Notification sound / chat message sound / typing sound toggles
    - Condo entry note textarea
    - Landing page text textarea
@@ -1307,9 +1353,9 @@ Added the missing signal declarations and `doDeactivate()` method to `account.co
    - All saves PIN-gated
 
 **Files modified:**
-3. `admin/admin-shell.component.ts` — Replaced "Platform Settings" nav item with "Money Settings" (`/admin/money-settings`) and "UI/UX Settings" (`/admin/uiux-settings`)
-4. `admin/admin.routes.ts` — Added lazy routes for `money-settings` and `uiux-settings`
-5. `customer/pages/rewards.component.ts` — Complete rewrite:
+3. `admin/admin-shell.component.ts` - Replaced "Platform Settings" nav item with "Money Settings" (`/admin/money-settings`) and "UI/UX Settings" (`/admin/uiux-settings`)
+4. `admin/admin.routes.ts` - Added lazy routes for `money-settings` and `uiux-settings`
+5. `customer/pages/rewards.component.ts` - Complete rewrite:
    - Replaced static demo data with API-driven signals (`pointsData`, `history`, `rewards`, `myRedemptions`)
    - Welcome banner on first visit (checks `GET /user/me/rewards/prompt`, dismisses to localStorage)
    - Points + tier hero card with dynamic tier color, progress bar
@@ -1318,19 +1364,19 @@ Added the missing signal declarations and `doDeactivate()` method to `account.co
    - Redemption via `POST /user/me/rewards/:id/redeem`
    - My Vouchers list showing status + expiry
    - Points transaction history table
-6. `shared/shell.component.ts` — Added re-engagement banner for customers:
+6. `shared/shell.component.ts` - Added re-engagement banner for customers:
    - `rewardsPromptVisible` / `rewardsPromptPoints` signals
    - `loadRewardsPrompt()` checks `GET /user/me/rewards/prompt` with 3-day localStorage dismiss
    - `dismissRewardsPrompt()` stores dismissal timestamp
    - Banner renders below topbar, gated on customer role
    - CSS: `.rewards-banner` fixed-position accent banner with link + dismiss ×
-7. `servicer/pages/deposit.component.ts` — Added voucher auto-apply section:
+7. `servicer/pages/deposit.component.ts` - Added voucher auto-apply section:
    - `VoucherInfo` interface, `availableVouchers` signal, `selectedVoucherCode` signal
    - `loadVouchers()` calls `GET /rewards/active-vouchers?topupAmount=X`
    - Radio button list for voucher selection with label + discount display
    - `doTopup()` passes `voucherCode` in request body when selected
    - CSS: `.voucher-option` styling
-8. `servicer/pages/account.component.ts` — Added platform fee transparency card:
+8. `servicer/pages/account.component.ts` - Added platform fee transparency card:
    - `FeeBreakdown` interface, `feeBreakdown` signal
    - Fee table card showing labeled breakdown rows + total
    - Loads from `GET /servicer/me/fee-breakdown`
@@ -1340,7 +1386,7 @@ Added the missing signal declarations and `doDeactivate()` method to `account.co
 
 ---
 
-### Session 2026-05-28 17:51 — Deposit/Credit/Promotions (Frontend build)
+### Session 2026-05-28 17:51 - Deposit/Credit/Promotions (Frontend build)
 
 **Scope:** Per `docs/superpowers/specs/2026-05-28-deposit-credit-promotions.md` build order steps 3, 6, 7, 8, 10.
 
@@ -1375,16 +1421,16 @@ Added the missing signal declarations and `doDeactivate()` method to `account.co
    - Imported `RouterLink` from `@angular/router`
 
 **Files changed:**
-1. `frontend/src/app/servicer/pages/deposit.component.ts` — complete rewrite (+270 lines)
-2. `frontend/src/app/servicer/pages/account.component.ts` — bank section + saveBank (+55 lines)
-3. `frontend/src/app/admin/pages/settings.component.ts` — promotions tab (+310 lines)
-4. `frontend/src/app/servicer/pages/jobs.component.ts` — onboarding gate + RouterLink (+35 lines)
+1. `frontend/src/app/servicer/pages/deposit.component.ts` - complete rewrite (+270 lines)
+2. `frontend/src/app/servicer/pages/account.component.ts` - bank section + saveBank (+55 lines)
+3. `frontend/src/app/admin/pages/settings.component.ts` - promotions tab (+310 lines)
+4. `frontend/src/app/servicer/pages/jobs.component.ts` - onboarding gate + RouterLink (+35 lines)
 
 **Gate:** `npx tsc --noEmit` ✅ zero errors. `npx ng build --configuration development` ✅ exit 0 (pre-existing NG8107 warnings only).
 
 ---
 
-### Session 2026-05-28 — Track B1.4: Admin Promotions tab API field name fix
+### Session 2026-05-28 - Track B1.4: Admin Promotions tab API field name fix
 
 **Scope:** Align `AdminPromotion` interface and all component methods/template with the actual backend Prisma schema field names.
 
@@ -1407,35 +1453,35 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 8. Template: all `p.isActive`→`p.active`, `p.discountType`→`p.valueType`, `p.expiresAt`→`p.endDate`, `p.label || p.code`→`p.label`, select bind `promoForm.discountType`→`promoForm.valueType`
 
 **Files changed:**
-1. `frontend/src/app/admin/pages/settings.component.ts` — interface + method + template field name alignment
+1. `frontend/src/app/admin/pages/settings.component.ts` - interface + method + template field name alignment
 
 **Gate:** `npx tsc --noEmit` ✅ zero errors. `npx ng build --configuration development` ✅ exit 0 (pre-existing NG8107 warnings only).
 
 ---
 
-### Session 2026-05-28 — G-2: Proposal prompt inline form (F-A enhancement)
+### Session 2026-05-28 - G-2: Proposal prompt inline form (F-A enhancement)
 
 **Scope:** Upgrade the MVP proposal prompt guard in `frontend/src/app/shared/shell.component.ts` from a simple redirect toast to a full expandable card with inline proposal submission.
 
 **What changed:**
 
 **New types (above @Component):**
-- `IncomingQuoteSummary` — `{ quoteId, category }` per socket event
-- `OpenedQuoteDetail extends IncomingQuoteSummary` — adds `customerName`, `customerAvatarUrl`, `estimatedPrice` from the open-quote API response
+- `IncomingQuoteSummary` - `{ quoteId, category }` per socket event
+- `OpenedQuoteDetail extends IncomingQuoteSummary` - adds `customerName`, `customerAvatarUrl`, `estimatedPrice` from the open-quote API response
 
 **New/replaced signals:**
-- `pendingQuotes = signal<IncomingQuoteSummary[]>([])` — source of truth (replaces the three MVP signals)
-- `expandedQuote = signal<OpenedQuoteDetail | null>(null)` — which quote is expanded
+- `pendingQuotes = signal<IncomingQuoteSummary[]>([])` - source of truth (replaces the three MVP signals)
+- `expandedQuote = signal<OpenedQuoteDetail | null>(null)` - which quote is expanded
 - `submitting`, `loadingExpand`, `proposalError` signals
-- `proposalPrice: number | null`, `proposalDesc: string` — ngModel-bound plain properties
-- `quotePromptVisible`, `quotePromptCount`, `quotePromptCategory`, `customerInitials` — now `computed()` from `pendingQuotes` / `expandedQuote`
+- `proposalPrice: number | null`, `proposalDesc: string` - ngModel-bound plain properties
+- `quotePromptVisible`, `quotePromptCount`, `quotePromptCategory`, `customerInitials` - now `computed()` from `pendingQuotes` / `expandedQuote`
 
 **New methods:**
-- `expandPrompt()` — calls `POST /servicer/quotes/:id/open` (marks opened, returns customerName + avatarUrl + proposalPrefill); populates `expandedQuote` and pre-fills price
-- `submitProposal()` — validates price > 0, calls `POST /servicer/quotes/:id/propose`; on success: `ToastService.success()`, removes quote from `pendingQuotes`, collapses
-- `collapseExpanded()` — collapses back to collapsed state without dismissing
-- `dismissQuotePrompt()` — clears `pendingQuotes` + `expandedQuote`, cancels timer
-- `onEscKey()` — `@HostListener('document:keydown.escape')`: Esc collapses if expanded, dismisses if collapsed
+- `expandPrompt()` - calls `POST /servicer/quotes/:id/open` (marks opened, returns customerName + avatarUrl + proposalPrefill); populates `expandedQuote` and pre-fills price
+- `submitProposal()` - validates price > 0, calls `POST /servicer/quotes/:id/propose`; on success: `ToastService.success()`, removes quote from `pendingQuotes`, collapses
+- `collapseExpanded()` - collapses back to collapsed state without dismissing
+- `dismissQuotePrompt()` - clears `pendingQuotes` + `expandedQuote`, cancels timer
+- `onEscKey()` - `@HostListener('document:keydown.escape')`: Esc collapses if expanded, dismisses if collapsed
 
 **Template changes:**
 - Replaced simple `<div class="quote-prompt">` banner with `[class.expanded]="expandedQuote()"` card
@@ -1443,21 +1489,21 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 - Expanded: customer avatar (initials circle) + name + category badge + price input (RM prefix) + optional description textarea + inline error + "Send proposal" / "Cancel" buttons
 
 **CSS changes:**
-- `.quote-prompt` — now a surface-colored card with gradient border pulse animation (`qp-pulse-border`)
-- `.quote-prompt.expanded` — removes pulse, wider (400px)
-- `.qp-collapsed`, `.qp-expanded`, `.qp-form-hd`, `.qp-identity`, `.qp-avatar`, `.qp-customer-name`, `.qp-cat-badge`, `.qp-form-body`, `.qp-field`, `.qp-price-wrap`, `.qp-price-prefix`, `.qp-price-input`, `.qp-textarea`, `.qp-error`, `.qp-form-actions`, `.qp-btn-primary`, `.qp-btn-ghost` — all new
+- `.quote-prompt` - now a surface-colored card with gradient border pulse animation (`qp-pulse-border`)
+- `.quote-prompt.expanded` - removes pulse, wider (400px)
+- `.qp-collapsed`, `.qp-expanded`, `.qp-form-hd`, `.qp-identity`, `.qp-avatar`, `.qp-customer-name`, `.qp-cat-badge`, `.qp-form-body`, `.qp-field`, `.qp-price-wrap`, `.qp-price-prefix`, `.qp-price-input`, `.qp-textarea`, `.qp-error`, `.qp-form-actions`, `.qp-btn-primary`, `.qp-btn-ghost` - all new
 - Mobile: `@media (max-width: 600px)` sets width to `calc(100vw - 2rem)` for both states
 
 **Services injected:** `ToastService` (new injection in ShellComponent)
 
 **Files changed:**
-1. `frontend/src/app/shared/shell.component.ts` — interfaces, signals, methods, template, CSS
+1. `frontend/src/app/shared/shell.component.ts` - interfaces, signals, methods, template, CSS
 
 **Gate:** `npx tsc --noEmit` ✅ zero errors. `ng build` ✅ exit 0 (pre-existing warnings only).
 
 ---
 
-## Session — Admin Settings 5-Tab Restructure (G-1 Frontend)
+## Session - Admin Settings 5-Tab Restructure (G-1 Frontend)
 
 **Spec:** `docs/superpowers/specs/2026-05-28-admin-settings-redesign.md`
 
@@ -1471,47 +1517,47 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 - **General tab** (new): platform fee rate + notifications + timing & tax + no-response discount + condo entry note (merged from old Platform + Customer tabs)
 - **Categories tab** (new): budget ranges (moved from old Customer tab) + allowed time slots per-category (moved from old Thumbnails tab)
 - **Servicer tab**: unchanged content, same tab name
-- **Location tab** (new): searchable paginated postcode CRUD table + add/edit/delete modals (PIN-gated) + CSV import placeholder; calls `GET/POST/PATCH/DELETE /admin/postcodes` — backend endpoints not yet built, errors shown gracefully
+- **Location tab** (new): searchable paginated postcode CRUD table + add/edit/delete modals (PIN-gated) + CSV import placeholder; calls `GET/POST/PATCH/DELETE /admin/postcodes` - backend endpoints not yet built, errors shown gracefully
 - **Thumbnails tab**: image upload only (time slots removed, moved to Categories)
 - **Banned / Promotions tabs**: unchanged
-- Old `'customer'` and `'platform'` tabs removed entirely — no dead code
+- Old `'customer'` and `'platform'` tabs removed entirely - no dead code
 
 **Backend note:** `GET/POST/PATCH/DELETE /admin/postcodes` endpoints are not yet implemented. Location tab calls them and shows error message gracefully if they return 404/500. Backend work is tracked under G-1 backend gap.
 
 **Files changed:**
-1. `frontend/src/app/admin/pages/settings.component.ts` — full tab restructure
+1. `frontend/src/app/admin/pages/settings.component.ts` - full tab restructure
 
 **Gate:** `npx tsc --noEmit` ✅ zero errors. `ng build` ✅ exit 0 (pre-existing warnings only: bundle budget 510kB vs 500kB threshold, pre-existing optional chain warnings in services.component.ts, qrcode CommonJS warning).
 
 ---
 
-### Session 2026-05-28 — Working hours grid + optional PIN at registration
+### Session 2026-05-28 - Working hours grid + optional PIN at registration
 
 **Scope:** Two additive UI features in the servicer account page and customer registration flow.
 
-**Task 1 — Working hours grid (servicer account page)**
+**Task 1 - Working hours grid (servicer account page)**
 
 `frontend/src/app/servicer/pages/account.component.ts`
 - Added 4 new `readonly` class constants: `WEEKDAYS`, `TIME_SLOTS`, `DAY_LABELS`, `SLOT_LABELS`
 - Added 5 signals: `scheduleGrid`, `loadingSchedule`, `savingSchedule`, `scheduleError`, `saveScheduleOpen`
 - Added `scheduleConfirmPin` plain string property
 - `ngOnInit` now calls `this.loadSchedule()` after `loadPinStatus()`
-- Added private `loadSchedule()` — hits `GET /servicer/me/schedule`, builds a flat `Record<string,boolean>` keyed `"weekday-timeSlot"`
-- Added `toggleCell(day, slot)` — flips the boolean in `scheduleGrid` via `.update()`
-- Added `openSaveSchedule()` — resets pin + error, opens modal
-- Added `doSaveSchedule()` — validates PIN present, builds `slots[]` array matching backend shape (`{ weekday, timeSlot, available }`), calls `PATCH /servicer/me/schedule` with `x-action-pin` header, shows toast on success
-- Template: new `<!-- Working hours -->` section inserted between Business Details and PIN sections — 7×4 toggle grid (weekdays across, time slots down), Save schedule button, PIN confirmation modal using `<app-modal>`
+- Added private `loadSchedule()` - hits `GET /servicer/me/schedule`, builds a flat `Record<string,boolean>` keyed `"weekday-timeSlot"`
+- Added `toggleCell(day, slot)` - flips the boolean in `scheduleGrid` via `.update()`
+- Added `openSaveSchedule()` - resets pin + error, opens modal
+- Added `doSaveSchedule()` - validates PIN present, builds `slots[]` array matching backend shape (`{ weekday, timeSlot, available }`), calls `PATCH /servicer/me/schedule` with `x-action-pin` header, shows toast on success
+- Template: new `<!-- Working hours -->` section inserted between Business Details and PIN sections - 7×4 toggle grid (weekdays across, time slots down), Save schedule button, PIN confirmation modal using `<app-modal>`
 - CSS: added `.schedule-grid`, `.schedule-header`, `.schedule-row`, `.schedule-cell`, `.schedule-cell.on`, `.schedule-col-head`, `.schedule-row-label` rules
 
-**Task 2 — Optional PIN at registration**
+**Task 2 - Optional PIN at registration**
 
 `frontend/src/app/auth/register.component.ts`
 - Added `pin = ''` property
-- Added PIN field to template (last field before submit) — `type="password"`, `maxlength="6"`, `pattern="[0-9]{6}"`, `inputmode="numeric"`, helper text directing user to Account settings
+- Added PIN field to template (last field before submit) - `type="password"`, `maxlength="6"`, `pattern="[0-9]{6}"`, `inputmode="numeric"`, helper text directing user to Account settings
 - `submit()` validates PIN format if provided (`/^[0-9]{6}$/`), passes `pin` to `auth.register()` only when exactly 6 digits
 
 `frontend/src/app/core/services/auth.service.ts`
-- Added `pin?: string` to `register()` payload type — mirrors existing `registerServicer()` which already had `pin?`
+- Added `pin?: string` to `register()` payload type - mirrors existing `registerServicer()` which already had `pin?`
 
 **Gates:**
 - `npx tsc --noEmit` → 0 errors ✅
@@ -1519,23 +1565,23 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 
 ---
 
-## 2026-05-29 — Shared StripePaymentService + unified payment overlay
+## 2026-05-29 - Shared StripePaymentService + unified payment overlay
 
 **`frontend/src/app/core/services/stripe-payment.service.ts`** (new)
 - Shared injectable `StripePaymentService` with `state()` signal ('idle'|'processing'|'success'|'cancelled'|'failed')
-- `openPayment(config)` — opens Stripe in new tab, polls `/stripe/verify-topup` every 3s for authenticated users
-- `openGuestPayment(config)` — opens Stripe in new tab, polls localStorage for guest (unauthenticated) users
-- `checkPopupContext()` — detects redirect-back from Stripe in a popup/tab, stores result in `localStorage:stripe_payment_result`, closes the tab
-- `cancel()` / `reset()` — lifecycle methods
+- `openPayment(config)` - opens Stripe in new tab, polls `/stripe/verify-topup` every 3s for authenticated users
+- `openGuestPayment(config)` - opens Stripe in new tab, polls localStorage for guest (unauthenticated) users
+- `checkPopupContext()` - detects redirect-back from Stripe in a popup/tab, stores result in `localStorage:stripe_payment_result`, closes the tab
+- `cancel()` / `reset()` - lifecycle methods
 
 **`frontend/src/app/shared/shell.component.ts`**
 - Added `#stripePayment` injection + `checkPopupContext()` call in `ngOnInit`
-- Added full-screen Stripe payment overlay (`.stripe-backdrop` + `.stripe-guard`) bound to service state — shown when any authenticated flow initiates a top-up
+- Added full-screen Stripe payment overlay (`.stripe-backdrop` + `.stripe-guard`) bound to service state - shown when any authenticated flow initiates a top-up
 - Replaced `runTopUp()` direct `window.open()` + `pollTopUp()` with `stripePayment.openPayment()`; removed `pollTopUp()`
 
 **`frontend/src/app/customer/pages/quote-form.component.ts`**
 - Replaced inline polling (`startPolling`/`stopPolling`/`onPollFailed`/`cancelPolling`/`resetTopUp`) with `StripePaymentService`
-- Simplified top-up prompt guard template to only show idle state (amount input) — processing/success/failed states handled by shell overlay
+- Simplified top-up prompt guard template to only show idle state (amount input) - processing/success/failed states handled by shell overlay
 - `doTopUpRedirect()` now calls `stripePayment.openPayment()` with `onSuccess` callback that resumes quote submission
 
 **`frontend/src/app/servicer/pages/deposit.component.ts`**
@@ -1543,7 +1589,7 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 - Removed `pollServicerTopUp()` method
 
 **`frontend/src/app/guest/guest-quote.component.ts`**
-- Replaced popup approach (popup + localStorage polling) with `stripePayment.openGuestPayment()` — opens Stripe in new tab, polls localStorage via shared service
+- Replaced popup approach (popup + localStorage polling) with `stripePayment.openGuestPayment()` - opens Stripe in new tab, polls localStorage via shared service
 - Removed `openStripePopup()`, `pollStripeResult()`, `cancelStripePopup()`, `clearStripePoll()` methods
 - Popup detection in `ngOnInit` still stores result but now uses shared `stripe_payment_result` localStorage key
 - Overlay binds to `stripePayment.state()` signals instead of local `stripePopupResult`
@@ -1553,7 +1599,7 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 
 ---
 
-## 2026-05-29 — Phase 7: AI Smart Assistant (frontend)
+## 2026-05-29 - Phase 7: AI Smart Assistant (frontend)
 
 **`frontend/src/app/core/services/chat-widget.service.ts`:**
 - Added `ActionBlock`, `PrefillData` interfaces
@@ -1583,7 +1629,7 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 
 ---
 
-## Session 2026-06-01 — Avg listing price badge in Category Settings
+## Session 2026-06-01 - Avg listing price badge in Category Settings
 
 **Scope:** Display average active listing price per category in admin Category Settings list. Paired with backend endpoint extension.
 
@@ -1596,10 +1642,10 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 | CSS | Line 544 | `.badge.price { background: #f0fdf4; color: #166534; border-color: #f0fdf4; }` |
 
 **Design decisions:**
-- Green (#f0fdf4 / #166534) distinct from blue listings badge — visual separation
+- Green (#f0fdf4 / #166534) distinct from blue listings badge - visual separation
 - Null-guarded: hidden when `averagePrice` is null or listing count is 0
 - Pluralization matches existing pattern (`listing{{ n === 1 ? '' : 's' }}`)
-- Sub-cats editor tab intentionally excluded — compact list, main list is the analytics surface
+- Sub-cats editor tab intentionally excluded - compact list, main list is the analytics surface
 
 **Gates:**
 - `npx tsc --noEmit` → **zero errors**
@@ -1610,7 +1656,7 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 
 ---
 
-## Session 2026-06-01 — deep-route MIME fix: absolutize index.html asset URLs
+## Session 2026-06-01 - deep-route MIME fix: absolutize index.html asset URLs
 
 **Scope:** Eliminate the 10× "Failed to load module script" MIME errors on every deep direct-load/refresh of the Cloudflare-deployed SPA. (Diagnosis + reproduction in ceo-log; root cause = relative `<link rel="modulepreload">` hrefs resolving against the deep document URL instead of `<base href="/">`.)
 
@@ -1622,7 +1668,7 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 **Change to `frontend/package.json`:**
 - `"build": "ng build"` → `"build": "ng build && node scripts/postbuild-absolutize.mjs"`.
 
-**Verification (local):** ran transform on existing dist → `[absolutize] rewrote 14 relative asset ref(s)`. Read-confirmed all 10 modulepreload hrefs + polyfills/main scripts + 2 styles links are now `/`-absolute; base href preserved. (`ng build` not re-run this session — Cloudflare rebuilds on push.)
+**Verification (local):** ran transform on existing dist → `[absolutize] rewrote 14 relative asset ref(s)`. Read-confirmed all 10 modulepreload hrefs + polyfills/main scripts + 2 styles links are now `/`-absolute; base href preserved. (`ng build` not re-run this session - Cloudflare rebuilds on push.)
 
 **⚠️ Deploy dependency:** Cloudflare Pages build command must be `npm run build` (not bare `ng build`). Flagged in devops-log + SESSION-HANDOFF.
 
@@ -1630,7 +1676,7 @@ These were runtime mismatches (passed tsc/ng build but would fail at runtime wit
 
 ---
 
-## Session 2026-06-01 — Pay-by-card button (Stripe Checkout) in the invoice modal
+## Session 2026-06-01 - Pay-by-card button (Stripe Checkout) in the invoice modal
 
 **Scope:** Let a customer pay an unpaid booking invoice by card. Wires the shipped backend
 gateway-settlement flow into the only existing surface (the my-bookings invoice modal).
@@ -1645,15 +1691,15 @@ gateway-settlement flow into the only existing surface (the my-bookings invoice 
   → on success: toast, close modal, reload bookings (invoice flips to Paid).
 
 **Gates:** `npx tsc --noEmit` 0 errors; `npx ng build` complete (exit 0). Only pre-existing
-warnings (NG8113 unused imports, home.component CSS, bundle budget, qrcode CommonJS) — none
+warnings (NG8113 unused imports, home.component CSS, bundle budget, qrcode CommonJS) - none
 from this change.
 
 **⚠️ NOT yet live-verified:** needs a real Stripe test card (4242 4242 4242 4242) on the live
-demo — only the user can complete a hosted Checkout. Also requires the Stripe webhook endpoint
+demo - only the user can complete a hosted Checkout. Also requires the Stripe webhook endpoint
 (`/api/v1/stripe/webhook`) to be registered in the Stripe dashboard for the demo backend (the
 `/verify-booking-payment` redirect-poll is the fallback if the webhook isn't wired).
 
-**Known gap (pre-existing, flagged):** there is NO customer credit/cash settle UI at all — no
+**Known gap (pre-existing, flagged):** there is NO customer credit/cash settle UI at all - no
 frontend calls `POST /bookings/:id/settle`. This card button is the first settlement trigger
 in the UI. A full settle surface (credit/cash too) is a separate feature.
 
@@ -1661,7 +1707,7 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 
 ---
 
-### Session 2026-06-02 — Customer Rewards gaps — Task 4 (Frontend items 2–5)
+### Session 2026-06-02 - Customer Rewards gaps - Task 4 (Frontend items 2–5)
 
 **Items verified in existing code:**
 2. **Welcome banner on rewards page (Item 2):** `frontend/src/app/customer/pages/rewards.component.ts` already has `showWelcomeBanner` signal, `checkWelcome()` method using localStorage `rewards_welcome_seen`, and dismissible welcome banner template. Already implemented in commit `0786261`.
@@ -1670,13 +1716,13 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 5. **Notification prefs UI (Item 5):** `frontend/src/app/customer/pages/account.component.ts` already has Notification Preferences section with `notifPrefs` signal, toggle switches for bookingUpdates/proposals/promotions/chatMessages, and `saveNotifPrefs()` calling `PATCH /user/me`. Already implemented in commit `0786261`.
 
 **Files changed:**
-- `frontend/src/app/shared/shell.component.ts` — added idle re-engagement banner (template, signal, `checkIdleBanner()`, `dismissIdleBanner()`, CSS)
+- `frontend/src/app/shared/shell.component.ts` - added idle re-engagement banner (template, signal, `checkIdleBanner()`, `dismissIdleBanner()`, CSS)
 
 **Gates:** `npx tsc --noEmit` → 0 errors; `npx ng build` → exit 0 (pre-existing qrcode CommonJS warning only).
 
 ---
 
-### Session 2026-06-02 — Task 2: Stripe frontend (pay-now card payments)
+### Session 2026-06-02 - Task 2: Stripe frontend (pay-now card payments)
 
 **Audit finding:** Most of Task 2 was already built by prior sessions. Verified existing:
 
@@ -1690,11 +1736,11 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 | `stripePublishableKey` in environment.ts | ✅ Already in frontend env | `frontend/src/environments/environment.ts:17` |
 
 **Truly missing (2 items):**
-- `STRIPE_PUBLISHABLE_KEY` was absent from `backend/.env` and `backend/.env.example` — added with the matching pk_test key.
+- `STRIPE_PUBLISHABLE_KEY` was absent from `backend/.env` and `backend/.env.example` - added with the matching pk_test key.
 
 **Files changed:**
-1. `backend/.env.example` — added `STRIPE_PUBLISHABLE_KEY=` line
-2. `backend/.env` — added `STRIPE_PUBLISHABLE_KEY=pk_test_...`
+1. `backend/.env.example` - added `STRIPE_PUBLISHABLE_KEY=` line
+2. `backend/.env` - added `STRIPE_PUBLISHABLE_KEY=pk_test_...`
 
 **Gates:**
 | Gate | Result |
@@ -1704,7 +1750,7 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 
 ---
 
-## Session 2026-06-02 — Quote form fixes: credit hold bypass, address parsing, preset UI
+## Session 2026-06-02 - Quote form fixes: credit hold bypass, address parsing, preset UI
 
 ### 1. Insufficient credit fix (quote.service.ts + quote-form.component.ts)
 - **Root cause**: Backend `createQuote()` credit hold checked only `paymentMode === 'pay_now'`, ignoring `settlementMethod`. Gateway (Stripe card) payments were incorrectly requiring wallet balance.
@@ -1712,7 +1758,7 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 - **Frontend fix**: `doSubmit()` error handler catches "insufficient credit" and routes to top-up overlay instead of showing raw error message.
 
 ### 2. Address auto-fill parsing
-- **Root cause**: `applyPresetObject()` used naive space-split to extract house number — failed for "No. 12", "12A", "B-2-3", "Lot 1234" formats.
+- **Root cause**: `applyPresetObject()` used naive space-split to extract house number - failed for "No. 12", "12A", "B-2-3", "Lot 1234" formats.
 - **Fix**: New regex `(/^(?:(?:No|Lot)\.?\s+)?(\d[\dA-Za-z]*|(?:[A-Z]-\d[\d\/\-]*))\s+(.+)$/i)` handles all common Malaysian address formats.
 - When parsing yields empty addressNo, `goToSummary()` shows a hint (`stepHint`) asking user to enter a unit/lot number rather than hard-blocking (address is still valid in DB).
 
@@ -1742,7 +1788,7 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 
 ---
 
-## Session 2026-06-02 — Task 8: UI / Frontend gaps
+## Session 2026-06-02 - Task 8: UI / Frontend gaps
 
 **Scope:** 5 items to fix dispatch overlay visibility, SP2b tabs, quantity pricing, presence wiring, shell split.
 
@@ -1750,7 +1796,7 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 - Added `servicerEmail`, `servicerPhone`, `showEmailPublic`, `showPhonePublic` to `JobDetail` interface in `dispatch-overlay.component.ts`
 - Added "My Contact Visibility" panel in the overlay showing the servicer what info about them is visible to the customer
 - Each field renders with `@if (showEmailPublic)` / `@if (showPhonePublic)` guards
-- Note: the backend's `GET /servicer/jobs/:id` must include these fields in the response. Currently the route returns `getMerchantJob()` result — verify it selects `servicer.showEmailPublic`, `servicer.showPhonePublic`, `user.email`, `user.phone`.
+- Note: the backend's `GET /servicer/jobs/:id` must include these fields in the response. Currently the route returns `getMerchantJob()` result - verify it selects `servicer.showEmailPublic`, `servicer.showPhonePublic`, `user.email`, `user.phone`.
 - Added `RouterLink` import for the Account Settings link
 
 ### 2. SP2b deferred tabs in Category Settings
@@ -1759,15 +1805,15 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 - Added `HttpClient` injection for file upload. Updated `openEdit()` to parse existing tips/faq from the category record.
 
 ### 3. Quantity × unit pricing in computePrefill
-- The backend `computePrefill()` in `servicer-quote.service.ts:153-175` already handles `type: 'quantity'` pricing with `entry.price * qty`. Verified by existing unit tests (`quote-pricing-model.test.ts` lines 428+). No changes needed — this was already implemented in a prior session.
+- The backend `computePrefill()` in `servicer-quote.service.ts:153-175` already handles `type: 'quantity'` pricing with `entry.price * qty`. Verified by existing unit tests (`quote-pricing-model.test.ts` lines 428+). No changes needed - this was already implemented in a prior session.
 
-### 4. Presence wiring — isOnline
-- Backend `socket/index.ts:77-94` already sets `isOnline: true` on socket connect and `isOnline: false` on disconnect for servicer principals. The frontend `ShellComponent` already subscribes to `quote.new` socket events (triggering lazy socket connect) and has the `toggleOnline()` UI. No changes needed — fully wired.
+### 4. Presence wiring - isOnline
+- Backend `socket/index.ts:77-94` already sets `isOnline: true` on socket connect and `isOnline: false` on disconnect for servicer principals. The frontend `ShellComponent` already subscribes to `quote.new` socket events (triggering lazy socket connect) and has the `toggleOnline()` UI. No changes needed - fully wired.
 
 ### 5. Shell component split
-- Created `frontend/src/app/shared/shell-nav.component.ts` — new standalone component extracting the `.sidebar` section (nav items, routerLink bindings, responsive layout). Accepts `[navItems]` @Input. All CSS from shell migrated.
-- Enhanced `frontend/src/app/shared/demo-bar.component.ts` — merged all shell inline demo bar features: demo account dropdowns, +Proposal button, ↻ Reseed button, unplug modal with PIN confirmation, clear-data flow, demo-msg bar. Added `ModalComponent` import for unplug/reseed modals.
-- Updated `shell.component.ts` — replaced inline demo bar with `<app-demo-bar />` and inline sidebar with `<app-shell-nav>`. Removed all moved signals (`confirmReseed`, `reseeding`, `demoLoggingIn`, `demoMsg`, `unplug*`, `clearing*`, `seedingProposal`, `openDD`, demo account arrays) and methods (`demoLogin`, `demoLoginEmail`, `demoGoHome`, `seedProposal`, `reseed`, `clearData`, `openUnplug`, `closeUnplug`, `runUnplug`, `toggleDD`, `closeDD`, `closeDDOnOutsideClick`). Changed top-up success feedback from `demoMsg` to `toast.success()`.
+- Created `frontend/src/app/shared/shell-nav.component.ts` - new standalone component extracting the `.sidebar` section (nav items, routerLink bindings, responsive layout). Accepts `[navItems]` @Input. All CSS from shell migrated.
+- Enhanced `frontend/src/app/shared/demo-bar.component.ts` - merged all shell inline demo bar features: demo account dropdowns, +Proposal button, ↻ Reseed button, unplug modal with PIN confirmation, clear-data flow, demo-msg bar. Added `ModalComponent` import for unplug/reseed modals.
+- Updated `shell.component.ts` - replaced inline demo bar with `<app-demo-bar />` and inline sidebar with `<app-shell-nav>`. Removed all moved signals (`confirmReseed`, `reseeding`, `demoLoggingIn`, `demoMsg`, `unplug*`, `clearing*`, `seedingProposal`, `openDD`, demo account arrays) and methods (`demoLogin`, `demoLoginEmail`, `demoGoHome`, `seedProposal`, `reseed`, `clearData`, `openUnplug`, `closeUnplug`, `runUnplug`, `toggleDD`, `closeDD`, `closeDDOnOutsideClick`). Changed top-up success feedback from `demoMsg` to `toast.success()`.
 - The existing `ChatWidgetComponent` and `NotificationPanelComponent` are rendered at the app root level (`app.component.ts`) and do not need shell extraction.
 
 ### Files changed
@@ -1775,7 +1821,7 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 |------|--------|
 | `frontend/src/app/shared/dispatch-overlay.component.ts` | Visibility controls panel + JobDetail fields |
 | `frontend/src/app/admin/pages/category-settings.component.ts` | Thumbnail upload, tips, FAQ entries |
-| `frontend/src/app/shared/shell-nav.component.ts` | **NEW** — sidebar extracted |
+| `frontend/src/app/shared/shell-nav.component.ts` | **NEW** - sidebar extracted |
 | `frontend/src/app/shared/demo-bar.component.ts` | Enhanced with reseed/unplug/proposal |
 | `frontend/src/app/shared/shell.component.ts` | Uses sub-components, removed moved code |
 
@@ -1787,18 +1833,18 @@ in the UI. A full settle surface (credit/cash too) is a separate feature.
 
 ---
 
-## Session 2026-06-02 — Track 2: Quote confirmation + WhatsApp + proposal banner
+## Session 2026-06-02 - Track 2: Quote confirmation + WhatsApp + proposal banner
 
 ### Customer quote confirmation state
 - `quote-form.component.ts`: added `submitted`, `submittedQuoteId`, `submittedCategory`, `submittedProposalCount`, `confirmCountdown` signals. On POST /quotes success, sets these and flips `submitted` to true. Template shows "Request Confirmed!" card with category, short ID, 3s countdown → `/customer/quotes` via `goToQuotesNow()`.
-- Proposals banner: if `submittedProposalCount() > 0`, shows "You already got N proposal(s) — pick your servicer now!" with link.
+- Proposals banner: if `submittedProposalCount() > 0`, shows "You already got N proposal(s) - pick your servicer now!" with link.
 - WhatsApp disclosure on bill step (`.wa-disclosure`) and confirm page (`.confirm-wa-note`): "Your servicer may contact you via phone or WhatsApp using the number you provided."
 
 ### Guest quote countdown
 - `guest-quote.component.ts`: `guestCountdown` signal, 3s countdown on submit success → navigates to `/`. Shows "Redirecting to home in N…" + "Back to home" link.
 
 ### WhatsApp deep-link on dispatch overlay
-- `dispatch-overlay.component.ts`: `waLink(phone)` helper — strips non-digits, normalises Malaysian `0xxx` → `60xxx`. WhatsApp pill button (`#25D366`) added next to the tel link in the customer panel.
+- `dispatch-overlay.component.ts`: `waLink(phone)` helper - strips non-digits, normalises Malaysian `0xxx` → `60xxx`. WhatsApp pill button (`#25D366`) added next to the tel link in the customer panel.
 
 ### Files changed
 - `frontend/src/app/customer/pages/quote-form.component.ts`
@@ -1809,14 +1855,14 @@ Gates: frontend tsc 0 / ng build 0
 
 ---
 
-## Session 2026-06-02 — Track 3: Sidebar compliance + Notification UX
+## Session 2026-06-02 - Track 3: Sidebar compliance + Notification UX
 
 ### Sidebar (§15.4)
-- `shell-nav.component.ts` `.sidebar` was missing `display: flex; flex-direction: column; min-height: 0` — added. `.sidebar nav` was missing `flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin` — added. Nav links now scroll internally; page never scrolls to reveal sidebar content. No sidebar footer items (theme/sign-out are in topbar) — no footer-pin needed.
+- `shell-nav.component.ts` `.sidebar` was missing `display: flex; flex-direction: column; min-height: 0` - added. `.sidebar nav` was missing `flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin` - added. Nav links now scroll internally; page never scrolls to reveal sidebar content. No sidebar footer items (theme/sign-out are in topbar) - no footer-pin needed.
 
 ### Notification UX (notification-panel.component.ts)
 - **B1 Filters**: 5 content-type chips (All / Orders / Jobs / Promos / System). `toContentFilter()` maps type strings via regex. Secondary "Unread" pill toggle combines with chip filter on `liveItems` computed signal.
-- **B2 Per-item dismiss**: × button per row (18px, opacity 0→1 on hover, always visible on touch). `dismissItem()` adds ID to local `dismissed` Set — optimistic removal. No DELETE endpoint exists; client-side only.
+- **B2 Per-item dismiss**: × button per row (18px, opacity 0→1 on hover, always visible on touch). `dismissItem()` adds ID to local `dismissed` Set - optimistic removal. No DELETE endpoint exists; client-side only.
 - **B3 Past activity**: Collapsible section (collapsed by default) showing last 10 read/non-dismissed notifications grouped by Today/Yesterday/[date]. Hidden when empty. Reuses `np-item` row template.
 
 ### Files changed
@@ -1825,7 +1871,7 @@ Gates: frontend tsc 0 / ng build 0
 
 Gates: frontend tsc 0 / ng build 0
 
-## Session 2026-06-02 — RUN 3: Rewards + promo integration
+## Session 2026-06-02 - RUN 3: Rewards + promo integration
 
 ### Changes
 
@@ -1833,7 +1879,7 @@ Gates: frontend tsc 0 / ng build 0
    - Added `Router` injection and `useVoucher()` method → navigates to `/customer/quote/new?promoCode=CODE`
    - Added `VoucherWithApp` interface with `_applicable`, `_reason`, `_checking` flags
    - Added `voucherQuery` signal + `voucherFilter` signal for search/filter by code and status
-   - Added `filteredVouchers` computed — filters by query + status, marks applicability (expired/used → false)
+   - Added `filteredVouchers` computed - filters by query + status, marks applicability (expired/used → false)
    - Added `formatDiscount()` helper showing reward discount description
    - Template: voucher search input + filter chips, voucher rows with description, reason text for inapplicable, "Use" button for applicable active vouchers
    - CSS: `.voucher-info`, `.voucher-inapplicable` (opacity 0.5), `.voucher-use`, `.voucher-desc`, `.voucher-reason`
@@ -1842,7 +1888,7 @@ Gates: frontend tsc 0 / ng build 0
    - `ngOnInit`: reads `promoCode` query param from URL and sets `f.promoCode`
    - `goToBill()`: auto-calls `applyPromo()` if promo code present but not yet applied
    - `submit()`: re-validates promo code via `GET /quotes/estimate` before submitting. If promo fails, clears it and shows error instead of proceeding
-   - Added `continueSubmit()` helper extracted from original `submit()` body — called after successful promo re-validation or when no promo present
+   - Added `continueSubmit()` helper extracted from original `submit()` body - called after successful promo re-validation or when no promo present
 
 **Gates:**
 | Gate | Result |
@@ -1852,15 +1898,15 @@ Gates: frontend tsc 0 / ng build 0
 
 ---
 
-## 2026-06-17 — Agent E: WhatsApp preset manager + reusable wa-button (SP-3 dispatch, branch `feat/sp3-wa-preset`)
+## 2026-06-17 - Agent E: WhatsApp preset manager + reusable wa-button (SP-3 dispatch, branch `feat/sp3-wa-preset`)
 
-### New: `shared/wa-button.component.ts` (`<app-wa-button>`) — KEY DELIVERABLE for Agent D
+### New: `shared/wa-button.component.ts` (`<app-wa-button>`) - KEY DELIVERABLE for Agent D
 Standalone, no service/router deps (pure presentation + `window.open`). Public contract:
-- `[phone]: string` — customer phone, any local/intl format.
-- `[preset]: WaPreset | null` — `{ label, body }`; its `body` wins over `[body]`.
-- `[body]: string` — raw message if no preset.
-- `[vars]: WaVars | null` — `{ name?, orderId?, eta? }`; interpolated into `{name}`/`{orderId}`/`{eta}`.
-- `[label]: string` — button text (default `'Message on WhatsApp'`).
+- `[phone]: string` - customer phone, any local/intl format.
+- `[preset]: WaPreset | null` - `{ label, body }`; its `body` wins over `[body]`.
+- `[body]: string` - raw message if no preset.
+- `[vars]: WaVars | null` - `{ name?, orderId?, eta? }`; interpolated into `{name}`/`{orderId}`/`{eta}`.
+- `[label]: string` - button text (default `'Message on WhatsApp'`).
 - `[disabled]: boolean`.
 - Behaviour: interpolates placeholders (missing → ''), normalizes phone to intl digits (MY: strip
   spaces/dashes/`+`; leading `0` → `60`; bare local → `60`-prefixed; explicit `+cc`/`60…` pass through),
@@ -1883,11 +1929,11 @@ Did **NOT** touch `jobs.component.ts` (Agent D wires `<app-wa-button>` there).
 **Gates:**
 | Gate | Result |
 |------|--------|
-| `npx ng build` (AOT) | ✅ 0 errors — bundle generation complete, 11.97s |
+| `npx ng build` (AOT) | ✅ 0 errors - bundle generation complete, 11.97s |
 
 ---
 
-## Agent D — SP-3 dispatch + booking-flow + cards (2026-06-17, branch `feat/sp3-dispatch-cards`)
+## Agent D - SP-3 dispatch + booking-flow + cards (2026-06-17, branch `feat/sp3-dispatch-cards`)
 
 Owner of `jobs.component.ts`. (Left Agent C's photo-picker block untouched.)
 
@@ -1895,14 +1941,14 @@ Owner of `jobs.component.ts`. (Left Agent C's photo-picker block untouched.)
 the `pending_confirm` Confirm branch in the Active tab; dropped the now-unused `confirm()` method.
 
 **Online/offline branch (task 2):** `dispatch-prompt-guard.component.ts` now injects `AuthService`
-— shows the center guard only when `auth.principal().isOnline`; offline servicers get a corner
+- shows the center guard only when `auth.principal().isOnline`; offline servicers get a corner
 toast (`New dispatch: <cat>. Open Jobs to respond.`) instead of the interrupt overlay.
 
 **Accept Job one-tap (task 3):** pending OPEN-quote card + `incoming-quotes.component.ts` both
 gained a one-tap "Accept Job" button → `POST /servicer/quotes/:id/accept-listing` (no manual form;
 the manual propose form stays as the advanced path on expand). "Taken" conflict → friendly message.
 
-**Post-accept collapse (task 4):** once a proposal is sent the pending card collapses to 3 lines —
+**Post-accept collapse (task 4):** once a proposal is sent the pending card collapses to 3 lines -
 `[RM price][duration]` row + `[message]` paragraph.
 
 **Cards + WhatsApp (task 6):** Active card shows the same detail (price · duration · payment) and
@@ -1913,32 +1959,32 @@ won/active job (rendered only when `customerPhone` is present).
 | Gate | Result |
 |------|--------|
 | `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
-| `npx ng build` (AOT) | ✅ 0 errors — bundle generation complete |
+| `npx ng build` (AOT) | ✅ 0 errors - bundle generation complete |
 
 
-## 2026-06-23 — Plan 2: Dispatch Card Visual Redesign
+## 2026-06-23 - Plan 2: Dispatch Card Visual Redesign
 
 **Scope:** Plan 2 of the dispatch card spec (Stream A). Backend slot-load helper + full frontend card redesign.
 
-**Task 1 — Backend slot-load:**
-- Added `countSlotJobs` helper to `servicer-quote.service.ts` — counts servicer's active (confirmed/in_progress) bookings on same MYT date+slot. Uses `scheduledDate` (not `preferredDate`) per Booking model schema.
-- Wired into `listIncomingQuotes` — queries bookings once, computes `slotJobs: { count }` per quote.
-- Unit test: `backend/tests/unit/slot-load.test.ts` — 3 cases, all pass.
+**Task 1 - Backend slot-load:**
+- Added `countSlotJobs` helper to `servicer-quote.service.ts` - counts servicer's active (confirmed/in_progress) bookings on same MYT date+slot. Uses `scheduledDate` (not `preferredDate`) per Booking model schema.
+- Wired into `listIncomingQuotes` - queries bookings once, computes `slotJobs: { count }` per quote.
+- Unit test: `backend/tests/unit/slot-load.test.ts` - 3 cases, all pass.
 
-**Task 2 — IncomingQuote interface:**
+**Task 2 - IncomingQuote interface:**
 - Extended `IncomingQuote` with all fields backend already sends: `isUrgent`, `urgentFee`, `customerName`, `customerAvatarUrl`, `address`, `postcode`, `district`, `state`, `lat`, `lng`, `notes`, `descriptions`, `slotJobs`, `paymentMode`.
 
-**Task 3 — Card helpers:**
-- `slotLabel(slot)` — maps slot enum values to friendly labels (Morning 9-11, etc.)
-- `placeLine(q)` — composed district/state or fallback to address
-- `openMap(q, app)` — deep-links to Google Maps or Waze (new tab), prefers lat/lng when available, falls back to address query
+**Task 3 - Card helpers:**
+- `slotLabel(slot)` - maps slot enum values to friendly labels (Morning 9-11, etc.)
+- `placeLine(q)` - composed district/state or fallback to address
+- `openMap(q, app)` - deep-links to Google Maps or Waze (new tab), prefers lat/lng when available, falls back to address query
 
-**Task 4 — Card template redesign:**
+**Task 4 - Card template redesign:**
 - New card hierarchy: Price (bold primary) → Time (date + slot label + slot-load badge) → Place (district/state + address). `[Urgent +RM fee]` tag on urgent cards with red left border. `View on map ↗` in chips row with propertyType. ▾ expander shows customer name+avatar, descriptions, notes, and propose form.
 - New CSS: `.quote.urgent`, `.tag-urgent`, `.facts` flex layout, `.chip-static`, `.map-link`, `.details`, `.cust`/`.avatar`, `.answers`, `.notes`.
 
-**Task 5 — Real-time taken-status:**
-- Subscribed to `quote.matched` socket event (already emitted by `dispatch.service.ts`). On match, calls `load()` which filters to open-status only — taken quotes drop off the feed live.
+**Task 5 - Real-time taken-status:**
+- Subscribed to `quote.matched` socket event (already emitted by `dispatch.service.ts`). On match, calls `load()` which filters to open-status only - taken quotes drop off the feed live.
 
 **Gates:**
 
@@ -1947,25 +1993,25 @@ won/active job (rendered only when `customerPhone` is present).
 | `npx tsc --noEmit` (backend/) | Pre-existing errors only (admin.service.ts exports) |
 | `npx jest tests/unit/slot-load.test.ts` | ✅ 3/3 pass |
 | `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
-| `npx ng build` (AOT) | ✅ exit 0 — bundle generation complete |
+| `npx ng build` (AOT) | ✅ exit 0 - bundle generation complete |
 
 **Commits:**
 - `bb68714` feat(servicer): surface slot-load (job count) on incoming quotes
-- `fd3246b` feat(servicer): redesign dispatch card — price/time/place, urgent, slot-load, map link, taken-status
+- `fd3246b` feat(servicer): redesign dispatch card - price/time/place, urgent, slot-load, map link, taken-status
 
 
-## 2026-06-23 — Proposal card + report modal + payment method cleanup
+## 2026-06-23 - Proposal card + report modal + payment method cleanup
 - `proposals.component.ts`: removed payment method radio buttons and gateway card form from confirm dialog
 - `shell.component.ts`: added budget, schedule, pricing breakdown, map view to proposal card; dismiss calls collapseExpanded
 - `my-bookings.component.ts`: replaced chat-based reportIssue with modal form
 - `queues.component.ts`: added Reports tab
 - `proposals.component.ts`, `quote-form.component.ts`: capture paymentIntentId for gateway flow
 
-## 2026-06-23 — Plan 5: Customer Journey Polish (C1 + C2)
+## 2026-06-23 - Plan 5: Customer Journey Polish (C1 + C2)
 
 **Scope:** Plan 5 of the demo thread. C1: Servicer logo on proposal cards. C2: Consolidate Order History (MyBookings becomes canonical view, strong reorder, retire old OrderHistoryComponent).
 
-### C1 — Servicer logo on proposal cards
+### C1 - Servicer logo on proposal cards
 
 **File:** `frontend/src/app/customer/pages/proposals.component.ts`
 
@@ -1973,21 +2019,21 @@ won/active job (rendered only when `customerPhone` is present).
 - Removed unused `IconComponent` import (was only used for the old avatar, now gone; resolves NG8113 AOT warning).
 - CSS: `.svc-logo` (object-fit:cover), `.svc-initials` (white bold text on primary bg). `.svc-avatar` already styled at 32px circle.
 
-### C2 — Order History consolidation
+### C2 - Order History consolidation
 
-**Task 2 — Strong reorder (my-bookings.component.ts):**
+**Task 2 - Strong reorder (my-bookings.component.ts):**
 - Replaced toast-only `reorder()` (line 887-892) with navigate+prefill from `order-history.component.ts:299-310`.
 - Calls `POST /bookings/:id/reorder`, then `router.navigate(['/customer/quote/new'], { state: { prefill, rebookServicer: { id, name } } })`.
-- Locks quote to this servicer, hides category pickers — full rebook-this-servicer experience.
+- Locks quote to this servicer, hides category pickers - full rebook-this-servicer experience.
 
-**Task 3 — Route unification + retirement:**
+**Task 3 - Route unification + retirement:**
 
 | File | Change |
 |------|--------|
 | `customer.routes.ts` | `/customer/bookings` → `redirectTo: 'history', pathMatch: 'prefix'`; moved MyBookings children (`pending/inProgress/history`) under `/customer/history`; removed `OrderHistoryComponent` route |
 | `customer-shell.component.ts` | Removed "Upcoming" nav item (now redirects to same place as "Order History") |
 | `my-bookings.component.ts` | Page heading → "Order History"; tab labels: "Pending"→"Upcoming", "History"→"Past"; tab routerLinks → `/customer/history/` prefix; "Reorder"→"Rebook this servicer" button; added rebook to cancelled bookings |
-| `order-history.component.ts` | **DELETED** — retired |
+| `order-history.component.ts` | **DELETED** - retired |
 
 **Route structure after consolidation:**
 ```
@@ -2008,25 +2054,25 @@ won/active job (rendered only when `customerPhone` is present).
 **Commits:**
 - `f9ec575` feat(customer): show servicer logo on proposal cards
 - `da7222b` fix(customer): unify reorder to rebook-same-servicer (drop toast-only path)
-- `7503372` feat(customer): consolidate Order History — MyBookings view + rebook button; retire old OrderHistory
+- `7503372` feat(customer): consolidate Order History - MyBookings view + rebook button; retire old OrderHistory
 
 
-## Session 2026-06-23 — Item 5: Chat-assisted direct quote submission
+## Session 2026-06-23 - Item 5: Chat-assisted direct quote submission
 
-**Scope:** TODO.md Item 5 — demo button for smooth quote submission from chat.
+**Scope:** TODO.md Item 5 - demo button for smooth quote submission from chat.
 
 ### Changes
 
 **`chat-widget.component.ts`:**
 
 1. **New signals:**
-   - `directSubmitting` — loading indicator for the direct submit button
-   - `directSubmitError` — inline error message display
-   - `directSubmitSuccess` — success confirmation display
-   - `canDirectSubmit` (computed) — true only when all required fields collected: `categoryId`, `preferredDate`, `timeSlot`, address (confirmed), `budgetMax`, `contactName`, `contactNumber`
+   - `directSubmitting` - loading indicator for the direct submit button
+   - `directSubmitError` - inline error message display
+   - `directSubmitSuccess` - success confirmation display
+   - `canDirectSubmit` (computed) - true only when all required fields collected: `categoryId`, `preferredDate`, `timeSlot`, address (confirmed), `budgetMax`, `contactName`, `contactNumber`
 
 2. **Template (`quote_prefill` card):**
-   - Added "Submit Quote Directly" primary button — disabled while `directSubmitting` or `!canDirectSubmit()`
+   - Added "Submit Quote Directly" primary button - disabled while `directSubmitting` or `!canDirectSubmit()`
    - Existing "Review & submit" demoted to outline style secondary button via `.btn-outline`
    - Both buttons wrapped in `.prefill-actions` flex row
    - Success state (`directSubmitSuccess`): green banner "✅ Quote submitted! Redirecting to My Quotes…"
@@ -2039,7 +2085,7 @@ won/active job (rendered only when `customerPhone` is present).
    - On success: sets `directSubmitSuccess`, `prefillSubmitted`; 1.5s delay then navigates to `/customer/quotes`
    - On error: sets `directSubmitError` with server message
 
-4. **`resetQuoteFlowState()`** — resets all 3 new direct-submit signals
+4. **`resetQuoteFlowState()`** - resets all 3 new direct-submit signals
 
 5. **New CSS:** `.prefill-actions` (flex row for dual buttons), `.direct-submit-ok` (success banner), `.direct-submit-err` (error banner)
 
@@ -2051,9 +2097,9 @@ won/active job (rendered only when `customerPhone` is present).
 
 ---
 
-## Session 2026-06-24 — Task MAP: Fix app-map-view component
+## Session 2026-06-24 - Task MAP: Fix app-map-view component
 
-**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task MAP — defer Google Maps init until API key resolves.
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task MAP - defer Google Maps init until API key resolves.
 
 ### Work done
 
@@ -2071,9 +2117,9 @@ won/active job (rendered only when `customerPhone` is present).
 
 ---
 
-## Session 2026-06-24 — Task NAV: Google Maps + Waze deep-link buttons
+## Session 2026-06-24 - Task NAV: Google Maps + Waze deep-link buttons
 
-**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task NAV — add navigation deep-link buttons to confirmed booking detail views.
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task NAV - add navigation deep-link buttons to confirmed booking detail views.
 
 ### Work done
 
@@ -2090,10 +2136,10 @@ won/active job (rendered only when `customerPhone` is present).
 3. **Servicer jobs (`jobs.component.ts`):**
    - Map link buttons added to active jobs `.actions` div (after Cancel button) for confirmed/in_progress jobs with coords.
    - Map link buttons added to history `.jr-actions` div (after Invoice button) for completed jobs with coords.
-   - `openJobMap(j, app)` method — same URL pattern as customer side.
-   - `.map-link` CSS — identical style.
+   - `openJobMap(j, app)` method - same URL pattern as customer side.
+   - `.map-link` CSS - identical style.
 
-4. **Pattern reused** from `incoming-quotes.component.ts` (`openMap()` method) — adapted URLs per task spec.
+4. **Pattern reused** from `incoming-quotes.component.ts` (`openMap()` method) - adapted URLs per task spec.
 
 ### Gates
 | Gate | Result |
@@ -2106,9 +2152,9 @@ won/active job (rendered only when `customerPhone` is present).
 
 ---
 
-## Session 2026-06-24 — Task PW: Admin security settings tab
+## Session 2026-06-24 - Task PW: Admin security settings tab
 
-**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task PW — add PIN/password policy settings UI.
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task PW - add PIN/password policy settings UI.
 
 ### Work done
 
@@ -2125,14 +2171,14 @@ won/active job (rendered only when `customerPhone` is present).
 
 ---
 
-## Session 2026-06-24 — Task RFG: routeFor() typed path helper
+## Session 2026-06-24 - Task RFG: routeFor() typed path helper
 
-**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task RFG — Create typed `routeFor()` path helper and sweep all magic string routes.
+**Scope:** `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` Task RFG - Create typed `routeFor()` path helper and sweep all magic string routes.
 
 ### Work done
 
 **Created/Updated:**
-- `frontend/src/app/core/route-for.ts` — Added `'customer'` RouteKey to the union type and `customer: '/customer'` to the ROUTES map for dynamic role-based redirects.
+- `frontend/src/app/core/route-for.ts` - Added `'customer'` RouteKey to the union type and `customer: '/customer'` to the ROUTES map for dynamic role-based redirects.
 
 **Files changed (22 files):**
 
@@ -2174,29 +2220,29 @@ Home/Auth (10), Customer (13), Servicer (27), Admin (14), plus `customer` portal
 | `npx ng build --configuration development` | ✅ exit 0 |
 
 ### Issues encountered
-- **File locking:** 7 files locked by external processes (VSCode TS server) preventing partial edits. Locked files: `customer/pages/account.component.ts`, `customer/pages/rewards.component.ts`, `public/children-browse.component.ts`, `servicer/pages/account.component.ts`, `shared/dispatch-overlay.component.ts`, `servicer/pages/listing-advanced.component.ts`, `shared/demo-bar.component.ts` (second edit). These files retain their original `routerLink="/path"` or `router.navigate(['/path'])` syntax — functional but not migrated to routeFor. Will need re-opening of files or editor restart to fix.
+- **File locking:** 7 files locked by external processes (VSCode TS server) preventing partial edits. Locked files: `customer/pages/account.component.ts`, `customer/pages/rewards.component.ts`, `public/children-browse.component.ts`, `servicer/pages/account.component.ts`, `shared/dispatch-overlay.component.ts`, `servicer/pages/listing-advanced.component.ts`, `shared/demo-bar.component.ts` (second edit). These files retain their original `routerLink="/path"` or `router.navigate(['/path'])` syntax - functional but not migrated to routeFor. Will need re-opening of files or editor restart to fix.
 - **dispatch-overlay write corruption:** Full-file write accidentally made `downTarget` private, breaking template bindings. Restored from git. Intentionally left with old routerLink syntax to avoid mutation.
 - **my-quotes full rewrite:** Accidental full-file rewrite truncated component. Restored from git and re-migrated with targeted edits.
 
-## Session 2026-06-24 — E2E QA Harness Task 5 (Group B)
+## Session 2026-06-24 - E2E QA Harness Task 5 (Group B)
 
-**Scope:** `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` — Group B, Task 5: Build Socket.io watcher helpers.
+**Scope:** `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` - Group B, Task 5: Build Socket.io watcher helpers.
 
 ### Sub-task 5a: socket-watcher.ts
 
 Created `tests/e2e/helpers/socket-watcher.ts` with three exports:
-- `waitForSocketEvent(page, eventName, timeoutMs)` — listens for a single socket event via `window.__SOCKET__`
-- `listenForSocketEvents(page, events)` — records multiple events into `window.__socketEvents[]`
-- `getCapturedEvents(page)` — returns the captured events array
+- `waitForSocketEvent(page, eventName, timeoutMs)` - listens for a single socket event via `window.__SOCKET__`
+- `listenForSocketEvents(page, events)` - records multiple events into `window.__socketEvents[]`
+- `getCapturedEvents(page)` - returns the captured events array
 
 ### Sub-task 5b: Expose Socket.io on window.__SOCKET__ in dev mode
 
 Modified `frontend/src/app/core/services/socket.service.ts` (96 → 107 lines, +11).
 
 Three insertion points, all gated behind `if (!environment.production)`:
-1. **Lines 35-38** — After first socket creation in `connect()`, expose `this.socket` on `window.__SOCKET__` before `return;`
-2. **Lines 51-54** — After `this.socket.connect()` in account-switch branch, expose reconnected socket before `return;`
-3. **Lines 64-66** — In `disconnect()`, null out `window.__SOCKET__` before nulling `this.socket`
+1. **Lines 35-38** - After first socket creation in `connect()`, expose `this.socket` on `window.__SOCKET__` before `return;`
+2. **Lines 51-54** - After `this.socket.connect()` in account-switch branch, expose reconnected socket before `return;`
+3. **Lines 64-66** - In `disconnect()`, null out `window.__SOCKET__` before nulling `this.socket`
 
 ### Verification
 

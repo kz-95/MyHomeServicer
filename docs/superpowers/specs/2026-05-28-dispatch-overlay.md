@@ -1,4 +1,4 @@
-# Servicer Job Dispatch Overlay
+﻿# Servicer Job Dispatch Overlay
 
 > 2026-05-28 · Brainstorming session · Ready for execution
 
@@ -36,7 +36,7 @@ Dependencies: requires **PIN in registration** spec (PIN verify endpoint for can
 │  │  ┌── JOB DETAILS ───┐│ │  │  [📍 Nav] [📱 QR]         │  │
 │  │  │ Service:Plumbing  ││ │  └────────────────────────────┘  │
 │  │  │ Date: 15 Jun 2026 ││ │                                  │
-│  │  │ Time: Morning     ││ │  (2fr — map takes more space)   │
+│  │  │ Time: Morning     ││ │  (2fr - map takes more space)   │
 │  │  │ Price: RM 150     ││ │                                  │
 │  │  │ Payment: Cash     ││ │                                  │
 │  │  │ Line items...     ││ │                                  │
@@ -58,7 +58,7 @@ Dependencies: requires **PIN in registration** spec (PIN verify endpoint for can
 |--------|----------|
 | Servicer clicks "Confirm job" on pending booking | ✅ Auto-pops dispatch overlay |
 | Servicer clicks an active job card (replaces current inline expand) | ✅ Opens dispatch overlay |
-| History tab → click a completed job | ✅ Opens dispatch overlay (read-only — no action buttons) |
+| History tab → click a completed job | ✅ Opens dispatch overlay (read-only - no action buttons) |
 | Close (× / backdrop click / Esc) | ✅ Returns to jobs board |
 
 ## Component architecture
@@ -192,7 +192,7 @@ interface JobDetail {
         </section>
       </div>
 
-      <!-- Actions row (bottom, centered) — only when not readOnly -->
+      <!-- Actions row (bottom, centered) - only when not readOnly -->
       @if (!readOnly) {
         <div class="dispatch-actions">
           @if (isArriveable()) {
@@ -324,7 +324,7 @@ All panels default to **expanded** when the overlay opens. User can collapse/unc
 
 | File | Change |
 |------|--------|
-| `frontend/src/app/shared/dispatch-overlay.component.ts` | **New** — shared overlay component |
+| `frontend/src/app/shared/dispatch-overlay.component.ts` | **New** - shared overlay component |
 | `frontend/src/app/servicer/pages/jobs.component.ts` | Replace inline `toggleJobDetail()` with `openOverlay(jobId)`; wire card click to overlay |
 | `frontend/src/app/servicer/servicer-shell.component.ts` | Wire prompt guard "View" button to open overlay |
 | `backend/src/routes/servicer.routes.ts` | Ensure `GET /servicer/jobs/:id` returns all fields needed (address, instructions, contactName, contactNumber, lineItems, lat, lng, customerName, customerPhone, customerAvatarUrl, propertyType) |

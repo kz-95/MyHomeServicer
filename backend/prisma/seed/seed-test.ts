@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Test Seed - lean, repeatable test data for dev iteration.
  *
  * 36-servicer structure (1 per child category, 6x 3D Modeling) with 9 lifecycle

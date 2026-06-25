@@ -1,14 +1,14 @@
-# Settings Refinements — Customer + Servicer
+﻿# Settings Refinements - Customer + Servicer
 
 > 2026-05-28 · Brainstorming session · Design decisions made during review
 
-## Customer Settings — Changes
+## Customer Settings - Changes
 
 ### 1. Add email field to Profile
 
 **File:** `frontend/src/app/customer/pages/account.component.ts`
 
-The current Profile form has Name, Phone, Contact name, Contact number, Preferred time slot — but **no email**. Add it to the grid:
+The current Profile form has Name, Phone, Contact name, Contact number, Preferred time slot - but **no email**. Add it to the grid:
 
 ```html
 <div class="grid">
@@ -26,7 +26,7 @@ The current Profile form has Name, Phone, Contact name, Contact number, Preferre
 </div>
 ```
 
-The `Profile` interface already has `email: string` (line 15 in account.component.ts). The grid layout is 2 columns, so email slots into the first column naturally. The `saveProfile()` PATCH already sends email — it just wasn't exposed in the template.
+The `Profile` interface already has `email: string` (line 15 in account.component.ts). The grid layout is 2 columns, so email slots into the first column naturally. The `saveProfile()` PATCH already sends email - it just wasn't exposed in the template.
 
 ### 2. Remove "Saved Addresses" section
 
@@ -42,13 +42,13 @@ Remove lines 114-144 (the entire `<section class="card page-child">` for Saved A
 </section>
 ```
 
-**Rationale:** The "Contact & Address Settings" (QuotePresets) section below already bundles contact + address into a single preset. The quote form's preset picker auto-fills the address (via `addressId`). Having a separate address management section alongside presets is redundant and confusing — same data, two places to manage it.
+**Rationale:** The "Contact & Address Settings" (QuotePresets) section below already bundles contact + address into a single preset. The quote form's preset picker auto-fills the address (via `addressId`). Having a separate address management section alongside presets is redundant and confusing - same data, two places to manage it.
 
-### 3. Contact & Address Presets — redesign to default + list
+### 3. Contact & Address Presets - redesign to default + list
 
 **File:** `frontend/src/app/customer/pages/account.component.ts`
 
-Replace the current flat list of presets with a two-tier layout — default preset highlighted at top, remaining presets listed below:
+Replace the current flat list of presets with a two-tier layout - default preset highlighted at top, remaining presets listed below:
 
 **With default preset:**
 ```
@@ -56,18 +56,18 @@ Replace the current flat list of presets with a two-tier layout — default pres
 │                                                         │
 │  Default preset                                          │
 │  ┌─────────────────────────────────────────────────────┐│
-│  │  🏠 Home — Ahmad · 012-3456789                     ││
+│  │  🏠 Home - Ahmad · 012-3456789                     ││
 │  │     12, Jalan SS2/1, 47300 PJ · Morning slot       ││
 │  │  [Edit]  [Remove]                                   ││
 │  └─────────────────────────────────────────────────────┘│
 │                                                         │
 │  Saved presets (3)                                       │
 │  ┌─────────────────────────────────────────────────────┐│
-│  │  🏢 Office — Sarah · 012-9876543                   ││
+│  │  🏢 Office - Sarah · 012-9876543                   ││
 │  │     45, Jalan Ampang, KL · Lunch slot              ││
 │  │  [Select as default]  [Edit]  [Remove]             ││
 │  ├─────────────────────────────────────────────────────┤│
-│  │  🏡 Parents — Ali · 011-2345678                    ││
+│  │  🏡 Parents - Ali · 011-2345678                    ││
 │  │     8, Taman Desa, PJ · Evening slot               ││
 │  │  [Select as default]  [Edit]  [Remove]             ││
 │  └─────────────────────────────────────────────────────┘│
@@ -101,24 +101,24 @@ Replace the current flat list of presets with a two-tier layout — default pres
 
 The preset picker in the quote form already calls `applyPresetObject()` which sets `addressId`, `contactName`, `contactNumber`, etc. No code change needed.
 
-The preset picker in the quote form (`quote-form.component.ts`) already calls `applyPresetObject()` which sets `this.f.addressId = p.addressId` (line 1009). When the user picks a preset, the address dropdown selects the corresponding saved address. No code change needed here — the user was asking for this behavior and it already exists.
+The preset picker in the quote form (`quote-form.component.ts`) already calls `applyPresetObject()` which sets `this.f.addressId = p.addressId` (line 1009). When the user picks a preset, the address dropdown selects the corresponding saved address. No code change needed here - the user was asking for this behavior and it already exists.
 
 If the user wants **inline address preview** in the preset dropdown (showing the address text alongside the contact name), that's a small UI enhancement:
 
 ```html
 <!-- In the preset picker dropdown, show address as subtitle -->
 <select #cpick (change)="applyPreset(cpick.value)" name="preset">
-  <option value="">— Enter details manually —</option>
+  <option value="">- Enter details manually -</option>
   @for (p of presets(); track p.id) {
     <option [value]="p.id">
       {{ p.label || p.contactName }} · {{ p.contactNumber }}
-      — {{ p.address?.address || 'No address' }}
+      - {{ p.address?.address || 'No address' }}
     </option>
   }
 </select>
 ```
 
-## Servicer Settings — Changes
+## Servicer Settings - Changes
 
 ### 4. Profile visibility toggles (public email/phone)
 
@@ -151,13 +151,13 @@ model Servicer {
 These fields control whether the servicer's email and phone are:
 - Visible in the **job dispatch overlay** (customer contact info panel)
 - Visible on any future **public servicer profile/storefront page**
-- **NOT** related to the Phase 6 identity avatars — those show the *customer's* details to the servicer, not the other way around
+- **NOT** related to the Phase 6 identity avatars - those show the *customer's* details to the servicer, not the other way around
 
 **Backend:** Add fields to `Servicer` model, include in `PATCH /servicer/account` body validation, return in `GET /servicer/account`.
 
 **Frontend:** Checkbox inputs in Profile section. On the dispatch overlay, conditionally show/hide email and phone based on these flags.
 
-### 5. Invoice formatting — prefix/content/suffix
+### 5. Invoice formatting - prefix/content/suffix
 
 **File:** `frontend/src/app/servicer/pages/account.component.ts`
 
@@ -173,7 +173,7 @@ Example patterns:
 - `AHMAD-2026-0042` (prefix=AHMAD, no suffix)
 - `SVC-26-42` (prefix=SVC, year=YY, padding=2)
 
-**UI change** — add Content and Suffix inputs:
+**UI change** - add Content and Suffix inputs:
 
 ```html
 <div class="row">

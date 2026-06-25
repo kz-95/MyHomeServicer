@@ -18,7 +18,7 @@ import { findAdmin, sendOtpToBackupEmail } from '../services/admin-rescue.servic
 /** Authentication endpoints. */
 export const authRouter = Router();
 
-/** POST /auth/register — create a new customer account. */
+/** POST /auth/register - create a new customer account. */
 authRouter.post(
   '/register',
   registerLimiter,
@@ -47,7 +47,7 @@ authRouter.post(
   }),
 );
 
-/** POST /auth/register-servicer — create a new servicer ("servicer") account. */
+/** POST /auth/register-servicer - create a new servicer ("servicer") account. */
 authRouter.post(
   '/register-servicer',
   registerLimiter,
@@ -89,13 +89,13 @@ authRouter.post(
 );
 
 /**
- * POST /auth/login — verify credentials, issue tokens.
+ * POST /auth/login - verify credentials, issue tokens.
  *
  * CRITICAL: This route MUST stay at exactly `POST /login` under the `/auth`
  * prefix (full path: POST /api/v1/auth/login). Do NOT rename, move, or change
  * the HTTP method. The frontend AuthService, proxy config, and morgan skip rule
  * all depend on this exact path. Changing it is a regression that will break
- * login for every account — this has caused prod-blocking 404s before.
+ * login for every account - this has caused prod-blocking 404s before.
  */
 authRouter.post(
   '/login', // CRITICAL: do not change this path or method
@@ -113,7 +113,7 @@ authRouter.post(
   }),
 );
 
-/** POST /auth/refresh — rotate tokens using a valid refresh token. */
+/** POST /auth/refresh - rotate tokens using a valid refresh token. */
 authRouter.post(
   '/refresh',
   validate([body('refreshToken').isString().notEmpty()]),
@@ -123,7 +123,7 @@ authRouter.post(
   }),
 );
 
-/** POST /auth/logout — revoke the refresh token. */
+/** POST /auth/logout - revoke the refresh token. */
 authRouter.post(
   '/logout',
   validate([body('refreshToken').isString().notEmpty()]),
@@ -133,7 +133,7 @@ authRouter.post(
   }),
 );
 
-/** POST /auth/forgot-password — send reset link. */
+/** POST /auth/forgot-password - send reset link. */
 authRouter.post(
   '/forgot-password',
   registerLimiter,
@@ -175,7 +175,7 @@ authRouter.post(
   }),
 );
 
-/** POST /auth/reset-password — consume token and update password. */
+/** POST /auth/reset-password - consume token and update password. */
 authRouter.post(
   '/reset-password',
   validate([
@@ -212,7 +212,7 @@ authRouter.post(
 // ── Google OAuth ────────────────────────────────────────────────────────────
 
 /**
- * GET /auth/google — initiate Google OAuth sign-in.
+ * GET /auth/google - initiate Google OAuth sign-in.
  * Only registered when GOOGLE_CLIENT_ID is configured.
  */
 if (isGoogleConfigured()) {
@@ -224,7 +224,7 @@ if (isGoogleConfigured()) {
   });
 
   /**
-   * GET /auth/google/callback — handle Google OAuth callback.
+   * GET /auth/google/callback - handle Google OAuth callback.
    * Verifies the auth code, creates/links the user, issues JWT tokens,
    * then redirects to the frontend callback page with tokens in query params.
    */

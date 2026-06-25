@@ -1,13 +1,13 @@
 /**
- * Unit tests — Phase 6 modifier pricing: computePrefill() and
+ * Unit tests - Phase 6 modifier pricing: computePrefill() and
  * optionPriceMapSchema round-trip validation.
  *
  * computePrefill is a pure function exported from merchant-quote.service.ts
  * for this purpose. No mocks, no DB calls.
  *
  * Coverage:
- *  1. computePrefill — core pre-fill calculation
- *  2. optionPriceMapSchema — save/load validation round-trip
+ *  1. computePrefill - core pre-fill calculation
+ *  2. optionPriceMapSchema - save/load validation round-trip
  */
 
 import { computePrefill } from '../../src/services/servicer-quote.service';
@@ -44,9 +44,9 @@ function service(
   return { basePrice: decimal(basePrice), modifiers: modifiers as Prisma.JsonValue };
 }
 
-// ── computePrefill — core scenarios ─────────────────────────────────────────
+// ── computePrefill - core scenarios ─────────────────────────────────────────
 
-describe('computePrefill — null / empty inputs', () => {
+describe('computePrefill - null / empty inputs', () => {
   it('returns null when service is null', () => {
     expect(computePrefill({}, [], null)).toBeNull();
   });
@@ -95,7 +95,7 @@ describe('computePrefill — null / empty inputs', () => {
   });
 });
 
-describe('computePrefill — single option selected', () => {
+describe('computePrefill - single option selected', () => {
   const schema = [pricedQuestion('aircon_service', ['wall_chemical', 'wall_general'])];
 
   it('returns the option price when it exceeds base', () => {
@@ -171,7 +171,7 @@ describe('computePrefill — single option selected', () => {
   });
 });
 
-describe('computePrefill — multi-select (checkbox / array answers)', () => {
+describe('computePrefill - multi-select (checkbox / array answers)', () => {
   const schema = [pricedQuestion('aircon_service', ['wall_chemical', 'wall_general', 'cassette'])];
 
   it('sums prices across multiple selected options', () => {
@@ -229,7 +229,7 @@ describe('computePrefill — multi-select (checkbox / array answers)', () => {
   });
 });
 
-describe('computePrefill — multiple question keys', () => {
+describe('computePrefill - multiple question keys', () => {
   it('sums across two priced questions', () => {
     const schema = [
       pricedQuestion('aircon_service', ['wall_chemical']),
@@ -268,7 +268,7 @@ describe('computePrefill — multiple question keys', () => {
   });
 });
 
-describe('computePrefill — option labels', () => {
+describe('computePrefill - option labels', () => {
   it('resolves option label from question schema options array', () => {
     const schema = [
       {
@@ -277,7 +277,7 @@ describe('computePrefill — option labels', () => {
         type: 'radio',
         priced: true,
         options: [
-          { value: 'wall_chemical', label: 'Wall Unit — Chemical Cleaning (Recommended)' },
+          { value: 'wall_chemical', label: 'Wall Unit - Chemical Cleaning (Recommended)' },
         ],
       },
     ];
@@ -289,7 +289,7 @@ describe('computePrefill — option labels', () => {
       schema,
       service(80, modifiers),
     );
-    expect(result!.breakdown[0].label).toBe('Wall Unit — Chemical Cleaning (Recommended)');
+    expect(result!.breakdown[0].label).toBe('Wall Unit - Chemical Cleaning (Recommended)');
   });
 
   it('falls back to optionValue string when options array is absent', () => {
@@ -302,9 +302,9 @@ describe('computePrefill — option labels', () => {
   });
 });
 
-// ── optionPriceMapSchema — save/load round-trip ──────────────────────────────
+// ── optionPriceMapSchema - save/load round-trip ──────────────────────────────
 
-describe('optionPriceMapSchema — validation round-trip', () => {
+describe('optionPriceMapSchema - validation round-trip', () => {
   it('accepts a valid map with price and notOffered fields', () => {
     const raw = {
       aircon_service: {

@@ -1,4 +1,4 @@
-# Dev setup instructions
+﻿# Dev setup instructions
 
 Everything you need to get the project running locally from scratch.
 
@@ -8,9 +8,9 @@ Everything you need to get the project running locally from scratch.
 
 Make sure these are installed on your machine before starting:
 
-- **Node.js 20 LTS** — [nodejs.org](https://nodejs.org)
-- **Docker Desktop** — [docker.com](https://docker.com) (for Postgres + Redis)
-- **Angular CLI** — `npm install -g @angular/cli` (or use `npx ng serve`)
+- **Node.js 20 LTS** - [nodejs.org](https://nodejs.org)
+- **Docker Desktop** - [docker.com](https://docker.com) (for Postgres + Redis)
+- **Angular CLI** - `npm install -g @angular/cli` (or use `npx ng serve`)
 
 ---
 
@@ -36,7 +36,7 @@ This starts:
 - PostgreSQL 16 on `localhost:5432`
 - Redis 7 on `localhost:6379`
 
-Data is persisted in Docker volumes — stopping containers does not wipe data.
+Data is persisted in Docker volumes - stopping containers does not wipe data.
 
 ### 3. Configure environment
 
@@ -64,7 +64,7 @@ S3_ACCESS_KEY=
 S3_SECRET_KEY=
 S3_BASE_URL=
 
-# AI chatbot (optional — leave blank for canned fallback)
+# AI chatbot (optional - leave blank for canned fallback)
 AICHAT_LLM_API_KEY=
 AICHAT_LLM_FALLBACK_API_KEY=
 
@@ -88,7 +88,7 @@ npm run db:sync
 `db:sync` runs `prisma migrate deploy` (applies every committed migration under
 `prisma/migrations/`) and regenerates the Prisma client. **This project uses
 Prisma migrations, not `db push`.** To change the schema in dev, run
-`npm run db:migrate` (`prisma migrate dev --name <change>`) — it creates a new
+`npm run db:migrate` (`prisma migrate dev --name <change>`) - it creates a new
 migration folder, applies it, and regenerates the client. Commit the new folder.
 
 > **Production (Railway):** the deploy **start command** (`npm start` →
@@ -96,7 +96,7 @@ migration folder, applies it, and regenerates the client. Commit the new folder.
 > pending committed migrations on every deploy, so schema changes (e.g. the
 > `llm_api_keys` table) reach the prod DB with no manual step and a full audit
 > trail. `migrate deploy` is idempotent and fails fast on drift; it does NOT
-> seed — see `docs/setup-guides/PRODUCTION-GO-LIVE.md` §4 for loading demo data /
+> seed - see `docs/setup-guides/PRODUCTION-GO-LIVE.md` §4 for loading demo data /
 > PINs and the one-time baseline of a pre-existing prod DB.
 
 ### 5. Seed demo data
@@ -106,10 +106,10 @@ npm run seed
 ```
 
 This populates the database with all demo accounts, servicers, quotes,
-bookings and platform settings. The seed is idempotent — it wipes any existing
+bookings and platform settings. The seed is idempotent - it wipes any existing
 data first, so it is safe to re-run.
 
-> Shortcut: **`npm run db:reset`** does steps 4 + 5 in one go — force-push the
+> Shortcut: **`npm run db:reset`** does steps 4 + 5 in one go - force-push the
 > schema, regenerate the client, and reseed. This is the usual "fix the
 > database" command after a schema change.
 
@@ -123,14 +123,14 @@ data first, so it is safe to re-run.
 
 Open two terminals:
 
-**Terminal 1 — Backend**
+**Terminal 1 - Backend**
 ```bash
 cd backend
 npm run dev
 ```
 Runs at `http://localhost:3000`
 
-**Terminal 2 — Frontend**
+**Terminal 2 - Frontend**
 ```bash
 cd frontend
 ng serve
@@ -143,14 +143,14 @@ Runs at `http://localhost:4200`
 
 Follow these steps each time you open your PC and want to work on the project.
 
-1. Open **Docker Desktop** from the Start menu. Wait until it finishes loading — the whale icon stops animating and it shows "Engine running".
+1. Open **Docker Desktop** from the Start menu. Wait until it finishes loading - the whale icon stops animating and it shows "Engine running".
 
 2. Open the folder **E:\WebDevCurriculums\MyServicer** and double-click **start-dev.bat**. This starts the database, the backend, and the frontend. Two black windows will open.
 
 3. Wait about 30 seconds, then check the two windows:
    - The **backend** window should show: `API listening`
    - The **frontend** window should show: `Compiled successfully`
-   Leave both windows open — closing them stops the app.
+   Leave both windows open - closing them stops the app.
 
 4. Open **Chrome** and go to **http://localhost:4200**. You should see the My Home Servicer home page. If it loads, the app is ready.
 
@@ -158,7 +158,7 @@ Follow these steps each time you open your PC and want to work on the project.
 
 ### When you finish for the day
 
-Close the two black windows (backend + frontend) to stop the app. In Docker Desktop you can leave the database running or stop it — data is kept either way.
+Close the two black windows (backend + frontend) to stop the app. In Docker Desktop you can leave the database running or stop it - data is kept either way.
 
 ### If something looks wrong
 
@@ -173,11 +173,11 @@ All demo accounts share the password `Demo@2026`.
 
 | Email | Role |
 |---|---|
-| `customer.fresh@demo.local` | Customer — no order history |
-| `customer.active@demo.local` | Customer — open quote with 3 proposals |
-| `customer.loyal@demo.local` | Customer — 4 completed bookings with invoices |
-| `admin@demo.local` | Admin — action PIN: `1234`, 30-day revenue chart |
-| `servicer.1@demo.local` to `servicer.19@demo.local` | Servicers — 19 across all 11 categories, each with revenue history for dashboard charts |
+| `customer.fresh@demo.local` | Customer - no order history |
+| `customer.active@demo.local` | Customer - open quote with 3 proposals |
+| `customer.loyal@demo.local` | Customer - 4 completed bookings with invoices |
+| `admin@demo.local` | Admin - action PIN: `1234`, 30-day revenue chart |
+| `servicer.1@demo.local` to `servicer.19@demo.local` | Servicers - 19 across all 11 categories, each with revenue history for dashboard charts |
 
 > Demo account logins are blocked in production (`NODE_ENV=production`).
 
@@ -210,7 +210,7 @@ npm run unseed                # Remove all seeded data
 npm run reseed                # Reset everything (unseed + seed)
 npm run db:reset              # Force-push schema + regenerate client + seed
 npm run seed:settings         # Upsert platform settings ONLY (budget ranges, chat
-                              #   config, greeting tiers) — NON-destructive, no data
+                              #   config, greeting tiers) - NON-destructive, no data
                               #   wipe. Run after a settings default changes instead
                               #   of a full reset, then restart the backend.
 
@@ -221,7 +221,7 @@ npm run reseed:test           # Wipe + recreate test seed
 cat prisma/seed/seeded-ids.json   # Check what UUIDs are currently seeded
 ```
 
-> `seeded-ids.json` is auto-generated and gitignored — do not commit it.
+> `seeded-ids.json` is auto-generated and gitignored - do not commit it.
 
 ### Backend
 
@@ -254,12 +254,12 @@ npm run reseed
 
 Then verify:
 - [ ] All demo accounts work (log in via login page quick-fill or navbar dropdown)
-- [ ] `customer.active@demo.local` — quote countdown is still ticking
-- [ ] `customer.loyal@demo.local` — chat session shows seed messages, order history has 4 completed bookings with invoices
-- [ ] Any servicer dashboard (e.g. M3 Daikin Pro) — 7-day earnings chart shows bars with data
-- [ ] Any servicer history page — 30-day earnings summary shows populated chart and stats
-- [ ] Admin dashboard — 30-day platform revenue chart shows data
-- [ ] Send one test message to AI chatbot — verify it responds
+- [ ] `customer.active@demo.local` - quote countdown is still ticking
+- [ ] `customer.loyal@demo.local` - chat session shows seed messages, order history has 4 completed bookings with invoices
+- [ ] Any servicer dashboard (e.g. M3 Daikin Pro) - 7-day earnings chart shows bars with data
+- [ ] Any servicer history page - 30-day earnings summary shows populated chart and stats
+- [ ] Admin dashboard - 30-day platform revenue chart shows data
+- [ ] Send one test message to AI chatbot - verify it responds
 - [ ] Backend logs are clean (no errors during seed)
 
 ---
@@ -326,13 +326,13 @@ Also verify:
 
 ## Common issues
 
-**`npx prisma db push` fails — "URL must start with postgresql://"**
+**`npx prisma db push` fails - "URL must start with postgresql://"**
 `backend/.env` contains an unfilled placeholder. Copy `backend\.env.example` and fill in the required values, then retry.
 
-**`npm run db:sync` fails — "database does not exist"**
+**`npm run db:sync` fails - "database does not exist"**
 Make sure Docker is running: `docker compose up -d`. Wait a few seconds for Postgres to be ready, then retry.
 
-**A feature fails — "column does not exist" (e.g. top-up does nothing)**
+**A feature fails - "column does not exist" (e.g. top-up does nothing)**
 The schema changed but the database hasn't caught up. Run `npm run db:reset`
 to rebuild the schema, regenerate the Prisma client and reseed, then restart
 the backend so it loads the new client.
@@ -341,17 +341,17 @@ the backend so it loads the new client.
 The env schema is validated at boot (fail-fast). Run `node -e "require('dotenv').config(); require('./src/config/env')"` from `backend/` to see which variables are missing or invalid.
 
 **Frontend can't reach backend / 404 on API calls**
-- Make sure the backend is running on port 3000 — the Angular dev server proxies `/api/*` to it.
+- Make sure the backend is running on port 3000 - the Angular dev server proxies `/api/*` to it.
 - Check that `backend/.env` has `APP_URL=http://localhost:4200`.
 
 **Socket.io not connecting**
-Make sure Redis is running — Socket.io uses Redis adapter for broadcasting. Run `docker compose up -d` if the containers are down.
+Make sure Redis is running - Socket.io uses Redis adapter for broadcasting. Run `docker compose up -d` if the containers are down.
 
 **AI chatbot not responding**
 The chatbot falls back to canned answers when no API key is configured. To enable a real AI provider, set `AICHAT_LLM_API_KEY` or `AICHAT_LLM_FALLBACK_API_KEY` in `backend/.env`.
 
 **401 Unauthorized on every request**
-The demo seed was not applied — run `npm run db:reset` in `backend/` to create demo accounts. Make sure `JWT_SECRET` in `.env` matches between the token issuer and verifier.
+The demo seed was not applied - run `npm run db:reset` in `backend/` to create demo accounts. Make sure `JWT_SECRET` in `.env` matches between the token issuer and verifier.
 
 **500 error on first API call**
 Most likely the database schema was not applied. Run `npm run db:reset` in `backend/` to push the schema, generate the Prisma client, and seed demo data.

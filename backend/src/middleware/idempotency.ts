@@ -34,13 +34,13 @@ export async function idempotency(
     const cached = await redis.get(cacheKey);
     if (cached) {
       const { status, body } = JSON.parse(cached) as { status: number; body: unknown };
-      logger.info('Idempotency hit — replaying cached response', { route: req.path });
+      logger.info('Idempotency hit - replaying cached response', { route: req.path });
       res.status(status).json(body);
       return;
     }
   } catch (err) {
     redisAvailable = false;
-    logger.error('Idempotency Redis read failed — failing open', {
+    logger.error('Idempotency Redis read failed - failing open', {
       error: (err as Error).message,
     });
   }

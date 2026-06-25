@@ -465,7 +465,7 @@ export class MyQuotesComponent implements OnInit {
   cancelling = signal<Quote | null>(null);
   cancellingBusy = signal(false);
   cancelError = signal('');
-  // Cancel form fields (plain, not signals — used with [(ngModel)])
+  // Cancel form fields (plain, not signals - used with [(ngModel)])
   cancelReason = '';
   cancelDetails = '';
   cancelPin = '';

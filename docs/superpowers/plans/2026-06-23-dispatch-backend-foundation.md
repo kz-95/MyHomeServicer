@@ -1,8 +1,8 @@
-# Dispatch Backend Foundation — Implementation Plan
+﻿# Dispatch Backend Foundation - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** Rework quote timing so the response timer runs now → job time, reject past-dated bookings, and add an admin-configurable same-day "urgent" surcharge — the backend foundation the redesigned dispatch card renders.
+**Goal:** Rework quote timing so the response timer runs now → job time, reject past-dated bookings, and add an admin-configurable same-day "urgent" surcharge - the backend foundation the redesigned dispatch card renders.
 
 **Architecture:** Derive the job datetime from `preferredDate` + the `timeSlot` bucket's start hour (MYT), mirroring the existing `slotEndTime` helper. `servicerDeadline` becomes `jobDatetime − buffer` instead of a customer-entered deadline. Same-calendar-day jobs (MYT) are flagged `isUrgent` and carry a snapshotted `urgentFee` read from a new `urgent_same_day_fee` platform setting. The fee is included in the pay-now credit hold so escrow always covers it.
 
@@ -14,21 +14,21 @@
 
 ## File Structure
 
-- `backend/prisma/schema.prisma` — add `isUrgent`, `urgentFee`, `images` to `QuoteRequest`; `isUrgent`, `urgentFee` to `Booking`.
-- `backend/prisma/migrations/<ts>_dispatch_urgent_images/` — generated migration.
-- `backend/src/lib/time-slots.ts` — add `SLOT_START_HOUR` map + `slotStartHour()` (pure, shared).
-- `backend/src/services/quote-timing.service.ts` — **new** small module: `jobDatetime()`, `isPastJob()`, `isSameDayMYT()`, `resolveUrgentFee()`. Keeps timing logic out of the already-large `quote.service.ts` and unit-testable.
-- `backend/src/services/quote.service.ts` — `createQuote` derives deadlines from job time, rejects past jobs, sets urgent fields; include urgent fee in credit hold.
-- `backend/src/routes/quotes.routes.ts` — make `proposalDeadline` optional in validators (deadline now derived).
-- `backend/src/services/servicer-quote.service.ts` — surface `isUrgent`, `urgentFee` in `listIncomingQuotes`.
-- `backend/prisma/seed/data/*` + seed — seed `urgent_same_day_fee` platform setting.
+- `backend/prisma/schema.prisma` - add `isUrgent`, `urgentFee`, `images` to `QuoteRequest`; `isUrgent`, `urgentFee` to `Booking`.
+- `backend/prisma/migrations/<ts>_dispatch_urgent_images/` - generated migration.
+- `backend/src/lib/time-slots.ts` - add `SLOT_START_HOUR` map + `slotStartHour()` (pure, shared).
+- `backend/src/services/quote-timing.service.ts` - **new** small module: `jobDatetime()`, `isPastJob()`, `isSameDayMYT()`, `resolveUrgentFee()`. Keeps timing logic out of the already-large `quote.service.ts` and unit-testable.
+- `backend/src/services/quote.service.ts` - `createQuote` derives deadlines from job time, rejects past jobs, sets urgent fields; include urgent fee in credit hold.
+- `backend/src/routes/quotes.routes.ts` - make `proposalDeadline` optional in validators (deadline now derived).
+- `backend/src/services/servicer-quote.service.ts` - surface `isUrgent`, `urgentFee` in `listIncomingQuotes`.
+- `backend/prisma/seed/data/*` + seed - seed `urgent_same_day_fee` platform setting.
 - Tests: `backend/tests/unit/quote-timing.test.ts` (new).
 
-Run tests with `npm test` (jest) from `backend/`. Type-gate every edit: `rtk proxy npx tsc --noEmit` (plain `rtk npx tsc` hides source errors — see project memory).
+Run tests with `npm test` (jest) from `backend/`. Type-gate every edit: `rtk proxy npx tsc --noEmit` (plain `rtk npx tsc` hides source errors - see project memory).
 
 ---
 
-## Task 1: Schema — urgent + images fields and the platform setting
+## Task 1: Schema - urgent + images fields and the platform setting
 
 **Files:**
 - Modify: `backend/prisma/schema.prisma` (QuoteRequest ~`812-857`, Booking model)
@@ -67,7 +67,7 @@ git commit -m "feat(quote): schema for urgent surcharge + quote images"
 
 ---
 
-## Task 2: `slotStartHour` — bucket → start hour (MYT)
+## Task 2: `slotStartHour` - bucket → start hour (MYT)
 
 **Files:**
 - Modify: `backend/src/lib/time-slots.ts`
@@ -91,7 +91,7 @@ describe('slot start hours (MYT)', () => {
 - [x] **Step 2: Run it, verify it fails**
 
 Run: `npx jest tests/unit/quote-timing.test.ts -t "slot start hours"`
-Expected: FAIL — `SLOT_START_HOUR` is not exported.
+Expected: FAIL - `SLOT_START_HOUR` is not exported.
 
 - [x] **Step 3: Add to `backend/src/lib/time-slots.ts`** (after the existing `TIME_SLOTS` / `TimeSlotValue`):
 
@@ -125,7 +125,7 @@ git commit -m "feat(quote): slot start-hour map for job-time derivation"
 
 ---
 
-## Task 3: `quote-timing.service.ts` — job datetime, past check, same-day urgent
+## Task 3: `quote-timing.service.ts` - job datetime, past check, same-day urgent
 
 **Files:**
 - Create: `backend/src/services/quote-timing.service.ts`
@@ -174,7 +174,7 @@ describe('isSameDayMYT', () => {
 - [x] **Step 2: Run, verify fail**
 
 Run: `npx jest tests/unit/quote-timing.test.ts -t "jobDatetime"`
-Expected: FAIL — module not found.
+Expected: FAIL - module not found.
 
 - [x] **Step 3: Create `backend/src/services/quote-timing.service.ts`**
 
@@ -228,12 +228,12 @@ git commit -m "feat(quote): job-datetime + past + same-day MYT helpers"
 
 ---
 
-## Task 4: `resolveUrgentFee` — read setting, snapshot amount + split
+## Task 4: `resolveUrgentFee` - read setting, snapshot amount + split
 
 **Files:**
 - Modify: `backend/src/services/quote-timing.service.ts`
 - Test: `backend/tests/unit/quote-timing.test.ts` (append)
-- Seed: `backend/prisma/seed/*` — add the setting
+- Seed: `backend/prisma/seed/*` - add the setting
 
 - [x] **Step 1: Seed the platform setting.** Find where existing settings like
   `platform_fee_rate` / `quote_buffer_minutes` are seeded (grep
@@ -261,7 +261,7 @@ describe('splitUrgentFee', () => {
 - [x] **Step 3: Run, verify fail**
 
 Run: `npx jest tests/unit/quote-timing.test.ts -t "splitUrgentFee"`
-Expected: FAIL — not exported.
+Expected: FAIL - not exported.
 
 - [x] **Step 4: Add to `quote-timing.service.ts`**
 
@@ -298,7 +298,7 @@ git commit -m "feat(quote): urgent-fee resolver + split + seed setting"
 
 ---
 
-## Task 5: `createQuote` — derive deadline from job time, reject past, set urgent
+## Task 5: `createQuote` - derive deadline from job time, reject past, set urgent
 
 **Files:**
 - Modify: `backend/src/services/quote.service.ts` (`createQuote`, `200-340`)
@@ -330,7 +330,7 @@ Replace with (deadline derived from the job time, not customer-entered):
   const preferred = new Date(input.preferredDate);
   if (Number.isNaN(preferred.getTime())) throw badRequest('preferredDate must be a valid date');
   const jobAt = jobDatetime(preferred, input.timeSlot);
-  if (isPastJob(jobAt)) throw badRequest('Cannot request a job in the past — pick a current or future time.');
+  if (isPastJob(jobAt)) throw badRequest('Cannot request a job in the past - pick a current or future time.');
 
   // Servicers must respond before the job starts (buffer-trimmed); proposal
   // deadline == job start. Reuse the existing 15-min buffer constant.
@@ -369,7 +369,7 @@ This keeps existing callers (repost, guest, seed, route) compiling while the val
 - [x] **Step 5: Type-gate**
 
 Run: `rtk proxy npx tsc --noEmit` (from `backend/`)
-Expected: zero errors. (If callers reference `input.proposalDeadline`, they still compile — it's optional now.)
+Expected: zero errors. (If callers reference `input.proposalDeadline`, they still compile - it's optional now.)
 
 - [x] **Step 6: Smoke test the rejection.** Add a focused test
   `backend/tests/unit/quote-timing.test.ts` (append) that the helper rejects past:
@@ -458,7 +458,7 @@ git commit -m "fix(quote): proposalDeadline optional (deadline now derived)"
 
 - [x] **Step 1: Select the fields.** The query already does
   `include: { quoteRequest: { ... } }`. `isUrgent`/`urgentFee` are scalar columns on
-  `quoteRequest`, so they're already loaded — no `select` change needed.
+  `quoteRequest`, so they're already loaded - no `select` change needed.
 
 - [x] **Step 2: Add to the returned object** (in the `.map`, after `paymentMode: q.paymentMode,`):
 
@@ -493,12 +493,12 @@ Expected: seed completes, `urgent_same_day_fee` row present.
 Run: `npm test`
 Expected: all green, including the new `quote-timing.test.ts`.
 
-- [x] **Step 3: Manual check — same-day urgent.** Create a quote (customer.fresh) with
+- [x] **Step 3: Manual check - same-day urgent.** Create a quote (customer.fresh) with
   `preferredDate` = today and an afternoon slot via the quote form. Expected: quote
   persists with `isUrgent = true`, `urgentFee = 150`; the servicer feed
   (`GET /servicer/quotes` as M9) returns `isUrgent: true`.
 
-- [x] **Step 4: Manual check — past rejection.** Attempt a quote with a past date.
+- [x] **Step 4: Manual check - past rejection.** Attempt a quote with a past date.
   Expected: 400 "Cannot request a job in the past".
 
 - [x] **Step 5: Commit any seed tweaks**
@@ -513,7 +513,7 @@ git commit -m "chore(seed): urgent fee setting verified in reseed"
 ## Self-Review notes
 
 - Spec Stream B (timing) → Tasks 2,3,5,7. Stream C (urgent) → Tasks 1,4,5,6,8. Schema → Task 1. Stream A (card) + Stream D (images) are out of scope (separate plans).
-- `images` column is added in Task 1 (cheap to migrate once) but consumed only by the Stream D plan — intentional, avoids a second migration.
-- MYT `getUTCDay` auto-accept bug (TODO #2) is NOT fixed here — it lives in the auto-accept gate, a separate plan. Timing helpers here are MYT-correct by construction (mirror `slotEndTime`).
+- `images` column is added in Task 1 (cheap to migrate once) but consumed only by the Stream D plan - intentional, avoids a second migration.
+- MYT `getUTCDay` auto-accept bug (TODO #2) is NOT fixed here - it lives in the auto-accept gate, a separate plan. Timing helpers here are MYT-correct by construction (mirror `slotEndTime`).
 - Type names consistent: `jobDatetime`, `isPastJob`, `isSameDayMYT`, `resolveUrgentFee`, `splitUrgentFee`, `slotStartHour`, `SLOT_START_HOUR` used identically across tasks.
-- `splitUrgentFee` is defined (Task 4) but its consumer (booking settlement: route servicer 80% / platform 20% at escrow_release) is deferred to the escrow-integrity plan — flagged so it isn't mistaken for dead code.
+- `splitUrgentFee` is defined (Task 4) but its consumer (booking settlement: route servicer 80% / platform 20% at escrow_release) is deferred to the escrow-integrity plan - flagged so it isn't mistaken for dead code.

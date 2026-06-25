@@ -99,12 +99,12 @@ interface Penalty {
  * Servicer Business Profile page.
  *
  * Sections:
- * 1. Business Identity  — businessName, logo, bio + Business Contacts CRUD
- * 2. Type of Services   — categoryId view/change-request, serviceAreas, operatingHours
- * 3. Status             — kycStatus + identity change requests
- * 4. Business & Tax     — entityType, regNo, taxNo, isCompany(derived), tax config+calculator, invoice settings+preview
+ * 1. Business Identity  - businessName, logo, bio + Business Contacts CRUD
+ * 2. Type of Services   - categoryId view/change-request, serviceAreas, operatingHours
+ * 3. Status             - kycStatus + identity change requests
+ * 4. Business & Tax     - entityType, regNo, taxNo, isCompany(derived), tax config+calculator, invoice settings+preview
  * 5. Action PIN
- * 6. Money (read-only)  — fee breakdown, penalties
+ * 6. Money (read-only)  - fee breakdown, penalties
  * 7. Danger Zone
  */
 @Component({
@@ -301,7 +301,7 @@ interface Penalty {
             <!-- Service radius -->
             <label>
               Service radius (km)
-              <span class="muted">(how far you'll travel — used to match jobs to you)</span>
+              <span class="muted">(how far you'll travel - used to match jobs to you)</span>
               <input
                 type="number"
                 min="1"
@@ -316,7 +316,7 @@ interface Penalty {
             <!-- Operating hours -->
             <label>
               Operating hours
-              <span class="muted">(base schedule — your weekly template; add time ranges with rest breaks)</span>
+              <span class="muted">(base schedule - your weekly template; add time ranges with rest breaks)</span>
             </label>
 
             @if (ohEntries().length > 0) {
@@ -771,7 +771,7 @@ interface Penalty {
       .sa-remove { background: none; border: none; color: inherit; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0; opacity: 0.6; transition: opacity 0.12s ease; }
       .sa-remove:hover { opacity: 1; }
 
-      /* Operating hours — CRUD list + form */
+      /* Operating hours - CRUD list + form */
       .oh-list { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.3rem; }
       .oh-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0; border-bottom: 1px solid var(--color-border); font-size: 0.88rem; }
       .oh-days { font-weight: 600; min-width: 80px; }
@@ -991,7 +991,7 @@ export class ServicerAccountComponent implements OnInit {
   deactivateError = signal<string | null>(null);
   deactivating = signal(false);
 
-  // ── Operating hours — CRUD with multi-day pick + rest break ──
+  // ── Operating hours - CRUD with multi-day pick + rest break ──
   ohEntries = signal<{ _key: number; days: string[]; open: string; close: string; restOpen: string; restClose: string }[]>([]);
   private _ohKey = 0;
   ohFormOpen = signal(false);

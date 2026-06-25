@@ -14,7 +14,6 @@ import { AddressFieldsComponent } from '../../shared/address-fields.component';
 import { PhoneInputComponent } from '../../shared/phone-input.component';
 import { CalendarPickerComponent } from '../../shared/calendar-picker.component';
 import { IconComponent } from '../../shared/icon.component';
-import { StripeCardFormComponent } from '../../shared/stripe-card-form.component';
 import { TIME_SLOTS } from '../../shared/constants/time-slots';
 import { normalizeMyPhone } from '../../shared/phone.util';
 
@@ -84,7 +83,7 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
 @Component({
     selector: 'app-quote-form',
     host: { class: 'page-enter page-narrow' },
-    imports: [FormsModule, RouterLink, ModalComponent, AddressFieldsComponent, PhoneInputComponent, CalendarPickerComponent, IconComponent, StripeCardFormComponent],
+    imports: [FormsModule, RouterLink, ModalComponent, AddressFieldsComponent, PhoneInputComponent, CalendarPickerComponent, IconComponent],
     template: `
     <div class="page-head">
       <h1>Request a quote</h1>
@@ -502,10 +501,6 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
                 <input type="radio" name="payMethod" [checked]="f.settlementMethod === 'cash'" (change)="f.settlementMethod = 'cash'" />
                 <span>Cash <span class="muted">(pay servicer directly after job done)</span></span>
               </label>
-              <label class="opt">
-                <input type="radio" name="payMethod" [checked]="f.settlementMethod === 'gateway'" (change)="f.settlementMethod = 'gateway'" />
-                <span>Card <span class="muted">(Stripe payment link sent after job is done)</span></span>
-              </label>
             </div>
           </div>
           <p class="no-charge-note muted">No charge until a servicer accepts your request.</p>
@@ -516,35 +511,11 @@ const PAYMENT_MODE_MAP: Record<string, readonly [string, string]> = {
             <span class="qlabel">Settlement method</span>
             <div class="opts">
               <label class="opt">
-                <input type="radio" name="payNowMethod" [checked]="f.settlementMethod === 'credit'" (change)="f.settlementMethod = 'credit'; cardStep.set('idle')" />
+                <input type="radio" name="payNowMethod" [checked]="f.settlementMethod === 'credit'" (change)="f.settlementMethod = 'credit'" />
                 <span>Wallet credit <span class="muted">(balance: RM {{ creditBalance().toFixed(2) }})</span></span>
-              </label>
-              <label class="opt">
-                <input type="radio" name="payNowMethod" [checked]="f.settlementMethod === 'gateway'" (change)="onGatewaySelect()" />
-                <span>Credit / Debit card</span>
               </label>
             </div>
           </div>
-
-          @if (f.settlementMethod === 'gateway') {
-            @if (cardStep() === 'intent_loading') {
-              <p class="muted">Preparing payment…</p>
-            } @else if (cardStep() === 'intent_ready' && clientSecret()) {
-              <app-stripe-card-form
-                [clientSecret]="clientSecret()!"
-                [amount]="estimatedTotal() ?? 0"
-                [loading]="false"
-                (paymentSuccess)="onCardPaymentSuccess()"
-                (paymentError)="onCardPaymentError($event)"
-                (cancel)="cardStep.set('idle'); f.settlementMethod = 'credit'"
-              />
-            } @else if (cardStep() === 'success') {
-              <p class="card-pay-ok">✓ Payment successful!</p>
-            } @else if (cardStep() === 'error') {
-              <p class="err">{{ cardErrorMsg() }}</p>
-              <button class="btn-ghost" (click)="onGatewaySelect()">Try again</button>
-            }
-          }
         }
 
         <!-- Promo code with Apply button -->
@@ -1176,48 +1147,7 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
   private stripePayment = inject(StripePaymentService);
 
   // ── Card payment state ──────────────────────────────────────────────────
-  cardStep = signal<'idle' | 'intent_loading' | 'intent_ready' | 'success' | 'error'>('idle');
-  clientSecret = signal<string | null>(null);
-  paymentIntentId = signal<string | null>(null);
-  cardErrorMsg = signal('');
-  cardPaymentDone = signal(false);
-
-  async onGatewaySelect(): Promise<void> {
-    this.f.settlementMethod = 'gateway';
-    this.cardStep.set('intent_loading');
-    this.cardErrorMsg.set('');
-    this.clientSecret.set(null);
-    this.paymentIntentId.set(null);
-    const total = this.estimatedTotal();
-    if (!total || total <= 0) {
-      this.cardStep.set('idle');
-      return;
-    }
-    try {
-      const res = await firstValueFrom(this.api.post<{ clientSecret: string; paymentIntentId: string }>('/stripe/create-payment-intent', { amount: total }));
-      if (res?.clientSecret) {
-        this.clientSecret.set(res.clientSecret);
-        this.paymentIntentId.set(res.paymentIntentId ?? null);
-        this.cardStep.set('intent_ready');
-      } else {
-        this.cardStep.set('error');
-        this.cardErrorMsg.set('Could not initiate payment. Please try again.');
-      }
-    } catch {
-      this.cardStep.set('error');
-      this.cardErrorMsg.set('Could not initiate payment. Please try again.');
-    }
-  }
-
-  onCardPaymentSuccess(): void {
-    this.cardStep.set('success');
-    this.cardPaymentDone.set(true);
-    this.doSubmit();  // auto-advance
-  }
-
-  onCardPaymentError(msg: string): void {
-    this.cardErrorMsg.set(msg);
-  }
+  cardStep = signal('idle');
 
   showTopUp = signal(false);
   toppingUp = signal(false);
@@ -1346,7 +1276,7 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
           this.loadBudgetRanges(child.id);
           this.applyReorderPrefill();
         }
-        // applyChatPrefill is category-independent (name, phone, address, date, answers) —
+        // applyChatPrefill is category-independent (name, phone, address, date, answers) -
         // must run even when the category doesn't resolve, otherwise all collected fields
         // are silently dropped and the user sees an empty form.
         if (chatPrefill) this.applyChatPrefill(chatPrefill);
@@ -2094,13 +2024,13 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
     if (this.quoteImages().length >= 5) { this.imgError.set('Max 5 images'); return; }
     this.imgUploading.set(true); this.imgError.set('');
     try {
-      // Step 1 — get a presigned upload URL
+      // Step 1 - get a presigned upload URL
       const { uploadUrl, fileId } = await firstValueFrom(
         this.api.post<{ uploadUrl: string; fileId: string }>('/files/presign',
           { purpose: 'quote_image', mimeType: file.type, sizeBytes: file.size }));
-      // Step 2 — PUT the file directly
+      // Step 2 - PUT the file directly
       await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-      // Step 3 — confirm
+      // Step 3 - confirm
       const { fileUrl } = await firstValueFrom(
         this.api.post<{ fileUrl: string }>(`/files/${fileId}/confirm`, {}));
       this.quoteImages.update((a) => [...a, fileUrl]);
@@ -2199,15 +2129,6 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
   private continueSubmit(): void {
     const total = this.estimatedTotal();
     const hold = this.estimateData()?.holdAmount ?? total;
-    if (this.f.paymentTiming === 'pay_now' && this.f.settlementMethod === 'gateway') {
-      if (!this.cardPaymentDone()) {
-        this.onGatewaySelect();
-        return;
-      }
-      this.doSubmit();
-      return;
-    }
-
     if (
       this.f.paymentTiming === 'pay_now' &&
       this.f.settlementMethod === 'credit' &&
@@ -2298,7 +2219,7 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
         const msg = e?.message ?? '';
         // Insufficient credit - route to top-up overlay instead of raw error.
         // Show unconditionally when backend says insufficient (the frontend's
-        // creditBalance might be stale — prior booking holds reduce available
+        // creditBalance might be stale - prior booking holds reduce available
         // credit that the principal snapshot doesn't reflect).
         if (/insufficient credit/i.test(msg) && this.f.paymentTiming === 'pay_now') {
           this.topUpAmount = this.requiredTopUp();

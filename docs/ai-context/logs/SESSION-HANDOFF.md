@@ -1,4 +1,4 @@
-# Session Handoff — for next agent
+﻿# Session Handoff - for next agent
 
 **Updated:** 2026-06-22 | **Branch:** `feat/sp3-dispatch-cards`
 **Session mode:** autopilot (clear safe items, hand off large/risky ones)
@@ -8,15 +8,15 @@
 ## What this session did (all committed to `feat/sp3-dispatch-cards`)
 
 1. **Committed inherited dirty tree** (was "done from another side"):
-   - `feat(security): 60s PIN cooldown after 3 failed attempts` — Redis-backed
+   - `feat(security): 60s PIN cooldown after 3 failed attempts` - Redis-backed
      attempt counter (`pin:cooldown:<userId>`, MAX 3 / 60s), `checkPinCooldown`
      gate + `recordPinFailure/Success` wired into admin/chat/llm-keys/servicer
      routes + deposit flow. New `backend/src/middleware/pin-cooldown.ts`.
    - `feat(ui): gate demo autofill behind demo-unlock, polish review layout, favicon`
-     — Demo Auto-fill button hidden unless `DemoUnlockService.unlocked()`
+     - Demo Auto-fill button hidden unless `DemoUnlockService.unlocked()`
      (customer quote-form + guest quote); review "Service" block layout; favicon.ico.
 
-2. **`fix(sp3): MYT weekday + Decimal coerce`** —
+2. **`fix(sp3): MYT weekday + Decimal coerce`** -
    - `sp3-auto-accept.service.ts availabilityOk`: shift `preferredDate` +8h before
      `getUTCDay()` so a near-midnight-UTC quote maps to the correct MYT weekday.
      **Latent** until Work-stream B wires `evaluateAutoAcceptGates` into the live flow.
@@ -45,19 +45,19 @@
   to existing routes, dead links (`/customer/chat`, `/contact`, `/admin/dashboard`,
   `/admin/money`) already hotfixed, and every owned `:id` detail endpoint enforces
   `userId`/`servicerId` in its `where` clause (no IDOR). Only the **cosmetic**
-  flat→nested path move (`/customer/bookings/*`, `/admin/settings/*`) is undone —
+  flat→nested path move (`/customer/bookings/*`, `/admin/settings/*`) is undone -
   doing it would BREAK currently-working links for zero functional gain. **Recommend
   skip / lowest priority.**
 
 - DB state verified: `prisma migrate status` (raw) = **15 migrations applied,
   "Database schema is up to date!"** Healthy + in sync. (Note: `rtk`-wrapped prisma
-  output is lossy — it reported "0 applied"; use `rtk proxy npx prisma ...` for truth.)
+  output is lossy - it reported "0 applied"; use `rtk proxy npx prisma ...` for truth.)
 
 ---
 
 ## ACTIONS LEFT (priority order)
 
-### 1. Reseed DB to surface painting/moving/gardening (SAFE, 1 command — GATED)
+### 1. Reseed DB to surface painting/moving/gardening (SAFE, 1 command - GATED)
 ```
 cd backend && npm run db:reset
 ```
@@ -68,35 +68,35 @@ gate** ("Login credentials have expired. Ask the guardian mcp to login."). Run i
 with a present user / after guardian re-login. This is the ONLY thing needed to make
 Painting/Moving/Gardening browse populate.
 
-### 2. SP-3 Work-stream B — wire auto-accept engine into the LIVE flow (LARGE, risky)
+### 2. SP-3 Work-stream B - wire auto-accept engine into the LIVE flow (LARGE, risky)
 `quote.service.ts:503` still calls the OLD `quoteMatchesAutoAccept` from
 `auto-accept.service.ts`. Replace with `evaluateAutoAcceptGates`
 (`sp3-auto-accept.service.ts`), loading per-servicer tax config + schedules +
 modulesById, enforcing the per-account `maxAutoAccepts` cap around the call; on
 all-pass create a proposal at the computed total with `isAuto=true`.
 - **Why deferred:** touches the core broadcast path that the payment-gate refactor
-  (`broadcastQuote`) just reworked — high blast radius, needs unit + E2E cycles, not
+  (`broadcastQuote`) just reworked - high blast radius, needs unit + E2E cycles, not
   safe to blind-batch in autopilot.
 - getUTCDay MYT bug already fixed in the engine; just wire it.
 - Also: listing preview endpoint should use `computeListingPrice` for the
   servicer-side breakdown.
 
-### 3. SP-3 Work-stream C — customer proposal redesign (LARGE)
+### 3. SP-3 Work-stream C - customer proposal redesign (LARGE)
 Route `/customer/quotes/:id/proposals` already exists + is ownership-safe. Enhance:
 backend enriches each proposal via `proposal-view.service.ts` (included modules,
 add-on options, breakdown, distance, availability window); add-on tick →
 `recomputeProposalPrice` live + captured into booking; replace thin
 `proposals.component.ts` card with collapsed+expanded §12 card. Large FE+BE; defer.
 
-### 4. SP-3 E (data migration) + F (tests) — after B/C land
+### 4. SP-3 E (data migration) + F (tests) - after B/C land
 Migrate `PricingModule`/old `modifiers` → `ServicerModule` lib; extend pricing unit
 tests + 4-gate eval tests + E2E. (Seeding of new listings already covered once #1 runs.)
 
-### 5. CI workflows — NEVER CREATED (not just "delete old ones")
+### 5. CI workflows - NEVER CREATED (not just "delete old ones")
 `.github/workflows/` contains ONLY `ci.yml`. The designed `push-checks.yml` /
 `pr-gate.yml` / `nightly.yml` (spec `docs/superpowers/specs/2026-06-10-ci-pipeline-design.md`)
 were never implemented; `security.yml` already gone. **Do NOT delete `ci.yml`** until
-the 3 replacements exist + pass — deleting now = zero CI. Create the 3 workflows per
+the 3 replacements exist + pass - deleting now = zero CI. Create the 3 workflows per
 spec, then retire `ci.yml`. Set GitHub secrets `META_TOKEN`/`META_PHONE_ID`/`META_WHATSAPP_TO`.
 
 ### 6. (Optional / low priority) Cosmetic route nesting

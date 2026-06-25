@@ -1,4 +1,4 @@
-# SP4 — Live order-accept prompt (availability-gated rotation dispatch)
+﻿# SP4 - Live order-accept prompt (availability-gated rotation dispatch)
 
 **Date:** 2026-05-30
 **Status:** Design approved (brainstorm). Largest sub-project; own spec + own session to build.
@@ -21,14 +21,14 @@ becomes an opt-in per-listing convenience, not the default.
 
 ## Current building blocks (reuse, don't rebuild)
 
-- `Servicer.isOnline` ([schema.prisma:469](../../backend/prisma/schema.prisma)) — exists,
+- `Servicer.isOnline` ([schema.prisma:469](../../backend/prisma/schema.prisma)) - exists,
   **defaults `true`, no real presence tracking**. Indexed `[isOnline, isBanned]`.
-- `ServicerSchedule` — working-hours system already built (7×4 grid,
+- `ServicerSchedule` - working-hours system already built (7×4 grid,
   `GET/PATCH /servicer/me/schedule`). **This is the core availability check.**
-- socket.io with JWT handshake — already in stack (used by `quote.new` proposal prompt, G-2).
-- G-2 proposal prompt banner/inline form — extend into the big prompt guard.
-- Dispatch Overlay (4-panel, QR, arrive/done) — existing post-acceptance flow.
-- `@angular/google-maps` — already a dependency (for the map preview).
+- socket.io with JWT handshake - already in stack (used by `quote.new` proposal prompt, G-2).
+- G-2 proposal prompt banner/inline form - extend into the big prompt guard.
+- Dispatch Overlay (4-panel, QR, arrive/done) - existing post-acceptance flow.
+- `@angular/google-maps` - already a dependency (for the map preview).
 
 ## Decisions (from brainstorm)
 
@@ -45,10 +45,10 @@ becomes an opt-in per-listing convenience, not the default.
 
 The big prompt guard shows:
 
-- **Job + customer basics** — service/category, customer name + avatar, location/area,
+- **Job + customer basics** - service/category, customer name + avatar, location/area,
   preferred date + time slot.
 - **Customer's answers** to the category's `questionSchema` (what they actually need).
-- **Money** — customer budget, the servicer's computed price for this job, platform fee / net.
+- **Money** - customer budget, the servicer's computed price for this job, platform fee / net.
 - **Google Map preview** of the job location (reuse `@angular/google-maps`; ties into the
   parked map-view fix + Maps/Waze deep-link on confirmed booking).
 - **Countdown timer** + big **Accept** / **Decline** buttons; expiry rotates to next servicer.
@@ -79,48 +79,48 @@ async fallback: order enters incoming-quotes pool for later response
 
 ## Backend work
 
-- **Dispatch service** — on order: compute eligible+available list, run the rotation
+- **Dispatch service** - on order: compute eligible+available list, run the rotation
   (BullMQ job per rotation step / delayed job for the 10s timeout), emit socket prompt +
   create notifications, advance on decline/expiry, fall through to async pool.
-- **Accept / Decline endpoints** — Accept confirms the booking (reuse booking confirm path);
+- **Accept / Decline endpoints** - Accept confirms the booking (reuse booking confirm path);
   Decline marks + advances rotation. PIN/auth-gated as appropriate; idempotent.
-- **Presence wiring** — set `isOnline` on socket connect (post-JWT) and login; clear on
+- **Presence wiring** - set `isOnline` on socket connect (post-JWT) and login; clear on
   disconnect/logout. Replace the always-true default with real state.
-- **Availability check** — reuse `ServicerSchedule` to gate eligibility by working hours.
-- **Admin setting** — `dispatch_prompt_timeout_seconds` (default 10) added to settings
+- **Availability check** - reuse `ServicerSchedule` to gate eligibility by working hours.
+- **Admin setting** - `dispatch_prompt_timeout_seconds` (default 10) added to settings
   (surfaced in Financial Settings → Servicer Rules, or a new dispatch settings card).
 - BullMQ payloads Zod-validated (per CLAUDE.md rule).
 
 ## Frontend work
 
-- **Big prompt guard component** — full-screen blocking overlay (STYLE-RULES §7.14 prompt
+- **Big prompt guard component** - full-screen blocking overlay (STYLE-RULES §7.14 prompt
   guard pattern), map preview, countdown, all detail sections, Accept/Decline. Extend/replace
   the G-2 banner.
-- **Servicer online indicator** — show online/available state; auto-online on login.
+- **Servicer online indicator** - show online/available state; auto-online on login.
 - **Notification** entries for prompts + confirmed bookings.
 
 ## Docs to update
 
-- `schema-notes.md` — presence semantics, any dispatch fields/state added.
-- `api-doc.md` — accept/decline + dispatch endpoints, new admin setting.
-- `security-notes.md` — socket presence auth, idempotent accept.
-- `tech-stack.md` — (map already a dep; note if BullMQ usage expands).
+- `schema-notes.md` - presence semantics, any dispatch fields/state added.
+- `api-doc.md` - accept/decline + dispatch endpoints, new admin setting.
+- `security-notes.md` - socket presence auth, idempotent accept.
+- `tech-stack.md` - (map already a dep; note if BullMQ usage expands).
 - `TODO.md`.
 
 ## Open questions / risks
 
-- **Race conditions** — two servicers accepting near-simultaneously (rotation is one-at-a-time,
+- **Race conditions** - two servicers accepting near-simultaneously (rotation is one-at-a-time,
   so low risk, but opt-in instant-auto-accept servicers could still collide). Need an atomic
   "first accept wins" claim on the order.
-- **10s is aggressive** — confirm it's enough time to read details + check the map; admin-tunable
+- **10s is aggressive** - confirm it's enough time to read details + check the map; admin-tunable
   mitigates.
-- **Eligible-list ordering** — fairness/priority of rotation order (rating? round-robin?
-  nearest?) — undecided.
-- **Offline-everyone case** — if no servicer is available at order time, order goes straight
+- **Eligible-list ordering** - fairness/priority of rotation order (rating? round-robin?
+  nearest?) - undecided.
+- **Offline-everyone case** - if no servicer is available at order time, order goes straight
   to async pool; confirm customer messaging.
-- Interaction with existing Dispatch Overlay + booking confirm path — map exact reuse during build.
+- Interaction with existing Dispatch Overlay + booking confirm path - map exact reuse during build.
 
 ## Sequencing
 
 Build **after SP2 + SP3** (needs clean questions for the prompt detail, and the listing
-"Accept mode" toggle from SP3). Largest and riskiest piece — its own implementation session.
+"Accept mode" toggle from SP3). Largest and riskiest piece - its own implementation session.

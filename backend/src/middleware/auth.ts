@@ -1,4 +1,4 @@
-﻿import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { ApiError, forbidden, unauthorized } from '../lib/errors';
 import { AuthPrincipal } from '../types/express';
@@ -11,7 +11,7 @@ import { inspectAccessToken } from '../services/auth.service';
  * `Authorization: Bearer` JWT. In non-production environments it falls back
  * to the `x-dev-user` dev-bypass header so local development keeps working.
  *
- * Every downstream route reads `req.user` — unchanged from the dev-bypass
+ * Every downstream route reads `req.user` - unchanged from the dev-bypass
  * era, so swapping in this middleware required no route changes.
  */
 export async function authenticate(
@@ -33,11 +33,11 @@ export async function authenticate(
       next(new ApiError('TOKEN_EXPIRED', 'Access token has expired'));
       return;
     }
-    // Malformed/forged token — reject outright.
+    // Malformed/forged token - reject outright.
     next(unauthorized('Invalid access token'));
     return;
   }
-  // No Bearer token. Dev-bypass fallback — never honoured in production.
+  // No Bearer token. Dev-bypass fallback - never honoured in production.
   if (!isProd) {
     await devBypassAuth(req, _res, next);
     return;
@@ -50,7 +50,7 @@ export async function authenticate(
  *
  * V1 development uses an `x-dev-user` header carrying a demo account email.
  * The middleware resolves it to a User or Servicer and attaches `req.user`.
- * On auth day this is swapped for real JWT verification — every downstream
+ * On auth day this is swapped for real JWT verification - every downstream
  * route already reads `req.user`, so no route changes are needed then.
  */
 export async function devBypassAuth(
@@ -138,7 +138,7 @@ export function requireAdmin(req: Request, _res: Response, next: NextFunction): 
   next();
 }
 
-/** Require a user-kind principal (customer or admin — not servicer). */
+/** Require a user-kind principal (customer or admin - not servicer). */
 export function requireUser(req: Request, _res: Response, next: NextFunction): void {
   if (!req.user) {
     next(unauthorized());

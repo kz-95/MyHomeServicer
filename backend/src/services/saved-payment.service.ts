@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma';
 import { notFound } from '../lib/errors';
 
 /**
- * Saved Payment Methods — customer-side CRUD for storing Stripe payment
+ * Saved Payment Methods - customer-side CRUD for storing Stripe payment
  * methods (cards) for faster checkout.
  *
  * Tied to User via `userId`. Unsetting isDefault before setting a new one is

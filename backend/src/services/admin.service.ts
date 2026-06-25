@@ -1,4 +1,4 @@
-﻿import { exec } from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -20,7 +20,7 @@ interface RawSumRow {
 }
 
 /**
- * Admin financial dashboard — top-ups, fees, escrow, urgent revenue,
+ * Admin financial dashboard - top-ups, fees, escrow, urgent revenue,
  * category breakdown, and daily revenue series.
  */
 export async function getDashboardFinancial(days: number, categoryId?: string) {
@@ -31,14 +31,14 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  // ── totalTopUps — deposit_topup transactions (not linked to bookings, so no category filter) ──
+  // ── totalTopUps - deposit_topup transactions (not linked to bookings, so no category filter) ──
   const [topUpRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions WHERE type = 'deposit_topup' AND status = 'completed' AND created_at >= $1`,
     start,
   );
   const totalTopUps = Number(topUpRow?.total ?? 0);
 
-  // ── totalFees — platform_fee transactions, optionally filtered by category via booking join ──
+  // ── totalFees - platform_fee transactions, optionally filtered by category via booking join ──
   const feeRows = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
      FROM transactions t
@@ -50,7 +50,7 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   );
   const totalFees = Number(feeRows[0]?.total ?? 0);
 
-  // ── totalEscrow — escrow_hold transactions, optionally filtered by category ──
+  // ── totalEscrow - escrow_hold transactions, optionally filtered by category ──
   const escrowRows = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
      FROM transactions t
@@ -62,21 +62,21 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   );
   const totalEscrow = Number(escrowRows[0]?.total ?? 0);
 
-  // ── pendingPayouts — escrows still held ──
+  // ── pendingPayouts - escrows still held ──
   const escrowAgg = await prisma.escrow.aggregate({
     _sum: { amount: true },
     where: { status: 'held', releasedAt: null },
   });
   const pendingPayouts = Number(escrowAgg._sum.amount ?? 0);
 
-  // ── todayTopUps — deposit_topup today ──
+  // ── todayTopUps - deposit_topup today ──
   const [todayTopUpRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions WHERE type = 'deposit_topup' AND status = 'completed' AND created_at >= $1`,
     todayStart,
   );
   const todayTopUps = Number(todayTopUpRow?.total ?? 0);
 
-  // ── todayFees — platform_fee today ──
+  // ── todayFees - platform_fee today ──
   const todayFeeRows = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
      FROM transactions t
@@ -88,7 +88,7 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   );
   const todayFees = Number(todayFeeRows[0]?.total ?? 0);
 
-  // ── urgentFeeRevenue — sum of Booking.urgentFee where isUrgent=true ──
+  // ── urgentFeeRevenue - sum of Booking.urgentFee where isUrgent=true ──
   const urgentAgg = await prisma.booking.aggregate({
     _sum: { urgentFee: true },
     where: {
@@ -99,7 +99,7 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   });
   const urgentFeeRevenue = Number(urgentAgg._sum.urgentFee ?? 0);
 
-  // ── urgentFeePlatformShare — source from the real transaction ledger (QA-004) ──
+  // ── urgentFeePlatformShare - source from the real transaction ledger (QA-004) ──
   // Primary: SUM of urgent_fee transactions for the period (the actual money collected).
   // Fallback: settings-based derivation (urgentFeeRevenue × platform_share) for
   // bookings whose escrow hasn't been released yet or pre-fix bookings.
@@ -130,11 +130,11 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
         }
       }
     } catch {
-      // setting missing or unparseable — leave at 0
+      // setting missing or unparseable - leave at 0
     }
   }
 
-  // ── categoryBreakdown — group by category with count, revenue, fees ──
+  // ── categoryBreakdown - group by category with count, revenue, fees ──
   const breakdownRows = await prisma.$queryRawUnsafe<
     Array<{ category_id: string; category_name: string; booking_count: bigint; revenue: string; fees: string }>
   >(
@@ -142,7 +142,7 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
        c.id AS category_id,
        c.name AS category_name,
        COUNT(DISTINCT b.id)::bigint AS booking_count,
-       COALESCE(SUM(COALESCE(b.urgent_fee, 0)), 0)::numeric AS revenue,
+       COALESCE(SUM(COALESCE(b.price, 0)), 0)::numeric AS revenue,
        COALESCE(SUM(ft.amount), 0)::numeric AS fees
      FROM categories c
      LEFT JOIN quote_requests qr ON qr.category_id = c.id
@@ -162,13 +162,13 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     fees: Number(r.fees),
   }));
 
-  // ── dailyRevenue — daily aggregation of platform_fee transactions ──
+  // ── dailyRevenue - daily aggregation of platform_fee transactions ──
   const dailyRows = await prisma.$queryRawUnsafe<
     Array<{ day: string; revenue: string; fees: string; booking_count: bigint }>
   >(
     `SELECT
        t.created_at::date::text AS day,
-       COALESCE(SUM(COALESCE(b.urgent_fee, 0)), 0)::numeric AS revenue,
+       COALESCE(SUM(COALESCE(b.price, 0)), 0)::numeric AS revenue,
        COALESCE(SUM(t.amount), 0)::numeric AS fees,
        COUNT(DISTINCT b.id)::bigint AS booking_count
      FROM transactions t
@@ -284,7 +284,7 @@ export async function getDashboardRevenue(days = 30, categoryId?: string): Promi
 
 /**
  * Wipes and re-seeds the demo database by running `npm run reseed`. A
- * development convenience only — refused when NODE_ENV=production (the seed
+ * development convenience only - refused when NODE_ENV=production (the seed
  * scripts also refuse independently). The admin's session is invalidated
  * afterwards since accounts are recreated with fresh IDs.
  */
@@ -312,7 +312,7 @@ export async function runReseed(): Promise<{ ok: boolean; durationMs: number }> 
 export async function runClear(): Promise<{ ok: boolean; durationMs: number }> {
   if (!allowDemo) throw forbidden('Clear is disabled in production');
   const start = Date.now();
-  logger.warn('Admin triggered a content clear — demo accounts preserved');
+  logger.warn('Admin triggered a content clear - demo accounts preserved');
   await prisma.chatMessage.deleteMany();
   await prisma.chatSession.deleteMany();
   await prisma.notification.deleteMany();
@@ -359,7 +359,7 @@ export async function runClearContent(pin: string): Promise<{ ok: boolean; durat
   if (!pinValid) throw badRequest('Incorrect PIN');
 
   const start = Date.now();
-  logger.warn('Admin triggered unplug — removing all demo data');
+  logger.warn('Admin triggered unplug - removing all demo data');
 
   await prisma.chatMessage.deleteMany();
   await prisma.chatSession.deleteMany();
@@ -404,7 +404,7 @@ export async function runClearContent(pin: string): Promise<{ ok: boolean; durat
   await prisma.idempotencyFallback.deleteMany();
 
   const durationMs = Date.now() - start;
-  logger.info('Unplug complete — demo accounts removed', { durationMs });
+  logger.info('Unplug complete - demo accounts removed', { durationMs });
   return { ok: true, durationMs };
 }
 
@@ -480,7 +480,7 @@ export async function setServicerBan(
 // ── User management ──────────────────────────────────────────────────────────
 
 /**
- * Lists all platform accounts — customers, admins and servicers — in one
+ * Lists all platform accounts - customers, admins and servicers - in one
  * unified view. Servicers live in their own table, so the two sets are
  * fetched, normalised to a common shape (tagged with `kind`), merged and
  * paginated. The area is PIN-gated, so full contact details are returned.
@@ -921,7 +921,7 @@ export async function reviewAppeal(
           type: 'refund',
           amount,
           servicerId: appeal.servicerId,
-          reference: 'Penalty reversed — appeal approved',
+          reference: 'Penalty reversed - appeal approved',
         },
         tx,
       );
@@ -1079,7 +1079,7 @@ export async function updateSetting(adminId: string, key: string, value: unknown
 
 // ── Withdrawal notification trigger ──────────────────────────────────────────
 
-/** Called when a servicer submits a withdrawal — alerts admin via a job. */
+/** Called when a servicer submits a withdrawal - alerts admin via a job. */
 export async function notifyWithdrawalSubmitted(withdrawalId: string, servicerId: string) {
   await enqueue(JOB_NAMES.WITHDRAWAL_NOTIFY, { withdrawalId, servicerId });
 }

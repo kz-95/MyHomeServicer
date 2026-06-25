@@ -1,4 +1,4 @@
-# AI Smart Assistant — Design Spec
+﻿# AI Smart Assistant - Design Spec
 
 ## Overview
 
@@ -11,7 +11,7 @@ Upgrade the existing chat widget into an **AI Smart Assistant** that:
 - For **servicers**: helps set up company profile with PIN-gated edits
 - All behavior configurable via admin **AI Chat Settings**
 
-No breaking changes to the existing chat widget — it extends the reply pipeline with structured action blocks.
+No breaking changes to the existing chat widget - it extends the reply pipeline with structured action blocks.
 
 ---
 
@@ -32,7 +32,7 @@ No breaking changes to the existing chat widget — it extends the reply pipelin
 - On chat open, frontend picks the **first unused greeting** in round-robin order
 - Guest auto-open picks a random greeting
 - Examples: "Need help with something?", "Looking for a service?", "How can I assist you today?"
-- No AI call is made for the greeting — purely frontend-displayed from the preset list
+- No AI call is made for the greeting - purely frontend-displayed from the preset list
 
 ### Unread Badge
 
@@ -41,7 +41,7 @@ No breaking changes to the existing chat widget — it extends the reply pipelin
 - On chat open, unread resets to 0 for that session
 - Stored in `ChatWidgetService.chatUnread` signal (already exists)
 - Backend returns `unreadCount` on `GET /chat/session/{id}/messages`
-- Socket event `chat.unread` already fires — unread count is maintained server-side
+- Socket event `chat.unread` already fires - unread count is maintained server-side
 
 ### Chat History Limit
 
@@ -285,7 +285,7 @@ Admin can override the AI's understanding of each category by providing alternat
 | Method | Path | Change |
 |--------|------|--------|
 | POST | `/chat/session/:id/message` | AI reply now includes `actionBlocks` in the response alongside `text` |
-| POST | `/chat/guest` | Same — returns `actionBlocks` alongside `reply` |
+| POST | `/chat/guest` | Same - returns `actionBlocks` alongside `reply` |
 | GET | `/chat/session/:id/messages` | Returns `unreadCount` in response |
 | GET | `/admin/chat/settings` | Returns all `chat_*` settings as a grouped object |
 | POST | `/admin/chat/verify-pin` | Validates PIN, returns short-lived `pinToken` |
@@ -326,7 +326,7 @@ New function `buildAssistantPrompt(role, categories, settings)`:
 
 ### Chat Widget Service
 
-- `chatUnread` signal already exists — enhanced to track greeting state
+- `chatUnread` signal already exists - enhanced to track greeting state
 - New method `markGreetingSeen()` called on chat open
 - New method `setUnreadCount(n)` called from socket/API responses
 
@@ -369,6 +369,6 @@ New function `buildAssistantPrompt(role, categories, settings)`:
 ## Spec Self-Review
 
 - [x] No placeholders or TODOs
-- [x] Internal consistency — flows match existing patterns (chat widget, quote form, PIN modal, admin settings)
-- [x] Scope focused — single feature (AI Smart Assistant upgrade), no unrelated changes
-- [x] Ambiguity resolved — action token format specified, greeting behavior per-role defined, PIN flow detailed
+- [x] Internal consistency - flows match existing patterns (chat widget, quote form, PIN modal, admin settings)
+- [x] Scope focused - single feature (AI Smart Assistant upgrade), no unrelated changes
+- [x] Ambiguity resolved - action token format specified, greeting behavior per-role defined, PIN flow detailed

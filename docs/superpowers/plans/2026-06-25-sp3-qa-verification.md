@@ -1,4 +1,4 @@
-# SP-3 Service Listings QA & Verification Plan
+﻿# SP-3 Service Listings QA & Verification Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -32,23 +32,23 @@ Listing card expanded view: module names with kind tags, question labels, previe
 
 | File | Responsibility |
 |------|---------------|
-| `backend/src/services/sp3-auto-accept.service.ts` | Q-match gate — needs null-modifiers handling |
+| `backend/src/services/sp3-auto-accept.service.ts` | Q-match gate - needs null-modifiers handling |
 | `backend/tests/sp3-auto-accept.test.ts` | TDD test file for auto-accept engine |
-| `frontend/src/app/servicer/pages/listing-simple.component.ts` | Simple listing form — verify modifiers save |
-| `frontend/src/app/servicer/pages/listing-advanced.component.ts` | Advanced wizard — verify modifiers save |
-| `frontend/src/app/servicer/pages/services-listings.component.ts` | Listings card — verify display |
-| `frontend/src/app/core/route-for.ts` | Route helper — verify paths |
-| `frontend/src/app/servicer/servicer.routes.ts` | Route config — verify order |
+| `frontend/src/app/servicer/pages/listing-simple.component.ts` | Simple listing form - verify modifiers save |
+| `frontend/src/app/servicer/pages/listing-advanced.component.ts` | Advanced wizard - verify modifiers save |
+| `frontend/src/app/servicer/pages/services-listings.component.ts` | Listings card - verify display |
+| `frontend/src/app/core/route-for.ts` | Route helper - verify paths |
+| `frontend/src/app/servicer/servicer.routes.ts` | Route config - verify order |
 
 ---
 
-### Task 1: Backend Q-Match Gate — Require Modifiers for Auto-Accept
+### Task 1: Backend Q-Match Gate - Require Modifiers for Auto-Accept
 
 **Files:**
 - Modify: `backend/src/services/sp3-auto-accept.service.ts:98-110`
 - Test: `backend/tests/sp3-auto-accept.test.ts` (create)
 
-**Why:** When a listing has no modifiers (`null` or `undefined`), `qMatchOk()` returns `true`, meaning auto-accept passes with zero question matching. This makes auto-accept "fake" — it accepts any quote regardless of question compatibility. The gate must distinguish: (a) explicit "pass all" (defined modifiers with all options offered) from (b) "not configured" (null modifiers = no question matching configured = fail or warn).
+**Why:** When a listing has no modifiers (`null` or `undefined`), `qMatchOk()` returns `true`, meaning auto-accept passes with zero question matching. This makes auto-accept "fake" - it accepts any quote regardless of question compatibility. The gate must distinguish: (a) explicit "pass all" (defined modifiers with all options offered) from (b) "not configured" (null modifiers = no question matching configured = fail or warn).
 
 **Design decision:** Return `false` when modifiers is null/undefined. A servicer who hasn't configured their question options should NOT get auto-accepted. They must explicitly set their options first.
 
@@ -130,10 +130,10 @@ describe('qMatchOk', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test — verify it fails**
+- [ ] **Step 2: Run the test - verify it fails**
 
 Run: `cd backend && npx jest tests/sp3-auto-accept.test.ts --no-coverage 2>&1`
-Expected: FAIL — "Cannot find module" or "qMatchOk is not exported"
+Expected: FAIL - "Cannot find module" or "qMatchOk is not exported"
 
 - [ ] **Step 3: Export qMatchOk and change null-check behavior**
 
@@ -141,24 +141,24 @@ In `backend/src/services/sp3-auto-accept.service.ts`, change line 98-100:
 
 Before:
 ```typescript
-/** Q-match gate — every selected option the listing prices/offers must be offered. */
+/** Q-match gate - every selected option the listing prices/offers must be offered. */
 function qMatchOk(modifiers: OptionPriceMap | null | undefined, answers: Answers): boolean {
   if (!modifiers) return true;
 ```
 
 After:
 ```typescript
-/** Q-match gate — every selected option the listing prices/offers must be offered.
+/** Q-match gate - every selected option the listing prices/offers must be offered.
  *  Returns false when modifiers is null/undefined (servicer hasn't configured
- *  their question options yet — auto-accept must not fire without configuration). */
+ *  their question options yet - auto-accept must not fire without configuration). */
 export function qMatchOk(modifiers: OptionPriceMap | null | undefined, answers: Answers): boolean {
   if (!modifiers) return false;
 ```
 
-- [ ] **Step 4: Run the test — verify it passes**
+- [ ] **Step 4: Run the test - verify it passes**
 
 Run: `cd backend && npx jest tests/sp3-auto-accept.test.ts --no-coverage 2>&1`
-Expected: PASS — all 7 tests pass
+Expected: PASS - all 7 tests pass
 
 - [ ] **Step 5: Verify the caller handles the change**
 
@@ -171,7 +171,7 @@ This already handles `false` as a failure. No change needed.
 - [ ] **Step 6: Run full test suite to check for regressions**
 
 Run: `cd backend && npx jest --passWithNoTests 2>&1`
-Expected: all existing tests pass (qMatchOk returning false for null modifiers should not break any test — existing auto-accept tests should be checked)
+Expected: all existing tests pass (qMatchOk returning false for null modifiers should not break any test - existing auto-accept tests should be checked)
 
 - [ ] **Step 7: Commit**
 
@@ -182,14 +182,14 @@ git commit -m "fix(auto-accept): require modifiers for Q-match; return false whe
 
 ---
 
-### Task 2: Frontend Listing Form — Ensure questionSchema Saves to Modifiers
+### Task 2: Frontend Listing Form - Ensure questionSchema Saves to Modifiers
 
 **Files:**
 - Verify: `frontend/src/app/servicer/pages/listing-simple.component.ts:379-424`
 - Verify: `frontend/src/app/servicer/pages/listing-advanced.component.ts:531-596`
 - Verify: `backend/src/routes/servicer.routes.ts:507-543` (validators)
 
-**Why:** Need to confirm both listing forms build and send modifiers correctly when the servicer configures question options. The backend Zod validator accepts `modifiers` as optional — we need to verify `modifiers` is actually sent in the POST/PATCH body.
+**Why:** Need to confirm both listing forms build and send modifiers correctly when the servicer configures question options. The backend Zod validator accepts `modifiers` as optional - we need to verify `modifiers` is actually sent in the POST/PATCH body.
 
 - [ ] **Step 1: Read listing-simple save() and trace modifiers construction**
 
@@ -236,7 +236,7 @@ export const optionPriceMapSchema = z.record(
 );
 ```
 
-The simple listing sends `{ price: null, notOffered: boolean }` — this passes because `price` is nullable and `durationMin` is optional. The Zod default strips unknown properties (like `modKind` from advanced listing). This is correct.
+The simple listing sends `{ price: null, notOffered: boolean }` - this passes because `price` is nullable and `durationMin` is optional. The Zod default strips unknown properties (like `modKind` from advanced listing). This is correct.
 
 - [ ] **Step 3: Read listing-advanced save() and trace modifiers**
 
@@ -258,7 +258,7 @@ for (const q of this.questions()) {
 }
 ```
 
-The `modKind` field is extra (not in Zod schema) — Zod strips it. That's fine; `modKind` is only used for UI display in the preview. The essential fields (`price`, `notOffered`, `durationMin`) are all correct.
+The `modKind` field is extra (not in Zod schema) - Zod strips it. That's fine; `modKind` is only used for UI display in the preview. The essential fields (`price`, `notOffered`, `durationMin`) are all correct.
 
 - [ ] **Step 4: Verify the body includes modifiers at line 566-580**
 
@@ -272,13 +272,13 @@ const body: Record<string, unknown> = {
 
 Confirmed: `modifiers` is included in the body.
 
-- [ ] **Step 5: No code changes needed — verify only**
+- [ ] **Step 5: No code changes needed - verify only**
 
 This task confirms both forms save modifiers correctly. No code changes required.
 
 ---
 
-### Task 3: Listing Card Expanded View — Fix Question Labels from Modifiers
+### Task 3: Listing Card Expanded View - Fix Question Labels from Modifiers
 
 **Files:**
 - Modify: `frontend/src/app/servicer/pages/services-listings.component.ts` (the expanded card template and `offeredSummary`)
@@ -313,15 +313,15 @@ this.questions.set(
 );
 ```
 
-This loads questionSchema from the servicer's big category. If the category has questions defined, `questions()` will have data. If no questions are defined, both "Jobs offered" and "Pricing options" sections will be empty — that's correct behavior (some categories simply don't have questions).
+This loads questionSchema from the servicer's big category. If the category has questions defined, `questions()` will have data. If no questions are defined, both "Jobs offered" and "Pricing options" sections will be empty - that's correct behavior (some categories simply don't have questions).
 
-- [ ] **Step 3: No code changes needed — verify only**
+- [ ] **Step 3: No code changes needed - verify only**
 
 This task confirms the question label fix is in place. No code changes required.
 
 ---
 
-### Task 4: Route Helper — Verify All SP-3 Routes Are Reachable
+### Task 4: Route Helper - Verify All SP-3 Routes Are Reachable
 
 **Files:**
 - Verify: `frontend/src/app/core/route-for.ts:114-120`
@@ -372,11 +372,11 @@ Expected: 0 errors
 Run: `cd frontend && npx ng build --configuration development 2>&1`
 Expected: exit 0
 
-- [ ] **Step 5: No code changes needed — verify only**
+- [ ] **Step 5: No code changes needed - verify only**
 
 ---
 
-### Task 5: Modules Tab — Verify Module Library CRUD
+### Task 5: Modules Tab - Verify Module Library CRUD
 
 **Files:**
 - Verify: `frontend/src/app/servicer/pages/services-modules.component.ts`
@@ -393,10 +393,10 @@ cd backend && npx grep -r "modules" src/routes/servicer.routes.ts
 ```
 
 The frontend calls:
-- `GET /servicer/modules` — list modules
-- `POST /servicer/modules` — create module
-- `PATCH /servicer/modules/:id` — update module
-- `DELETE /servicer/modules/:id` — deactivate module
+- `GET /servicer/modules` - list modules
+- `POST /servicer/modules` - create module
+- `PATCH /servicer/modules/:id` - update module
+- `DELETE /servicer/modules/:id` - deactivate module
 
 If these endpoints don't exist, they need to be created. If they exist, verify they work.
 
@@ -630,7 +630,7 @@ git commit -m "test(sp3): e2e smoke test for listing-modifiers→auto-accept pip
 | §1 Problem | Task 1 (Q-match hardening), Task 2 (form verification) |
 | §2 Goals | Task 6 (E2E test verifies auto-accept) |
 | §5 One category per account | Verified in Task 2 (questions load from big category) |
-| §6 IA — 2 tabs | Task 4 (route verification) |
+| §6 IA - 2 tabs | Task 4 (route verification) |
 | §6.1 Listings card | Task 3 (expanded card labels) |
 | §6.2 Modules tab | Task 5 (module CRUD verification) |
 | §7 Module model | Task 5 (verify ServicerModule model) |
@@ -641,7 +641,7 @@ git commit -m "test(sp3): e2e smoke test for listing-modifiers→auto-accept pip
 | §13 Seeding | Task 6 (relies on seed data with modifiers) |
 | §16 Testing | Task 1 (unit test for qMatchOk), Task 6 (E2E test) |
 
-Gap: §12 Customer proposal view is not covered — it's a separate frontend task for `proposals.component.ts`. This should be a separate plan.
+Gap: §12 Customer proposal view is not covered - it's a separate frontend task for `proposals.component.ts`. This should be a separate plan.
 
 ### 2. Placeholder Scan
 
@@ -649,7 +649,7 @@ No TBD/TODO/fill-in-later patterns found. All steps have concrete code or verifi
 
 ### 3. Type Consistency
 
-- `qMatchOk` signature: `(modifiers: OptionPriceMap | null | undefined, answers: Answers): boolean` — consistent across Task 1 test and implementation
-- `evaluateAutoAcceptGates` signature: already defined in codebase — Task 6 uses it correctly
-- `OptionPriceMap` type: `Record<string, Record<string, { price: number|null, durationMin?: number, notOffered: boolean }>>` — consistent across all tasks
-- `ListingLite.modifiers` field: `modifiers?: OptionPriceMap | null` — consistent with `ListingForPricing` interface
+- `qMatchOk` signature: `(modifiers: OptionPriceMap | null | undefined, answers: Answers): boolean` - consistent across Task 1 test and implementation
+- `evaluateAutoAcceptGates` signature: already defined in codebase - Task 6 uses it correctly
+- `OptionPriceMap` type: `Record<string, Record<string, { price: number|null, durationMin?: number, notOffered: boolean }>>` - consistent across all tasks
+- `ListingLite.modifiers` field: `modifiers?: OptionPriceMap | null` - consistent with `ListingForPricing` interface

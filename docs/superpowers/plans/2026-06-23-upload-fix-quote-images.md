@@ -1,4 +1,4 @@
-# Upload Fix + Customer Quote Images — Implementation Plan (Plan 3)
+﻿# Upload Fix + Customer Quote Images - Implementation Plan (Plan 3)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [x]`) syntax.
 
@@ -14,13 +14,13 @@
 
 ## File Structure
 
-- `backend/src/lib/s3.ts` — fix the local-upload URL emitter (`:31`).
-- `backend/src/services/file.service.ts` — confirm the canonical emitter (`:75`); single source.
-- `backend/src/services/quote.service.ts` — accept + persist `images[]` on create.
-- `backend/src/routes/quotes.routes.ts` — validate `images[]` (array of strings/URLs).
-- `backend/src/services/servicer-quote.service.ts` — return `images[]` on the feed.
-- `frontend/src/app/customer/pages/quote-form.component.ts` — optional image upload UI.
-- `frontend/src/app/servicer/pages/incoming-quotes.component.ts` — thumbnails + lightbox in expander.
+- `backend/src/lib/s3.ts` - fix the local-upload URL emitter (`:31`).
+- `backend/src/services/file.service.ts` - confirm the canonical emitter (`:75`); single source.
+- `backend/src/services/quote.service.ts` - accept + persist `images[]` on create.
+- `backend/src/routes/quotes.routes.ts` - validate `images[]` (array of strings/URLs).
+- `backend/src/services/servicer-quote.service.ts` - return `images[]` on the feed.
+- `frontend/src/app/customer/pages/quote-form.component.ts` - optional image upload UI.
+- `frontend/src/app/servicer/pages/incoming-quotes.component.ts` - thumbnails + lightbox in expander.
 
 ---
 
@@ -36,7 +36,7 @@
   Capture the exact URL the frontend PUTs (browser network tab).
 
 - [x] **Step 2: Confirm the mount base.** Read `backend/src/routes/index.ts` around the
-  `apiRouter`/`filesRouter` mount. Determine the real prefix — `/api` or `/api/v1` —
+  `apiRouter`/`filesRouter` mount. Determine the real prefix - `/api` or `/api/v1` -
   for `filesRouter` (`.use('/files', filesRouter)`).
 
 - [x] **Step 3: Compare the two emitters.**
@@ -70,7 +70,7 @@ git commit -m "fix(files): align local-upload URL emitter with mounted route (ar
 
 ---
 
-## Task 2: Backend — accept + persist quote images
+## Task 2: Backend - accept + persist quote images
 
 **Files:**
 - Modify: `backend/src/services/quote.service.ts` (`CreateQuoteInput` `24-47`; create block `308-340`)
@@ -99,7 +99,7 @@ git commit -m "fix(files): align local-upload URL emitter with mounted route (ar
 ```
 
   And whitelist `images` where the route picks fields into `createQuote` (never pass
-  `req.body` directly — per CLAUDE.md). Add `images: req.body.images,` to the call.
+  `req.body` directly - per CLAUDE.md). Add `images: req.body.images,` to the call.
 
 - [x] **Step 4: Type-gate + commit**
 
@@ -111,7 +111,7 @@ git commit -m "feat(quote): accept + persist optional customer images"
 
 ---
 
-## Task 3: Backend — return images on the servicer feed
+## Task 3: Backend - return images on the servicer feed
 
 **Files:**
 - Modify: `backend/src/services/servicer-quote.service.ts` (`listIncomingQuotes` `.map`)
@@ -123,7 +123,7 @@ git commit -m "feat(quote): accept + persist optional customer images"
 ```
 
 `images` is a scalar array column on `quoteRequest`, already loaded by the existing
-`include` — no `select` change needed.
+`include` - no `select` change needed.
 
 - [x] **Step 2: Type-gate + commit**
 
@@ -135,12 +135,12 @@ git commit -m "feat(servicer): return customer quote images on incoming feed"
 
 ---
 
-## Task 4: Frontend — quote-form optional image upload
+## Task 4: Frontend - quote-form optional image upload
 
 **Files:**
 - Read first: `frontend/src/app/customer/pages/quote-form.component.ts` (find the submit
   handler + the step where the payload is assembled) and
-  `frontend/src/app/servicer/pages/jobs.component.ts:1268-1319` (`uploadAndAct` — the
+  `frontend/src/app/servicer/pages/jobs.component.ts:1268-1319` (`uploadAndAct` - the
   3-step upload to mirror).
 - Modify: `quote-form.component.ts`
 
@@ -153,7 +153,7 @@ git commit -m "feat(servicer): return customer quote images on incoming feed"
 ```
 
 - [x] **Step 2: Add an upload method** mirroring `jobs.component.ts uploadAndAct` steps
-  1-3 (presign → PUT → confirm), but for `purpose: 'arrive_photo'`-style — add a
+  1-3 (presign → PUT → confirm), but for `purpose: 'arrive_photo'`-style - add a
   `quote_image` purpose to the backend presign enum if needed (check
   `file.service.ts` allowed purposes; extend the union + validation if `quote_image`
   is absent). On confirm, push the returned `fileUrl` into `quoteImages`:
@@ -209,7 +209,7 @@ git commit -m "feat(quote-form): optional customer image upload"
 
 ---
 
-## Task 5: Frontend — show quote images in the dispatch-card expander
+## Task 5: Frontend - show quote images in the dispatch-card expander
 
 **Files:**
 - Modify: `frontend/src/app/servicer/pages/incoming-quotes.component.ts` (interface + expander, from Plan 2)
@@ -228,7 +228,7 @@ git commit -m "feat(quote-form): optional customer image upload"
             }
 ```
 
-- [x] **Step 3: Lightbox via top-layer `<app-modal>`** (never a fixed backdrop — project
+- [x] **Step 3: Lightbox via top-layer `<app-modal>`** (never a fixed backdrop - project
   modal rule, STYLE-RULES §7.0). Add a `lightbox = signal<string | null>(null);` and an
   `<app-modal [open]="!!lightbox()" (close)="lightbox.set(null)">` containing
   `<img [src]="lightbox()" />`. Import the shared `app-modal` component as the codebase
@@ -250,7 +250,7 @@ git commit -m "feat(servicer): show customer quote images in dispatch card (top-
 - [x] **Step 2: Quote with images.** As customer.fresh, submit a quote with 1-2 photos.
   Confirm they persist on `QuoteRequest.images`.
 - [x] **Step 3: Servicer sees them.** As M9, open that quote's card ▾ expander → thumbnails
-  render; clicking one opens the top-layer lightbox (centered, not cropped — verify on a
+  render; clicking one opens the top-layer lightbox (centered, not cropped - verify on a
   page with stagger animation).
 - [x] **Step 4: Commit** any fixups.
 
@@ -261,9 +261,9 @@ git commit -m "feat(servicer): show customer quote images in dispatch card (top-
 - Spec Stream D → Tasks 2-5. Upload fix → Task 1. The `images` column itself is added in
   Plan 1 Task 1 (single migration), consumed here.
 - `quote_image` upload purpose: Task 4 Step 2 flags adding it to the backend presign
-  purpose enum if absent — must be done or presign 400s. Check `file.service.ts` allowed
+  purpose enum if absent - must be done or presign 400s. Check `file.service.ts` allowed
   purposes before Task 4.
-- Lightbox MUST be top-layer `<app-modal>` / `<dialog>` — a `position:fixed` backdrop in
+- Lightbox MUST be top-layer `<app-modal>` / `<dialog>` - a `position:fixed` backdrop in
   this page would re-anchor to the stagger-transformed page wrapper and crop/off-center
   (project modal law). Reuse the shared component, do not hand-roll.
 - Reuses the existing presign→PUT→confirm pipeline; no new upload infra.

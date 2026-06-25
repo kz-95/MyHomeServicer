@@ -1,6 +1,6 @@
-﻿import { Page, expect } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
-// Demo accounts — all use password Demo@2026
+// Demo accounts - all use password Demo@2026
 const DEMO_PASSWORD = 'Demo@2026';
 
 export async function loginAsCustomer(
@@ -39,7 +39,7 @@ export async function loginAsAdmin(
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL('**/admin**', { timeout: 10_000 });
 
-  // PIN gate — admin routes require PIN re-entry
+  // PIN gate - admin routes require PIN re-entry
   const pinInput = page.locator('input[placeholder*="PIN" i], input[type="tel"], input[maxlength="4"]');
   if (await pinInput.isVisible({ timeout: 3000 }).catch(() => false)) {
     await pinInput.fill(pin);
@@ -54,7 +54,7 @@ export async function logout(page: Page) {
   await signOutBtn.waitFor({ state: 'visible', timeout: 5000 });
   await signOutBtn.click();
 
-  // Confirmation dialog appears — click "Sign out" inside the dialog to confirm
+  // Confirmation dialog appears - click "Sign out" inside the dialog to confirm
   const dialogConfirm = page.locator('[role="dialog"] button:has-text("Sign out")');
   await dialogConfirm.waitFor({ state: 'visible', timeout: 5000 });
   await dialogConfirm.click();

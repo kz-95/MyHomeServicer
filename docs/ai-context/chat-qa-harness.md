@@ -1,4 +1,4 @@
-# Chat QA Harness — Complete Rules
+﻿# Chat QA Harness - Complete Rules
 
 Authoritative record of how the automated chat-QA harness works: what it simulates, the
 full persona space, how it answers, every structural check, the log format, and how to run
@@ -16,7 +16,7 @@ it. Companion to [`ai-chat.md`](ai-chat.md) (the chatbot's own rules).
 Simulates real customers booking a quote **end to end against the live chatbot**, to catch
 flow regressions (skipped service selection, jump-to-review, loops, stalls, hallucinated or
 missing fields, broken question schema, wrong language). It drives the **real card handlers**
-(it doesn't fake the UI), inspects whichever card the bot shows, and answers — until the
+(it doesn't fake the UI), inspects whichever card the bot shows, and answers - until the
 `quote_prefill` review card appears (success) or it stalls / loops / times out.
 
 **Dev-only.** The QA button renders only in non-production builds; the log + judge routes
@@ -24,7 +24,7 @@ missing fields, broken question schema, wrong language). It drives the **real ca
 
 **Requires LLM keys.** The harness drives the real bot, so the opening turn (understand the
 need, suggest a service) calls the LLM. With no configured key every run dies at step 1 with
-"out of service". `npm run db:reset` wipes admin-added keys (the seed seeds none) — re-add
+"out of service". `npm run db:reset` wipes admin-added keys (the seed seeds none) - re-add
 them in Admin → API Keys before running.
 
 ---
@@ -39,7 +39,7 @@ flowchart TD
     C -->|quote_options| D["confirm / reject<br/>(typing-only: type 'yes')"]
     C -->|quote_field| E["tap • ~35% free-text<br/>• typing-only: type value"]
     C -->|quote_question| F["tap • ~40% free-text<br/>• typing-only: type answer"]
-    C -->|quote_prefill| G["SUCCESS — walk the<br/>real /quote/new form, verify"]
+    C -->|quote_prefill| G["SUCCESS - walk the<br/>real /quote/new form, verify"]
     C -->|text only, no card| X["stall/loop counters tick"]
     D --> CK
     E --> CK
@@ -77,8 +77,8 @@ Each scenario picks one value per axis, at random (`makeScenario`):
 | × `infoCount` (0–3) | 4 | 1,935,360 |
 | × `repeats` (on/off) | 2 | **3,870,720** |
 
-And that's **before** the continuous/random fields — future date, address pool, random
-phone, name — which push the count far higher. So the practical space is **effectively
+And that's **before** the continuous/random fields - future date, address pool, random
+phone, name - which push the count far higher. So the practical space is **effectively
 unbounded**; treat the headline as **10,080 persona combinations** and **≈161,000 distinct
 scenario shapes**, with **millions** of unique full conversations once data is mixed in.
 
@@ -87,14 +87,14 @@ QA panel accepts up to 500. Even 500 runs covers <0.5% of the 161k shapes, but h
 spread of behaviors/languages/services.
 
 ### Behavior meanings
-- **cooperative** — follows prompts, picks first option (baseline).
-- **reject_first** — rejects the first service suggestion (tests recovery).
-- **oversharer** — adds extra/irrelevant info (tests filtering).
-- **self_correct** — states then corrects (tests the edit path).
-- **rambler** — drifts, picks random options (tests contradiction handling).
-- **minimal** — terse answers (tests prompting).
-- **typing_shortcut** — NEVER taps a card; types every answer in terse SMS shortcuts (tests pure free-text extraction).
-- **typing_adhd** — NEVER taps a card; erratic kid/ADHD input: one off-topic non-answer per card before the real value (tests recovery from chaotic input).
+- **cooperative** - follows prompts, picks first option (baseline).
+- **reject_first** - rejects the first service suggestion (tests recovery).
+- **oversharer** - adds extra/irrelevant info (tests filtering).
+- **self_correct** - states then corrects (tests the edit path).
+- **rambler** - drifts, picks random options (tests contradiction handling).
+- **minimal** - terse answers (tests prompting).
+- **typing_shortcut** - NEVER taps a card; types every answer in terse SMS shortcuts (tests pure free-text extraction).
+- **typing_adhd** - NEVER taps a card; erratic kid/ADHD input: one off-topic non-answer per card before the real value (tests recovery from chaotic input).
 
 ---
 
@@ -106,33 +106,33 @@ For each card the bot shows, the engine acts by type:
 |------|----------------|---------------------|
 | `quote_options` | tap confirm (or reject for reject_first) | typing-only personas type "yes"/the need |
 | `quote_field` | tap the field control with the scenario value | ~35% of the time types it instead (date/time/budget/phone via `freeTextForField`) |
-| `quote_question` | tap the option | ~40% of the time types a natural sentence (`naturalQuestionReply`) — ramblers excluded |
-| `quote_prefill` | reaching it = success (form-check then walks the real /quote/new form) | — |
+| `quote_question` | tap the option | ~40% of the time types a natural sentence (`naturalQuestionReply`) - ramblers excluded |
+| `quote_prefill` | reaching it = success (form-check then walks the real /quote/new form) | - |
 | `identity_confirm` | tap yes | always tapped (it's a gate, not data) |
 
 **Typing-only personas** (`typing_shortcut`, `typing_adhd`): bypass all card taps and type
 every answer (`typingFieldText` covers address/name/property-type that `freeTextForField`
 skips). They will surface the structured-address gap (a typed address leaves No/Postcode/Type
-empty) — that is a real, worth-surfacing finding, not a harness bug.
+empty) - that is a real, worth-surfacing finding, not a harness bug.
 
 **Pacing:** ≥6 s between sends (`MIN_GAP`) to stay under the guest rate limit (10/min prod,
 100/min dev). `waitIdle` then waits for the in-flight reply (up to 25 s).
 
 ---
 
-## 4. Structural checks (deterministic — these decide pass/fail)
+## 4. Structural checks (deterministic - these decide pass/fail)
 
 Run in `driveScenario`; any one flips the run to FAIL:
 
 | Check | Fires when |
 |-------|-----------|
-| `looping` | the same card appears 4× — flow not advancing |
+| `looping` | the same card appears 4× - flow not advancing |
 | `stalled` | the bot stays on text for N turns without advancing |
 | `timeout` | review card not reached in 40 steps |
 | `duplicate` | the same field/question card shown twice in one reply |
 | `language` | a card's rendered label is not in the customer's language |
 | `redundant` | the bot re-asks a field already given |
-| `unconfirmed` | a field is in the review but was never collected on a card (suspected fabrication) — note: can false-positive when a value was given by free text |
+| `unconfirmed` | a field is in the review but was never collected on a card (suspected fabrication) - note: can false-positive when a value was given by free text |
 | `incomplete prefill` | a required base field is missing at the end |
 | `flow` | a detail collected before a service is established (out of order) |
 | `⚠ NO CARD` | the reply text says "tap the card" but no actionable card was emitted |
@@ -161,7 +161,7 @@ contradictions, wrong service, out-of-order flow. Logs "judge unavailable" if no
 
 The widget records each `/chat` request body + response into `qaRestLog` (QA-runs only,
 capped, cleared per scenario); `QaHost.restLog()` exposes it; `flush()` emits the trace when
-there's new activity. The `DATA` line is the data the quote form will receive — it makes
+there's new activity. The `DATA` line is the data the quote form will receive - it makes
 data-divergence bugs (budget amount vs index, a dropped field, a wrong language) visible
 without guessing.
 
@@ -177,12 +177,12 @@ without guessing.
 
 ## 7. Known limitations / open items (2026-06-09)
 
-- **Seeded question labels aren't pre-translated** — `questionSchema` labels have no
+- **Seeded question labels aren't pre-translated** - `questionSchema` labels have no
   `labelI18n`; auto-translation only runs on admin save, so non-English chats show English
   card labels (flagged by the `language` check). Hits existing categories too.
 - **Conversation language can stick** across scenarios (a zh run can bleed into the next
-  EN run) — the conversation-language lock isn't reset between scenarios.
-- ~~**reject→stall**~~ **FIXED (2026-06-09)** — a service-selection reply that names a catalog
+  EN run) - the conversation-language lock isn't reset between scenarios.
+- ~~**reject→stall**~~ **FIXED (2026-06-09)** - a service-selection reply that names a catalog
   service but emits no card now gets that service's `quote_options` injected server-side; the
   stuck-watchdog also catches non-Latin question/colon endings.
 - `unconfirmed` check over-flags values given by free text (credit a value that matches the

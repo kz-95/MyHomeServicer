@@ -1,4 +1,4 @@
-# Customer Rewards System — Implementation Plan
+﻿# Customer Rewards System - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` (recommended) or `executing-plans` to implement this plan task-by-task.
 
@@ -14,31 +14,31 @@
 
 ### New files
 ```
-backend/src/services/rewards.service.ts     — Points engine, redemption, voucher logic
+backend/src/services/rewards.service.ts     - Points engine, redemption, voucher logic
 ```
 
 ### Modified files
 ```
-backend/prisma/schema.prisma                 — 4 new models
-backend/src/routes/rewards.routes.ts         — Customer reward endpoints (or inline in user.routes)
-backend/src/routes/admin.routes.ts           — Admin reward/tier CRUD
-backend/src/services/booking.service.ts      — Points earning on doneJob()
-backend/src/services/auth.service.ts         — Welcome points at registration
-backend/src/routes/servicer.routes.ts        — Fee breakdown endpoint
-frontend/src/app/customer/pages/rewards.component.ts — Rewards page rewrite
-frontend/src/app/customer/pages/my-bookings.component.ts — Review-earning integration
-frontend/src/app/customer/shell/customer-shell.component.ts — Welcome/idle banner
-frontend/src/app/shared/shell.component.ts   — Idle rewards banner
-frontend/src/app/admin/pages/settings.component.ts — Admin rewards/tier tabs
-frontend/src/app/servicer/pages/account.component.ts — Fee transparency card
-backend/prisma/seed/data/static.ts           — FAQ entries
-backend/prisma/seed/seed.ts                  — Seed points, rewards, redemptions
-backend/prisma/seed/data/accounts.ts         — Customer points seed data
-docs/ai-context/schema-notes.md             — Document new models
-docs/api-reference/api-doc.md               — Document new endpoints
+backend/prisma/schema.prisma                 - 4 new models
+backend/src/routes/rewards.routes.ts         - Customer reward endpoints (or inline in user.routes)
+backend/src/routes/admin.routes.ts           - Admin reward/tier CRUD
+backend/src/services/booking.service.ts      - Points earning on doneJob()
+backend/src/services/auth.service.ts         - Welcome points at registration
+backend/src/routes/servicer.routes.ts        - Fee breakdown endpoint
+frontend/src/app/customer/pages/rewards.component.ts - Rewards page rewrite
+frontend/src/app/customer/pages/my-bookings.component.ts - Review-earning integration
+frontend/src/app/customer/shell/customer-shell.component.ts - Welcome/idle banner
+frontend/src/app/shared/shell.component.ts   - Idle rewards banner
+frontend/src/app/admin/pages/settings.component.ts - Admin rewards/tier tabs
+frontend/src/app/servicer/pages/account.component.ts - Fee transparency card
+backend/prisma/seed/data/static.ts           - FAQ entries
+backend/prisma/seed/seed.ts                  - Seed points, rewards, redemptions
+backend/prisma/seed/data/accounts.ts         - Customer points seed data
+docs/ai-context/schema-notes.md             - Document new models
+docs/api-reference/api-doc.md               - Document new endpoints
 ```
 
-**Important:** The admin settings split (Money/UI/UX/User pages) is a large restructure. It may be more practical to add the rewards/tier admin CRUD as new tabs in the existing settings page rather than splitting into separate pages. The plan below documents both approaches — recommend tabs first, split later.
+**Important:** The admin settings split (Money/UI/UX/User pages) is a large restructure. It may be more practical to add the rewards/tier admin CRUD as new tabs in the existing settings page rather than splitting into separate pages. The plan below documents both approaches - recommend tabs first, split later.
 
 ---
 
@@ -131,7 +131,7 @@ model Redemption {
 - [x] **Step 5: Update end-of-schema comment**
 
 ```prisma
-// End of schema — 47 models (46 domain + IdempotencyFallback infrastructure).
+// End of schema - 47 models (46 domain + IdempotencyFallback infrastructure).
 ```
 
 - [x] **Step 6: Run db push**
@@ -156,7 +156,7 @@ Add blocks for CustomerPoints, PointsTransaction, Reward, Redemption models.
 
 ```powershell
 git add backend/prisma/schema.prisma docs/ai-context/schema-notes.md
-git commit -m "feat: rewards schema — CustomerPoints, PointsTransaction, Reward, Redemption"
+git commit -m "feat: rewards schema - CustomerPoints, PointsTransaction, Reward, Redemption"
 ```
 
 ---
@@ -497,7 +497,7 @@ npx tsc --noEmit
 
 ```powershell
 git add backend/src/services/rewards.service.ts
-git commit -m "feat: rewards service — points engine, redemption, vouchers"
+git commit -m "feat: rewards service - points engine, redemption, vouchers"
 ```
 
 ### Task B2.3: Wire welcome points at registration
@@ -538,7 +538,7 @@ const price = Number(updatedBooking.price);
 await awardBookingPoints(booking.userId, booking.id, price).catch((e) => logger.warn('Booking points failed', e));
 ```
 
-- [x] **Step 2: Wire review points — add a review-submission hook**
+- [x] **Step 2: Wire review points - add a review-submission hook**
 
 Find where reviews are created (likely in `booking.service.ts` or a reviews route). Add:
 ```typescript
@@ -567,13 +567,13 @@ Before the `csvCell` function, add:
 ```typescript
 // ── Rewards (admin) ──────────────────────────────────────────────────────────
 
-/** GET /admin/rewards — list all rewards */
+/** GET /admin/rewards - list all rewards */
 adminRouter.get('/rewards', asyncHandler(async (req, res) => {
   const data = await prisma.reward.findMany({ orderBy: { sortOrder: 'asc' } });
   res.json({ data });
 }));
 
-/** POST /admin/rewards — create (PIN-gated) */
+/** POST /admin/rewards - create (PIN-gated) */
 adminRouter.post('/rewards', requirePin, validate([
   body('name').isString().notEmpty(),
   body('pointCost').isInt({ min: 1 }),
@@ -584,7 +584,7 @@ adminRouter.post('/rewards', requirePin, validate([
   res.status(201).json(reward);
 }));
 
-/** PATCH /admin/rewards/:id — update (PIN-gated) */
+/** PATCH /admin/rewards/:id - update (PIN-gated) */
 adminRouter.patch('/rewards/:id', requirePin, asyncHandler(async (req, res) => {
   const existing = await prisma.reward.findUnique({ where: { id: req.params.id } });
   if (!existing) throw notFound('Reward not found');
@@ -592,13 +592,13 @@ adminRouter.patch('/rewards/:id', requirePin, asyncHandler(async (req, res) => {
   res.json(updated);
 }));
 
-/** DELETE /admin/rewards/:id — soft-delete (deactivate, PIN-gated) */
+/** DELETE /admin/rewards/:id - soft-delete (deactivate, PIN-gated) */
 adminRouter.delete('/rewards/:id', requirePin, asyncHandler(async (req, res) => {
   await prisma.reward.update({ where: { id: req.params.id }, data: { active: false } });
   res.json({ message: 'Reward deactivated.' });
 }));
 
-/** GET /admin/rewards/redemptions — redemption log */
+/** GET /admin/rewards/redemptions - redemption log */
 adminRouter.get('/rewards/redemptions', asyncHandler(async (req, res) => {
   const data = await prisma.redemption.findMany({
     include: { user: { select: { name: true, email: true } }, reward: { select: { name: true } } },
@@ -608,7 +608,7 @@ adminRouter.get('/rewards/redemptions', asyncHandler(async (req, res) => {
   res.json({ data });
 }));
 
-/** POST /admin/rewards/redemptions/:id/void — void a redemption (PIN-gated) */
+/** POST /admin/rewards/redemptions/:id/void - void a redemption (PIN-gated) */
 adminRouter.post('/rewards/redemptions/:id/void', requirePin, asyncHandler(async (req, res) => {
   const r = await prisma.redemption.update({
     where: { id: req.params.id },
@@ -706,7 +706,7 @@ app.use('/api/v1', rewardsRouter);
 
 In `backend/src/routes/servicer.routes.ts`:
 ```typescript
-/** GET /servicer/me/fee-breakdown — platform fee transparency */
+/** GET /servicer/me/fee-breakdown - platform fee transparency */
 servicerRouter.get('/me/fee-breakdown', requireAuth, requireServicer, asyncHandler(async (req, res) => {
   const settings = await prisma.platformSettings.findFirst();
   const feeRate = settings?.value && typeof settings.value === 'object' && 'current_rate' in (settings.value as Record<string, unknown>)
@@ -762,7 +762,7 @@ redeeming = signal<string | null>(null); // rewardId being redeemed
 redeemMsg = signal<{ text: string; error: boolean } | null>(null);
 ```
 
-- [x] **Step 3: Replace template sections** — replace static data bindings with `points()`, `rewards()`, `history()` signals
+- [x] **Step 3: Replace template sections** - replace static data bindings with `points()`, `rewards()`, `history()` signals
 
 Key sections to replace:
 - Points balance header → `points()?.balance`
@@ -1008,7 +1008,7 @@ After the category/products section, but before the end:
 // ── Rewards ──
 for (const r of REWARD_SEEDS) {
   await prisma.reward.upsert({
-    where: { id: r.name }, // can't upsert on name — use findFirst + create
+    where: { id: r.name }, // can't upsert on name - use findFirst + create
   });
 }
 ```
@@ -1061,7 +1061,7 @@ npm run reseed
 
 ---
 
-## Task B2-S8: Admin Settings split (optional — tabs-first approach)
+## Task B2-S8: Admin Settings split (optional - tabs-first approach)
 
 ### Task B2.11: Restructure admin settings into tab groups
 
@@ -1078,7 +1078,7 @@ type Tab = 'customer' | 'servicer' | 'platform' | 'thumbnails' | 'banned' | 'pro
 
 Add Rewards tab button and section template (reward CRUD table + tier config form) following the same pattern as the Promotions tab.
 
-- [x] **Step 2: Add reward/tier management signals and methods** — reuse the patterns from `promotion.service.ts` but target `/admin/rewards` endpoints.
+- [x] **Step 2: Add reward/tier management signals and methods** - reuse the patterns from `promotion.service.ts` but target `/admin/rewards` endpoints.
 
 - [x] **Step 3: Verify ng build**
 

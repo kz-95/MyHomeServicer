@@ -38,6 +38,8 @@ export async function clearAll(prisma: PrismaClient): Promise<void> {
   await prisma.reward.deleteMany();
   await prisma.loyaltyTier.deleteMany();
   await prisma.quotePreset.deleteMany();
+  await prisma.servicerWaPreset.deleteMany();
+  await prisma.servicerModule.deleteMany();
   await prisma.servicer.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.otpCode.deleteMany();

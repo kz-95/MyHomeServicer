@@ -4,7 +4,7 @@ import { z } from 'zod';
 loadEnv();
 
 /**
- * Environment schema. Validated on boot — the process exits immediately
+ * Environment schema. Validated on boot - the process exits immediately
  * (fail-fast) if any required variable is missing or malformed.
  */
 const envSchema = z.object({
@@ -20,7 +20,7 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   // Primary frontend origin used for CORS and notification deep-links.
   APP_URL: z.string().url().default('http://localhost:4200'),
-  // Optional extra CORS origins (comma-separated) — use for LAN / tunnel URLs.
+  // Optional extra CORS origins (comma-separated) - use for LAN / tunnel URLs.
   // e.g. CORS_EXTRA_ORIGINS=http://192.168.1.42:4200,https://abc.trycloudflare.com
   CORS_EXTRA_ORIGINS: z.string().default(''),
 

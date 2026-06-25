@@ -59,7 +59,7 @@ export function calcSuppliesFeeSplit(
 }
 
 /**
- * Core pass-through fee split (shared logic, not exported as a public API —
+ * Core pass-through fee split (shared logic, not exported as a public API -
  * callers use the named functions above so the two fee types stay distinct).
  *
  * effectiveBaseline = max(categoryBaseline ?? 0, overallBaseline)
@@ -77,7 +77,7 @@ function calcPassThroughFeeSplit(
   const ZERO = new Prisma.Decimal(0);
   const catBase = categoryBaseline ?? ZERO;
 
-  // effectiveBaseline = max(category, overall) — overall acts as a floor
+  // effectiveBaseline = max(category, overall) - overall acts as a floor
   const effectiveBaseline = catBase.greaterThan(overallBaseline) ? catBase : overallBaseline;
 
   // extra above baseline (servicer set more than the minimum)

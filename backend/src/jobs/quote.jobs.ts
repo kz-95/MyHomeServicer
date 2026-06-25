@@ -19,7 +19,7 @@ const noResponsePayload = z.object({
 });
 
 /**
- * quote.expiry — fires at servicer_deadline. Bundles all received proposals
+ * quote.expiry - fires at servicer_deadline. Bundles all received proposals
  * and notifies the customer that their proposals are ready to review.
  */
 async function handleQuoteExpiry(job: Job): Promise<void> {
@@ -29,7 +29,7 @@ async function handleQuoteExpiry(job: Job): Promise<void> {
     include: { _count: { select: { proposals: true } } },
   });
   if (!quote || quote.status !== 'open') {
-    logger.info('quote.expiry skipped — quote not open', { quoteRequestId });
+    logger.info('quote.expiry skipped - quote not open', { quoteRequestId });
     return;
   }
 
@@ -47,10 +47,10 @@ async function handleQuoteExpiry(job: Job): Promise<void> {
 }
 
 /**
- * quote.no_response — fires at proposal_deadline. If the quote got zero
+ * quote.no_response - fires at proposal_deadline. If the quote got zero
  * proposals, expires it, issues a discount code and emits
  * quote.expired_no_response. If proposals WERE received, the quote is left
- * `open` so the customer can still select one and create a booking — the
+ * `open` so the customer can still select one and create a booking - the
  * proposal deadline closes the servicer submission window, it is not a
  * customer-selection deadline.
  * Idempotent: re-runs are no-ops once the quote leaves `open`.
@@ -62,42 +62,42 @@ async function handleNoResponse(job: Job): Promise<void> {
     include: { _count: { select: { proposals: true } } },
   });
   if (!quote || quote.status !== 'open') {
-    logger.info('quote.no_response skipped — quote not open', { quoteRequestId });
+    logger.info('quote.no_response skipped - quote not open', { quoteRequestId });
     return;
   }
 
-  // BE-043 — proposals were received: the quote MUST stay `open` so the
+  // BE-043 - proposals were received: the quote MUST stay `open` so the
   // customer can still select one (POST /quotes/:id/select requires the
   // quote to be `open`). A quote with proposals only leaves `open` when the
   // customer selects (→ matched) or cancels. Previously this job expired the
   // quote unconditionally at the proposal deadline, so every post-deadline
   // selection was rejected and no booking was ever created.
   if (quote._count.proposals > 0) {
-    logger.info('quote.no_response — proposals present, quote left open for selection', {
+    logger.info('quote.no_response - proposals present, quote left open for selection', {
       quoteRequestId,
       proposalCount: quote._count.proposals,
     });
     return;
   }
 
-  // Zero proposals — expire the quote and issue a sorry discount code.
+  // Zero proposals - expire the quote and issue a sorry discount code.
   // BE-008: wrap status update + refund in a $transaction with a conditional
   // update guard to prevent double-refund on concurrent BullMQ retries.
   const didExpire = await prisma.$transaction(async (tx) => {
-    // Atomic conditional update — only succeeds if still 'open'. On retry
+    // Atomic conditional update - only succeeds if still 'open'. On retry
     // the row is already 'expired' so updateMany returns count=0 → bail.
     const updated = await tx.quoteRequest.updateMany({
       where: { id: quoteRequestId, status: 'open' },
       data: { status: 'expired' },
     });
     if (updated.count === 0) {
-      logger.info('quote.no_response — already expired by another worker', { quoteRequestId });
+      logger.info('quote.no_response - already expired by another worker', { quoteRequestId });
       return false;
     }
 
     // Refund any credit held at quote creation time (pay_now with budgetMax).
     if (quote.paymentMode === 'pay_now' && quote.budgetMax != null) {
-      // Idempotency guard — check for existing refund before issuing
+      // Idempotency guard - check for existing refund before issuing
       const existingRefund = await tx.transaction.findFirst({
         where: {
           userId: quote.userId,
@@ -106,7 +106,7 @@ async function handleNoResponse(job: Job): Promise<void> {
         },
       });
       if (existingRefund) {
-        logger.info('quote.no_response — refund already processed, skipping', { quoteRequestId });
+        logger.info('quote.no_response - refund already processed, skipping', { quoteRequestId });
       } else {
         const refundAmount = Number(quote.budgetMax) + Number(quote.tipAmount ?? 0);
         await adjustCredit('user', quote.userId, refundAmount, tx);
@@ -114,7 +114,7 @@ async function handleNoResponse(job: Job): Promise<void> {
           type: 'refund',
           amount: refundAmount,
           userId: quote.userId,
-          reference: `Refund — quote ${quoteRequestId} expired with no proposals`,
+          reference: `Refund - quote ${quoteRequestId} expired with no proposals`,
         }, tx);
       }
     }
@@ -125,7 +125,7 @@ async function handleNoResponse(job: Job): Promise<void> {
 
   const existing = await prisma.discountCode.findUnique({ where: { quoteRequestId } });
   if (existing) {
-    logger.info('quote.no_response — discount already issued', { quoteRequestId });
+    logger.info('quote.no_response - discount already issued', { quoteRequestId });
     return;
   }
 
@@ -155,10 +155,10 @@ async function handleNoResponse(job: Job): Promise<void> {
   await notify({
     userId: quote.userId,
     type: 'orders',
-    message: `Sorry — no servicers responded. Here's a discount code: ${discount.code}`,
+    message: `Sorry - no servicers responded. Here's a discount code: ${discount.code}`,
     linkReorder: `/customer/quote/new?from=${quote.id}`,
   });
-  logger.info('quote.no_response — discount issued', { quoteRequestId, code });
+  logger.info('quote.no_response - discount issued', { quoteRequestId, code });
 }
 
 /** Registers the Phase 2 quote jobs with the worker. */

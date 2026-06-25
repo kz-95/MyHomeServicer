@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 
 /**
- * SP-3: Service-listings shell — two tabs (Listings · Modules) rendered as URL
+ * SP-3: Service-listings shell - two tabs (Listings · Modules) rendered as URL
  * segments (`/servicer/services/listings`, `/servicer/services/module`),
  * mirroring the servicer Jobs tabs. Each tab is its own lazy component.
  */

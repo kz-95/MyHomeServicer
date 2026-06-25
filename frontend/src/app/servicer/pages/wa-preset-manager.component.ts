@@ -14,7 +14,7 @@ interface WaPresetRow {
 }
 
 /**
- * <app-wa-preset-manager> — servicer settings section to manage reusable WhatsApp
+ * <app-wa-preset-manager> - servicer settings section to manage reusable WhatsApp
  * message presets. List + create + edit + soft-delete CRUD against
  * /servicer/wa-presets. Bodies may carry {name}/{orderId}/{eta} placeholders that
  * the won-job card's <app-wa-button> interpolates before opening the wa.me link.
@@ -31,7 +31,7 @@ interface WaPresetRow {
     <p class="muted small">
       Reusable templates you can fire at a customer over WhatsApp from a won job. Use
       <code>&#123;name&#125;</code>, <code>&#123;orderId&#125;</code> and
-      <code>&#123;eta&#125;</code> placeholders — they fill in automatically when you send.
+      <code>&#123;eta&#125;</code> placeholders - they fill in automatically when you send.
     </p>
 
     @if (loading()) {

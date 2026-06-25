@@ -1,4 +1,4 @@
-# Security notes
+﻿# Security notes
 
 > This document covers every security measure the platform needs to implement. Split into must-have for V1 and good-to-have for later. Every developer on the team should read this before writing any route or middleware.
 
@@ -13,7 +13,7 @@ These are not optional. The platform handles real money, real personal data, and
 ### 1. Authentication & sessions
 
 **JWT must be short-lived**
-Access tokens expire in 15 minutes. Refresh tokens expire in 7 days. Never issue a long-lived access token — if it leaks, the attacker has 15 minutes maximum, not forever.
+Access tokens expire in 15 minutes. Refresh tokens expire in 7 days. Never issue a long-lived access token - if it leaks, the attacker has 15 minutes maximum, not forever.
 
 **Refresh tokens stored as a hash**
 Never store the raw refresh token in the database. Store a SHA-256 hash of it. If the database leaks, the tokens are useless.
@@ -22,49 +22,49 @@ Never store the raw refresh token in the database. Store a SHA-256 hash of it. I
 Set `revoked_at` on the refresh token row when the user logs out. The auth middleware checks this on every refresh attempt.
 
 **Separate action PIN for admin**
-Admin login password gets you into the admin panel. The action PIN is a second credential required to save any sensitive setting — penalty rules, platform settings, feature flags, platform fee changes. Stored as a separate bcrypt hash on the USER table. Never the same as the login password.
+Admin login password gets you into the admin panel. The action PIN is a second credential required to save any sensitive setting - penalty rules, platform settings, feature flags, platform fee changes. Stored as a separate bcrypt hash on the USER table. Never the same as the login password.
 
 **Two PINs: demo login gate vs action PIN**
 There are two distinct PINs, verified by different endpoints:
 
-1. **Demo login gate — `5201314`** (fixed, shared). A portal-entry speedbump for **demo-bar quick-logins only**. The `admin`/`servicer`/`customer` route guards run `PinService.requireGatePin()` inside `canActivate`, so the dialog must be satisfied before the route activates (and before its lazy bundle loads). The demo bar navigates via `router.navigate` (SPA, not `window.location.href`), so the gate fires **before** the URL changes — no redirect into the portal until the PIN is confirmed. **Never cached** — every restricted-page entry re-validates. Verified by `POST /config/demo-gate` (requireAuth, demo-only) against the `DEMO_GATE_PIN` constant (default `5201314`, env-overridable). This is NOT a per-account credential.
+1. **Demo login gate - `5201314`** (fixed, shared). A portal-entry speedbump for **demo-bar quick-logins only**. The `admin`/`servicer`/`customer` route guards run `PinService.requireGatePin()` inside `canActivate`, so the dialog must be satisfied before the route activates (and before its lazy bundle loads). The demo bar navigates via `router.navigate` (SPA, not `window.location.href`), so the gate fires **before** the URL changes - no redirect into the portal until the PIN is confirmed. **Never cached** - every restricted-page entry re-validates. Verified by `POST /config/demo-gate` (requireAuth, demo-only) against the `DEMO_GATE_PIN` constant (default `5201314`, env-overridable). This is NOT a per-account credential.
 
-   **Scoped to the demo-bar session, NOT to `isDemo`.** The gate triggers on `AuthService.requiresDemoGate()` — a `hs_demo_gate` localStorage flag set ONLY by the passwordless demo-bar login (`/dev/demo-login`) and only when the resolved account is `isDemo`. A **real `/auth/login` (email+password)** — even of a demo account — clears the flag in `store()`, so a proper login is NEVER gated (email+password only). `admin@demo.local` (`isDemo=false`) is never flagged, so it stays ungated as before.
+   **Scoped to the demo-bar session, NOT to `isDemo`.** The gate triggers on `AuthService.requiresDemoGate()` - a `hs_demo_gate` localStorage flag set ONLY by the passwordless demo-bar login (`/dev/demo-login`) and only when the resolved account is `isDemo`. A **real `/auth/login` (email+password)** - even of a demo account - clears the flag in `store()`, so a proper login is NEVER gated (email+password only). `admin@demo.local` (`isDemo=false`) is never flagged, so it stays ungated as before.
 
-   **Cancel logs out.** The demo-bar session is issued (tokens stored) *before* the gate, so on cancel/wrong-PIN the guard calls `auth.logout()` then redirects to `/`. Without this the user stays logged in and home's "redirect logged-in users to their portal" bounces them straight back into the gate — an infinite loop (fixed 2026-06-07).
+   **Cancel logs out.** The demo-bar session is issued (tokens stored) *before* the gate, so on cancel/wrong-PIN the guard calls `auth.logout()` then redirects to `/`. Without this the user stays logged in and home's "redirect logged-in users to their portal" bounces them straight back into the gate - an infinite loop (fixed 2026-06-07).
 
-2. **Action PIN — `1234`** (per-account: `User.actionPinHash` for admin/customer, `Servicer.pinHash` for servicer). The real second credential for sensitive operations. Also gates **viewing** the Admin → Accounts (`/admin/users`) and Review Queues (`/admin/queues`) pages via `adminActionPinGuard`, which prompts (and `clear()`s first so each open re-prompts) before the page activates; cancel → `/admin`. Verified by `POST /admin/verify-pin` (`x-action-pin` header, admin) or `POST /chat/verify-pin` (body; servicer reads `Servicer.pinHash`, admin/customer read `User.actionPinHash`). Cached per session for in-page sensitive saves. The change-PIN / rescue-reset flows enforce exactly 6 digits (`/^\d{6}$/`); `1234` and `5201314` are both seed/demo conveniences set directly (bypassing those validators).
+2. **Action PIN - `1234`** (per-account: `User.actionPinHash` for admin/customer, `Servicer.pinHash` for servicer). The real second credential for sensitive operations. Also gates **viewing** the Admin → Accounts (`/admin/users`) and Review Queues (`/admin/queues`) pages via `adminActionPinGuard`, which prompts (and `clear()`s first so each open re-prompts) before the page activates; cancel → `/admin`. Verified by `POST /admin/verify-pin` (`x-action-pin` header, admin) or `POST /chat/verify-pin` (body; servicer reads `Servicer.pinHash`, admin/customer read `User.actionPinHash`). Cached per session for in-page sensitive saves. The change-PIN / rescue-reset flows enforce exactly 6 digits (`/^\d{6}$/`); `1234` and `5201314` are both seed/demo conveniences set directly (bypassing those validators).
 
-**Demo PIN gate should follow renamed routes (route redesign) — convenience, not security**
+**Demo PIN gate should follow renamed routes (route redesign) - convenience, not security**
 `adminActionPinGuard` (`canActivate`) is a **demo safeguard** on `/admin/users`,
-`/admin/queues`, `/admin/settings/api-keys` — prompts for `1234` so a stray click during a
+`/admin/queues`, `/admin/settings/api-keys` - prompts for `1234` so a stray click during a
 presentation doesn't burn tokens or let someone edit admin settings and break the live
 site. It is intentionally NOT a hardened auth control. When the 2026-06 redesign restructures
 `queues`/settings, carry the guard onto the new routes (queues → **parent** node; new
 `users/:id` too) so the prompt keeps firing. If it's ever dropped, just re-add the one
-`canActivate` line — there's no auth state to corrupt. See
+`canActivate` line - there's no auth state to corrupt. See
 `specs/2026-06-08-route-redesign-completeness-design.md` §9f.
 
 **Client navigation is not an access boundary**
 New `:id` detail routes (`/servicer/jobs/:id`, `/customer/bookings/:id`, `/admin/users/:id`,
 `/admin/servicers/:id`) must enforce ownership/role on the **backing API**, not the route
 param (IDOR). Notification `linkUrl` (→ `notification.service.routeFor()` →
-`navigateByUrl`) must stay backend-controlled and start with a single `/` (reject `//` —
+`navigateByUrl`) must stay backend-controlled and start with a single `/` (reject `//` -
 defense-in-depth against open-redirect); never build `linkUrl` from user input.
 
 **OTP as hash only**
 OTP codes for password reset and phone verification are never stored in plaintext. Store bcrypt or SHA-256 hash. Expire after 10 minutes. Invalidate all previous OTPs for the same user and purpose when a new one is requested.
 
 **OTP purpose isolation**
-An OTP issued for password reset must never validate for phone verification, and vice versa. The `purpose` field on `OTP_CODE` is checked on every verification — wrong purpose returns the same generic error as wrong code.
+An OTP issued for password reset must never validate for phone verification, and vice versa. The `purpose` field on `OTP_CODE` is checked on every verification - wrong purpose returns the same generic error as wrong code.
 
 **Account lockout on failed logins**
-Rate limiting on `/auth/login` is per-IP — attackers can rotate IPs. Add a per-account failure counter on USER. After 5 consecutive failed login attempts, lock the account for 15 minutes. Counter resets on successful login.
+Rate limiting on `/auth/login` is per-IP - attackers can rotate IPs. Add a per-account failure counter on USER. After 5 consecutive failed login attempts, lock the account for 15 minutes. Counter resets on successful login.
 
 **Demo account production safety**
 Accounts with `is_demo: true` use a weak shared password (`Demo@2026`) for seed data convenience. The auth middleware blocks demo account logins entirely when `NODE_ENV=production`. The seed script itself refuses to run in production. Never deploy demo accounts to a public-facing environment.
 
-**Never trust the cached principal — validate the session on startup**
+**Never trust the cached principal - validate the session on startup**
 The frontend keeps the principal in `localStorage` (`hs_user`) so a session survives a refresh, but `localStorage` is attacker-writable and a token may be stale/revoked. The SPA therefore calls `GET /session` once at startup, blocking on it via `APP_INITIALIZER`, before any logged-in UI ("My portal", portal routes) renders. `GET /session` runs the normal `authenticate` + `requireAuth` middleware and rebuilds the principal from the database; a stale/forged token returns 401 and the client calls `logout()` (clears tokens + principal). It is mounted at the API root (NOT under `/auth`) so the auth interceptor attaches the Bearer token and performs its silent refresh-on-expiry. Logged-in state must never be presented on the strength of `localStorage` alone.
 
 ---
@@ -72,10 +72,10 @@ The frontend keeps the principal in `localStorage` (`hs_user`) so a session surv
 ### 2. Passwords
 
 **bcrypt with cost factor 12**
-All passwords hashed with bcrypt, minimum cost factor 12. Never MD5, SHA-1, or SHA-256 for passwords — these are not password hashing algorithms.
+All passwords hashed with bcrypt, minimum cost factor 12. Never MD5, SHA-1, or SHA-256 for passwords - these are not password hashing algorithms.
 
 **Minimum password requirements**
-Enforce server-side — not just frontend. Minimum 8 characters, at least one number. Demo accounts bypass this via the `is_demo` flag.
+Enforce server-side - not just frontend. Minimum 8 characters, at least one number. Demo accounts bypass this via the `is_demo` flag.
 
 **No password in logs**
 Never log request bodies on auth routes. `morgan` should be configured to skip body logging on `/auth/*`. A single log line with a plaintext password is a serious incident.
@@ -92,8 +92,8 @@ AI API keys (Gemini, DeepSeek), S3 credentials (Cloudflare R2), and payment gate
 
 Treat every API key like cash. Apply every layer below.
 
-**Layer 1 — Never in frontend code**
-The Angular bundle is downloaded to every visitor's browser. Anything in there is public — even in environment files, even in "private" config. AI API keys, S3 keys, anything sensitive stays on the Express server only. Frontend calls Express, Express calls the third party. The frontend never holds a long-lived credential.
+**Layer 1 - Never in frontend code**
+The Angular bundle is downloaded to every visitor's browser. Anything in there is public - even in environment files, even in "private" config. AI API keys, S3 keys, anything sensitive stays on the Express server only. Frontend calls Express, Express calls the third party. The frontend never holds a long-lived credential.
 
 **Public client-side config pattern (2026-05-28):** Even non-sensitive values
 like `googleClientId` and `googleMapsApiKey` are served dynamically via
@@ -101,64 +101,64 @@ like `googleClientId` and `googleMapsApiKey` are served dynamically via
 means:
 - Keys can be changed per-environment without rebuilding the frontend
 - The `environment.ts` file contains only `apiBase` and empty placeholders for
-  config values — the real values come from the API at app startup via `APP_INITIALIZER`
+  config values - the real values come from the API at app startup via `APP_INITIALIZER`
 - Google OAuth client IDs and Maps API keys are public by design (they're
   referrer-restricted in GCP), but serving them through the backend gives a
   single source of truth and eliminates the risk of stale keys in a cached build
 
-**Layer 2 — Never in git history**
+**Layer 2 - Never in git history**
 - `.env` added to `.gitignore` from the first commit
 - `.env.example` committed with placeholder values only
-- If a real key was ever committed — even years ago, even in a deleted file, even in a force-pushed commit — it's leaked permanently. Rotate immediately. Git history is forever.
+- If a real key was ever committed - even years ago, even in a deleted file, even in a force-pushed commit - it's leaked permanently. Rotate immediately. Git history is forever.
 - Install `gitleaks` as a pre-commit hook to scan every commit for secret patterns before allowing the push
 - Run `trufflehog` in CI on PR to master + nightly schedule to scan git history for leaked secrets and alert the team
 
-**Layer 3 — Production secrets in a secrets manager**
+**Layer 3 - Production secrets in a secrets manager**
 - Development: `.env` file locally is fine
 - Staging/Production: AWS Secrets Manager, Doppler, HashiCorp Vault, or the platform's built-in env vars (Railway, Vercel, Render)
-- Never store production keys in `.env` files on a production server — if the server is breached, the file is read in plaintext
+- Never store production keys in `.env` files on a production server - if the server is breached, the file is read in plaintext
 - Secrets manager encrypts at rest and audit-logs every read
 
-**Layer 4 — Per-environment keys**
+**Layer 4 - Per-environment keys**
 - Separate API keys for dev, staging, production for every external service
 - Same for S3, payment gateways, SMTP credentials
 - If a dev key leaks, production is safe
 - Easy rotation per environment without touching other environments
 
-**Layer 5 — Logger redaction**
+**Layer 5 - Logger redaction**
 - `winston` configured to scrub anything matching known secret patterns from log output
 - Patterns to redact: `Bearer .*`, `sk-[a-zA-Z0-9]+`, fields named `apiKey`, `api_key`, `secret`, `token`, `password`, `key`
 - Even if a developer accidentally `console.log(process.env)`, the actual values are replaced with `[REDACTED]`
-- Test this — log a fake key, verify it appears redacted
+- Test this - log a fake key, verify it appears redacted
 
-**Layer 6 — Heavy rate limiting on AI endpoints**
+**Layer 6 - Heavy rate limiting on AI endpoints**
 Even with the key protected, an authenticated user inside your platform could flood the chatbot endpoint to drive up your bill:
 - Per-user limit: 20 messages per 10 min
 - Per-user daily cap: 100 messages per day
 - Platform-wide daily cap: a hard ceiling that triggers an alert at 80% and disables the chatbot at 100%
 
-**Layer 6a — Chat tier-based access control (privilege escalation prevention)**
+**Layer 6a - Chat tier-based access control (privilege escalation prevention)**
 The FAQ knowledge base powers both the AI system prompt AND the local fallback (when Gemini/DeepSeek are unreachable). Without tier filtering, admin-only knowledge (demo credentials, action PIN instructions, internal platform details) can leak to guest/customer users. Two guards:
-- `buildSystemPrompt(role)` — filters FAQ entries by hierarchical tier before injecting into the AI system prompt: guest sees `guest` tier only; customer sees `guest`+`customer`; servicer sees `guest`+`customer`+`servicer`; admin sees all four. Implemented via `TIER_ORDER` array + `tier: { in: allowedTiers }` Prisma filter.
-- `localFallback(role)` — same tier filter applied (fixed 2026-05-28). Previously queried ALL published FAQs regardless of tier, allowing keyword-match leakage of admin-only entries on AI outage.
-- `chatGuard.ts` — 3-strike prompt-injection ban. Malicious prompts attempting to extract system instructions, bypass tier restrictions, or inject conflicting rules count as strikes. After 3 strikes, user is chat-banned; admin unban required.
+- `buildSystemPrompt(role)` - filters FAQ entries by hierarchical tier before injecting into the AI system prompt: guest sees `guest` tier only; customer sees `guest`+`customer`; servicer sees `guest`+`customer`+`servicer`; admin sees all four. Implemented via `TIER_ORDER` array + `tier: { in: allowedTiers }` Prisma filter.
+- `localFallback(role)` - same tier filter applied (fixed 2026-05-28). Previously queried ALL published FAQs regardless of tier, allowing keyword-match leakage of admin-only entries on AI outage.
+- `chatGuard.ts` - 3-strike prompt-injection ban. Malicious prompts attempting to extract system instructions, bypass tier restrictions, or inject conflicting rules count as strikes. After 3 strikes, user is chat-banned; admin unban required.
 
-**Layer 7 — Budget caps & alerts**
+**Layer 7 - Budget caps & alerts**
 - Set monthly spend caps per AI provider in their respective dashboards
 - Alert at 50%, 75%, 90% of budget via provider webhooks
 - Auto-disable the AI chatbot feature flag at 100% (`feature_flag.ai_chatbot = false`) so the frontend hides the chat UI
 
-**Layer 8 — Scheduled rotation**
+**Layer 8 - Scheduled rotation**
 - Every 90 days minimum for all API keys
 - Immediately if any team member with key access leaves the team
 - Immediately if any suspicious activity (sudden token usage spike, unfamiliar IP source, off-hours bursts)
 - Practice the rotation process once during dev so the team knows the steps when it matters
 
-**Layer 9 — Audit usage**
+**Layer 9 - Audit usage**
 - Log every AI API call to `AUDIT_LOG` with user_id, session_id, token count, model name
-- Watch for unusual patterns — same user spamming, off-hours spikes, unexpectedly high token consumption
+- Watch for unusual patterns - same user spamming, off-hours spikes, unexpectedly high token consumption
 
-**Layer 10 — IP restriction (if supported)**
+**Layer 10 - IP restriction (if supported)**
 - Whitelist the production server's IP range in each provider's dashboard
 - Even if a key leaks, requests from other IPs are rejected
 - Check if S3, SMTP, etc. support IP allowlisting and apply
@@ -175,7 +175,7 @@ The FAQ knowledge base powers both the AI system prompt AND the local fallback (
 ### 4. Input validation & sanitisation
 
 **Validate everything server-side**
-Use `express-validator` on every POST and PATCH route. Validate type, length, format, and range. Frontend validation is for UX — backend validation is for security. Never trust the client.
+Use `express-validator` on every POST and PATCH route. Validate type, length, format, and range. Frontend validation is for UX - backend validation is for security. Never trust the client.
 
 **Parameterised queries only**
 Prisma uses parameterised queries by default. If you ever use `prisma.$queryRaw`, use the tagged template literal version:
@@ -195,7 +195,7 @@ Validate MIME type server-side, not just the file extension. Use `file-type` to 
 Use `express-validator`'s `.stripUnknown()` or manually pick expected fields from `req.body`. Never pass `req.body` directly to Prisma.
 
 **Validate JSONB settings against a schema**
-`PLATFORM_SETTINGS.value`, `SERVICER_SERVICE.auto_accept_conditions`, `SERVICER_SERVICE.field_requirements` are all JSONB. A typo or wrong type can break the platform. Define a Zod schema per key and validate on every write using `zod` before saving. `zod` is already in the stack for BullMQ job payload validation — use the same library for consistency.
+`PLATFORM_SETTINGS.value`, `SERVICER_SERVICE.auto_accept_conditions`, `SERVICER_SERVICE.field_requirements` are all JSONB. A typo or wrong type can break the platform. Define a Zod schema per key and validate on every write using `zod` before saving. `zod` is already in the stack for BullMQ job payload validation - use the same library for consistency.
 
 ---
 
@@ -208,10 +208,10 @@ When a customer requests `GET /bookings/:id`, verify that `booking.userId === re
 Three guards: `requireAuth`, `requireServicer`, `requireAdmin`. Applied at the router level so a missed annotation on a single route doesn't bypass protection.
 
 **Servicer sees customer details only after booking confirmed**
-During the quote broadcast, servicers receive only sanitised data — category, time slot, property type, budget range, general area. Full customer name, phone, address shared only via secure REST call after booking confirmation.
+During the quote broadcast, servicers receive only sanitised data - category, time slot, property type, budget range, general area. Full customer name, phone, address shared only via secure REST call after booking confirmation.
 
 **Payment gate before broadcast**
-A quote must not be broadcast to servicers (no `QUOTE_BROADCAST` rows, no `quote.new` socket emit, no servicer notifications, no dispatch rotation) until its payment is settled — otherwise servicers spend effort on, and auto-accept proposals against, quotes that were never funded. `createQuote` enforces ordering: `pay_later`/`cash` pass `requireNoUnpaidInvoice` first; `pay_now` (credit) deducts the budget hold **before** the broadcast (broadcast logic is split into `broadcastQuote()`); `pay_now` (guest/gateway) is parked in `status = pending_payment` and broadcast only when the Stripe `checkout.session.completed` webhook calls `settleAndBroadcastGuestQuote()` (idempotent — a redelivered webhook never double-broadcasts or double-holds). A failed gate leaves the quote unbroadcast and no money moved.
+A quote must not be broadcast to servicers (no `QUOTE_BROADCAST` rows, no `quote.new` socket emit, no servicer notifications, no dispatch rotation) until its payment is settled - otherwise servicers spend effort on, and auto-accept proposals against, quotes that were never funded. `createQuote` enforces ordering: `pay_later`/`cash` pass `requireNoUnpaidInvoice` first; `pay_now` (credit) deducts the budget hold **before** the broadcast (broadcast logic is split into `broadcastQuote()`); `pay_now` (guest/gateway) is parked in `status = pending_payment` and broadcast only when the Stripe `checkout.session.completed` webhook calls `settleAndBroadcastGuestQuote()` (idempotent - a redelivered webhook never double-broadcasts or double-holds). A failed gate leaves the quote unbroadcast and no money moved.
 
 **Admin cannot impersonate users**
 Admin routes manage platform data only. No route returns another user's JWT or allows actions as another user.
@@ -222,12 +222,12 @@ AUDIT_LOG is admin-only read access. No PATCH, DELETE, or PUT routes exist for i
 **Demo / dev endpoints are production-blocked**
 The `/dev/*` routes (`reseed`, `seed-quote`, `seed-proposal`, `topup`) are
 demo conveniences. Each requires a signed-in user and is hard-blocked when
-`NODE_ENV=production` — they throw rather than run. They must never be
+`NODE_ENV=production` - they throw rather than run. They must never be
 reachable in a real deployment.
 
 **Servicer "customer mode" is not impersonation**
 `POST /servicer/customer-session` issues a session for a *paired customer
-account* owned by the same servicer — never another user's account. The
+account* owned by the same servicer - never another user's account. The
 paired account uses a synthetic, non-deliverable email so it cannot be logged
 into directly, and a normal login with the servicer's real email still
 resolves to the servicer.
@@ -245,17 +245,17 @@ resolves to the servicer.
 | `POST /auth/otp/request` | 3 requests per 10 min per user |
 | `POST /admin/verify-pin` | 5 attempts per 15 min per admin |
 | `POST /quotes` | 20 requests per hour per user |
-| `POST /servicer/quotes/:id/propose` | 10 proposals per hour per servicer — prevents proposal spam across many quotes |
+| `POST /servicer/quotes/:id/propose` | 10 proposals per hour per servicer - prevents proposal spam across many quotes |
 | `POST /chat/session/:id/message` | 20 messages per 10 min per user, 100 per day |
 | All other routes | 100 requests per min per IP |
 
-**helmet on all routes** — `helmet()` applied globally as the first middleware.
+**helmet on all routes** - `helmet()` applied globally as the first middleware.
 
-**CORS locked to known origins** — development `http://localhost:4200`, production your actual domain. Never `*` in production.
+**CORS locked to known origins** - development `http://localhost:4200`, production your actual domain. Never `*` in production.
 
-**No sensitive data in URLs** — tokens, sensitive IDs, personal data never in query parameters. They end up in server logs, browser history, referrer headers.
+**No sensitive data in URLs** - tokens, sensitive IDs, personal data never in query parameters. They end up in server logs, browser history, referrer headers.
 
-**HTTPS only in production** — all traffic encrypted. HSTS header via helmet.
+**HTTPS only in production** - all traffic encrypted. HSTS header via helmet.
 
 **Idempotency on payment & money operations**
 Pay-now bookings, refunds, escrow releases, penalty deductions, promo credit paybacks, withdrawal requests, and deposit top-ups must accept an `Idempotency-Key: <uuid>` header.
@@ -264,8 +264,8 @@ Implementation strategy:
 - Store processed idempotency keys in **Redis** with a 24-hour TTL
 - Key format: `idempotency:{userId}:{key}` → cached response JSON
 - On receipt: check Redis first. If hit, return cached response immediately without re-processing
-- If Redis is unavailable: **fail open cautiously** — log the Redis error, allow the request to proceed, but write a fallback record to a `idempotency_fallback` table in Postgres so duplicates can be detected and reconciled later
-- Never silently skip idempotency checks — if you can't enforce them, log it
+- If Redis is unavailable: **fail open cautiously** - log the Redis error, allow the request to proceed, but write a fallback record to a `idempotency_fallback` table in Postgres so duplicates can be detected and reconciled later
+- Never silently skip idempotency checks - if you can't enforce them, log it
 
 ---
 
@@ -282,14 +282,14 @@ io.use((socket, next) => {
 })
 ```
 
-**Use rooms — never broadcast globally**
+**Use rooms - never broadcast globally**
 Every servicer joins `servicer:{id}`. Quote broadcasts go only to specific servicer rooms. Never use `io.emit()` for anything containing user data.
 
 **Sanitise all socket payloads**
 Define exact fields for every socket event. Never emit raw database records. Customer contact details never in socket payloads.
 
 **Validate events server-side**
-Treat incoming socket events like HTTP requests — validate, authorise, never trust.
+Treat incoming socket events like HTTP requests - validate, authorise, never trust.
 
 ---
 
@@ -301,7 +301,7 @@ Files go directly from browser to cloud storage. API generates a pre-signed URL 
 **Validate file type and size server-side**
 MIME type check before generating pre-signed URL. After upload, `file-type` verifies actual file header matches. Reject oversized files (5MB photos, 10MB KYC docs).
 
-**No executable files** — never `.js`, `.exe`, `.sh`, `.php`, or any executable format regardless of declared type.
+**No executable files** - never `.js`, `.exe`, `.sh`, `.php`, or any executable format regardless of declared type.
 
 **Strip EXIF metadata from photos**
 Photos contain GPS coordinates, device info, timestamps. A servicer's home location could leak through their profile photo. A customer's address could be inferred from an arrive photo. Strip all EXIF on upload using `sharp` before storing.
@@ -336,7 +336,7 @@ No secrets in code, version control, screenshots, or chat messages. API keys liv
 Push notifications appear on lock screens. Never include sensitive details. Bad: "John from Petaling Jaya wants your aircon service at 3pm". Good: "You have a new quote request."
 
 **AI providers are third-party hosted services**
-User conversation data passes through the AI provider's servers (Gemini, DeepSeek, or custom OpenAI-compatible). Check data residency before going live (PDPA — Malaysian user data may require local processing). Restrict API key dashboard access to authorised team members only.
+User conversation data passes through the AI provider's servers (Gemini, DeepSeek, or custom OpenAI-compatible). Check data residency before going live (PDPA - Malaysian user data may require local processing). Restrict API key dashboard access to authorised team members only.
 
 ---
 
@@ -355,15 +355,15 @@ A failed-then-retried job must not produce a second TRANSACTION row, second pena
 
 ### 11. Dependency security
 
-**Lock dependency versions** — commit `package-lock.json`. Exact versions for critical packages, not `^` ranges.
+**Lock dependency versions** - commit `package-lock.json`. Exact versions for critical packages, not `^` ranges.
 
-**Regular audits** — `npm audit` before every release. Fix critical and high vulnerabilities. Track medium and low.
+**Regular audits** - `npm audit` before every release. Fix critical and high vulnerabilities. Track medium and low.
 
-**Minimal dependencies** — every dependency is an attack surface. Avoid packages with single maintainers or no recent activity.
+**Minimal dependencies** - every dependency is an attack surface. Avoid packages with single maintainers or no recent activity.
 
 ---
 
-## Good to have — post V1
+## Good to have - post V1
 
 These are not blockers for the June 10 demo but should be implemented before scaling to real users.
 
@@ -371,21 +371,21 @@ These are not blockers for the June 10 demo but should be implemented before sca
 
 ### 12. KYC & identity verification
 
-**IC number format validation** — Malaysian IC numbers follow YYMMDD-PB-XXXG. Validate server-side before manual review.
+**IC number format validation** - Malaysian IC numbers follow YYMMDD-PB-XXXG. Validate server-side before manual review.
 
-**Face recognition matching (future)** — match selfie against IC photo before manual review queue. Reduces admin workload at scale.
+**Face recognition matching (future)** - match selfie against IC photo before manual review queue. Reduces admin workload at scale.
 
-**Document expiry tracking** — IC doesn't expire, business licences do. Track `verified_at` and add expiry check for company servicer type.
+**Document expiry tracking** - IC doesn't expire, business licences do. Track `verified_at` and add expiry check for company servicer type.
 
 ---
 
 ### 13. Fraud detection
 
-**Duplicate account detection** — flag same phone, IC, device fingerprint as existing/banned account. Alert admin.
+**Duplicate account detection** - flag same phone, IC, device fingerprint as existing/banned account. Alert admin.
 
-**Velocity checks** — flag unusually high booking volume per customer or high cancellation rate per servicer.
+**Velocity checks** - flag unusually high booking volume per customer or high cancellation rate per servicer.
 
-**IP reputation checking** — soft-block known VPN/proxy ranges on auth routes.
+**IP reputation checking** - soft-block known VPN/proxy ranges on auth routes.
 
 ---
 
@@ -393,7 +393,7 @@ These are not blockers for the June 10 demo but should be implemented before sca
 
 **PDPA compliance (Malaysia)**
 The platform collects name, phone, address, IC number. Under Malaysia's Personal Data Protection Act:
-- Users must consent to data collection (agree_terms on quote form covers this partially — review with a lawyer)
+- Users must consent to data collection (agree_terms on quote form covers this partially - review with a lawyer)
 - Users have right to access and correct their data
 - Data breach must be reported
 - Data retention policy needed
@@ -401,27 +401,27 @@ The platform collects name, phone, address, IC number. Under Malaysia's Personal
 **Data retention policy**
 Define retention per data type. AUDIT_LOG and TRANSACTION permanent. Chat messages 90 days. Soft-deleted users purged after 30 days.
 
-**Encryption at rest** — Postgres and file storage encrypted. Most managed cloud providers handle this by default. Verify before going live.
+**Encryption at rest** - Postgres and file storage encrypted. Most managed cloud providers handle this by default. Verify before going live.
 
 ---
 
 ### 15. Payment gateway hardening (when implemented)
 
-**Webhook signature verification** — when payment gateway added (Stripe, Billplz, etc), verify webhook signatures against provider's signing secret.
+**Webhook signature verification** - when payment gateway added (Stripe, Billplz, etc), verify webhook signatures against provider's signing secret.
 
-**Never trust client-side payment status** — only trust webhook events from the provider as source of truth.
+**Never trust client-side payment status** - only trust webhook events from the provider as source of truth.
 
 ---
 
 ### 16. Infrastructure
 
-**Database connection pooling** — PgBouncer or Prisma's connection pool. Limits open connections to prevent traffic-spike exhaustion.
+**Database connection pooling** - PgBouncer or Prisma's connection pool. Limits open connections to prevent traffic-spike exhaustion.
 
-**Private network for database** — Postgres and Redis not publicly accessible. Live in private network, only accept connections from API server.
+**Private network for database** - Postgres and Redis not publicly accessible. Live in private network, only accept connections from API server.
 
-**Secrets rotation** — JWT secret, S3 credentials, AI API keys rotated periodically. Use a secrets manager.
+**Secrets rotation** - JWT secret, S3 credentials, AI API keys rotated periodically. Use a secrets manager.
 
-**DDoS protection** — Cloudflare or similar in front of the API. Rate limiting at app layer is second line of defence.
+**DDoS protection** - Cloudflare or similar in front of the API. Rate limiting at app layer is second line of defence.
 
 ---
 
@@ -448,7 +448,7 @@ Define retention per data type. AUDIT_LOG and TRANSACTION permanent. Chat messag
 - [ ] File type validation on upload routes
 - [ ] EXIF stripping on photo uploads
 - [ ] Action PIN verified on admin settings routes
-- [ ] Action PIN rate limiting in place (`POST /admin/verify-pin` — 5/15min)
+- [ ] Action PIN rate limiting in place (`POST /admin/verify-pin` - 5/15min)
 - [ ] Account lockout on failed logins
 - [ ] OTP purpose isolation enforced
 - [ ] Demo account login blocked when NODE_ENV=production
@@ -456,16 +456,16 @@ Define retention per data type. AUDIT_LOG and TRANSACTION permanent. Chat messag
 - [ ] Redis idempotency storage confirmed working (test with duplicate request)
 - [ ] Redis fallback to Postgres `idempotency_fallback` table if Redis is unavailable
 - [ ] Socket.io JWT handshake verification
-- [ ] Socket.io rooms — no global broadcasts with user data
+- [ ] Socket.io rooms - no global broadcasts with user data
 - [ ] Job payload validation in BullMQ workers
 - [ ] Audit log endpoint is read-only
 - [ ] Push notifications carry no sensitive content
 - [ ] PLATFORM_SETTINGS and auto-accept JSONB validated against schema on save
 - [x] AI chat endpoint rate limited (per-user and platform-wide)
-- [x] Chat/FAQ hierarchical tier access control — `buildSystemPrompt(role)` filters by role; `localFallback(role)` same filter (fix 2026-05-28)
-- [x] Prompt-injection guard (`chatGuard.ts`) — 3-strike ban, admin unban
-- [x] File upload path traversal hardened — `basename()` sanitization on `local-files.ts` (verified Semgrep 2026-05-28)
-- [x] Frontend secrets hygiene verified — 70 files + 3 env files audited; zero API keys, database URLs, or backend internals leaked
+- [x] Chat/FAQ hierarchical tier access control - `buildSystemPrompt(role)` filters by role; `localFallback(role)` same filter (fix 2026-05-28)
+- [x] Prompt-injection guard (`chatGuard.ts`) - 3-strike ban, admin unban
+- [x] File upload path traversal hardened - `basename()` sanitization on `local-files.ts` (verified Semgrep 2026-05-28)
+- [x] Frontend secrets hygiene verified - 70 files + 3 env files audited; zero API keys, database URLs, or backend internals leaked
 - [ ] Servicer proposal submission rate limited (10/hour per servicer)
 - [ ] AI provider spend caps configured in dashboards
 
@@ -474,11 +474,11 @@ Define retention per data type. AUDIT_LOG and TRANSACTION permanent. Chat messag
 - [ ] HSTS header via helmet
 - [ ] Database not publicly accessible
 - [ ] Redis not publicly accessible
-- [x] `npm audit` — no critical or high vulnerabilities (fixed 2026-05-31: backend dep upgrade)
+- [x] `npm audit` - no critical or high vulnerabilities (fixed 2026-05-31: backend dep upgrade)
 - [ ] `trufflehog` scan of git history clean
 - [ ] Rate limits tuned for production traffic
-- [x] `trufflehog` scan of git history — configured in CI (`pr-gate.yml` + `nightly.yml`)
-- [x] Semgrep OSS scan — 134 backend+frontend files scanned (2026-05-28); 0 high/critical findings; 2 low path traversal warnings fixed
+- [x] `trufflehog` scan of git history - configured in CI (`pr-gate.yml` + `nightly.yml`)
+- [x] Semgrep OSS scan - 134 backend+frontend files scanned (2026-05-28); 0 high/critical findings; 2 low path traversal warnings fixed
 - [ ] PDPA compliance reviewed
 - [ ] Data retention policy defined
 - [ ] Backup and recovery tested

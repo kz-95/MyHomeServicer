@@ -1,22 +1,22 @@
-# ChatQA Agent Log
+﻿# ChatQA Agent Log
 
-> Single-writer log — only the **ChatQA** agent writes here.
+> Single-writer log - only the **ChatQA** agent writes here.
 > Scope: Chat booking QA harness + booking-flow hardening.
 
-## Session 2026-06-09 — Dedup filter bug: extracted contactNumber blocked
+## Session 2026-06-09 - Dedup filter bug: extracted contactNumber blocked
 
 ### Audit of `ChatQA_Log_134609062601.log` (10 runs)
 
 **Result:** 2/10 PASS, 8 FAIL. All gates pass (tsc, ng build).
 
 #### Top failures (by frequency)
-1. **`contactNumber` not stored** — 7 of 8 failures. Bot acknowledges phone in text,
+1. **`contactNumber` not stored** - 7 of 8 failures. Bot acknowledges phone in text,
    but phone never reaches prefill or quote form.
-2. **Address card looping** — Bot shows `quote_field:address` 4x without advancing.
-3. **Bot invents dates/property types** — e.g. "this saturday" → "14 June 2026"
+2. **Address card looping** - Bot shows `quote_field:address` 4x without advancing.
+3. **Bot invents dates/property types** - e.g. "this saturday" → "14 June 2026"
    (wrong date from model hallucination).
-4. **Language mismatch** — Bot replies in English when user is in zh/ms.
-5. **Flow order wrong** — Budget/date/time asked after already confirmed.
+4. **Language mismatch** - Bot replies in English when user is in zh/ms.
+5. **Flow order wrong** - Budget/date/time asked after already confirmed.
 
 #### Root cause: contactNumber blocked by dedup filter
 
@@ -35,7 +35,7 @@ The filter is correct for empty cards (model re-emitting contactNumber after it 
 
 **Fix:** Preserve blocks that carry a non-empty value through the dedup filter.
 
-### Fix applied — `1c8c177` (2026-06-09)
+### Fix applied - `1c8c177` (2026-06-09)
 
 **Change:** `backend/src/services/chat.service.ts:2282-2288`
 
@@ -43,25 +43,25 @@ The filter now checks `b.data.value`: blocks with a non-null non-empty value pas
 regardless of `confirmedFields` membership. Empty cards the model re-emitted after the
 field was already collected still get dropped.
 
-**Verification:** `tsc --noEmit` — zero errors.
+**Verification:** `tsc --noEmit` - zero errors.
 
 **Remaining work:**
 1. Push to `feat/ux-polish` when GitHub is reachable (3 commits local now).
 2. Restart BE server for the code change to take effect.
-3. Run QA with `count=10` — expect `contactNumber` to appear in most successful runs.
+3. Run QA with `count=10` - expect `contactNumber` to appear in most successful runs.
    Previous 7/8 failures had `incomplete prefill: missing contactNumber`.
 4. After QA passes (expect 7-8/10 or better), merge `feat/ux-polish` → `master`.
 
 **Still-open QA issues after this fix:**
-- Address card looping (4x) — likely QA harness or model issue with structured address form.
-- Bot invents dates ("this saturday" → wrong day) — model hallucination, prompt fix needed.
-- Language mismatch — bot replies in English to zh/ms users. Needs stronger lang directive.
+- Address card looping (4x) - likely QA harness or model issue with structured address form.
+- Bot invents dates ("this saturday" → wrong day) - model hallucination, prompt fix needed.
+- Language mismatch - bot replies in English to zh/ms users. Needs stronger lang directive.
 
-### Session 2026-06-09 17:07 — Rate-limit fix + contactNumber verification
+### Session 2026-06-09 17:07 - Rate-limit fix + contactNumber verification
 
 #### QA re-run audit (`ChatQA_Log_170109062601.log`, 5 runs)
 
-**contactNumber fix verified:** Run 1 (English, Roof) PASSED with `phone=+60149631295` stored —
+**contactNumber fix verified:** Run 1 (English, Roof) PASSED with `phone=+60149631295` stored -
 the dedup filter fix works. Form check reached page 3 (Summary).
 
 **Runs 2–5 all failed** with "Could not send message" on the FIRST user message. Root cause:
@@ -77,7 +77,7 @@ stays at 10/min.
 
 #### Remaining
 - Restart BE server for both fixes to take effect.
-- Re-run QA with `count=10` — should now run all scenarios without rate-limiting.
+- Re-run QA with `count=10` - should now run all scenarios without rate-limiting.
 - Expect contactNumber to pass in most runs; address looping + date hallucination remain.
 - Merge `feat/ux-polish` → `master` after QA passes.
 

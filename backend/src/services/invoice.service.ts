@@ -1,4 +1,4 @@
-﻿import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { uploadBuffer } from '../lib/s3';
@@ -21,7 +21,7 @@ function formatInvoiceNumber(
   sequence: number,
 ): string {
   const seq = String(sequence).padStart(padding, '0');
-  // 'none' — the servicer opted out of a year segment entirely.
+  // 'none' - the servicer opted out of a year segment entirely.
   if (yearFormat === 'none') return [prefix, seq].join(separator);
   const year = yearFormat === 'YY' ? String(new Date().getFullYear()).slice(-2) : String(new Date().getFullYear());
   return [prefix, year, seq].join(separator);
@@ -65,7 +65,7 @@ function resolveTaxConfig(servicer: any, sstRate: number): ServicerTaxConfig {
  * invoice total == escrow charged amount == fee recorded (the invariant).
  *
  * Called from doneJob() when marking a booking complete.
- * Idempotent — a second call for the same booking returns the existing row.
+ * Idempotent - a second call for the same booking returns the existing row.
  *
  * INVARIANT (tested): escrow.amount == invoice.total (for pay_now bookings).
  */
@@ -97,7 +97,7 @@ export async function generateInvoice(servicerId: string, bookingId: string) {
   const platformFee = computePlatformFee(totalResult.afterPromo, feeRate);
 
   // INVARIANT: escrow.amount (pay_now) == invoice.total.
-  // Log a warning if there's a mismatch — this indicates a bug in the money pipeline.
+  // Log a warning if there's a mismatch - this indicates a bug in the money pipeline.
   if (booking.escrow && booking.escrow.status !== 'refunded') {
     const escrowAmount = Number(booking.escrow.amount);
     if (Math.abs(escrowAmount - totalResult.total) > 0.01) {
@@ -168,13 +168,13 @@ export async function generateInvoice(servicerId: string, bookingId: string) {
 
 async function resolvePromoDiscount(code: string | null, _subtotal: number): Promise<number> {
   if (!code) return 0;
-  // Promo code lookup removed — new promotion engine is trigger-based
+  // Promo code lookup removed - new promotion engine is trigger-based
   return 0;
 }
 
 // ── Invoice preview (no persistence) ───────────────────────────────────────
 
-/** The preview shape returned by getInvoicePreview — mirrors the invoice breakdown
+/** The preview shape returned by getInvoicePreview - mirrors the invoice breakdown
  *  but without an invoice row or PDF.  Used by the servicer so they can review
  *  what the invoice WILL look like before they mark the job done. */
 export interface InvoicePreview {
@@ -194,7 +194,7 @@ export interface InvoicePreview {
   total: number;
   paymentMethod: string | null;
   dueDate: string; // ISO 8601
-  /** Present when the booking is pay_now — used for the invariant assertion. */
+  /** Present when the booking is pay_now - used for the invariant assertion. */
   escrowAmount: number | null;
 }
 

@@ -8,11 +8,11 @@ import { saveLocalFile } from '../lib/local-files';
 import { prisma } from '../lib/prisma';
 import { notFound } from '../lib/errors';
 
-/** Direct-to-S3 upload endpoints — files never stream through the API. */
+/** Direct-to-S3 upload endpoints - files never stream through the API. */
 export const filesRouter = Router();
 filesRouter.use(requireAuth);
 
-/** POST /files/presign — get a pre-signed upload URL. */
+/** POST /files/presign - get a pre-signed upload URL. */
 filesRouter.post(
   '/presign',
   validate([
@@ -32,7 +32,7 @@ filesRouter.post(
   }),
 );
 
-/** PUT /files/local-upload/:fileId — local dev fallback when S3 is not configured. */
+/** PUT /files/local-upload/:fileId - local dev fallback when S3 is not configured. */
 filesRouter.put(
   '/local-upload/:fileId',
   asyncHandler(async (req, res) => {
@@ -57,7 +57,7 @@ filesRouter.put(
   }),
 );
 
-/** POST /files/:id/confirm — confirm a completed upload. */
+/** POST /files/:id/confirm - confirm a completed upload. */
 filesRouter.post(
   '/:id/confirm',
   asyncHandler(async (req, res) => {

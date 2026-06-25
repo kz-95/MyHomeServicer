@@ -1,5 +1,5 @@
 /**
- * E2E tests — authentication flow.
+ * E2E tests - authentication flow.
  *
  * Covers: register → login → refresh → logout, demo-account login,
  * and account lockout after 5 consecutive bad-password attempts.
@@ -125,7 +125,7 @@ e2e('Auth flow (end-to-end)', () => {
   });
 
   it('rejects reuse of the old refresh token after rotation', async () => {
-    // refreshToken was rotated in the previous test — the old value should be rejected.
+    // refreshToken was rotated in the previous test - the old value should be rejected.
     const oldRefreshToken = refreshToken; // capture before overwriting below (already new)
     // Issue another refresh to rotate again.
     const r1 = await api().post('/api/v1/auth/refresh').send({ refreshToken });

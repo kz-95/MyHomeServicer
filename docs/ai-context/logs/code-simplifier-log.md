@@ -1,4 +1,4 @@
-# Code Simplifier Log
+﻿# Code Simplifier Log
 
 > **Agent:** CEO/Orchestrator  
 > **Started:** 2026-06-09  
@@ -16,7 +16,7 @@
 - Only 16 `as unknown as` across entire codebase (~63,500 lines)
 - Consistent TypeScript typing throughout
 
-Simplifications applied were **structural** — extracting constants, replacing switch/ternary chains with lookup maps, deduplicating payloads, and streamlining type-component mapping.
+Simplifications applied were **structural** - extracting constants, replacing switch/ternary chains with lookup maps, deduplicating payloads, and streamlining type-component mapping.
 
 ---
 
@@ -39,7 +39,7 @@ Simplifications applied were **structural** — extracting constants, replacing 
 ### `backend/src/lib/errors.ts`
 | Change | Lines Before | Lines After |
 |--------|-------------|-------------|
-| Added `getErrorMessage(err: unknown): string` helper (for use by multiple catch sites) | — | +5 |
+| Added `getErrorMessage(err: unknown): string` helper (for use by multiple catch sites) | - | +5 |
 
 ### `backend/src/services/notification.service.ts`
 | Change | Lines Before | Lines After |
@@ -53,8 +53,8 @@ Simplifications applied were **structural** — extracting constants, replacing 
 
 ---
 
-## Files Inspected & Already Clean — 24 files
-(No changes needed — see prior log entries)
+## Files Inspected & Already Clean - 24 files
+(No changes needed - see prior log entries)
 
 ---
 
@@ -62,7 +62,7 @@ Simplifications applied were **structural** — extracting constants, replacing 
 
 | # | File(s) | Pattern | Priority |
 |---|---------|---------|----------|
-| 1 | `chat.service.ts` L990-998, 1046-1055, 1235-1251 | 3x LLM chain try/catch — sites too different to cleanly extract | Low |
+| 1 | `chat.service.ts` L990-998, 1046-1055, 1235-1251 | 3x LLM chain try/catch - sites too different to cleanly extract | Low |
 | 2 | `lib/stripe.ts` L77-191 | 2x ~90% duplicate Stripe checkout session functions | High |
 | 3 | `chat.service.ts`, `stripe.ts`, `stripe.routes.ts` | Catch sites need migration to `getErrorMessage()` | Medium |
 | 4 | `llm-keys.routes.ts` | 5x `invalidateLlmKeyCache` + `recordAudit` boilerplate | Medium |
@@ -76,5 +76,5 @@ Simplifications applied were **structural** — extracting constants, replacing 
 
 ## Verification Gates
 
-- ✅ `backend/` `tsc --noEmit` — 0 errors (2 pre-existing tsconfig deprecation warnings)
-- ✅ `frontend/` `tsc --noEmit` — 0 errors
+- ✅ `backend/` `tsc --noEmit` - 0 errors (2 pre-existing tsconfig deprecation warnings)
+- ✅ `frontend/` `tsc --noEmit` - 0 errors

@@ -883,13 +883,13 @@ export class ServicerCalendarComponent implements OnInit {
     }
   }
 
-  /** Expand/collapse job description — only one open at a time. */
+  /** Expand/collapse job description - only one open at a time. */
   expandedJobId = signal<string | null>(null);
   toggleExpand(id: string): void {
     this.expandedJobId.set(this.expandedJobId() === id ? null : id);
   }
 
-  /** View Job — navigate (mobile) or open in new tab (desktop). */
+  /** View Job - navigate (mobile) or open in new tab (desktop). */
   viewJob(id: string): void {
     const url = this.router.serializeUrl(
       this.router.createUrlTree([routeFor('servicer.jobs.detail', { id })]),

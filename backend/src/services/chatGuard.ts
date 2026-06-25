@@ -1,5 +1,5 @@
 /**
- * Chat message guard — detects prompt injection attempts.
+ * Chat message guard - detects prompt injection attempts.
  * Three strikes = automatic chat ban. Admin can unban from FAQ panel.
  */
 export interface InjectionResult {

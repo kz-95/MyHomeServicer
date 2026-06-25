@@ -222,7 +222,7 @@ export class CalendarPickerComponent {
     for (let i = 0; i < 42; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
-      // LOCAL Y-M-D, never toISOString — the cells are local-midnight dates, so UTC
+      // LOCAL Y-M-D, never toISOString - the cells are local-midnight dates, so UTC
       // conversion (UTC+8) rolled them back a day: the cell showed 18 but emitted "…-17".
       const dateStr = this.ymd(d);
       result.push({
@@ -236,7 +236,7 @@ export class CalendarPickerComponent {
     return result;
   }
 
-  /** Local YYYY-MM-DD (no UTC conversion) — keeps the emitted date equal to the day shown. */
+  /** Local YYYY-MM-DD (no UTC conversion) - keeps the emitted date equal to the day shown. */
   private ymd(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }

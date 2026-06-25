@@ -64,7 +64,7 @@ servicerWaPresetRouter.patch(
   }),
 );
 
-/** DELETE /servicer/wa-presets/:id — soft-disable. */
+/** DELETE /servicer/wa-presets/:id - soft-disable. */
 servicerWaPresetRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {

@@ -55,7 +55,7 @@ export class NotificationService {
   private polling = false;
   /** Whether the notification chime should be played (loaded from admin settings). */
   soundEnabled = signal(true);
-  /** Audio context unlocked flag — browsers block autoplay before first user gesture. */
+  /** Audio context unlocked flag - browsers block autoplay before first user gesture. */
   private audioUnlocked = false;
 
   /** Unlock the Audio API on the first user gesture (browser autoplay policy). */
@@ -184,7 +184,7 @@ export class NotificationService {
         const isServicerOffline = this.auth.isServicerAccount() && this.auth.principal()?.isOnline === false;
         let shownToast = false;
         for (const n of unreadFresh.reverse()) {
-          // No toast popup when servicer is offline — they'll see it in the panel later.
+          // No toast popup when servicer is offline - they'll see it in the panel later.
           if (isServicerOffline) continue;
           this.toasts.update((t) => t.length >= MAX_TOASTS ? t : [...t, n]);
           setTimeout(() => this.dismiss(n.id), TOAST_MS);

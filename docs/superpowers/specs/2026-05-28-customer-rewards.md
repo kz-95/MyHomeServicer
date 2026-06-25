@@ -1,10 +1,10 @@
-# Customer Rewards System
+﻿# Customer Rewards System
 
 > 2026-05-28 · Brainstorming session · Ready for execution
 
 ## Goal
 
-Replace the static demo rewards page with a full backend-driven loyalty program. Points are earned through spending, reviews, and referrals. Rewards are redeemed as **top-up discounts** (not free credit) — driving both top-up habit and first-booking conversion.
+Replace the static demo rewards page with a full backend-driven loyalty program. Points are earned through spending, reviews, and referrals. Rewards are redeemed as **top-up discounts** (not free credit) - driving both top-up habit and first-booking conversion.
 
 Welcome points at signup give new users an immediate incentive to explore the rewards system and learn the platform.
 
@@ -35,7 +35,7 @@ Admin Sidebar:
 │  Rewards:       [8]%                                  │
 │  Operations:    [4]%                                  │
 │  Margin:        [3]%                                  │
-│  (Must total 20 — validated on save)                  │
+│  (Must total 20 - validated on save)                  │
 └──────────────────────────────────────────────────────┘
 
 ┌── Rewards Program ───────────────────────────────────┐
@@ -303,8 +303,8 @@ model Redemption {
 | RM 5 top-up discount | 100 | RM 5 off | RM 20 | `topup_fixed` |
 | RM 10 top-up discount | 200 | RM 10 off | RM 25 | `topup_fixed` |
 | RM 25 top-up discount | 500 | RM 25 off | RM 75 | `topup_fixed` |
-| 10% off next booking | 600 | 10% off, max RM 30 | — | `booking_percent` |
-| Free call-out waiver | 800 | Waive call-out fee (up to RM 30) | — | `waiver` |
+| 10% off next booking | 600 | 10% off, max RM 30 | - | `booking_percent` |
+| Free call-out waiver | 800 | Waive call-out fee (up to RM 30) | - | `waiver` |
 | RM 50 top-up discount | 1,000 | RM 50 off | RM 150 | `topup_fixed` |
 
 ### Voucher auto-apply at top-up
@@ -360,7 +360,7 @@ if (role === 'customer') {
 ```
 ┌───────────────────────────────────────────────────────┐
 │  🎉 Welcome! You have 500 free points.                 │
-│  Try redeeming one — pick a reward below to start.    │
+│  Try redeeming one - pick a reward below to start.    │
 │                                                       │
 │  [Got it, show me rewards]                            │
 └───────────────────────────────────────────────────────┘
@@ -430,7 +430,7 @@ function computeTier(lifetimeEarned: number): { name: string; progress: number; 
     { name: 'Gold', min: 2000 },
     { name: 'Platinum', min: 5000 },
   ];
-  // Same logic as current static implementation — just data-driven
+  // Same logic as current static implementation - just data-driven
 }
 ```
 
@@ -445,7 +445,7 @@ function computeTier(lifetimeEarned: number): { name: string; progress: number; 
 
 ---
 
-## 6. Frontend — Rewards Page
+## 6. Frontend - Rewards Page
 
 The current `rewards.component.ts` already has search/filter (from F-D uncommitted changes). Replace static data with API calls:
 
@@ -473,7 +473,7 @@ rewards = signal<Reward[]>([]);
 myRedemptions = signal<Redemption[]>([]);
 ```
 
-The existing search/filter (from F-D) stays — it works on the API-loaded data instead of static arrays.
+The existing search/filter (from F-D) stays - it works on the API-loaded data instead of static arrays.
 
 ### Loyalty points multiplier display
 

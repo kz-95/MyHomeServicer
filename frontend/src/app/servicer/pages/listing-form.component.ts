@@ -69,7 +69,7 @@ interface ListingData {
         <label>
           <span>Title<span class="req"> *</span></span>
           <input type="text" [(ngModel)]="f.title" name="title" maxlength="200"
-            placeholder="e.g. Aircond Servicing — Wall Unit" (input)="error.set('')" />
+            placeholder="e.g. Aircond Servicing - Wall Unit" (input)="error.set('')" />
           <span class="hint">Shown to customers on the proposal and browse cards.</span>
         </label>
 
@@ -120,7 +120,7 @@ interface ListingData {
                     <span class="mod-name">{{ m.name }}</span>
                     <span class="mod-detail">
                       @if (m.questionKey) {
-                        <span class="mod-q">{{ m.questionKey }} → {{ m.optionValue || '—' }}</span>
+                        <span class="mod-q">{{ m.questionKey }} → {{ m.optionValue || '-' }}</span>
                       }
                       RM {{ m.price }}
                       @if (m.durationMin) { · ~{{ m.durationMin }} min }

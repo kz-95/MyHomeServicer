@@ -64,7 +64,7 @@ adminRouter.get(
   }),
 );
 
-/** GET /admin/dashboard/financial — top-ups, fees, escrow, urgent revenue,
+/** GET /admin/dashboard/financial - top-ups, fees, escrow, urgent revenue,
  *  category breakdown, and daily revenue series. Optional ?days=30&categoryId=<uuid>. */
 adminRouter.get(
   '/dashboard/financial',
@@ -115,7 +115,7 @@ adminRouter.post(
 );
 
 // ── User management ──────────────────────────────────────────────────────────
-// The whole user-management area is PIN-gated — it exposes personal data and
+// The whole user-management area is PIN-gated - it exposes personal data and
 // allows account edits, so every request must carry a valid X-Action-Pin.
 adminRouter.get(
   '/users',
@@ -137,14 +137,14 @@ adminRouter.get(
   asyncHandler(async (req, res) => res.json(await getUserDetail(req.params.id))),
 );
 
-/** GET /admin/users/:id/activity — info-update history + account activity. */
+/** GET /admin/users/:id/activity - info-update history + account activity. */
 adminRouter.get(
   '/users/:id/activity',
   requirePin,
   asyncHandler(async (req, res) => res.json(await getUserActivity(req.params.id))),
 );
 
-/** PATCH /admin/users/:id — edit a user's info; a reason is mandatory. */
+/** PATCH /admin/users/:id - edit a user's info; a reason is mandatory. */
 adminRouter.patch(
   '/users/:id',
   requirePin,
@@ -169,7 +169,7 @@ adminRouter.patch(
   }),
 );
 
-/** GET /admin/users/search?q= — search users by name, email, or phone. Admin-only, PIN-gated. */
+/** GET /admin/users/search?q= - search users by name, email, or phone. Admin-only, PIN-gated. */
 adminRouter.get(
   '/users/search',
   requirePin,
@@ -223,7 +223,7 @@ adminRouter.get(
   }),
 );
 
-/** POST /admin/users/:id/deactivate — admin deactivates a user account. PIN-gated. */
+/** POST /admin/users/:id/deactivate - admin deactivates a user account. PIN-gated. */
 adminRouter.post(
   '/users/:id/deactivate',
   requirePin,
@@ -277,7 +277,7 @@ adminRouter.post(
   }),
 );
 
-/** POST /admin/users/:id/reactivate — admin reactivates a deactivated account. PIN-gated. */
+/** POST /admin/users/:id/reactivate - admin reactivates a deactivated account. PIN-gated. */
 adminRouter.post(
   '/users/:id/reactivate',
   requirePin,
@@ -455,7 +455,7 @@ adminRouter.patch(
 
 // ── Categories ────────────────────────────────────────────────────────────────
 
-/** PATCH /admin/categories/:id — update category fields. PIN-gated. */
+/** PATCH /admin/categories/:id - update category fields. PIN-gated. */
 adminRouter.patch(
   '/categories/:id',
   requirePin,
@@ -499,7 +499,7 @@ adminRouter.patch(
       if (cat.questionSchema != null) {
         const existingParsed = questionSchemaSchema.safeParse(cat.questionSchema);
         if (!existingParsed.success) {
-          throw badRequest('Stored questionSchema is corrupt — cannot safely apply changes.');
+          throw badRequest('Stored questionSchema is corrupt - cannot safely apply changes.');
         }
         const err = checkQuestionSchemaImmutability(existingParsed.data, parsed.data);
         if (err) throw badRequest(err);
@@ -540,10 +540,10 @@ adminRouter.patch(
 );
 
 /**
- * POST /admin/categories/backfill-translations — fill labelI18n across EVERY category's
+ * POST /admin/categories/backfill-translations - fill labelI18n across EVERY category's
  * questionSchema in one pass, for categories saved before auto-translate-on-save landed.
  * PIN-gated. Idempotent: only missing/stale languages are generated, so it's safe to
- * re-run. Makes LLM calls per category — a one-off admin migration, not a hot path.
+ * re-run. Makes LLM calls per category - a one-off admin migration, not a hot path.
  */
 adminRouter.post(
   '/categories/backfill-translations',
@@ -574,7 +574,7 @@ function toSlug(s: string): string {
   return s.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-');
 }
 
-/** POST /admin/categories — create a new category. PIN-gated. */
+/** POST /admin/categories - create a new category. PIN-gated. */
 adminRouter.post(
   '/categories',
   requirePin,
@@ -630,7 +630,7 @@ adminRouter.post(
   }),
 );
 
-/** DELETE /admin/categories/:id — soft-delete. Blocked when active listings or open
+/** DELETE /admin/categories/:id - soft-delete. Blocked when active listings or open
  *  quote requests exist. PIN-gated. */
 adminRouter.delete(
   '/categories/:id',
@@ -678,7 +678,7 @@ adminRouter.delete(
 );
 
 /** GET /admin/categories/:id/question-impact?key=<questionKey>
- *  Returns { key, count } — number of ServicerService rows whose modifiers JSONB
+ *  Returns { key, count } - number of ServicerService rows whose modifiers JSONB
  *  contains the given question key. Used by the editor to warn before deactivating
  *  a question or flipping its priced flag. */
 adminRouter.get(
@@ -704,7 +704,7 @@ adminRouter.get(
   }),
 );
 
-/** POST /admin/categories/bulk-publish — bulk publish/unpublish categories. PIN-gated, audited. */
+/** POST /admin/categories/bulk-publish - bulk publish/unpublish categories. PIN-gated, audited. */
 adminRouter.post(
   '/categories/bulk-publish',
   requirePin,
@@ -746,7 +746,7 @@ adminRouter.post(
   }),
 );
 
-/** GET /admin/categories — all non-deleted categories with active listing count
+/** GET /admin/categories - all non-deleted categories with active listing count
  *  and average price stats. Admin only.
  *  `averagePrice` is rounded 2dp. For parent (top-level) categories, average = aggregate
  *  of children; `priceStatListingCount` reflects the same scope. */
@@ -1466,7 +1466,7 @@ adminRouter.post(
 
 // ── Postcodes ────────────────────────────────────────────────────────────────
 
-/** GET /admin/postcodes?q= — list all postcodes, searchable by postcode or district. */
+/** GET /admin/postcodes?q= - list all postcodes, searchable by postcode or district. */
 adminRouter.get(
   '/postcodes',
   asyncHandler(async (req, res) => {
@@ -1486,7 +1486,7 @@ adminRouter.get(
   }),
 );
 
-/** POST /admin/postcodes — create a postcode mapping. PIN-gated. */
+/** POST /admin/postcodes - create a postcode mapping. PIN-gated. */
 adminRouter.post(
   '/postcodes',
   requirePin,
@@ -1516,7 +1516,7 @@ adminRouter.post(
   }),
 );
 
-/** PATCH /admin/postcodes/:id — update a postcode mapping. PIN-gated. */
+/** PATCH /admin/postcodes/:id - update a postcode mapping. PIN-gated. */
 adminRouter.patch(
   '/postcodes/:id',
   requirePin,
@@ -1542,7 +1542,7 @@ adminRouter.patch(
   }),
 );
 
-/** DELETE /admin/postcodes/:id — soft-delete (sets active=false). PIN-gated. */
+/** DELETE /admin/postcodes/:id - soft-delete (sets active=false). PIN-gated. */
 adminRouter.delete(
   '/postcodes/:id',
   requirePin,
@@ -1556,7 +1556,7 @@ adminRouter.delete(
 
 // ── Banned emails ──────────────────────────────────────────────────────────
 
-/** GET /admin/banned-emails — paginated list, searchable by email substring. */
+/** GET /admin/banned-emails - paginated list, searchable by email substring. */
 adminRouter.get(
   '/banned-emails',
   asyncHandler(async (req, res) => {
@@ -1581,7 +1581,7 @@ adminRouter.get(
   }),
 );
 
-/** POST /admin/banned-emails — manually ban an email (PIN-gated). */
+/** POST /admin/banned-emails - manually ban an email (PIN-gated). */
 adminRouter.post(
   '/banned-emails',
   requirePin,
@@ -1608,7 +1608,7 @@ adminRouter.post(
   }),
 );
 
-/** DELETE /admin/banned-emails/:id — unban an email (PIN-gated). */
+/** DELETE /admin/banned-emails/:id - unban an email (PIN-gated). */
 adminRouter.delete(
   '/banned-emails/:id',
   requirePin,
@@ -1624,7 +1624,7 @@ adminRouter.delete(
 
 // ── Fee Rules CRUD ────────────────────────────────────────────────────────────
 
-/** GET /admin/fee-rules — list all fee rules (admin). */
+/** GET /admin/fee-rules - list all fee rules (admin). */
 adminRouter.get(
   '/fee-rules',
   asyncHandler(async (_req, res) => {
@@ -1634,7 +1634,7 @@ adminRouter.get(
   }),
 );
 
-/** POST /admin/fee-rules — create a fee rule (admin, PIN-gated). */
+/** POST /admin/fee-rules - create a fee rule (admin, PIN-gated). */
 adminRouter.post(
   '/fee-rules',
   requirePin,
@@ -1658,7 +1658,7 @@ adminRouter.post(
   }),
 );
 
-/** PUT /admin/fee-rules/:id — update a fee rule (admin, PIN-gated). */
+/** PUT /admin/fee-rules/:id - update a fee rule (admin, PIN-gated). */
 adminRouter.put(
   '/fee-rules/:id',
   requirePin,
@@ -1669,7 +1669,7 @@ adminRouter.put(
   }),
 );
 
-/** DELETE /admin/fee-rules/:id — delete a fee rule (admin, PIN-gated). */
+/** DELETE /admin/fee-rules/:id - delete a fee rule (admin, PIN-gated). */
 adminRouter.delete(
   '/fee-rules/:id',
   requirePin,
@@ -1682,7 +1682,7 @@ adminRouter.delete(
 
 // ── Disputes (admin) ──────────────────────────────────────────────────────────
 
-/** GET /admin/disputes — list all disputes. */
+/** GET /admin/disputes - list all disputes. */
 adminRouter.get(
   '/disputes',
   asyncHandler(async (req, res) => {
@@ -1692,7 +1692,7 @@ adminRouter.get(
   }),
 );
 
-/** GET /admin/disputes/:id — get dispute detail. */
+/** GET /admin/disputes/:id - get dispute detail. */
 adminRouter.get(
   '/disputes/:id',
   asyncHandler(async (req, res) => {
@@ -1702,7 +1702,7 @@ adminRouter.get(
   }),
 );
 
-/** PUT /admin/disputes/:id/review — mark dispute as under review. */
+/** PUT /admin/disputes/:id/review - mark dispute as under review. */
 adminRouter.put(
   '/disputes/:id/review',
   requirePin,
@@ -1713,7 +1713,7 @@ adminRouter.put(
   }),
 );
 
-/** PUT /admin/disputes/:id/resolve — resolve a dispute (admin, PIN-gated). */
+/** PUT /admin/disputes/:id/resolve - resolve a dispute (admin, PIN-gated). */
 adminRouter.put(
   '/disputes/:id/resolve',
   requirePin,
@@ -1727,7 +1727,7 @@ adminRouter.put(
   }),
 );
 
-/** PUT /admin/disputes/:id/dismiss — dismiss a dispute (admin, PIN-gated). */
+/** PUT /admin/disputes/:id/dismiss - dismiss a dispute (admin, PIN-gated). */
 adminRouter.put(
   '/disputes/:id/dismiss',
   requirePin,
@@ -1740,7 +1740,7 @@ adminRouter.put(
 
 // ── Financial CSV export ────────────────────────────────────────────────────
 
-/** GET /admin/financial/export — export transaction ledger as CSV. */
+/** GET /admin/financial/export - export transaction ledger as CSV. */
 adminRouter.get(
   '/financial/export',
   asyncHandler(async (req, res) => {

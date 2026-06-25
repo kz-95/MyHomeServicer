@@ -24,7 +24,7 @@ export default defineConfig({
     },
   ],
 
-  // webServer disabled for local dev — start backend + frontend manually.
+  // webServer disabled for local dev - start backend + frontend manually.
   // CI workflow handles server startup via its own steps.
   // webServer: [
   //   {

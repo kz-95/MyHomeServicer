@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "check:bom": "node scripts/check-no-bom.mjs",
     "build": "cd backend && npm ci --production=false && npm run build",
     "start": "cd backend && npx prisma migrate resolve --applied 0_init || true && npx prisma migrate deploy && npx prisma generate && node dist/index.js"
   }

@@ -11,9 +11,9 @@ export interface FailureInfo {
 }
 
 /**
- * UI DESIGN GUARDRAIL — categories that match visual/layout failures.
+ * UI DESIGN GUARDRAIL - categories that match visual/layout failures.
  * When the root cause is one of these, the fixer must NOT revert component
- * code — only update the test expectations.
+ * code - only update the test expectations.
  */
 const DESIGN_SENSITIVE_CATEGORIES = new Set([
   'SCREENSHOT_DIFF', 'SNAPSHOT_MISMATCH', 'LAYOUT', 'DIMENSION',
@@ -21,7 +21,7 @@ const DESIGN_SENSITIVE_CATEGORIES = new Set([
 ]);
 
 const KNOWN_PATTERNS: { re: RegExp; category: string; suggestion: string }[] = [
-  { re: /Screenshot|snapshot.*diff|image.*comparison/i, category: 'SCREENSHOT_DIFF', suggestion: 'Screenshot comparison failed — the rendered UI differs from the reference. If the change is intentional, re-generate snapshots with --update-snapshots. Do NOT revert the component code.' },
+  { re: /Screenshot|snapshot.*diff|image.*comparison/i, category: 'SCREENSHOT_DIFF', suggestion: 'Screenshot comparison failed - the rendered UI differs from the reference. If the change is intentional, re-generate snapshots with --update-snapshots. Do NOT revert the component code.' },
   { re: /layout|dimension|width|height|scroll|overflow|position/i, category: 'LAYOUT', suggestion: 'A layout/dimension assertion failed. The UI may have been intentionally redesigned. Update the test to match the current design, do NOT revert the component.' },
   { re: /Timeout.*\b(\d+ms)\b/, category: 'TIMEOUT', suggestion: 'Increase timeout or check if the page/component loaded. The selector may be incorrect or the DOM structure changed.' },
   { re: /locator\s*:\s*["'](.+?)["']/i, category: 'SELECTOR', suggestion: 'The selector did not match any element. Inspect the DOM at the failure point. Update the selector to match the current template.' },

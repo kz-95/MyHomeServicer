@@ -1,23 +1,23 @@
 /**
- * Login regression guard — startup-guard + demo-account login coverage.
+ * Login regression guard - startup-guard + demo-account login coverage.
  *
  * ROOT CAUSE OF BUG-039:
  *   An orphaned duplicate function block in merchant-service.service.ts
  *   prevented ts-node-dev from loading the module. Because that module is in
- *   the import chain loaded at Express startup, every route 404'd — including
+ *   the import chain loaded at Express startup, every route 404'd - including
  *   POST /api/v1/auth/login.
  *
  * WHAT THIS TEST COVERS:
- *   1. App startup guard — calls createApp(), which imports every route and
+ *   1. App startup guard - calls createApp(), which imports every route and
  *      service module. A syntax error in any of them causes an import failure
  *      and the test errors with a clear stack trace (not a silent 404).
- *   2. Login success path — demo customer and demo merchant accounts both
+ *   2. Login success path - demo customer and demo merchant accounts both
  *      receive HTTP 200 + a valid token pair ({ accessToken, refreshToken }).
- *   3. Login failure path — wrong password → 401 UNAUTHORIZED, never 404.
+ *   3. Login failure path - wrong password → 401 UNAUTHORIZED, never 404.
  *   4. Unknown email → 401 UNAUTHORIZED, never 404.
  *
  * INFRASTRUCTURE:
- *   Prisma, bcrypt, Redis, BullMQ, and Socket.io are all mocked — no live
+ *   Prisma, bcrypt, Redis, BullMQ, and Socket.io are all mocked - no live
  *   database or Redis is required. Runs in the standard `npm test` suite
  *   without the RUN_E2E=1 gate.
  */
@@ -154,7 +154,7 @@ describe('Login regression guard (BUG-039)', () => {
      * STARTUP GUARD: createApp() eagerly imports every route module and all
      * their transitive service/lib dependencies. If any source file has a
      * syntax error or an unresolvable import that prevents the module from
-     * loading, this dynamic import throws — giving a clear stack trace
+     * loading, this dynamic import throws - giving a clear stack trace
      * pointing at the broken file, rather than every route silently 404ing.
      *
      * This is the primary defence against BUG-039 re-occurring.
@@ -174,7 +174,7 @@ describe('Login regression guard (BUG-039)', () => {
 
   // ── 1. Startup guard ────────────────────────────────────────────────────────
 
-  it('createApp() succeeds — all route and service modules load without errors', () => {
+  it('createApp() succeeds - all route and service modules load without errors', () => {
     // If the module graph failed to load, beforeAll would have thrown and every
     // test in this suite would be marked as failed with a meaningful error.
     expect(app).toBeTruthy();
@@ -189,11 +189,11 @@ describe('Login regression guard (BUG-039)', () => {
       .send({ email: 'customer.active@demo.local', password: 'Demo@2026' });
 
     // PRIMARY REGRESSION ASSERTION:
-    // A 404 here means routes did not mount — same symptom as BUG-039.
+    // A 404 here means routes did not mount - same symptom as BUG-039.
     expect(res.status).not.toBe(404);
     expect(res.status).toBe(200);
 
-    // Token assertions — verify the shape the frontend AuthService expects.
+    // Token assertions - verify the shape the frontend AuthService expects.
     expect(typeof res.body.accessToken).toBe('string');
     expect(res.body.accessToken.length).toBeGreaterThan(20);
     expect(typeof res.body.refreshToken).toBe('string');

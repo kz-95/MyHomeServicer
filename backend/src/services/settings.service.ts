@@ -14,7 +14,7 @@ const DEFAULTS: Record<string, unknown> = {
   noshow_grace_minutes: { minutes: 30 },
   servicer_credit_withdrawal_minimum: { amount: 50 },
   servicer_deposit_minimum: { amount: 100 },
-  // Budget brackets the customer picks from — admin-configurable.
+  // Budget brackets the customer picks from - admin-configurable.
   // Dispatch rotation prompt timer (seconds) per servicer in rotation.
   dispatch_prompt_timeout_seconds: { seconds: 10 },
   budget_ranges: {
@@ -25,7 +25,7 @@ const DEFAULTS: Record<string, unknown> = {
       { min: 350, max: null },
     ],
   },
-  // PIN security settings — used by pin-cooldown middleware and admin settings.
+  // PIN security settings - used by pin-cooldown middleware and admin settings.
   pin_max_attempts: { attempts: 3 },
   pin_lockout_duration_seconds: { seconds: 60 },
   pin_min_length: { length: 6 },
@@ -42,7 +42,7 @@ const DEFAULTS: Record<string, unknown> = {
       { label: 'Service details changed', value: 'service_details_changed', sortOrder: 6 },
     ],
   },
-  // Customer rewards program — admin-configurable defaults.
+  // Customer rewards program - admin-configurable defaults.
   points_per_rm: 1,
   points_per_review: 50,
   points_per_referral: 200,
@@ -93,6 +93,6 @@ export function resolveBudgetRanges(
   if (Array.isArray(ranges)) {
     return ranges;
   }
-  // Per-category format — use specific ranges or fall back to first available
+  // Per-category format - use specific ranges or fall back to first available
   return ranges[categoryId] ?? Object.values(ranges)[0] ?? [];
 }

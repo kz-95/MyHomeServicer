@@ -22,7 +22,7 @@ import {
 export const bookingsRouter = Router();
 bookingsRouter.use(requireAuth, requireCustomer);
 
-/** GET /bookings — the customer's bookings. */
+/** GET /bookings - the customer's bookings. */
 bookingsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -30,7 +30,7 @@ bookingsRouter.get(
   }),
 );
 
-/** GET /bookings/:id — full booking detail. */
+/** GET /bookings/:id - full booking detail. */
 bookingsRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -38,7 +38,7 @@ bookingsRouter.get(
   }),
 );
 
-/** GET /bookings/:id/invoice — the invoice for this booking. */
+/** GET /bookings/:id/invoice - the invoice for this booking. */
 bookingsRouter.get(
   '/:id/invoice',
   asyncHandler(async (req, res) => {
@@ -52,7 +52,7 @@ bookingsRouter.get(
   }),
 );
 
-/** POST /bookings/:id/tip — add a tip (pay_later, after done). */
+/** POST /bookings/:id/tip - add a tip (pay_later, after done). */
 bookingsRouter.post(
   '/:id/tip',
   idempotency,
@@ -62,7 +62,7 @@ bookingsRouter.post(
   }),
 );
 
-/** POST /bookings/:id/cancel — customer cancels. */
+/** POST /bookings/:id/cancel - customer cancels. */
 bookingsRouter.post(
   '/:id/cancel',
   idempotency,
@@ -72,7 +72,7 @@ bookingsRouter.post(
   }),
 );
 
-/** POST /bookings/:id/report — report a problem. */
+/** POST /bookings/:id/report - report a problem. */
 bookingsRouter.post(
   '/:id/report',
   validate([
@@ -90,7 +90,7 @@ bookingsRouter.post(
   }),
 );
 
-/** POST /bookings/:id/mutual-cancel/respond — accept/reject servicer request. */
+/** POST /bookings/:id/mutual-cancel/respond - accept/reject servicer request. */
 bookingsRouter.post(
   '/:id/mutual-cancel/respond',
   validate([body('accept').isBoolean()]),
@@ -99,7 +99,7 @@ bookingsRouter.post(
   }),
 );
 
-/** POST /bookings/:id/reorder — rebook from a past booking. */
+/** POST /bookings/:id/reorder - rebook from a past booking. */
 bookingsRouter.post(
   '/:id/reorder',
   idempotency,
@@ -111,7 +111,7 @@ bookingsRouter.post(
 // ── Settlement ────────────────────────────────────────────────────────────────
 
 /**
- * POST /bookings/:id/settle — settle a pay_later booking.
+ * POST /bookings/:id/settle - settle a pay_later booking.
  *
  * Body: { settlementMethod: 'credit' | 'cash' | 'gateway' }
  *   credit  → deduct from customer credit, mark invoice paid
@@ -137,7 +137,7 @@ bookingsRouter.post(
 
 // ── Disputes ──────────────────────────────────────────────────────────────────
 
-/** POST /bookings/:id/dispute — customer opens a dispute on a booking. */
+/** POST /bookings/:id/dispute - customer opens a dispute on a booking. */
 bookingsRouter.post(
   '/:id/dispute',
   validate([
@@ -155,7 +155,7 @@ bookingsRouter.post(
 
 // ── Unpaid invoices ──────────────────────────────────────────────────────────
 
-/** GET /bookings/unpaid-invoices — list customer's unpaid invoices with overdue status. */
+/** GET /bookings/unpaid-invoices - list customer's unpaid invoices with overdue status. */
 bookingsRouter.get(
   '/unpaid-invoices',
   asyncHandler(async (req, res) => {

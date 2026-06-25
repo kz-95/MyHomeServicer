@@ -1,4 +1,4 @@
-# Admin Rescue System + API Keys Vault
+﻿# Admin Rescue System + API Keys Vault
 
 > **Spec:** Admin recovery chain (3-tier) and encrypted API key management.
 > **Date:** 2026-05-29
@@ -11,10 +11,10 @@
 1. [Overview](#overview)
 2. [Admin Identity & First-Login Flow](#admin-identity--first-login-flow)
 3. [Tiered Recovery Chain](#tiered-recovery-chain)
-4. [Tier 1 — Self-Service (Settings)](#tier-1--self-service-settings)
-5. [Tier 2 — Backup Email OTP](#tier-2--backup-email-otp)
-6. [Tier 3 — Super Admin Rescue (Break Glass)](#tier-3--super-admin-rescue-break-glass)
-7. [API Keys Vault — Two-Layer Encryption](#api-keys-vault--two-layer-encryption)
+4. [Tier 1 - Self-Service (Settings)](#tier-1--self-service-settings)
+5. [Tier 2 - Backup Email OTP](#tier-2--backup-email-otp)
+6. [Tier 3 - Super Admin Rescue (Break Glass)](#tier-3--super-admin-rescue-break-glass)
+7. [API Keys Vault - Two-Layer Encryption](#api-keys-vault--two-layer-encryption)
 8. [Backend Config Resolution](#backend-config-resolution)
 9. [Admin UI Pages](#admin-ui-pages)
 10. [Audit Trail](#audit-trail)
@@ -29,8 +29,8 @@
 
 Two interconnected systems that together give the platform owner full control and recovery ability:
 
-1. **Admin Rescue System** — three-tier recovery chain so the admin can never be permanently locked out
-2. **API Keys Vault** — encrypted storage of API keys in the database, managed from the admin panel
+1. **Admin Rescue System** - three-tier recovery chain so the admin can never be permanently locked out
+2. **API Keys Vault** - encrypted storage of API keys in the database, managed from the admin panel
 
 The systems share the admin identity model and audit infrastructure.
 
@@ -79,16 +79,16 @@ Use the super admin rescue at <login-url> to regain access.
 ## Tiered Recovery Chain
 
 ```
-Tier 1 — Self-service
+Tier 1 - Self-service
   Admin is logged in → changes own email/password/PIN/backup email
   via settings page. All PIN-gated.
 
-Tier 2 — Forgot password (normal recovery)
+Tier 2 - Forgot password (normal recovery)
   Admin forgot password → OTP sent to configured BACKUP email
   6-digit code, 300s expiry.
   Admin must STILL have access to their backup email.
 
-Tier 3 — Super admin rescue (BREAK GLASS)
+Tier 3 - Super admin rescue (BREAK GLASS)
   Admin lost everything: primary + backup email access.
   → OTP sent to hardcoded coffeeinveins@gmail.com
   → Requires typed reason (min 10 chars)
@@ -100,7 +100,7 @@ Tier 3 — Super admin rescue (BREAK GLASS)
 
 ---
 
-## Tier 1 — Self-Service (Settings)
+## Tier 1 - Self-Service (Settings)
 
 ### Available actions (all PIN-gated)
 
@@ -130,7 +130,7 @@ at <login-url> immediately.
 
 ---
 
-## Tier 2 — Backup Email OTP
+## Tier 2 - Backup Email OTP
 
 ### Flow
 
@@ -177,7 +177,7 @@ Same pattern as existing `POST /auth/reset-password`:
 The existing `POST /auth/forgot-password` route is extended:
 ```typescript
 if (email === adminEmail && !hasBackupEmail) {
-  // No backup configured — show rescue option
+  // No backup configured - show rescue option
   return res.json({
     message: '...',
     showRescueOption: true,  // frontend shows "Super admin rescue" link
@@ -192,12 +192,12 @@ if (email === adminEmail && hasBackupEmail) {
 
 ---
 
-## Tier 3 — Super Admin Rescue (Break Glass)
+## Tier 3 - Super Admin Rescue (Break Glass)
 
 ### Entry points
 
-1. **Login page** — small "Lost admin access?" link visible when the email field contains `admin@demo.local` or when the forgot-password flow returns `showRescueOption: true`
-2. **Direct URL** — `/auth/admin/rescue` (no auth, rate-limited)
+1. **Login page** - small "Lost admin access?" link visible when the email field contains `admin@demo.local` or when the forgot-password flow returns `showRescueOption: true`
+2. **Direct URL** - `/auth/admin/rescue` (no auth, rate-limited)
 
 ### Flow
 
@@ -212,11 +212,11 @@ Audit: log IP + user agent + reason + timestamp
 3. Hash OTP with SHA-256, store hash in AdminOtp table (300s TTL)
 4. Send email to coffeeinveins@gmail.com via Google Gmail API (OAuth2)
 
-Subject: [URGENT] MyHomeServicer Admin Recovery — Action Required
+Subject: [URGENT] MyHomeServicer Admin Recovery - Action Required
 
 Body:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MyHomeServicer — Super Admin Recovery
+MyHomeServicer - Super Admin Recovery
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 A recovery request was made for the MyHomeServicer admin panel.
@@ -237,7 +237,7 @@ MyHomeServicer Security
 
 ### Why Google Gmail API (not SMTP)
 
-SMTP requires configuring SMTP host/port/credentials — which might not be set up, or those very credentials might be locked inside the vault the admin can't access. The Gmail API uses a **separate** OAuth2 credential set stored in `.env` (not the vault), so it always works.
+SMTP requires configuring SMTP host/port/credentials - which might not be set up, or those very credentials might be locked inside the vault the admin can't access. The Gmail API uses a **separate** OAuth2 credential set stored in `.env` (not the vault), so it always works.
 
 **Env vars for rescue email:**
 ```
@@ -272,7 +272,7 @@ Body: { token, newPassword, newPin }
 
 ---
 
-## API Keys Vault — Two-Layer Encryption
+## API Keys Vault - Two-Layer Encryption
 
 ### Architecture
 
@@ -312,7 +312,7 @@ Body: { token, newPassword, newPin }
                │
                ▼
 ┌──────────────────────────────────────────────────┐
-│          Admin UI — API Keys Page                 │
+│          Admin UI - API Keys Page                 │
 │                                                   │
 │  Step 1: Enter vault password (session-only)      │
 │  Step 2: See all keys decrypted (masked by default)│
@@ -322,16 +322,16 @@ Body: { token, newPassword, newPin }
 └──────────────────────────────────────────────────┘
 ```
 
-### Layer 1 — System Key (boot-time)
+### Layer 1 - System Key (boot-time)
 
 | Field | Value |
 |-------|-------|
 | Key derivation | `HMAC-SHA256(JWT_SECRET, "admin-config-vault")` |
 | Algorithm | AES-256-GCM |
 | Purpose | Auto-decrypt on boot so backend uses DB-stored keys at runtime |
-| Key location | Never stored — derived from JWT_SECRET on every boot |
+| Key location | Never stored - derived from JWT_SECRET on every boot |
 
-### Layer 2 — Vault Password (UI access gate)
+### Layer 2 - Vault Password (UI access gate)
 
 | Field | Value |
 |-------|-------|
@@ -345,7 +345,7 @@ The vault password is NOT an encryption layer. It is purely an **access gate** f
 
 1. **First visit to API Keys page:**
    - Admin sets a vault password → backend stores `bcrypt.hash(vaultPassword, 12)` on `User.vaultPasswordHash`
-   - No keys are encrypted with this password — it's just authentication
+   - No keys are encrypted with this password - it's just authentication
 
 2. **Subsequent visits:**
    - Admin enters vault password → backend verifies with `bcrypt.compare`
@@ -421,7 +421,7 @@ class ConfigVault {
         plain += decipher.final('utf8');
         this.cache.set(row.key, plain);
       } catch {
-        // Failed to decrypt — skip this key (logged at warn level)
+        // Failed to decrypt - skip this key (logged at warn level)
         logger.warn(`Config vault: failed to decrypt key ${row.key}`);
       }
     }
@@ -449,7 +449,7 @@ class ConfigVault {
 // After:  configVault.getKey('STRIPE_SECRET_KEY') || env.STRIPE_SECRET_KEY
 ```
 
-A migration wrapper is added to `stripe.ts`, `s3.ts`, `geocoding.ts`, etc. — or a single `getEnv(key)` utility that checks vault first.
+A migration wrapper is added to `stripe.ts`, `s3.ts`, `geocoding.ts`, etc. - or a single `getEnv(key)` utility that checks vault first.
 
 ---
 
@@ -551,7 +551,7 @@ All key changes and rescue attempts are logged:
 | `PATCH` | `/admin/me/password` | Admin | Yes | `{ oldPassword, newPassword }` | `{ message }` |
 | `PATCH` | `/admin/me/pin` | Admin | Yes | `{ oldPin, newPin }` | `{ message }` |
 | `PATCH` | `/admin/me/backup-email` | Admin | Yes | `{ email }` | `{ message }` |
-| `GET` | `/admin/me/backup-email` | Admin | Yes | — | `{ email: "co***@***.com" }` |
+| `GET` | `/admin/me/backup-email` | Admin | Yes | - | `{ email: "co***@***.com" }` |
 
 ### Recovery / Rescue
 
@@ -566,11 +566,11 @@ All key changes and rescue attempts are logged:
 
 | Method | Path | Auth | PIN | Body | Response |
 |--------|------|------|-----|------|----------|
-| `GET` | `/admin/api-keys` | Admin | No | — | `{ keys: [{ key, hasValue: bool }] }` |
+| `GET` | `/admin/api-keys` | Admin | No | - | `{ keys: [{ key, hasValue: bool }] }` |
 | `PUT` | `/admin/api-keys` | Admin | No | `{ keys: [{ key, value }] }` | `{ message, updated: string[] }` |
 | `POST` | `/admin/api-keys/unlock` | Admin | No | `{ vaultPassword }` | `{ keys: [{ key, value }] }` (decrypted) |
 | `POST` | `/admin/api-keys/change-vault-password` | Admin | Yes | `{ oldPassword, newPassword }` | `{ message }` |
-| `POST` | `/admin/api-keys/test/:keyName` | Admin | No | — | `{ ok: bool, message }` |
+| `POST` | `/admin/api-keys/test/:keyName` | Admin | No | - | `{ ok: bool, message }` |
 
 ---
 
@@ -617,7 +617,7 @@ model User {
 ### Env additions
 
 ```
-# Gmail API — used ONLY for super admin rescue (Tier 3)
+# Gmail API - used ONLY for super admin rescue (Tier 3)
 # These live in .env, NOT in the API keys vault
 GOOGLE_GMAIL_CLIENT_ID=
 GOOGLE_GMAIL_CLIENT_SECRET=
@@ -630,34 +630,34 @@ GOOGLE_GMAIL_REFRESH_TOKEN=
 
 The implementation is split into **three phases** for clean parallel development:
 
-### Phase A — Schema + Rescue System (Backend-heavy)
+### Phase A - Schema + Rescue System (Backend-heavy)
 
 | Step | Area | Description |
 |------|------|-------------|
 | A1 | Schema | Add `ApiKeyConfig`, `AdminOtp`, `User.passwordChangedAt`, `User.vaultPasswordHash`, `User.backupEmail` |
-| A2 | Backend | `lib/gmail-rescue.ts` — Google Gmail API OAuth2 email sender |
-| A3 | Backend | `services/admin-rescue.service.ts` — OTP generation, SHA-256 hashing, verification, password/PIN reset |
+| A2 | Backend | `lib/gmail-rescue.ts` - Google Gmail API OAuth2 email sender |
+| A3 | Backend | `services/admin-rescue.service.ts` - OTP generation, SHA-256 hashing, verification, password/PIN reset |
 | A4 | Backend | Tier 2: extend `POST /auth/forgot-password` for admin detection + backup email OTP |
-| A5 | Backend | Tier 3: `POST /auth/admin/rescue` — break glass endpoint, rate limiting, Gmail API send |
+| A5 | Backend | Tier 3: `POST /auth/admin/rescue` - break glass endpoint, rate limiting, Gmail API send |
 | A6 | Backend | Tier 1: admin self-service endpoints (`PATCH /admin/me/{email,password,pin,backup-email}`) |
 | A7 | Backend | First-login wizard gate (`setupRequired` JWT claim, `passwordChangedAt` check in auth login) |
 | A8 | Backend | Audit trail integration for all rescue/key events |
 
-### Phase B — API Keys Vault (Backend + Frontend)
+### Phase B - API Keys Vault (Backend + Frontend)
 
 | Step | Area | Description | Depends on |
 |------|------|-------------|------------|
-| B1 | Backend | `lib/config-vault.ts` — system key derivation (HMAC-SHA256 from JWT_SECRET), load/refresh/get | A1 |
+| B1 | Backend | `lib/config-vault.ts` - system key derivation (HMAC-SHA256 from JWT_SECRET), load/refresh/get | A1 |
 | B2 | Backend | `GET /admin/api-keys`, `PUT /admin/api-keys`, `POST /admin/api-keys/unlock` endpoints | B1 |
 | B3 | Backend | `POST /admin/api-keys/change-vault-password` endpoint | B1 |
-| B4 | Backend | `POST /admin/api-keys/test/:keyName` — per-key validation (Stripe balance, Maps geocode, S3 list, SMTP test) | B1 |
-| B5 | Frontend | API Keys vault page — lock/unlock, key list grouped by category, show/hide, edit, test, save | B2-B4 |
+| B4 | Backend | `POST /admin/api-keys/test/:keyName` - per-key validation (Stripe balance, Maps geocode, S3 list, SMTP test) | B1 |
+| B5 | Frontend | API Keys vault page - lock/unlock, key list grouped by category, show/hide, edit, test, save | B2-B4 |
 
-### Phase C — Frontend UI
+### Phase C - Frontend UI
 
 | Step | Area | Description | Depends on |
 |------|------|-------------|------------|
 | C1 | Frontend | Admin first-login wizard (4-step: backup email → PIN → password → vault password optional) | A7 |
-| C2 | Frontend | Admin settings — backup email, password, PIN management | A6 |
-| C3 | Frontend | Login page — "Lost admin access?" UI + rescue flow (reason input, OTP verify, reset) | A4, A5 |
+| C2 | Frontend | Admin settings - backup email, password, PIN management | A6 |
+| C3 | Frontend | Login page - "Lost admin access?" UI + rescue flow (reason input, OTP verify, reset) | A4, A5 |
 | C4 | Doc | Update schema-notes.md, api-doc.md, seed-plan.md | All |

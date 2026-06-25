@@ -1,5 +1,5 @@
 /**
- * Jest global setup — runs before every test file via jest.config.js setupFiles.
+ * Jest global setup - runs before every test file via jest.config.js setupFiles.
  * Sets the minimum env vars needed to satisfy the Zod validator in config/env.ts
  * so unit tests can import service modules without the process exiting.
  * No real database or Redis connection is made in unit tests (those modules are

@@ -1,8 +1,8 @@
 /**
  * Canonical money-calculation module.
  *
- * ONE computeTotal()  — the single source of truth for the customer-facing total.
- * ONE computePlatformFee() — the single source of truth for the platform fee.
+ * ONE computeTotal()  - the single source of truth for the customer-facing total.
+ * ONE computePlatformFee() - the single source of truth for the platform fee.
  *
  * Invariant (tested): escrow-charged == invoice-total == fee-recorded.
  *
@@ -57,7 +57,7 @@ function round2(n: number): number {
  *
  * For **taxInclusive** mode: line amounts already contain sc+sst embedded.
  * serviceCharge and sst are EXTRACTED for display but total = afterPromo + tip
- * (sc and sst are already inside the line amounts — nothing added on top).
+ * (sc and sst are already inside the line amounts - nothing added on top).
  *
  * @param lineItems       The itemised charges for the booking.
  * @param promoDiscount   Absolute discount amount (0 if none). Already validated ≤ subtotal.
@@ -160,10 +160,10 @@ export function computePlatformFee(afterPromo: number, feeRate: number): number 
  * function guarantees the displayed hold and the charged hold can never drift
  * (BUG-4).
  *
- * Rule (spec: bill-step-redesign §6 — "budgetMax + tip"):
+ * Rule (spec: bill-step-redesign §6 - "budgetMax + tip"):
  *   hold = budget ceiling (budgetMax) + tip.
  * When the budget is open-ended (budgetMax = null) there is no ceiling to
- * hold against, so the upfront hold is 0 — the total is charged later at
+ * hold against, so the upfront hold is 0 - the total is charged later at
  * proposal selection instead.
  *
  * @param budgetMax  The chosen budget ceiling (null = open-ended top bracket).

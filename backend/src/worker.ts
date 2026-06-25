@@ -15,15 +15,15 @@ import { registerDispatchJobs } from './jobs/dispatch.jobs';
  * never blocks an HTTP request. Each job is dispatched to its registered
  * handler; the JOB_QUEUE table is updated to mirror live state.
  */
-/** Schedule cron-style repeatable jobs (idempotent — BullMQ dedupes by key). */
+/** Schedule cron-style repeatable jobs (idempotent - BullMQ dedupes by key). */
 async function scheduleRepeatables(): Promise<void> {
-  // noshow.weekly_reset — every Monday at 00:00.
+  // noshow.weekly_reset - every Monday at 00:00.
   await jobQueue.add(
     JOB_NAMES.NOSHOW_WEEKLY_RESET,
     {},
     { repeat: { pattern: '0 0 * * 1' }, jobId: 'repeat-noshow_weekly_reset' },
   );
-  // servicer.online_sync — every 5 minutes.
+  // servicer.online_sync - every 5 minutes.
   await jobQueue.add(
     JOB_NAMES.SERVICER_ONLINE_SYNC,
     {},
@@ -33,7 +33,7 @@ async function scheduleRepeatables(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  // Register every phase's job handlers (static imports — fail loud on error).
+  // Register every phase's job handlers (static imports - fail loud on error).
   registerQuoteJobs();
   registerBookingJobs();
   registerAdminJobs();

@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Servicer "customer mode" pairing.
  *
  * A servicer can operate the platform as a customer through a *paired customer
  * account* (see schema-notes.md §Servicer "customer mode" and
  * `POST /servicer/customer-session`). There is **no schema column** linking a
- * servicer to its paired `USER` row — the link is encoded entirely in the
+ * servicer to its paired `USER` row - the link is encoded entirely in the
  * paired user's synthetic, non-deliverable email:
  *
  *     servicer-<servicerId>@customer.servicer.local

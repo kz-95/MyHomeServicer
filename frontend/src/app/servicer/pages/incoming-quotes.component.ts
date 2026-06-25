@@ -91,7 +91,7 @@ interface IncomingQuote {
         </div>
 
         <div class="facts">
-          <div class="fact price">RM {{ q.budgetMin ?? '—' }} – {{ q.budgetMax ?? '—' }}
+          <div class="fact price">RM {{ q.budgetMin ?? '-' }} – {{ q.budgetMax ?? '-' }}
             @if (q.paymentMode) { <span class="pay">· {{ q.paymentMode === 'pay_now' ? 'Pay now' : (q.paymentMode === 'cash' ? 'Cash' : 'Pay later') }}</span> }
             @if (q.estimatedDurationMin && q.estimatedDurationMin > 0) { <span class="duration-badge">~{{ q.estimatedDurationMin }} min</span> }
           </div>

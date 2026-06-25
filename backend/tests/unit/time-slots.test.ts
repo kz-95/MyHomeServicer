@@ -1,5 +1,5 @@
 /**
- * Regression guard — Quote time-slot enum (2026-06-01)
+ * Regression guard - Quote time-slot enum (2026-06-01)
  *
  * A quote submission with the Noon or Afternoon time slot 400'd because the
  * backend enum/validators had drifted to a stale 4-slot set

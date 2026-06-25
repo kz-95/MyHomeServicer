@@ -1,4 +1,4 @@
-﻿import { Component, ElementRef, HostListener, inject, isDevMode, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, isDevMode, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { routeFor } from '../core/route-for';
 import { AuthService } from '../core/services/auth.service';
@@ -479,7 +479,7 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
     .tu-field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; font-weight: 500; margin-top: 0.8rem; }
     .tu-field input { padding: 0.4rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; font-size: 0.9rem; }
     @media (max-width: 760px) {
-      /* Demo bar stays visible on mobile. Wrap instead of scroll/clip — a
+      /* Demo bar stays visible on mobile. Wrap instead of scroll/clip - a
          clipping context (overflow) on the bar would hide the absolute
          dropdown menus (§7.15). Auto height + wrap keeps them escaping. */
       .demo-bar {

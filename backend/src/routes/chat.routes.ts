@@ -48,7 +48,7 @@ const BAN_DURATION_MS = 24 * 60 * 60_000; // 24h
 /** AI chatbot endpoints (Gemini → DeepSeek → local fallback). */
 export const chatRouter = Router();
 
-/** GET /chat/faq — public FAQ list. */
+/** GET /chat/faq - public FAQ list. */
 chatRouter.get(
   '/faq',
   asyncHandler(async (_req, res) => {
@@ -60,7 +60,7 @@ chatRouter.get(
   }),
 );
 
-/** 10 / min / IP — guest chat rate limit. */
+/** 10 / min / IP - guest chat rate limit. */
 const guestChatLimiter = rateLimit({
   windowMs: 60_000,
   limit: 10,
@@ -75,7 +75,7 @@ const guestChatLimiter = rateLimit({
 });
 
 /**
- * POST /chat/guest — guest chat (no auth). Stateless: client sends history,
+ * POST /chat/guest - guest chat (no auth). Stateless: client sends history,
  * server responds via AI and does not persist anything. Rate limited by IP
  * and protected against prompt injection with a 3-strike temporary ban.
  */
@@ -131,11 +131,11 @@ chatRouter.post(
 );
 
 /**
- * POST /chat/qa-log — persist an automated-QA transcript to <repo-root>/logs/.
+ * POST /chat/qa-log - persist an automated-QA transcript to <repo-root>/logs/.
  *
  * DEV/QA ONLY: registered exclusively when NODE_ENV !== 'production', so it never
  * exists on the live server (the chat QA button is likewise dev-build only). The
- * client-side QA PIN is a UX gate, NOT auth — the real protection is this env guard.
+ * client-side QA PIN is a UX gate, NOT auth - the real protection is this env guard.
  * The name is hard-sanitised to a filename token and the extension is forced to .log,
  * so the write stays inside logs/; writes are exclusive ('wx') with a random suffix on
  * collision, so a client-supplied name can never overwrite an existing log.
@@ -163,7 +163,7 @@ if (process.env.NODE_ENV !== 'production') {
 
       // Append mode: write incrementally to the already-created file, so a run that is
       // stopped or crashes mid-way is still recorded on disk. Retry on EBUSY (Windows
-      // file lock — user has the log open in an editor) with backoff.
+      // file lock - user has the log open in an editor) with backoff.
       if (append) {
         const file = path.join(logsDir, `${reqName}.log`);
         let delay = 200;
@@ -184,7 +184,7 @@ if (process.env.NODE_ENV !== 'production') {
         res.json({ ok: true, name: reqName, file: rel(file) });
         return;
       }
-      // Create exclusively — never truncate an existing log; add a random suffix on
+      // Create exclusively - never truncate an existing log; add a random suffix on
       // collision and return the RESOLVED name so the client appends to the right file.
       let name = reqName;
       let file = path.join(logsDir, `${name}.log`);
@@ -204,7 +204,7 @@ if (process.env.NODE_ENV !== 'production') {
   );
 
   /**
-   * POST /chat/qa-judge — LLM review of a QA transcript (or batch of findings).
+   * POST /chat/qa-judge - LLM review of a QA transcript (or batch of findings).
    * DEV/QA ONLY (same env guard). mode 'run' returns logical findings for one
    * conversation; mode 'conclude' returns an overall verdict. Reuses the chatbot's
    * own LLM failover chain.
@@ -226,7 +226,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 /**
- * POST /chat/validate-address — validate an address using Google Geocoding API.
+ * POST /chat/validate-address - validate an address using Google Geocoding API.
  * Returns whether the address is recognised and the canonical formatted version.
  */
 chatRouter.post(
@@ -242,7 +242,7 @@ chatRouter.post(
 );
 
 /**
- * POST /chat/reverse-geocode — resolve a browser GPS lat/lng to a formatted
+ * POST /chat/reverse-geocode - resolve a browser GPS lat/lng to a formatted
  * address. Lets the chat widget's "use my current location" button fill the
  * address for users who don't know their exact address. Public (pre-auth),
  * same as validate-address.
@@ -279,7 +279,7 @@ const chatPinLimiter = rateLimit({
 });
 
 /**
- * POST /chat/verify-pin — verify an action PIN (admin or servicer).
+ * POST /chat/verify-pin - verify an action PIN (admin or servicer).
  * Returns `{ ok: true }` on success. Used by the PinService dialog.
  */
 chatRouter.post(
@@ -319,7 +319,7 @@ chatRouter.post(
 );
 
 /**
- * POST /chat/apply-profile — apply a profile field change.
+ * POST /chat/apply-profile - apply a profile field change.
  * PIN-authenticated: verifies the raw PIN against the user's stored hash.
  * Works for admins (User.actionPinHash) and servicers (Servicer.pinHash).
  * Currently supports servicer profile fields (bio, serviceAreas, etc.).
@@ -380,7 +380,7 @@ chatRouter.post(
   }),
 );
 
-/** GET /chat/sessions — the principal's chat sessions (latest 50). */
+/** GET /chat/sessions - the principal's chat sessions (latest 50). */
 chatRouter.get(
   '/sessions',
   asyncHandler(async (req, res) => {
@@ -393,7 +393,7 @@ chatRouter.get(
   }),
 );
 
-/** POST /chat/session — start a chat session. */
+/** POST /chat/session - start a chat session. */
 chatRouter.post(
   '/session',
   validate([
@@ -412,7 +412,7 @@ chatRouter.post(
   }),
 );
 
-/** GET /chat/session/:id/messages — conversation history (cursor-paginated). */
+/** GET /chat/session/:id/messages - conversation history (cursor-paginated). */
 chatRouter.get(
   '/session/:id/messages',
   validate([
@@ -480,7 +480,7 @@ chatRouter.get(
   }),
 );
 
-/** DELETE /chat/session/:id/messages — clear all messages in a session. */
+/** DELETE /chat/session/:id/messages - clear all messages in a session. */
 chatRouter.delete(
   '/session/:id/messages',
   validate([param('id').isUUID()]),
@@ -495,7 +495,7 @@ chatRouter.delete(
 );
 
 /**
- * POST /chat/session/:id/message — send a message to the AI.
+ * POST /chat/session/:id/message - send a message to the AI.
  * Heavily rate limited (security-notes.md §3 Layer 6): 20/10min + 100/day.
  */
 chatRouter.post(
@@ -642,7 +642,7 @@ chatRouter.post(
   }),
 );
 
-/** POST /chat/report-bug — file a bug report from the chat. */
+/** POST /chat/report-bug - file a bug report from the chat. */
 chatRouter.post(
   '/report-bug',
   validate([
@@ -659,7 +659,7 @@ chatRouter.post(
   }),
 );
 
-/** POST /chat/unban-request — banned user requests review. */
+/** POST /chat/unban-request - banned user requests review. */
 chatRouter.post(
   '/unban-request',
   validate([body('reason').isString().trim().isLength({ min: 10, max: 2000 })]),
@@ -733,7 +733,7 @@ function detectActions(reply: string): Array<{ action: string; label: string }> 
 /**
  * Silently record an injection-detection strike. Tracks IP-level strikes for all
  * principals (including guests), and account-level strikes for customers/servicers.
- * On strike 3 the account is auto-banned. Never throws — the caller returns a
+ * On strike 3 the account is auto-banned. Never throws - the caller returns a
  * silent empty response so the user never knows they were flagged.
  */
 async function recordStrike(ip: string, req?: import('express').Request): Promise<void> {

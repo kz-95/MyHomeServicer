@@ -1,12 +1,12 @@
-# Servicer Calendar Polish + Coherence — Implementation Plan (Plan 4)
+﻿# Servicer Calendar Polish + Coherence - Implementation Plan (Plan 4)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** The servicer calendar is a demo headline (beats 2/5). It is already wired; this plan makes it demo-clean and guarantees it agrees with the dispatch-card slot-load (same booking source), so "accept a job → it shows on the calendar" is visibly true.
 
-**Architecture:** No new backend. `GET /servicer/calendar?month=YYYY-MM` already returns bookings grouped by date with `timeSlot`, `status`, customer, price (`servicer.routes.ts:824-890`). The dispatch slot-load (Plan 2 Task 1) reads the same `Booking` rows (confirmed/in_progress) — this plan verifies they can't drift and adds small demo polish. Frontend-only; verify by `ng build` + manual.
+**Architecture:** No new backend. `GET /servicer/calendar?month=YYYY-MM` already returns bookings grouped by date with `timeSlot`, `status`, customer, price (`servicer.routes.ts:824-890`). The dispatch slot-load (Plan 2 Task 1) reads the same `Booking` rows (confirmed/in_progress) - this plan verifies they can't drift and adds small demo polish. Frontend-only; verify by `ng build` + manual.
 
-**Tech Stack:** Angular standalone + signals, existing calendar component. No frontend unit runner — gate on `npx tsc --noEmit` + `ng build` + manual.
+**Tech Stack:** Angular standalone + signals, existing calendar component. No frontend unit runner - gate on `npx tsc --noEmit` + `ng build` + manual.
 
 **Spec:** `docs/superpowers/specs/2026-06-23-dispatch-card-timing-urgent.md` (calendar coherence note under Stream A).
 
@@ -14,12 +14,12 @@
 
 ## File Structure
 
-- `frontend/src/app/servicer/pages/calendar.component.ts` — polish (slot grouping, today emphasis, urgent marker).
-- (read only) `backend/src/routes/servicer.routes.ts:824-890` — the calendar endpoint; only touch if a field is missing.
+- `frontend/src/app/servicer/pages/calendar.component.ts` - polish (slot grouping, today emphasis, urgent marker).
+- (read only) `backend/src/routes/servicer.routes.ts:824-890` - the calendar endpoint; only touch if a field is missing.
 
 ---
 
-## Task 1: Coherence check — calendar vs dispatch slot-load
+## Task 1: Coherence check - calendar vs dispatch slot-load
 
 **Files:** read both; no edit unless they diverge.
 
@@ -31,10 +31,10 @@
   → VERIFIED: Both use `scheduledDate`. Already coherent. No change needed.
 
 - [x] **Step 2: Manual coherence test.** Reseed. As M9: note a booking on the calendar
-  for a given date+slot. Open the incoming feed — a quote for that same date+slot must
+  for a given date+slot. Open the incoming feed - a quote for that same date+slot must
   show the slot-load badge counting that booking. They must agree. If not, fix the date
   field mismatch from Step 1 and re-test.
-  → Skipped (code-level verification sufficient — same field, same source).
+  → Skipped (code-level verification sufficient - same field, same source).
 
 - [x] **Step 3: Commit** (only if a fix was needed)
   → No fix needed. No commit for Task 1.
@@ -46,7 +46,7 @@ git commit -m "fix(servicer): align calendar + slot-load on the same booking dat
 
 ---
 
-## Task 2: Demo polish — today emphasis + urgent marker
+## Task 2: Demo polish - today emphasis + urgent marker
 
 **Files:**
 - Modify: `frontend/src/app/servicer/pages/calendar.component.ts`
@@ -68,7 +68,7 @@ git commit -m "fix(servicer): align calendar + slot-load on the same booking dat
 ```
 
 - [x] **Step 2: Mark urgent bookings.** If the calendar booking payload includes
-  `isUrgent` (added to Booking in Plan 1 Task 1 — extend the endpoint `select` +
+  `isUrgent` (added to Booking in Plan 1 Task 1 - extend the endpoint `select` +
   mapping at `servicer.routes.ts:835-863` to include `isUrgent`), show a small dot/tag
   on those bookings in the cell. Add to the `CalendarBooking` interface `isUrgent?: boolean`
   and render `@if (b.isUrgent) { <span class="dot-urgent"></span> }`.

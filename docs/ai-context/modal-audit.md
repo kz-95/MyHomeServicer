@@ -1,4 +1,4 @@
-# Modal / Overlay / Popup Audit
+﻿# Modal / Overlay / Popup Audit
 
 > Reference for every dialog/popup/overlay in the frontend and whether it uses
 > the safe **top-layer `<dialog>`** pattern. Created 2026-06-23 after recurring
@@ -10,7 +10,7 @@
 ## Root cause of the recurring bug
 
 A `position: fixed` element is **not** anchored to the viewport when any ancestor
-has a `transform`, `filter`, `perspective`, `will-change`, or `contain` — it
+has a `transform`, `filter`, `perspective`, `will-change`, or `contain` - it
 anchors to that ancestor instead, and is clipped by its box. This app animates
 page sections with `transform: translateY(...)` (stagger/fade reveals)
 everywhere, so a fixed overlay **declared inside a page component** gets cropped,
@@ -22,11 +22,11 @@ layer**, which escapes all ancestor `transform` / `overflow` / `z-index` /
 component sits in the tree. `::backdrop` provides the dim.
 
 ## Status legend
-- ✅ **safe** — uses native top-layer `<dialog>` (via `<app-modal>` or its own `<dialog>`).
-- ⚠️ **root-mounted fixed** — hand-rolled `position:fixed`, but mounted at the app
+- ✅ **safe** - uses native top-layer `<dialog>` (via `<app-modal>` or its own `<dialog>`).
+- ⚠️ **root-mounted fixed** - hand-rolled `position:fixed`, but mounted at the app
   root (`shell.component`), not inside an animated page wrapper → not currently
   clipping. Migrate opportunistically; do **not** copy this pattern into pages.
-- 🟢 **anchored** — `position:absolute` dropdown scoped to its trigger (correct, not a modal).
+- 🟢 **anchored** - `position:absolute` dropdown scoped to its trigger (correct, not a modal).
 
 ## Inventory
 
@@ -53,11 +53,11 @@ component sits in the tree. `::backdrop` provides the dim.
 | `chat-widget.component.ts` | help chat FAB → panel (bottom-right) | `position:fixed`, z-998/999 | ⚠️ root-mounted (corner panel) |
 | `notification-panel.component.ts` | topbar bell → dropdown | `position:fixed`, z-1400/1401 | ⚠️ root-mounted (corner dropdown) |
 
-## Page-level inline modals (the gap the first audit missed — fixed 2026-06-23)
+## Page-level inline modals (the gap the first audit missed - fixed 2026-06-23)
 
 The first pass only checked shared components, but **feature/page components were
 hand-rolling their own `.modal-backdrop` / `.pg-guard` / `.tp-guard` / `.pv`
-`position: fixed` overlays** — these were the worst offenders because they live
+`position: fixed` overlays** - these were the worst offenders because they live
 inside `transform`-animated page wrappers and so cropped/off-center (the
 deactivate-account + "Add preset" screenshots). All migrated to `<app-modal>`:
 
@@ -72,7 +72,7 @@ deactivate-account + "Add preset" screenshots). All migrated to `<app-modal>`:
 | `servicer/pages/listing-advanced.component.ts` | Customer preview | `.pv` fixed | ✅ `<app-modal>` |
 
 > **Lesson for future audits:** grep the WHOLE `frontend/src/app` for
-> `position: fixed`, `inset: 0`, and `*-backdrop` class names — NOT just shared
+> `position: fixed`, `inset: 0`, and `*-backdrop` class names - NOT just shared
 > components. Any centered overlay in a page/feature component is the bug.
 
 ## Remaining (lower priority) migrations
@@ -81,12 +81,12 @@ These are mounted at the app root (`shell.component` / persistent widgets), so
 they are **not** clipped by page transforms today. Convert when touched, or if a
 transformed ancestor is ever introduced above the shell:
 
-1. `.stripe-guard` (shell) — centered payment guard. Best candidate to migrate to
+1. `.stripe-guard` (shell) - centered payment guard. Best candidate to migrate to
    `<app-modal>`/native dialog next (it's a true centered modal).
-2. `chat-widget` panel + `notification-panel` dropdown — corner-anchored; if
+2. `chat-widget` panel + `notification-panel` dropdown - corner-anchored; if
    migrated, keep them corner-anchored (use `position:absolute` from the trigger
    or a non-modal `<dialog>`), not centered.
-3. `.quote-prompt`, `.rewards-banner`, `.fab-stack` — toast/FAB chrome, not
+3. `.quote-prompt`, `.rewards-banner`, `.fab-stack` - toast/FAB chrome, not
    dialogs; lowest priority.
 
 ## When you add a new popup

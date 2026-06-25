@@ -28,7 +28,7 @@ export function createApp(): Application {
   // Security headers (must be first).
   app.use(helmet());
 
-  // CORS — allow APP_URL plus any extra origins from CORS_EXTRA_ORIGINS
+  // CORS - allow APP_URL plus any extra origins from CORS_EXTRA_ORIGINS
   // (comma-separated, used for LAN / tunnel dev access).  Never `*`.
   const allowedOrigins = new Set<string>(
     [env.APP_URL, ...env.CORS_EXTRA_ORIGINS.split(',').map((o) => o.trim())].filter(Boolean),
@@ -39,7 +39,7 @@ export function createApp(): Application {
         // Allow same-origin / server-to-server requests (no Origin header) and
         // any explicitly listed origin.
         if (!origin || allowedOrigins.has(origin)) return cb(null, true);
-        cb(Object.assign(new Error(`CORS: origin not allowed — ${origin}`), { status: 403 }));
+        cb(Object.assign(new Error(`CORS: origin not allowed - ${origin}`), { status: 403 }));
       },
       credentials: true,
     }),
@@ -48,7 +48,7 @@ export function createApp(): Application {
   // Global rate limit; per-route limiters are layered on top.
   app.use(globalLimiter);
 
-  // Stripe webhook raw body — must be BEFORE express.json() so the webhook
+  // Stripe webhook raw body - must be BEFORE express.json() so the webhook
   // receives the raw buffer for HMAC-SHA256 signature verification.
   app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }));
 
@@ -56,7 +56,7 @@ export function createApp(): Application {
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-  // Request logging — auth bodies are never logged (morgan logs metadata only,
+  // Request logging - auth bodies are never logged (morgan logs metadata only,
   // and the winston redactor scrubs any token that slips through).
   app.use(
     morgan('combined', {

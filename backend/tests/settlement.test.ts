@@ -9,7 +9,7 @@
  *   - Soft enforcement: blocks new quotes when unpaid invoices exist
  *
  * All monetary assertions use the canonical computeTotal + computePlatformFee
- * from lib/money.ts — the single-source-of-truth.
+ * from lib/money.ts - the single-source-of-truth.
  */
 
 import {
@@ -311,7 +311,7 @@ describe('SST registration impact on settlement total', () => {
 
 // ── Soft enforcement: blocks new quotes when unpaid invoices exist ───────────
 
-describe('soft enforcement — unpaid invoices', () => {
+describe('soft enforcement - unpaid invoices', () => {
   const ENFORCEMENT_OVERDUE_DAYS = 14;
 
   it('enforcement correctly identifies days overdue on invoices', () => {
@@ -329,7 +329,7 @@ describe('soft enforcement — unpaid invoices', () => {
     const exactly14DaysAgo = new Date(now - 14 * 24 * 60 * 60 * 1000);
     const justUnder14Days = new Date(now - 13.9 * 24 * 60 * 60 * 1000);
 
-    // Exactly 14 days is at the threshold — should be considered overdue
+    // Exactly 14 days is at the threshold - should be considered overdue
     expect(exactly14DaysAgo < new Date()).toBe(true);
 
     // 13.9 days: still just under 14 days, so it's still "before" due (within limits)

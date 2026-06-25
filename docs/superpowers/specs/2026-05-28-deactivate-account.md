@@ -1,4 +1,4 @@
-# Deactivate Account + _d## Suffix + 10-Strike Ban
+﻿# Deactivate Account + _d## Suffix + 10-Strike Ban
 
 > 2026-05-28 · Brainstorming session · ⚠️ PARTIALLY IMPLEMENTED
 
@@ -6,10 +6,10 @@
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Schema: `User.active/deactivationCount/deactivatedAt` | ✅ Code written | Stale Prisma Client — needs `db push` |
-| Schema: `Servicer.active/deactivationCount/deactivatedAt` | ✅ Code written | Stale Prisma Client — needs `db push` |
-| Schema: `BannedEmail` model | ✅ Code written | Stale Prisma Client — needs `db push` |
-| Service: `deactivate.service.ts` | ✅ Code written | 7 tsc errors (stale client + `notes` field) — see Known Issues |
+| Schema: `User.active/deactivationCount/deactivatedAt` | ✅ Code written | Stale Prisma Client - needs `db push` |
+| Schema: `Servicer.active/deactivationCount/deactivatedAt` | ✅ Code written | Stale Prisma Client - needs `db push` |
+| Schema: `BannedEmail` model | ✅ Code written | Stale Prisma Client - needs `db push` |
+| Service: `deactivate.service.ts` | ✅ Code written | 7 tsc errors (stale client + `notes` field) - see Known Issues |
 | Route: `POST /user/me/deactivate` (customer) | ✅ Code written | Uses password verification |
 | Route: `POST /servicer/me/deactivate` (servicer) | ✅ Code written | Uses PIN verification |
 | Auth: banned email check on registration | ✅ Code written | Added to `POST /auth/register` + `register-servicer` |
@@ -21,10 +21,10 @@
 
 ### Known issues in uncommitted code
 
-1. **`deactivate.service.ts:21`** — `notes` field does not exist on `Booking`. Booking model has no generic `notes` column. Use existing booking cancellation flow or store the reason via `Report` model instead.
-2. **`deactivate.service.ts:28,71`** — `active` field not available because Prisma Client is stale (schema not pushed). Resolves after `db push`.
-3. **`deactivate.service.ts:42,84`** — `prisma.bannedEmail` not available (stale client). Resolves after `db push`.
-4. **`deactivate.service.ts:30,59`** — `prisma.bannedEmail.findUnique` same stale-client issue.
+1. **`deactivate.service.ts:21`** - `notes` field does not exist on `Booking`. Booking model has no generic `notes` column. Use existing booking cancellation flow or store the reason via `Report` model instead.
+2. **`deactivate.service.ts:28,71`** - `active` field not available because Prisma Client is stale (schema not pushed). Resolves after `db push`.
+3. **`deactivate.service.ts:42,84`** - `prisma.bannedEmail` not available (stale client). Resolves after `db push`.
+4. **`deactivate.service.ts:30,59`** - `prisma.bannedEmail.findUnique` same stale-client issue.
 
 **Execute order:** (1) Fix `notes` bug → (2) `db push` → (3) verify tsc → (4) build servicer deactivation UI → (5) build admin banned accounts tab → (6) test.
 
@@ -172,7 +172,7 @@ New section at the bottom of account page, in a danger-palette card:
 └──────────────────────────────────────────────────┘
 ```
 
-### Step 1 — Confirmation warning
+### Step 1 - Confirmation warning
 
 ```
 ┌────────────────────────────────────────────┐
@@ -188,7 +188,7 @@ New section at the bottom of account page, in a danger-palette card:
 └────────────────────────────────────────────┘
 ```
 
-### Step 2 — Reason + PIN (combined modal)
+### Step 2 - Reason + PIN (combined modal)
 
 ```
 ┌────────────────────────────────────────────┐
@@ -210,9 +210,9 @@ New section at the bottom of account page, in a danger-palette card:
 └────────────────────────────────────────────┘
 ```
 
-Note: PIN is only required for **servicers**. Customers don't have PINs — they use password verification instead.
+Note: PIN is only required for **servicers**. Customers don't have PINs - they use password verification instead.
 
-### Step 3 — Final confirmation
+### Step 3 - Final confirmation
 
 ```
 ┌────────────────────────────────────────────┐

@@ -20,7 +20,7 @@ export function getHandler(name: string): JobHandler {
   const handler = handlers.get(name as JobName);
   if (handler) return handler;
   return async (job: Job) => {
-    logger.warn('No handler registered for job — acknowledged as no-op', {
+    logger.warn('No handler registered for job - acknowledged as no-op', {
       name: job.name,
       id: job.id,
     });

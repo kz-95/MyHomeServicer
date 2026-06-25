@@ -54,7 +54,7 @@ export async function sendRescueEmail(subject: string, body: string): Promise<vo
     logger.info('Super admin rescue email sent via Gmail API');
   } catch (err) {
     logger.error('Failed to send rescue email via Gmail API', { error: (err as Error).message });
-    console.log(`\n[GMAIL API FAILED — DEV FALLBACK] To: ${RESCUE_EMAIL_TO}`);
+    console.log(`\n[GMAIL API FAILED - DEV FALLBACK] To: ${RESCUE_EMAIL_TO}`);
     console.log(`Subject: ${subject}`);
     console.log(`Body:\n${body}\n`);
   }

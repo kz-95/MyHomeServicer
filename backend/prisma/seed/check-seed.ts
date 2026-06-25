@@ -66,7 +66,7 @@ async function main() {
 
   // Check all bookings have invoices where applicable
   const completedWithInvoice = await prisma.booking.count({
-    where: { status: 'completed', invoices: { some: {} } },
+    where: { status: 'completed', invoice: { isNot: null } },
   });
   const completedTotal = await prisma.booking.count({ where: { status: 'completed' } });
   console.log('Completed bookings with invoices: ' + completedWithInvoice + ' / ' + completedTotal);

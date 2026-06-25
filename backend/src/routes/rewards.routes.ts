@@ -10,14 +10,14 @@ import { notFound, badRequest } from '../lib/errors';
 import { redeemPoints, getUserPoints, invalidateTierCache } from '../services/points.service';
 
 /**
- * Customer-facing rewards router — mounted at /rewards.
+ * Customer-facing rewards router - mounted at /rewards.
  * Contains both public-catalog and customer-specific endpoints.
  */
 export const rewardsRouter = Router();
 
 // ── Customer rewards endpoints (all require auth ) ──
 
-/** GET /rewards — active reward catalog. */
+/** GET /rewards - active reward catalog. */
 rewardsRouter.get(
   '/',
   requireAuth,
@@ -30,7 +30,7 @@ rewardsRouter.get(
   }),
 );
 
-/** GET /rewards/active-vouchers?topupAmount=X — valid vouchers for top-up. */
+/** GET /rewards/active-vouchers?topupAmount=X - valid vouchers for top-up. */
 rewardsRouter.get(
   '/active-vouchers',
   requireAuth,
@@ -64,7 +64,7 @@ rewardsRouter.get(
   }),
 );
 
-/** POST /rewards/voucher/validate — validate a voucher code for top-up. */
+/** POST /rewards/voucher/validate - validate a voucher code for top-up. */
 rewardsRouter.post(
   '/voucher/validate',
   requireAuth,
@@ -132,7 +132,7 @@ rewardsRouter.post(
   }),
 );
 
-/** POST /rewards/vouchers/search — search user's own vouchers by code (partial match).
+/** POST /rewards/vouchers/search - search user's own vouchers by code (partial match).
  *  Returns redemptions matching the query string against voucherCode. */
 rewardsRouter.post(
   '/vouchers/search',
@@ -153,7 +153,7 @@ rewardsRouter.post(
   }),
 );
 
-/** POST /rewards/voucher/:code/applicability — check if a voucher is applicable
+/** POST /rewards/voucher/:code/applicability - check if a voucher is applicable
  *  given optional quote context: budget, categoryId.
  *  Returns { applicable, reason? } so the frontend can grey out inapplicable vouchers. */
 rewardsRouter.post(
@@ -203,7 +203,7 @@ rewardsRouter.post(
   }),
 );
 
-/** POST /rewards/voucher/:code/apply — apply a voucher (mark used). */
+/** POST /rewards/voucher/:code/apply - apply a voucher (mark used). */
 rewardsRouter.post(
   '/voucher/:code/apply',
   requireAuth,
@@ -231,13 +231,13 @@ rewardsRouter.post(
 );
 
 /**
- * Customer personal rewards router — mounted at /user.
+ * Customer personal rewards router - mounted at /user.
  * Handles /me/points, /me/points/history, /me/rewards, /me/rewards/:rewardId/redeem, /me/rewards/prompt.
  */
 export const customerRewardsRouter = Router();
 customerRewardsRouter.use(requireAuth, requireCustomer);
 
-/** GET /user/me/points — points balance + tier info. */
+/** GET /user/me/points - points balance + tier info. */
 customerRewardsRouter.get(
   '/me/points',
   asyncHandler(async (req, res) => {
@@ -253,7 +253,7 @@ customerRewardsRouter.get(
   }),
 );
 
-/** GET /user/me/points/history — paginated transaction log. */
+/** GET /user/me/points/history - paginated transaction log. */
 customerRewardsRouter.get(
   '/me/points/history',
   asyncHandler(async (req, res) => {
@@ -272,7 +272,7 @@ customerRewardsRouter.get(
   }),
 );
 
-/** GET /user/me/rewards — user's redemptions. */
+/** GET /user/me/rewards - user's redemptions. */
 customerRewardsRouter.get(
   '/me/rewards',
   asyncHandler(async (req, res) => {
@@ -285,7 +285,7 @@ customerRewardsRouter.get(
   }),
 );
 
-/** POST /user/me/rewards/:rewardId/redeem — redeem points for a voucher. */
+/** POST /user/me/rewards/:rewardId/redeem - redeem points for a voucher. */
 customerRewardsRouter.post(
   '/me/rewards/:rewardId/redeem',
   asyncHandler(async (req, res) => {
@@ -294,7 +294,7 @@ customerRewardsRouter.post(
   }),
 );
 
-/** GET /user/me/rewards/prompt — check re-engagement banner. */
+/** GET /user/me/rewards/prompt - check re-engagement banner. */
 customerRewardsRouter.get(
   '/me/rewards/prompt',
   asyncHandler(async (req, res) => {
@@ -314,13 +314,13 @@ customerRewardsRouter.get(
 );
 
 /**
- * Admin rewards router — mounted at /admin.
+ * Admin rewards router - mounted at /admin.
  * All mutation routes are PIN-gated.
  */
 export const adminRewardsRouter = Router();
 adminRewardsRouter.use(requireAuth, requireAdmin);
 
-/** GET /admin/rewards — list all rewards (incl. inactive). */
+/** GET /admin/rewards - list all rewards (incl. inactive). */
 adminRewardsRouter.get(
   '/rewards',
   asyncHandler(async (_req, res) => {
@@ -329,7 +329,7 @@ adminRewardsRouter.get(
   }),
 );
 
-/** POST /admin/rewards — create reward (PIN-gated). */
+/** POST /admin/rewards - create reward (PIN-gated). */
 adminRewardsRouter.post(
   '/rewards',
   requirePin,
@@ -360,7 +360,7 @@ adminRewardsRouter.post(
   }),
 );
 
-/** PATCH /admin/rewards/:id — update reward (PIN-gated). */
+/** PATCH /admin/rewards/:id - update reward (PIN-gated). */
 adminRewardsRouter.patch(
   '/rewards/:id',
   requirePin,
@@ -389,7 +389,7 @@ adminRewardsRouter.patch(
   }),
 );
 
-/** DELETE /admin/rewards/:id — soft-delete reward (PIN-gated). */
+/** DELETE /admin/rewards/:id - soft-delete reward (PIN-gated). */
 adminRewardsRouter.delete(
   '/rewards/:id',
   requirePin,
@@ -401,7 +401,7 @@ adminRewardsRouter.delete(
   }),
 );
 
-/** GET /admin/rewards/redemptions — all redemptions log. */
+/** GET /admin/rewards/redemptions - all redemptions log. */
 adminRewardsRouter.get(
   '/rewards/redemptions',
   asyncHandler(async (req, res) => {
@@ -422,7 +422,7 @@ adminRewardsRouter.get(
   }),
 );
 
-/** POST /admin/rewards/redemptions/:id/void — void a redemption (PIN-gated). */
+/** POST /admin/rewards/redemptions/:id/void - void a redemption (PIN-gated). */
 adminRewardsRouter.post(
   '/rewards/redemptions/:id/void',
   requirePin,
@@ -439,7 +439,7 @@ adminRewardsRouter.post(
 
 // ── Loyalty Tier admin endpoints ──
 
-/** GET /admin/rewards/tiers — list all tiers. */
+/** GET /admin/rewards/tiers - list all tiers. */
 adminRewardsRouter.get(
   '/rewards/tiers',
   asyncHandler(async (_req, res) => {
@@ -448,7 +448,7 @@ adminRewardsRouter.get(
   }),
 );
 
-/** POST /admin/rewards/tiers — create tier (PIN-gated). */
+/** POST /admin/rewards/tiers - create tier (PIN-gated). */
 adminRewardsRouter.post(
   '/rewards/tiers',
   requirePin,
@@ -476,7 +476,7 @@ adminRewardsRouter.post(
   }),
 );
 
-/** PATCH /admin/rewards/tiers/:id — update tier (PIN-gated). */
+/** PATCH /admin/rewards/tiers/:id - update tier (PIN-gated). */
 adminRewardsRouter.patch(
   '/rewards/tiers/:id',
   requirePin,
@@ -503,7 +503,7 @@ adminRewardsRouter.patch(
   }),
 );
 
-/** DELETE /admin/rewards/tiers/:id — delete tier (PIN-gated). */
+/** DELETE /admin/rewards/tiers/:id - delete tier (PIN-gated). */
 adminRewardsRouter.delete(
   '/rewards/tiers/:id',
   requirePin,
@@ -517,7 +517,7 @@ adminRewardsRouter.delete(
 );
 
 /**
- * GET /admin/rewards/calculator — server-side reward value analysis.
+ * GET /admin/rewards/calculator - server-side reward value analysis.
  *
  * Reads points_per_rm and redemption_rate from platform_settings and computes
  * the effective return rate + a table of discount values vs customer spend.

@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { asyncHandler } from '../lib/async-handler';
 import { notFound } from '../lib/errors';
@@ -7,10 +7,10 @@ import { notFound } from '../lib/errors';
 export const categoriesRouter = Router();
 
 /**
- * GET /categories — published categories.
+ * GET /categories - published categories.
  * Default: top-level parents (grouping). With `?parent=<slug>`: that parent's
  * published children (the quotable services). With `?scope=all`: every published
- * category (parents AND children) in one call — used by the quote-form
+ * category (parents AND children) in one call - used by the quote-form
  * Category/Type-of-service dropdowns and the home search. Each row carries
  * `parentCategoryId` (null for parents) so the client can group children under
  * parents. `activeListingCount` counts active listings on each returned category.
@@ -62,7 +62,7 @@ categoriesRouter.get(
   }),
 );
 
-/** GET /categories/:slug — single category + active servicer count. */
+/** GET /categories/:slug - single category + active servicer count. */
 categoriesRouter.get(
   '/:slug',
   asyncHandler(async (req, res) => {
@@ -91,7 +91,7 @@ categoriesRouter.get(
   }),
 );
 
-/** GET /categories/:slug/servicers — servicers offering this category. */
+/** GET /categories/:slug/servicers - servicers offering this category. */
 categoriesRouter.get(
   '/:slug/servicers',
   asyncHandler(async (req, res) => {

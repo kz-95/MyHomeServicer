@@ -315,7 +315,7 @@ stripeRouter.post(
 // IMPORTANT: This route receives the raw body buffer via express.raw() which
 // is mounted in app.ts BEFORE the global JSON parser for this exact path.
 
-const WEBHOOK_LOCK_TTL = 30; // seconds — prevents concurrent processing
+const WEBHOOK_LOCK_TTL = 30; // seconds - prevents concurrent processing
 
 stripeRouter.post(
   '/webhook',
@@ -353,7 +353,7 @@ stripeRouter.post(
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      logger.error('Stripe webhook handler error — returning 500 for retry', {
+      logger.error('Stripe webhook handler error - returning 500 for retry', {
         type: event.type, error: msg,
       });
       res.status(500).json({ error: 'Webhook handler failed' });
@@ -378,7 +378,7 @@ async function handlePaymentIntentSucceeded(pi: StripeWebhookPaymentIntent) {
   const lockKey = `stripe:pi:${pi.id}`;
   const locked = await redis.set(lockKey, '1', 'EX', WEBHOOK_LOCK_TTL, 'NX');
   if (!locked) {
-    logger.info('Duplicate Stripe payment_intent.succeeded — skipped', { piId: pi.id });
+    logger.info('Duplicate Stripe payment_intent.succeeded - skipped', { piId: pi.id });
     return;
   }
 
@@ -387,14 +387,14 @@ async function handlePaymentIntentSucceeded(pi: StripeWebhookPaymentIntent) {
     where: { stripePaymentIntentId: pi.id },
   });
   if (existing) {
-    logger.info('Duplicate Stripe payment_intent.succeeded (DB check) — skipped', { piId: pi.id });
+    logger.info('Duplicate Stripe payment_intent.succeeded (DB check) - skipped', { piId: pi.id });
     return;
   }
 
   // ── PaymentIntent integrity verification ──────────────────────────────
   // 1. PI must be in succeeded state
   if (pi.status && pi.status !== 'succeeded') {
-    logger.warn('Stripe PI webhook received with non-succeeded status — ignoring', {
+    logger.warn('Stripe PI webhook received with non-succeeded status - ignoring', {
       piId: pi.id, status: pi.status,
     });
     return;
@@ -402,7 +402,7 @@ async function handlePaymentIntentSucceeded(pi: StripeWebhookPaymentIntent) {
 
   // 2. Currency must be MYR
   if (pi.currency && pi.currency !== 'myr') {
-    logger.warn('Stripe PI webhook received in non-MYR currency — ignoring', {
+    logger.warn('Stripe PI webhook received in non-MYR currency - ignoring', {
       piId: pi.id, currency: pi.currency,
     });
     return;
@@ -425,7 +425,7 @@ async function handlePaymentIntentSucceeded(pi: StripeWebhookPaymentIntent) {
         escrowAmount,
         diff: amountMYR - escrowAmount,
       });
-      // Do NOT silently accept mismatched amounts — return 200 so Stripe
+      // Do NOT silently accept mismatched amounts - return 200 so Stripe
       // doesn't retry, but log the discrepancy for manual reconciliation.
       return;
     }
@@ -530,7 +530,7 @@ async function handleCheckoutSessionCompleted(session: StripeWebhookCheckoutSess
   const lockKey = `stripe:session:${session.id}`;
   const locked = await redis.set(lockKey, '1', 'EX', WEBHOOK_LOCK_TTL, 'NX');
   if (!locked) {
-    logger.info('Duplicate Stripe checkout.session.completed — skipped', { sessionId: session.id });
+    logger.info('Duplicate Stripe checkout.session.completed - skipped', { sessionId: session.id });
     return;
   }
 
@@ -539,7 +539,7 @@ async function handleCheckoutSessionCompleted(session: StripeWebhookCheckoutSess
     where: { stripeSessionId: session.id },
   });
   if (existing) {
-    logger.info('Duplicate Stripe checkout.session.completed (DB check) — skipped', {
+    logger.info('Duplicate Stripe checkout.session.completed (DB check) - skipped', {
       sessionId: session.id,
     });
     return;
@@ -564,7 +564,7 @@ async function handleCheckoutSessionCompleted(session: StripeWebhookCheckoutSess
   if (isServicer) {
     const servicer = await prisma.servicer.findUnique({ where: { id: userId } });
     if (!servicer) {
-      logger.warn('Stripe checkout.session.completed — servicer not found', { userId, sessionId: session.id });
+      logger.warn('Stripe checkout.session.completed - servicer not found', { userId, sessionId: session.id });
       return;
     }
     await prisma.$transaction(async (tx) => {
@@ -598,7 +598,7 @@ async function handleCheckoutSessionCompleted(session: StripeWebhookCheckoutSess
       message: `Wallet top-up of RM ${amountMYR.toFixed(2)} confirmed.`,
       linkUrl: '/servicer/deposit',
     });
-    logger.info('Stripe checkout.session.completed processed — servicer credit credited', { sessionId: session.id, userId, amountMYR });
+    logger.info('Stripe checkout.session.completed processed - servicer credit credited', { sessionId: session.id, userId, amountMYR });
     return;
   }
 
@@ -673,7 +673,7 @@ async function handleCheckoutSessionCompleted(session: StripeWebhookCheckoutSess
     message: `Wallet top-up of RM ${creditAmount.toFixed(2)} confirmed.`,
     linkUrl: '/customer/transactions',
   });
-  logger.info('Stripe checkout.session.completed processed — wallet credited', {
+  logger.info('Stripe checkout.session.completed processed - wallet credited', {
     sessionId: session.id,
     userId,
     amountMYR,
@@ -685,26 +685,26 @@ async function handleCheckoutSessionCompleted(session: StripeWebhookCheckoutSess
 // Idempotent: Redis lock (shared key) + DB-unique stripeSessionId. The charge
 // amount is re-read from the invoice total server-side (never from client or
 // session metadata). Safe to call multiple times (webhook retry + redirect
-// verify race) — only the first call records the payment.
+// verify race) - only the first call records the payment.
 
 async function completeBookingPayment(
   sessionId: string,
   bookingId: string,
 ): Promise<{ alreadyProcessed: boolean }> {
-  // Idempotency guard 1 — short Redis lock to serialise concurrent deliveries
+  // Idempotency guard 1 - short Redis lock to serialise concurrent deliveries
   // (webhook + redirect-verify racing on the same session).
   const lockKey = `stripe:session:${sessionId}`;
   const locked = await redis.set(lockKey, '1', 'EX', WEBHOOK_LOCK_TTL, 'NX');
   if (!locked) {
-    logger.info('Booking payment already being processed — skipped', { sessionId, bookingId });
+    logger.info('Booking payment already being processed - skipped', { sessionId, bookingId });
     return { alreadyProcessed: true };
   }
 
-  // Idempotency guard 2 — a completed gateway_payment for this session already exists.
+  // Idempotency guard 2 - a completed gateway_payment for this session already exists.
   const existing = await prisma.transaction.findUnique({ where: { stripeSessionId: sessionId } });
   if (existing) {
     await redis.del(lockKey);
-    logger.info('Booking payment already recorded — skipped', { sessionId, bookingId });
+    logger.info('Booking payment already recorded - skipped', { sessionId, bookingId });
     return { alreadyProcessed: true };
   }
 

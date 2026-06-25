@@ -4,7 +4,7 @@ import { logger } from '../lib/logger';
 import { notify } from './notification.service';
 
 /**
- * Dispute Service — CRUD for the Dispute model plus resolution logic.
+ * Dispute Service - CRUD for the Dispute model plus resolution logic.
  *
  * Disputes are tied to a Booking (and optionally an Escrow). They can be
  * opened by customers, servicers, or admins. Resolution actions (resolve,
@@ -12,7 +12,7 @@ import { notify } from './notification.service';
  *
  * When a dispute is open, the escrow auto-release job checks for open
  * disputes and holds the release (already implemented in booking.jobs.ts
- * via open Report checks — disputes follow the same pattern).
+ * via open Report checks - disputes follow the same pattern).
  */
 
 // ── Query ──────────────────────────────────────────────────────────────────────

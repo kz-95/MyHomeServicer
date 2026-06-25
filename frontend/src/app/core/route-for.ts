@@ -1,5 +1,5 @@
 /**
- * Typed path helper — replaces magic strings like '/customer/quotes' with
+ * Typed path helper - replaces magic strings like '/customer/quotes' with
  * routeFor('customer.quotes').  Parameters are interpolated safely.
  *
  * Usage:

@@ -3,7 +3,7 @@
  *
  * Pure functions shared by the listing preview, the customer proposal breakdown,
  * and the auto-accept budget check. Tax is applied FLAT from the servicer's
- * business-profile config via the canonical `computeTotal` — modules and options
+ * business-profile config via the canonical `computeTotal` - modules and options
  * carry no per-item tax flags (every line is taxable + serviceChargeable).
  */
 import { LineItem, ServicerTaxConfig, TotalBreakdown, computeTotal } from '../lib/money';
@@ -79,7 +79,7 @@ export function buildListingLineItems(
 
   const refs = Array.isArray(listing.moduleRefs) ? listing.moduleRefs : [];
 
-  // Included modules — always in the total.
+  // Included modules - always in the total.
   for (const ref of refs) {
     if (isAddon(ref)) continue;
     const mod = modulesById.get(ref.moduleId);

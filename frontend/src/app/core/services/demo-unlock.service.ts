@@ -49,7 +49,7 @@ export class DemoUnlockService {
     });
   }
 
-  /** Feed every keydown to this method — call from a global @HostListener. */
+  /** Feed every keydown to this method - call from a global @HostListener. */
   handleKey(e: KeyboardEvent): void {
     const phrase = this.phrase();
     if (!phrase) return;

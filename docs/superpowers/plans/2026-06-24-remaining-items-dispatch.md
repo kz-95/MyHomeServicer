@@ -1,33 +1,33 @@
-# Remaining Items Execution Plan
+﻿# Remaining Items Execution Plan
 
 > Branch: `feat/sp3-dispatch-cards` | Date: 2026-06-24
-> Usage: "Execute Group N in this md" — orchestrator dispatches all tasks in that group.
+> Usage: "Execute Group N in this md" - orchestrator dispatches all tasks in that group.
 > Each group is self-contained. Run groups in order (1 → 2 → 3 → 4).
 > After each task: verify gates, commit, tick TODO.md.
 
 ---
 
-## GROUP 1 — Demo-Critical (4 sub-steps, maximize parallel)
+## GROUP 1 - Demo-Critical (4 sub-steps, maximize parallel)
 
-### Step 1.1 — Backend foundation (run alone first)
+### Step 1.1 - Backend foundation (run alone first)
 **Task:** S2-BE (lat/lng + Haversine + distanceKm)
 
-### Step 1.2 — Parallel (run BOTH at same time after Step 1.1)
+### Step 1.2 - Parallel (run BOTH at same time after Step 1.1)
 **Tasks:** S2-FE ∥ SP4-BE
 - S2-FE: renders distance km on card (needs S2-BE API)
 - SP4-BE: dispatch isOnline+schedule+rotation wiring (independent of FE render)
 
-### Step 1.3 — Frontend (run alone after Step 1.2 both done)
-**Task:** SP4-FE (Google Map preview — needs SP4-BE complete)
+### Step 1.3 - Frontend (run alone after Step 1.2 both done)
+**Task:** SP4-FE (Google Map preview - needs SP4-BE complete)
 
-### Step 1.4 — Parallel QA (run BOTH at same time after Step 1.3)
+### Step 1.4 - Parallel QA (run BOTH at same time after Step 1.3)
 **Tasks:** 7-QA ∥ 8-QA
 - 7-QA: verify dispatch overlay (needs SP4-FE)
 - 8-QA: verify finance engine (independent of dispatch)
 
 ---
 
-### Task S2-BE — Add lat/lng + Haversine + distanceKm
+### Task S2-BE - Add lat/lng + Haversine + distanceKm
 
 **Agent:** `backend-cowork`
 
@@ -78,7 +78,7 @@ DO NOT touch frontend code.
 
 ---
 
-### Task S2-FE — Render distance km on dispatch card
+### Task S2-FE - Render distance km on dispatch card
 
 **Agent:** `frontend-cowork`
 
@@ -103,7 +103,7 @@ PREREQ: S2-BE complete (API returns distanceKm).
 
 ---
 
-### Task SP4-BE — Wire isOnline + schedule gating + rotation timer
+### Task SP4-BE - Wire isOnline + schedule gating + rotation timer
 
 **Agent:** `backend-cowork`
 
@@ -136,7 +136,7 @@ You are the Backend agent. Branch feat/sp3-dispatch-cards.
 
 ---
 
-### Task SP4-FE — Google Map preview in accept prompt
+### Task SP4-FE - Google Map preview in accept prompt
 
 **Agent:** `frontend-cowork`
 
@@ -160,7 +160,7 @@ PREREQ: SP4-BE complete.
 
 ---
 
-### Task 7-QA — Verify dispatch overlay end-to-end
+### Task 7-QA - Verify dispatch overlay end-to-end
 
 **Agent:** `qa-cowork`
 
@@ -168,20 +168,20 @@ PREREQ: SP4-BE complete.
 You are the QA agent. Branch feat/sp3-dispatch-cards. PREREQ: SP4 complete.
 DO NOT modify source code.
 
-TEST 1 — Quote → dispatch: Login as C_FRESH, create quote. Verify enters dispatch rotation.
-TEST 2 — Servicer prompt: Login as M1_ANAS. Verify overlay with job/customer/countdown/buttons.
-TEST 3 — ACCEPT: Click Accept → booking created, visible in Jobs.
-TEST 4 — DECLINE: New quote. Decline → rotation skips to next servicer.
-TEST 5 — TIMEOUT: New quote. Wait → countdown→0 → overlay closes → rotation moves.
-TEST 6 — OFFLINE: Set isOnline=false. Create quote → verify excluded from rotation.
-TEST 7 — HOURS: Verify outside-working-hours servicer excluded.
+TEST 1 - Quote → dispatch: Login as C_FRESH, create quote. Verify enters dispatch rotation.
+TEST 2 - Servicer prompt: Login as M1_ANAS. Verify overlay with job/customer/countdown/buttons.
+TEST 3 - ACCEPT: Click Accept → booking created, visible in Jobs.
+TEST 4 - DECLINE: New quote. Decline → rotation skips to next servicer.
+TEST 5 - TIMEOUT: New quote. Wait → countdown→0 → overlay closes → rotation moves.
+TEST 6 - OFFLINE: Set isOnline=false. Create quote → verify excluded from rotation.
+TEST 7 - HOURS: Verify outside-working-hours servicer excluded.
 
 Log all results to qa-log.md. PASS/FAIL per test with evidence.
 ```
 
 ---
 
-### Task 8-QA — Verify finance engine end-to-end
+### Task 8-QA - Verify finance engine end-to-end
 
 **Agent:** `qa-cowork`
 
@@ -189,26 +189,26 @@ Log all results to qa-log.md. PASS/FAIL per test with evidence.
 You are the QA agent. Branch feat/sp3-dispatch-cards.
 DO NOT modify source code.
 
-TEST 1 — Escrow hold: C_FRESH pay_now RM300. Servicer accepts. Verify escrow_hold = total.
-TEST 2 — Release: Mark done. Verify escrow_release + platform_fee. Assert: hold=release+fee.
-TEST 3 — Urgent: Same-day quote. Verify 150 urgent fee. After: 30 to fee (20%), 120 to escrow (80%).
-TEST 4 — Dashboard: GET /admin/dashboard/financial → totals match transaction ledger.
-TEST 5 — Shortfall: escrow < final price → block with error.
+TEST 1 - Escrow hold: C_FRESH pay_now RM300. Servicer accepts. Verify escrow_hold = total.
+TEST 2 - Release: Mark done. Verify escrow_release + platform_fee. Assert: hold=release+fee.
+TEST 3 - Urgent: Same-day quote. Verify 150 urgent fee. After: 30 to fee (20%), 120 to escrow (80%).
+TEST 4 - Dashboard: GET /admin/dashboard/financial → totals match transaction ledger.
+TEST 5 - Shortfall: escrow < final price → block with error.
 
 Log all results and actual amounts to qa-log.md. PASS/FAIL per test.
 ```
 
 ---
 
-## GROUP 2 — All Parallel (8 tasks, zero shared state)
+## GROUP 2 - All Parallel (8 tasks, zero shared state)
 
 **Tasks:** ED ∥ NAV ∥ LINK ∥ S3 ∥ MAP ∥ RPT ∥ RPP ∥ SP3
 
-All 8 are independent — different files, different concerns. Run simultaneously.
+All 8 are independent - different files, different concerns. Run simultaneously.
 
 ---
 
-### Task ED — Estimated duration on card face
+### Task ED - Estimated duration on card face
 
 **Agent:** `frontend-cowork`
 
@@ -224,7 +224,7 @@ Commit: feat(servicer): show estimated duration on dispatch card
 
 ---
 
-### Task NAV — Maps/Waze on confirmed booking
+### Task NAV - Maps/Waze on confirmed booking
 
 **Agent:** `frontend-cowork`
 
@@ -241,7 +241,7 @@ Commit: feat(booking): add Maps/Waze deep-link buttons to booking detail
 
 ---
 
-### Task LINK — Route redesign + dead link sweep
+### Task LINK - Route redesign + dead link sweep
 
 **Agent:** `general` (full-stack)
 
@@ -271,7 +271,7 @@ Commit: fix(links): sweep notification URLs, Stripe returns, route paths, chat p
 
 ---
 
-### Task S3 — Seed reform
+### Task S3 - Seed reform
 
 **Agent:** `devops-cowork`
 
@@ -292,7 +292,7 @@ Branch feat/sp3-dispatch-cards.
 ---
 
 ---
-### Task MAP — Fix app-map-view component
+### Task MAP - Fix app-map-view component
 
 **Agent:** `frontend-cowork`
 
@@ -310,7 +310,7 @@ Commit: fix(map): defer Google Maps init until API key resolves from ConfigServi
 
 ---
 
-### Task RPT — Servicer report button
+### Task RPT - Servicer report button
 
 **Agent:** `frontend-cowork`
 
@@ -331,7 +331,7 @@ Commit: feat(servicer): add report button to Active Jobs, History, dispatch over
 
 ---
 
-### Task RPP — Admin reports list polish
+### Task RPP - Admin reports list polish
 
 **Agent:** `frontend-cowork`
 
@@ -350,7 +350,7 @@ Commit: feat(admin): card-based report list with category display and notificati
 
 ---
 
-### Task SP3 — SP3 listing wizard
+### Task SP3 - SP3 listing wizard
 
 **Agent:** `general` (full-stack)
 
@@ -367,32 +367,32 @@ Branch feat/sp3-dispatch-cards. Largest task.
 4. New: servicer/pages/service-wizard.component.ts (standalone).
 5. Routes: /servicer/services/new (create), /servicer/services/:id/edit (edit).
 6. 4-step wizard with stepper indicator:
-   Step 1 — Basics: category picker, name, description, price, priceType.
+   Step 1 - Basics: category picker, name, description, price, priceType.
      Next → POST /servicer/me/services → get id.
-   Step 2 — Pricing & Modules: module picker, overrides, service charge.
+   Step 2 - Pricing & Modules: module picker, overrides, service charge.
      Next → PATCH /servicer/me/services/:id.
-   Step 3 — Tax & Config: tax inclusive, SST toggle.
+   Step 3 - Tax & Config: tax inclusive, SST toggle.
      Next → PATCH /servicer/me/services/:id.
-   Step 4 — Accept Mode: auto-accept toggle, conditions, message.
+   Step 4 - Accept Mode: auto-accept toggle, conditions, message.
      Save → PATCH → navigate to /servicer/services.
 7. Edit mode: GET existing, pre-fill, PATCH on each Next.
 8. Services list: "Add Service" → /servicer/services/new, "Edit" → /:id/edit.
 
 Verify: backend tsc 0 + tests green. Frontend tsc 0 + ng build exit 0.
-Commit: feat(servicer): SP3 listing wizard — 4-step create-then-PATCH
+Commit: feat(servicer): SP3 listing wizard - 4-step create-then-PATCH
 ```
 
 ---
 
-## GROUP 3 — All Parallel (7 tasks, independent features)
+## GROUP 3 - All Parallel (7 tasks, independent features)
 
 **Tasks:** REW ∥ ADM ∥ PW ∥ VAL ∥ SEC ∥ RFG ∥ ITM
 
-All 7 are independent features — different specs, different subsystems. Run simultaneously.
+All 7 are independent features - different specs, different subsystems. Run simultaneously.
 
 ---
 
-### Task REW — Customer rewards + deposit-credit
+### Task REW - Customer rewards + deposit-credit
 
 **Agent:** `general`
 
@@ -406,7 +406,7 @@ Commit: feat(rewards): customer points engine, vouchers, tier system, admin mana
 
 ---
 
-### Task ADM — Admin banned-accounts + deactivate + search
+### Task ADM - Admin banned-accounts + deactivate + search
 
 **Agent:** `general`
 
@@ -420,7 +420,7 @@ Commit: feat(admin): banned accounts management, deactivation UI, customer searc
 
 ---
 
-### Task PW — Forgot-password + settings + PIN-registration
+### Task PW - Forgot-password + settings + PIN-registration
 
 **Agent:** `general`
 
@@ -434,7 +434,7 @@ Commit: feat(auth): forgot-password reset flow, settings refinements, PIN regist
 
 ---
 
-### Task VAL — Cancel reason presets + form validation + footer
+### Task VAL - Cancel reason presets + form validation + footer
 
 **Agent:** `general`
 
@@ -448,7 +448,7 @@ Commit: feat(ux): cancel reason presets, form validation polish, admin footer wi
 
 ---
 
-### Task SEC — IDOR audit + Decimal coercion + global search
+### Task SEC - IDOR audit + Decimal coercion + global search
 
 **Agent:** `backend-cowork`
 
@@ -471,7 +471,7 @@ Commit: fix(security): IDOR ownership checks, Decimal serialization, global sear
 
 ---
 
-### Task RFG — routeFor() typed path guard
+### Task RFG - routeFor() typed path guard
 
 **Agent:** `frontend-cowork`
 
@@ -488,7 +488,7 @@ Commit: feat(routes): typed path helper routeFor() replacing magic strings
 
 ---
 
-### Task ITM — Itemization design (docs only)
+### Task ITM - Itemization design (docs only)
 
 **Agent:** `general` (docs only, no code)
 
@@ -502,11 +502,11 @@ Commit: docs(itemization): service listing vs line items design document
 
 ---
 
-## GROUP 4 — Last (stretch, after all above)
+## GROUP 4 - Last (stretch, after all above)
 
 ---
 
-### Task FINTECH — Full fintech P1-P5 (XL)
+### Task FINTECH - Full fintech P1-P5 (XL)
 
 **Agent:** `backend-cowork`
 
@@ -514,11 +514,11 @@ Commit: docs(itemization): service listing vs line items design document
 Spec: docs/superpowers/specs/2026-06-23-admin-dashboard-financial-redesign.md §Fintech roadmap.
 Build in order, commit per phase:
 
-P1 — Wallet model + BalanceCheckpoint (schema, migration, tests)
-P2 — Fee engine (FeeRule model, computeFees(), wire into doneJob)
-P3 — Saved payments (SavedPaymentMethod, CRUD routes)
-P4 — Escrow automation (auto-release job, dispute model+flow)
-P5 — Reporting (financial reports endpoint, CSV export)
+P1 - Wallet model + BalanceCheckpoint (schema, migration, tests)
+P2 - Fee engine (FeeRule model, computeFees(), wire into doneJob)
+P3 - Saved payments (SavedPaymentMethod, CRUD routes)
+P4 - Escrow automation (auto-release job, dispute model+flow)
+P5 - Reporting (financial reports endpoint, CSV export)
 
 Each phase: tsc 0, tests green. Commit after each.
 ```

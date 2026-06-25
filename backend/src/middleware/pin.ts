@@ -8,7 +8,7 @@ import { checkPinCooldown, recordPinFailure, recordPinSuccess, consumePinSuccess
 /**
  * Verify a PIN against an entity (Servicer or User). A null/absent `pinHash`
  * returns `false` (no PIN configured → access denied, never silently accepted).
- * There is intentionally NO hardcoded default-PIN fallback — see security-notes.md.
+ * There is intentionally NO hardcoded default-PIN fallback - see security-notes.md.
  */
 export async function verifyPin(
   entity: { pinHash?: string | null },
@@ -23,7 +23,7 @@ export async function verifyPin(
 /**
  * Action-PIN gate for sensitive admin routes (settings, penalty rules,
  * feature flags, fee changes). The PIN is a second credential separate from
- * the login password — see security-notes.md §1.
+ * the login password - see security-notes.md §1.
  *
  * The PIN is supplied inline via the `X-Action-Pin` header.
  */
@@ -54,7 +54,7 @@ export const requirePin = asyncHandler(
 
     await recordPinSuccess(userId);
     // Consume the verified state after the response finishes so a subsequent
-    // PIN-gated request must re-verify (one-shot consumption — BE-019).
+    // PIN-gated request must re-verify (one-shot consumption - BE-019).
     _res.on('finish', () => {
       consumePinSuccess(userId).catch(() => {});
     });

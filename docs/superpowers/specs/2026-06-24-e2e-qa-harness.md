@@ -1,4 +1,4 @@
-# Multi-Browser E2E QA Harness — Design + Deep Analysis
+﻿# Multi-Browser E2E QA Harness - Design + Deep Analysis
 
 > 2026-06-24 | Playwright (2 simultaneous browser contexts)
 > Catches: finance bugs, logical bugs, dispatch timing, Socket.io events
@@ -12,9 +12,9 @@
 
 ```
 ═══════════════════════════════════════════════════════════
-STEP 3.2 — Customer confirms booking
+STEP 3.2 - Customer confirms booking
 ═══════════════════════════════════════════════════════════
-  ACTION:  Click "Confirm — book this servicer" button
+  ACTION:  Click "Confirm - book this servicer" button
   LOCATOR: button.btn-primary >> text="Confirm"
   URL:     /customer/quotes/:id/proposals
   ─────────────────────────────────────────────────────
@@ -48,11 +48,11 @@ STEP 3.2 — Customer confirms booking
   VERDICT: ✅ PASS
 ```
 
-### On failure — root cause analysis
+### On failure - root cause analysis
 
 ```
 ═══════════════════════════════════════════════════════════
-STEP 4.3 — Verify escrow release amount
+STEP 4.3 - Verify escrow release amount
 ═══════════════════════════════════════════════════════════
   ACTION:  Assert escrow_hold.amount === escrow_release.amount + platform_fee.amount
   ─────────────────────────────────────────────────────
@@ -90,10 +90,10 @@ STEP 4.3 — Verify escrow release amount
   │    3. Add unit test: promo + service charge combo in money.test.ts
   │
   │  FILE: backend/src/lib/money.ts:42-58
-  │  SEVERITY: 🔴 HIGH — 20.00 leakage per booking
+  │  SEVERITY: 🔴 HIGH - 20.00 leakage per booking
   ─────────────────────────────────────────────────────
   SCREENSHOT: [step-4-3-failure.png]
-  VERDICT: ❌ FAIL — 20.00 unaccounted (computeTotal double-subtract)
+  VERDICT: ❌ FAIL - 20.00 unaccounted (computeTotal double-subtract)
 ```
 
 ### Analysis layers (every assertion checks these)
@@ -113,24 +113,24 @@ STEP 4.3 — Verify escrow release amount
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ SCENARIO 1 — Full Happy Path                            │
+│ SCENARIO 1 - Full Happy Path                            │
 │ DURATION: 18.4s   STEPS: 14   PASS: 12   FAIL: 2       │
 ├─────────────────────────────────────────────────────────┤
-│ ❌ Step 4.3 — Escrow release amount                     │
+│ ❌ Step 4.3 - Escrow release amount                     │
 │    Root cause: computeTotal double-subtract promo       │
 │    File: backend/src/lib/money.ts:42-58                 │
 │    Fix: Move promoProportional before scBase            │
 │                                                         │
-│ ❌ Step 7.1 — Customer notification not received        │
+│ ❌ Step 7.1 - Customer notification not received        │
 │    Root cause: Socket room mismatch                     │
 │    File: backend/src/socket/index.ts:96                 │
 │    Fix: Change room name from 'servicer:{id}' to        │
 │         'customer:{id}' for emitToCustomer()            │
 │                                                         │
 │ WARNINGS: 3 (non-blocking)                              │
-│   • toast.service.ts:12 — "Deprecation: String.substr"  │
-│   • styles.css:897 — "Unknown property: -ms-overflow"   │
-│   • chat.service.ts:51 — "Unused import: ZodSchema"     │
+│   • toast.service.ts:12 - "Deprecation: String.substr"  │
+│   • styles.css:897 - "Unknown property: -ms-overflow"   │
+│   • chat.service.ts:51 - "Unused import: ZodSchema"     │
 ├─────────────────────────────────────────────────────────┤
 │ EVIDENCE: 14 screenshots, 1 video, scenario-1.log          │
 │ RUN: logs/e2e-qa-harness_00001_17:50/                       │
@@ -140,12 +140,12 @@ STEP 4.3 — Verify escrow release amount
 ### Commentary system
 
 ```
-🔵 INFO     — Step completed, noting behavior
-🟢 OK       — Assertion passed
-🟡 WARN     — Non-blocking issue (deprecation, unused import, cosmetic)
-🔴 FAIL     — Assertion failed, blocking
-🟣 ANALYSIS — Root cause identified, fix suggested
-⚪ SKIP     — Step skipped (dependency, env config)
+🔵 INFO     - Step completed, noting behavior
+🟢 OK       - Assertion passed
+🟡 WARN     - Non-blocking issue (deprecation, unused import, cosmetic)
+🔴 FAIL     - Assertion failed, blocking
+🟣 ANALYSIS - Root cause identified, fix suggested
+⚪ SKIP     - Step skipped (dependency, env config)
 ```
 
 ---
@@ -174,10 +174,10 @@ logs/
     └── scenario-29.log
 ```
 
-- **Serial number:** auto-increments — `00001`, `00002`, `00003` per run
+- **Serial number:** auto-increments - `00001`, `00002`, `00003` per run
 - **Time suffix:** `HH:MM` from run start
-- **One log file per scenario** — writes incrementally, crash-proof
-- **Screenshots flat in same folder** — `scenario-XX-step-NN.png`, no subdirectories
+- **One log file per scenario** - writes incrementally, crash-proof
+- **Screenshots flat in same folder** - `scenario-XX-step-NN.png`, no subdirectories
 
 ### Implementation
 
@@ -209,7 +209,7 @@ class StepLogger {
     const timestamp = new Date().toISOString();
     const entry = [
       `═══════════════════════════════════════════════════════════`,
-      `STEP ${stepNumber} — ${title}   [${timestamp}]`,
+      `STEP ${stepNumber} - ${title}   [${timestamp}]`,
       `═══════════════════════════════════════════════════════════`,
       block,
       '', // blank line separator
@@ -243,7 +243,7 @@ class StepLogger {
     fs.fsyncSync(this.fd);
   }
 
-  // Root cause write — flush immediately so it survives crash
+  // Root cause write - flush immediately so it survives crash
   rootCause(title: string, analysis: string): void {
     const entry = [
       `  ─────────────────────────────────────────────────────`,
@@ -261,7 +261,7 @@ class StepLogger {
 
 ```
 ═══════════════════════════════════════════════════════════
-STEP 4.2 — Servicer marks job done   [2026-06-24T17:31:02Z]
+STEP 4.2 - Servicer marks job done   [2026-06-24T17:31:02Z]
 ═══════════════════════════════════════════════════════════
   ACTION: Click "Mark Done" button
   ✓ Button clickable: yes
@@ -273,16 +273,16 @@ STEP 4.2 — Servicer marks job done   [2026-06-24T17:31:02Z]
   ✓ Status changed to: completed
 
 ═══════════════════════════════════════════════════════════
-STEP 4.3 — Verify escrow release   [2026-06-24T17:31:05Z]
+STEP 4.3 - Verify escrow release   [2026-06-24T17:31:05Z]
 ═══════════════════════════════════════════════════════════
   ─────────────────────────────────────────────────────
   ROOT CAUSE: Harness crashed during DB query
   │  Last good state: booking completed, status=done
   │  Crash point: prisma.transaction.findMany()
   │  Likely cause: DB connection pool exhausted (3 concurrent scenarios)
-  │  Data NOT lost — steps 1 through 4.2 are recorded above
+  │  Data NOT lost - steps 1 through 4.2 are recorded above
   ─────────────────────────────────────────────────────
-  [PROCESS EXITED CODE 1 — log file intact up to this point]
+  [PROCESS EXITED CODE 1 - log file intact up to this point]
 ```
 
 ### Live tail from another terminal
@@ -300,16 +300,16 @@ Each step appears within milliseconds of completing. Nothing waits for the test 
 
 One Playwright test opens two browser contexts side-by-side:
 - **Browser C** = Customer (logged in as C_FRESH)
-- **Browser S** = Servicer (logged in as M2_WEI — aircond servicer)
+- **Browser S** = Servicer (logged in as M2_WEI - aircond servicer)
 
 Both contexts share the same DB (demo seed), same Redis, same Socket.io server.
-They interact in real-time — customer creates quote → servicer sees it appear via Socket → proposes → customer accepts → escrow flows.
+They interact in real-time - customer creates quote → servicer sees it appear via Socket → proposes → customer accepts → escrow flows.
 
 Every step asserts expected behavior. Money amounts verified against the DB directly.
 
 ---
 
-## Scenario 1 — Full Happy Path (Customer → Servicer → Payment → Done)
+## Scenario 1 - Full Happy Path (Customer → Servicer → Payment → Done)
 
 ```
 Browser C:  Login C_FRESH (demo@2026 / Password@2026)
@@ -343,7 +343,7 @@ Browser C:  ASSERT:  Socket notification "New proposal received"
             Navigate /customer/quotes
             Click proposal from M2_WEI
             ASSERT:  proposal details visible: RM 250, "Can fix tomorrow"
-            Click "Confirm — book this servicer"
+            Click "Confirm - book this servicer"
             ASSERT:  Modal appears with payment summary
             Click "Confirm"
             ASSERT:  navigated to /customer/bookings
@@ -387,7 +387,7 @@ ASSERT:  Customer earned 50 review points (type: earn_review)
 
 ---
 
-## Scenario 2 — Dispatch Overlay (Real-time Accept)
+## Scenario 2 - Dispatch Overlay (Real-time Accept)
 
 ```
 Browser C:  Create quote (same form as above)
@@ -412,10 +412,10 @@ Browser C:  ASSERT:  Socket notification "Servicer accepted your request"
 
 ---
 
-## Scenario 2b — Dispatch Decline + Rotation
+## Scenario 2b - Dispatch Decline + Rotation
 
 ```
-Browser C:  Create quote (different category — plumbing)
+Browser C:  Create quote (different category - plumbing)
 
 Browser S1 (M2_WEI):  Dispatch overlay appears
             Click "Decline"
@@ -429,20 +429,20 @@ Browser S2 (next eligible servicer):  WAIT for dispatch prompt
 
 ---
 
-## Scenario 2c — Dispatch Timeout
+## Scenario 2c - Dispatch Timeout
 
 ```
 Browser C:  Create quote
 
 Browser S (M2_WEI):  Dispatch overlay appears
-            DO NOTHING — wait for countdown to reach 0
+            DO NOTHING - wait for countdown to reach 0
             ASSERT:  overlay closes automatically
             ASSERT:  dispatch logs show "timeout, rotating to next"
 ```
 
 ---
 
-## Scenario 3 — Urgent Same-Day Flow
+## Scenario 3 - Urgent Same-Day Flow
 
 ```
 Browser C:  Create quote with date = TODAY, time = any
@@ -467,7 +467,7 @@ ASSERT:  Admin dashboard shows urgentFeeRevenue = 150
 
 ---
 
-## Scenario 4 — Escrow Shortfall (Refuse to Proceed)
+## Scenario 4 - Escrow Shortfall (Refuse to Proceed)
 
 ```
 Browser C:  Create quote budgetMax = 200, pay_now
@@ -481,7 +481,7 @@ ASSERT:  No booking created, no escrow_hold transaction
 
 ---
 
-## Scenario 5 — Admin Dashboard Financial Accuracy
+## Scenario 5 - Admin Dashboard Financial Accuracy
 
 ```
 Load all 4 scenarios above with known amounts.
@@ -499,7 +499,7 @@ ASSERT:  categoryBreakdown[] matches transaction breakdown by category
 
 ---
 
-## Scenario 6 — Offline Servicer Excluded from Dispatch
+## Scenario 6 - Offline Servicer Excluded from Dispatch
 
 ```
 Set M2_WEI.isOnline = false (direct DB update or API call)
@@ -515,7 +515,7 @@ Set M2_WEI.isOnline = true (restore)
 
 ---
 
-## Scenario 7 — Customer Cancels Mid-Dispatch
+## Scenario 7 - Customer Cancels Mid-Dispatch
 
 ```
 Browser C:  Create quote
@@ -530,7 +530,7 @@ Browser S:  ASSERT:  dispatch.cancelled Socket event received
 
 ---
 
-## Scenario 8 — Rewards Points Flow
+## Scenario 8 - Rewards Points Flow
 
 ```
 Browser C:  Check rewards page: GET /rewards/me
@@ -649,7 +649,7 @@ await expect(notif).toBeVisible();
 
 ---
 
-## Scenario 9 — Registration + Login Flow
+## Scenario 9 - Registration + Login Flow
 
 ```
 Browser C (fresh guest):  Navigate /register
@@ -688,7 +688,7 @@ ASSERT:  login attempt audit log recorded
 
 ---
 
-## Scenario 10 — Form Validation (Regex + Required + UX)
+## Scenario 10 - Form Validation (Regex + Required + UX)
 
 ```
 // Test each form for required fields, regex, and UX feedback
@@ -750,7 +750,7 @@ ASSERT:  error "Price must be greater than 0"
 
 ---
 
-## Scenario 11 — Login Brute-Force Protection
+## Scenario 11 - Login Brute-Force Protection
 
 ```
 Browser C:  Attempt login 5 times with wrong password
@@ -764,7 +764,7 @@ ASSERT:  Login succeeds
 
 ---
 
-## Scenario 12 — PIN Gate Testing
+## Scenario 12 - PIN Gate Testing
 
 ```
 Browser S:  Navigate /servicer/account → Danger Zone
@@ -787,10 +787,10 @@ ASSERT:  User.email suffixed (_d01)
 
 ---
 
-## Scenario 13 — UI / Visual Regression
+## Scenario 13 - UI / Visual Regression
 
 ```
-// Automated visual checkpoints — screenshots compared to baseline
+// Automated visual checkpoints - screenshots compared to baseline
 
 --- Home Page ---
 Browser:  Navigate /
@@ -850,7 +850,7 @@ ASSERT:  Focus ring visible on Tab navigation
 
 ---
 
-## Scenario 14 — Forgot Password Flow
+## Scenario 14 - Forgot Password Flow
 
 ```
 Browser C:  Navigate /login
@@ -861,7 +861,7 @@ Browser C:  Enter email = fresh@demo.servicer.local
             Click "Send Reset Link"
 ASSERT:  Success message "If that email exists, a reset link has been sent"
 
-Browser C:  (simulate clicking link from email — use the reset token from DB)
+Browser C:  (simulate clicking link from email - use the reset token from DB)
             Navigate /auth/reset?token=<token>
 ASSERT:  Reset password form visible
 
@@ -874,7 +874,7 @@ ASSERT:  Can login with new password
 
 ---
 
-## Scenario 15 — Servicer Registration Validation
+## Scenario 15 - Servicer Registration Validation
 
 ```
 Browser:  Navigate /register
@@ -899,7 +899,7 @@ ASSERT:  error "Please add at least one service area"
 
 ---
 
-## Scenario 16 — Guest Quote → Register → Booking Persists
+## Scenario 16 - Guest Quote → Register → Booking Persists
 
 ```
 Browser (guest, not logged in):  Navigate /guest/quote/new
@@ -935,7 +935,7 @@ ASSERT:  QuoteBroadcast rows created for matching servicers
 
 ---
 
-## Scenario 17 — Auto-Accept (Servicer Unattended)
+## Scenario 17 - Auto-Accept (Servicer Unattended)
 
 ```
 --- Setup: ensure M2_WEI has an autoAccept:true listing for aircond ---
@@ -962,7 +962,7 @@ ASSERT:  proposalDeadline set correctly from jobDatetime
 
 ---
 
-## Scenario 18 — Servicer Calendar
+## Scenario 18 - Servicer Calendar
 
 ```
 Browser S:  Login M2_WEI, navigate /servicer/calendar
@@ -992,7 +992,7 @@ ASSERT:  Calendar same-day urgent count matches actual urgent bookings
 
 ---
 
-## Scenario 19 — Quote Images + Lightbox
+## Scenario 19 - Quote Images + Lightbox
 
 ```
 Browser C:  Create quote, in form upload 2 images
@@ -1014,7 +1014,7 @@ ASSERT:  File URLs are accessible (GET returns image, not 404)
 
 ---
 
-## Scenario 20 — Chat AI Assistant
+## Scenario 20 - Chat AI Assistant
 
 ```
 Browser C:  Login C_FRESH
@@ -1040,7 +1040,7 @@ ASSERT:  Prompt injection detected → warning message appears
 
 ---
 
-## Scenario 21 — Working Hours Guard (Separate from Online/Offline)
+## Scenario 21 - Working Hours Guard (Separate from Online/Offline)
 
 ```
 --- Setup: set M2_WEI schedule to Mon-Fri 9:00-17:00 only ---
@@ -1058,7 +1058,7 @@ If current MYT time is INSIDE schedule:
 
 ---
 
-## Scenario 22 — Multiple Servicer Rotation (3+ Servicers)
+## Scenario 22 - Multiple Servicer Rotation (3+ Servicers)
 
 ```
 --- Setup: ensure 3+ aircond servicers are online + in working hours ---
@@ -1084,7 +1084,7 @@ ASSERT:  Declined servicers excluded from further rotation for this quote
 
 ---
 
-## Scenario 23 — Arrive / Done Photo Upload
+## Scenario 23 - Arrive / Done Photo Upload
 
 ```
 Browser S:  Open Active Job, click "Mark Arrived"
@@ -1102,13 +1102,13 @@ ASSERT:  status = "completed"
 ASSERT:  Done photo stored and accessible
 
 --- Image rendering check ---
-ASSERT:  Photos use object-fit: contain (not cover — no cropping)
+ASSERT:  Photos use object-fit: contain (not cover - no cropping)
 ASSERT:  Letterbox background color = var(--color-bg)
 ```
 
 ---
 
-## Scenario 24 — Top-Up Flow
+## Scenario 24 - Top-Up Flow
 
 ```
 Browser C:  Navigate /customer/account → Wallet section
@@ -1132,7 +1132,7 @@ ASSERT:  Webhook received, balance increased
 
 ---
 
-## Scenario 25 — Quote Presets (Save + Load)
+## Scenario 25 - Quote Presets (Save + Load)
 
 ```
 Browser C:  Navigate /customer/account → Contact & Address Settings
@@ -1163,7 +1163,7 @@ ASSERT:  Switching back to "Home" restores original phone "0123456789"
 
 ---
 
-## Scenario 26 — Notification System
+## Scenario 26 - Notification System
 
 ```
 Browser C:  Login C_FRESH
@@ -1191,7 +1191,7 @@ ASSERT:  Report-related notification appears when new report filed
 
 ---
 
-## Scenario 27 — Category Drill-Down
+## Scenario 27 - Category Drill-Down
 
 ```
 Browser:  Navigate /
@@ -1214,7 +1214,7 @@ ASSERT:  Page loads without MIME errors (console clean)
 
 ---
 
-## Scenario 28 — Rate Limiting + Security Headers
+## Scenario 28 - Rate Limiting + Security Headers
 
 ```
 --- Rate limit ---
@@ -1235,7 +1235,7 @@ ASSERT:  No sensitive data in response headers
 
 ---
 
-## Scenario 29 — Seed Data Integrity
+## Scenario 29 - Seed Data Integrity
 
 ```
 Run: npm run db:reset
@@ -1266,7 +1266,7 @@ ASSERT:  Exit 0, all lifecycle scenarios seeded
 3. Create helpers (seed, auth, db-check, socket-watcher)
 4. Build Scenario 1 (happy path) as template
 5. Clone → Scenario 2-8 using same patterns
-6. Run: npx playwright test --workers=1  (serial — shared DB)
+6. Run: npx playwright test --workers=1  (serial - shared DB)
 ```
 
 **Estimate:** 3-4 hours for full 8-scenario suite.
@@ -1286,4 +1286,4 @@ ASSERT:  Exit 0, all lifecycle scenarios seeded
 | Offline servicer still gets dispatch | ✅ Assert NO overlay appears |
 | Cancel doesn't stop dispatch | ✅ Assert dispatch.cancelled fires |
 | Countdown not visible | ✅ DOM assertion on .countdown |
-| **But...** expected servicer ID, expected price, expected fee rate — you define those in the test | ❌ Harness can't read your mind |
+| **But...** expected servicer ID, expected price, expected fee rate - you define those in the test | ❌ Harness can't read your mind |

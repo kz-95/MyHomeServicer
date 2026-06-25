@@ -1,5 +1,5 @@
 /**
- * Unit tests — auth service: pure helpers + token inspection.
+ * Unit tests - auth service: pure helpers + token inspection.
  *
  * Prisma and bcrypt DB calls are mocked so no database is needed.
  * The JWT functions use the test secret set in tests/jest.setup.ts.

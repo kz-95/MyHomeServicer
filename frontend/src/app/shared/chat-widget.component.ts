@@ -45,8 +45,8 @@ type CardLang = "en" | "ms" | "zh" | "ta";
 /**
  * Detect the language of a chunk of user text. Tamil and Chinese scripts win on sight;
  * otherwise a few distinctive Malay markers flip it to Malay; default English. This
- * resolves rojak (mixed) to its non-English side — Tamil/Chinese/Malay-laced rojak maps
- * to ta/zh/ms — instead of always falling back to English.
+ * resolves rojak (mixed) to its non-English side - Tamil/Chinese/Malay-laced rojak maps
+ * to ta/zh/ms - instead of always falling back to English.
  */
 function detectCardLang(text: string): CardLang {
   if (/[஀-௿]/.test(text)) return "ta";
@@ -118,7 +118,7 @@ const CARD_T: Record<string, Record<CardLang, string>> = {
   sPhone: { en: "Phone", ms: "Telefon", zh: "电话", ta: "தொலைபேசி" },
   sNotes: { en: "Notes", ms: "Nota", zh: "备注", ta: "குறிப்புகள்" },
   sBudget: { en: "Budget", ms: "Bajet", zh: "预算", ta: "பட்ஜெட்" },
-  // Locked-input guide placeholders — shown in place of the composer while a required
+  // Locked-input guide placeholders - shown in place of the composer while a required
   // card is unfilled. One per pending card; joined when several show at once.
   ph_preferredDate: { en: "Pick a date in the card above.", ms: "Pilih tarikh pada kad di atas.", zh: "请在上方卡片中选择日期。", ta: "மேலே உள்ள கார்டில் தேதியைத் தேர்ந்தெடுக்கவும்." },
   ph_timeSlot: { en: "Choose a time in the card above.", ms: "Pilih masa pada kad di atas.", zh: "请在上方卡片中选择时间。", ta: "மேலே உள்ள கார்டில் நேரத்தைத் தேர்ந்தெடுக்கவும்." },
@@ -132,7 +132,7 @@ const CARD_T: Record<string, Record<CardLang, string>> = {
 
 /** Base quote fields that MUST be filled before the chat input unlocks. Optional
  *  fields (notes, budgetMin, propertyType) never lock the input. */
-/** Pause before the single automatic retry of a failed chat send — "drag longer a little"
+/** Pause before the single automatic retry of a failed chat send - "drag longer a little"
  *  so a transient blip (rate-limit window, cold provider) has time to clear before we
  *  show "Could not send message". */
 const SEND_RETRY_DELAY_MS = 3500;
@@ -146,7 +146,7 @@ const REQUIRED_FIELDS = new Set<string>([
   "contactNumber",
 ]);
 
-/** Levenshtein edit distance — small, for typo-tolerant option matching ("bathtb" → "bathtub"). */
+/** Levenshtein edit distance - small, for typo-tolerant option matching ("bathtb" → "bathtub"). */
 function editDistance(a: string, b: string): number {
   const m = a.length;
   const n = b.length;
@@ -185,11 +185,11 @@ interface FuzzyOption {
 }
 
 /**
- * The option a typed answer is NEAREST to, lexically — exact, substring (either way),
- * a 1-2 char typo, or token overlap — scored across the option's value AND every
+ * The option a typed answer is NEAREST to, lexically - exact, substring (either way),
+ * a 1-2 char typo, or token overlap - scored across the option's value AND every
  * localized label (en/ms/zh/ta). Returns the value + a 0-1 score ONLY when the best is
  * confident (>= 0.8) and clearly beats the runner-up; null otherwise (leave it to the
- * model). Deterministic, no LLM. This is the "identifier checker" — understand what the
+ * model). Deterministic, no LLM. This is the "identifier checker" - understand what the
  * user typed, click the option if it's near a definition.
  */
 function nearestOption(
@@ -211,7 +211,7 @@ function nearestOption(
       let inter = 0;
       for (const w of tTokens) if (fTokens.has(w)) inter++;
       const union = new Set([...tTokens, ...fTokens]).size;
-      if (union) return (inter / union) * 0.7; // caps at 0.7 — never auto-clicks alone
+      if (union) return (inter / union) * 0.7; // caps at 0.7 - never auto-clicks alone
     }
     return 0;
   };
@@ -346,7 +346,7 @@ interface PublicConfig {
               <button
                 class="clear-btn qa-btn"
                 (click)="onDemoPress()"
-                title="Demo flow — 4 guaranteed-pass bookings, one per language (dev only)"
+                title="Demo flow - 4 guaranteed-pass bookings, one per language (dev only)"
               >
                 Demo
               </button>
@@ -2088,10 +2088,10 @@ export class ChatWidgetComponent
   draft = "";
   sending = signal(false);
   connecting = signal(false);
-  /** A message whose send() was deferred because a reply was in flight — fired once the
+  /** A message whose send() was deferred because a reply was in flight - fired once the
    *  chat goes idle (see the flush effect), so rapid card-confirms aren't dropped. */
   private pendingDraft: string | null = null;
-  /** True when the NEXT send() is a CARD CONFIRM (tap/pick), not typed text — tells the
+  /** True when the NEXT send() is a CARD CONFIRM (tap/pick), not typed text - tells the
    *  backend to skip the LLM and just return the next card. Set via sendConfirm(). */
   private nextSendCardConfirm = false;
   /** Preserves the card-confirm flag for a send queued while a reply is in flight. */
@@ -2099,7 +2099,7 @@ export class ChatWidgetComponent
 
   /**
    * The language the customer is actually conversing in, detected from their REAL
-   * typed turns only (composer / suggestion tap / QA free-text) — never from a card
+   * typed turns only (composer / suggestion tap / QA free-text) - never from a card
    * confirmation, whose text is templated English ("My budget is RM150"). Sent to the
    * backend as `lang` so replies stay pinned to it instead of flip-flopping when a
    * button click injects an English sentence. Follows a genuine switch when the user
@@ -2121,7 +2121,7 @@ export class ChatWidgetComponent
     if (manglish && en) return "rojak";
     if (ms) return "ms";
     if (en) return "en";
-    return null; // no language signal (bare digits, an address, a budget) — keep current
+    return null; // no language signal (bare digits, an address, a budget) - keep current
   }
 
   /**
@@ -2254,7 +2254,7 @@ export class ChatWidgetComponent
     }, opts);
     // Queue, don't drop. Confirming a second card (or typing) WHILE a reply is in flight
     // had its send() dropped by the busy guard, so the bot never received it and re-asked
-    // ("I gave you the date"). When the chat goes idle, fire the queued message — its
+    // ("I gave you the date"). When the chat goes idle, fire the queued message - its
     // collectedData carries the full accumulated prefill, so the bot catches up on every
     // field even if an intermediate ack was skipped.
     effect(() => {
@@ -2290,7 +2290,7 @@ export class ChatWidgetComponent
       }
     }, opts);
     // Persist guest quote prefill (name/phone/address) so a refresh can greet the
-    // returning guest by name. Only WRITE when there's data — never overwrite the
+    // returning guest by name. Only WRITE when there's data - never overwrite the
     // stored prefill with the empty initial state on load (that race would erase
     // the very data we want to restore). Clearing is explicit (clearGuestPrefill).
     // Also writes to localStorage so a service hyperlink opened in a new tab can
@@ -2500,7 +2500,7 @@ export class ChatWidgetComponent
     const rest: { type: string; data: Record<string, unknown> }[] = [];
     for (const b of blocks) {
       if (b.type === "quote_prefill") {
-        if (this.prefillSeen) continue; // dedup — show once
+        if (this.prefillSeen) continue; // dedup - show once
         this.prefillSeen = true;
       }
       if (b.type === "quote_field") {
@@ -2617,7 +2617,7 @@ export class ChatWidgetComponent
       if (!value) {
         // A fresh card with no value OVERWRITES any prior UNCONFIRMED draft: the
         // user edited the date/time but messaged again without confirming, so the
-        // new card must not stay stuck showing that stale local edit — reset it.
+        // new card must not stay stuck showing that stale local edit - reset it.
         if (key === "preferredDate" && !this.dateConfirmed())
           this.prefillDate.set("");
         else if (key === "timeSlot" && !this.timeConfirmed())
@@ -2667,7 +2667,7 @@ export class ChatWidgetComponent
     const d = this.widget.prefillData();
     const addrConfirmed = this.addressConfirmed();
     return Object.keys(d).filter((k) => {
-      // Address counts as collected ONLY once the structured card is confirmed — a raw
+      // Address counts as collected ONLY once the structured card is confirmed - a raw
       // free-text address string (e.g. pre-filled from the bot) must NOT satisfy it, so
       // the address card keeps showing and the composer stays locked until the user fills
       // No./Postcode/Type. This is what makes the address-lock rule hold server-side.
@@ -2707,7 +2707,7 @@ export class ChatWidgetComponent
     // Guard double-submit: input stays enabled while a reply is in flight (so
     // keyboard focus is never lost), but we must not fire a second request.
     if (!text) return;
-    // Busy: don't DROP this message (that's how rapid card-confirms got lost) — queue the
+    // Busy: don't DROP this message (that's how rapid card-confirms got lost) - queue the
     // latest and the flush effect fires it when the reply lands. collectedData on that send
     // carries the whole accumulated prefill, so no field is lost even if a turn is coalesced.
     if (this.connecting() || this.sending()) {
@@ -2730,7 +2730,7 @@ export class ChatWidgetComponent
     this.maybeTextConfirmCategory(text);
 
     // Identifier checker: if a service question is pending and the typed text is NEAR one
-    // of its options (lexically — exact / substring / typo / localized label), CLICK that
+    // of its options (lexically - exact / substring / typo / localized label), CLICK that
     // option (structured confirm) instead of sending raw text to the LLM. Deterministic,
     // so a typed answer registers and the question never re-asks / the model can't drift.
     // answerRadio() re-enters send() with the canonical "Label: Option." draft.
@@ -2758,19 +2758,19 @@ export class ChatWidgetComponent
   clear(): void {
     this.clearing.set(true);
     this.qaRestLog = []; // fresh REST trace per QA scenario (clear() runs between scenarios)
-    // Reset the typing state immediately — a cleared chat must not keep playing
+    // Reset the typing state immediately - a cleared chat must not keep playing
     // the typing sound or showing "Typing…" from a previous reply or QA run.
     this.widget.chatStatus.set("active");
     this.stopTypingLoop();
     this.sending.set(false);
     this.cancelPendingReply();
-    // Reset the pinned conversation language — a cleared chat is a brand-new
+    // Reset the pinned conversation language - a cleared chat is a brand-new
     // customer, so it must not keep answering in the previous thread's language.
     // (A returning "it's me" restore re-derives the language instead; see
     // confirmIdentity / deriveConvoLang.)
     this.convoLang.set("en");
     // Wipe EVERYTHING: in-progress quote data (name/phone/date/category), the
-    // persisted guest prefill, and the archived prior thread — a cleared chat must
+    // persisted guest prefill, and the archived prior thread - a cleared chat must
     // not keep remembering "Brian" or offer to continue an old session.
     this.resetQuoteFlowState();
     this.clearGuestPrefill();
@@ -2799,8 +2799,8 @@ export class ChatWidgetComponent
   // This component only adapts the harness's QaHost onto the real card handlers +
   // signals. PIN-gated (QA_PIN); the button is rendered only in dev builds.
   readonly qa = inject(ChatQaService);
-  /** Recorded /chat REST exchanges during a QA run — what the frontend SENT and what the
-   *  backend RETURNED — so the QA log can show frontend-vs-backend data per turn. Only
+  /** Recorded /chat REST exchanges during a QA run - what the frontend SENT and what the
+   *  backend RETURNED - so the QA log can show frontend-vs-backend data per turn. Only
    *  populated while a QA run is active; capped to avoid unbounded growth. */
   private qaRestLog: Array<{
     ts: string;
@@ -2833,7 +2833,7 @@ export class ChatWidgetComponent
   }
   /** The QA button only renders in dev builds (demo/dev deploy), never in production. */
   protected readonly qaVisible = !environment.production;
-  /** Unlock service — QA + Demo UI hidden until user types "unlockdemobar" anywhere. */
+  /** Unlock service - QA + Demo UI hidden until user types "unlockdemobar" anywhere. */
   protected readonly unlock = inject(DemoUnlockService);
   /** QA run button only visible when served from localhost (dev machine). */
   protected readonly isLocalhost = computed(() => {
@@ -2846,7 +2846,7 @@ export class ChatWidgetComponent
   protected readonly devMode = computed(() => isDevMode());
   /** How many runs the next QA press fires (manual int input, default 1, max 500). */
   protected readonly qaRuns = signal(1);
-  /** Inline QA panel open state + PIN draft (no window.prompt — renders in-DOM). */
+  /** Inline QA panel open state + PIN draft (no window.prompt - renders in-DOM). */
   protected readonly qaPanelOpen = signal(false);
   /** Demo-flow panel open state (separate from QA; shares the PIN input). */
   protected readonly demoPanelOpen = signal(false);
@@ -2919,7 +2919,7 @@ export class ChatWidgetComponent
       clear: () => this.clear(),
       // Simulate a page refresh: drop the in-memory thread and re-run guest load, which
       // restores prefill + the returning-guest "is this {name}?" identity confirm from
-      // storage (NOT wiped). Guest mode only — the QA refresh test runs as guest.
+      // storage (NOT wiped). Guest mode only - the QA refresh test runs as guest.
       refresh: () => {
         this.guestMsgs.set([]);
         this.loadGuest();
@@ -2955,7 +2955,7 @@ export class ChatWidgetComponent
         if (!this.qaFormBridge.active())
           return ["DEMO: quote form did not load within 8s"];
         try {
-          // demo = true: paces page-by-page (~3s each) and STOPS on the summary —
+          // demo = true: paces page-by-page (~3s each) and STOPS on the summary -
           // deliberately no navigate-home, so the finished quote stays on screen.
           return await this.qaFormBridge.walk(true);
         } catch (e) {
@@ -2966,10 +2966,10 @@ export class ChatWidgetComponent
         this.messages().map((m) => ({
           role: m.role,
           // Strip any stale [⚙ ...] annotation that was injected by a prior buggy
-          // version — the LLM echoes them back as if they were real conversation.
+          // version - the LLM echoes them back as if they were real conversation.
           content: m.content.replace(/\[⚙[^\]]*\]\s*/g, ""),
-          // Enrich each block with what the UI actually RENDERS — the localized label
-          // and the card language — so the harness can check correct-language + dupes,
+          // Enrich each block with what the UI actually RENDERS - the localized label
+          // and the card language - so the harness can check correct-language + dupes,
           // not just the raw block type.
           blocks: (m.actionBlocks ?? []).map((b) => ({
             type: b.type,
@@ -3092,7 +3092,7 @@ export class ChatWidgetComponent
         this.widget.prefillData()["contactName"] as string | undefined
       )?.trim() ?? "";
     if (yes) {
-      // It's the same returning customer — keep replying in the language their
+      // It's the same returning customer - keep replying in the language their
       // archived thread used, rather than the en default.
       this.deriveConvoLang(this.archivedGuestMsgs);
       this.appendAssistantBubble(
@@ -3101,7 +3101,7 @@ export class ChatWidgetComponent
           : "Welcome back! How can I help you today?",
       );
     } else {
-      // A different person on this device — start the language fresh AND wipe the
+      // A different person on this device - start the language fresh AND wipe the
       // ENTIRE quote flow, not just name/phone/address. The previous guest's locked
       // category, date, time, budget and service answers live in memory (resolvedCards
       // + prefillData); clearing only the contact fields left all of that behind, so the
@@ -3146,7 +3146,7 @@ export class ChatWidgetComponent
    * Conversational "clear my quote" with a confirmation GATE: after the user asks, they
    * must confirm TWICE more before anything is wiped, so an offhand "reset" never nukes a
    * half-finished quote. Counts the turns with an if/else; returns true when it handled
-   * the message (so send() skips the backend). Only clears the QUOTE data — the chat
+   * the message (so send() skips the backend). Only clears the QUOTE data - the chat
    * thread stays.
    */
   private clearQuoteAsks = 0;
@@ -3176,10 +3176,10 @@ export class ChatWidgetComponent
     this.appendUserBubble(text);
     this.clearQuoteAsks++;
     if (this.clearQuoteAsks <= 2) {
-      // Request (1) and first confirm (2): keep gating — need 2 confirmations after asking.
+      // Request (1) and first confirm (2): keep gating - need 2 confirmations after asking.
       this.appendAssistantBubble(
         this.clearQuoteAsks === 1
-          ? "Just to be sure — clear your current quote and start fresh? Your saved details will be wiped. Reply yes to confirm."
+          ? "Just to be sure - clear your current quote and start fresh? Your saved details will be wiped. Reply yes to confirm."
           : "This erases everything you've entered so far. Are you sure? Reply yes once more to clear.",
       );
     } else {
@@ -3188,7 +3188,7 @@ export class ChatWidgetComponent
       this.resetQuoteFlowState();
       this.clearGuestPrefill();
       this.appendAssistantBubble(
-        "Done — your quote details have been cleared. What would you like to book?",
+        "Done - your quote details have been cleared. What would you like to book?",
       );
     }
     return true;
@@ -3219,10 +3219,10 @@ export class ChatWidgetComponent
   addressConfirmed = signal(false);
   addressFormatted = signal("");
 
-  /** True once the review card's Submit was tapped — releases the lock the review card holds. */
+  /** True once the review card's Submit was tapped - releases the lock the review card holds. */
   readonly prefillSubmitted = signal(false);
 
-  /** Direct quote submit state — bypasses the quote form entirely. */
+  /** Direct quote submit state - bypasses the quote form entirely. */
   directSubmitting = signal(false);
   directSubmitError = signal('');
   directSubmitSuccess = signal(false);
@@ -3277,12 +3277,12 @@ export class ChatWidgetComponent
     return false;
   }
 
-  /** Required, still-unfilled cards in the current batch — drive the soft input hint. */
+  /** Required, still-unfilled cards in the current batch - drive the soft input hint. */
   private readonly pendingRequiredCards = computed(() =>
     this.currentBatchCards().filter((b) => this.cardPending(b)),
   );
 
-  /** Guide text shown above the input as a soft, NON-blocking nudge — one hint per pending
+  /** Guide text shown above the input as a soft, NON-blocking nudge - one hint per pending
    *  required card, joined, in the customer's current language. The input stays usable. */
   readonly cardInputHint = computed(() => {
     const hints: string[] = [];
@@ -3301,12 +3301,12 @@ export class ChatWidgetComponent
   });
 
   /**
-   * RULE — address is HARD-LOCKED. While an unconfirmed address card is on screen the
+   * RULE - address is HARD-LOCKED. While an unconfirmed address card is on screen the
    * composer is disabled and the user is directed to the card. The address needs its
    * structured controls (No./Street/Postcode/Type + geocode); a free-text address leaves
    * those empty and blocks the quote form, so it must be filled via the card, not typed.
    * (Documented in docs/ai-context/ai-chat.md. Unlike the old general card lock, ONLY the
-   * address locks — every other field stays a soft hint so the user can still ask things.)
+   * address locks - every other field stays a soft hint so the user can still ask things.)
    */
   readonly addressLockActive = computed(
     () =>
@@ -3507,7 +3507,7 @@ export class ChatWidgetComponent
       this.widget.close();
     } else if (action === "report_bug") {
       this.injectAssistantMessage(
-        "Sorry you hit a problem. Please describe what happened — what you were doing and what went wrong — and I'll log it for the team.",
+        "Sorry you hit a problem. Please describe what happened - what you were doing and what went wrong - and I'll log it for the team.",
       );
     }
   }
@@ -3587,7 +3587,7 @@ export class ChatWidgetComponent
 
   /** Record a date pick (no send) - the Confirm button advances the flow. */
   onDateSelected(value: string): void {
-    // Local only — do NOT commit to prefillData until Confirm, so an unconfirmed
+    // Local only - do NOT commit to prefillData until Confirm, so an unconfirmed
     // edit can't block the assistant from filling a value it resolves from text.
     this.prefillDate.set(value);
   }
@@ -3604,7 +3604,7 @@ export class ChatWidgetComponent
 
   /** Record a time-slot selection (no send) - Confirm advances the flow. */
   onTimeSlotSelected(value: string): void {
-    // Local only — committed on Confirm (see onDateSelected).
+    // Local only - committed on Confirm (see onDateSelected).
     this.prefillTimeSlot.set(value);
   }
 
@@ -3671,12 +3671,12 @@ export class ChatWidgetComponent
   /**
    * Deterministic text-confirm: when the user types an affirmation and exactly ONE
    * service card is still pending, lock that category and collapse the card right
-   * away — no waiting on the model to emit category_lock (which it often forgets).
+   * away - no waiting on the model to emit category_lock (which it often forgets).
    * Ambiguous cases (0 or 2+ pending cards) are left to the assistant.
    */
   private maybeTextConfirmCategory(text: string): void {
     if (this.widget.prefillData()["categoryId"]) return;
-    // Never auto-lock on a rejection / "wrong one" — let the assistant re-suggest.
+    // Never auto-lock on a rejection / "wrong one" - let the assistant re-suggest.
     if (
       /\b(no|nope|not|don'?t|wrong|bukan|tak|salah)\b/i.test(text) ||
       /不是|不对|别|別/.test(text)
@@ -3723,7 +3723,7 @@ export class ChatWidgetComponent
 
   continueQuoteInChat(data: Record<string, unknown>): void {
     const category = (data["category"] as string) || "";
-    // Confirming a service starts a fresh booking — clear any stale field data left
+    // Confirming a service starts a fresh booking - clear any stale field data left
     // over from an earlier topic in this session (date/address/etc.), then set the
     // chosen category. Safe: the backend never pre-fills fields before a category is
     // picked, so nothing collected-this-flow is lost.
@@ -3851,7 +3851,7 @@ export class ChatWidgetComponent
             this.draft = `${this.t("address")}: ${r.formattedAddress}`;
             this.sendConfirm();
           } else {
-            // Geocode returned invalid — fall back to the raw composed address so the
+            // Geocode returned invalid - fall back to the raw composed address so the
             // flow can continue. Store both the raw string AND the structured fields
             // the user already filled in the form (No, Type, Street, Postcode).
             this.addrError.set(
@@ -3866,7 +3866,7 @@ export class ChatWidgetComponent
         },
         error: () => {
           this.addrValidating.set(false);
-          // Geocode API unavailable — fall back to raw address + structured fields.
+          // Geocode API unavailable - fall back to raw address + structured fields.
           this.widget.accumulatePrefill({ address: composed });
           this.storeStructuredAddress();
           this.addressConfirmed.set(true);
@@ -3951,7 +3951,7 @@ export class ChatWidgetComponent
         unknown
       >) ?? {},
   );
-  /** Question keys with a non-empty answer — sent to the backend so it knows what's done. */
+  /** Question keys with a non-empty answer - sent to the backend so it knows what's done. */
   answeredQuestions = computed(() =>
     Object.entries(this.serviceAnswers())
       .filter(([, v]) => this.isAnswered(v))
@@ -4043,7 +4043,7 @@ export class ChatWidgetComponent
   }
 
   /** A pending, still-unanswered single-select (radio) question card in the current
-   *  batch — the only card the identifier checker auto-clicks (single-select is safe;
+   *  batch - the only card the identifier checker auto-clicks (single-select is safe;
    *  checkbox/number/text stay manual). */
   private pendingRadioQuestion(): Record<string, unknown> | null {
     for (const b of this.currentBatchCards()) {
@@ -4060,7 +4060,7 @@ export class ChatWidgetComponent
 
   /** Identifier checker: when a radio question is pending and the typed text is NEAR one
    *  of its options, click it (structured confirm) so the answer registers deterministically
-   *  — no re-ask loop, no LLM drift. Returns true if it clicked. */
+   *  - no re-ask loop, no LLM drift. Returns true if it clicked. */
   private maybeAutoAnswerQuestion(text: string): boolean {
     const data = this.pendingRadioQuestion();
     if (!data) return false;
@@ -4222,7 +4222,7 @@ export class ChatWidgetComponent
     });
   }
 
-  /** Card language — mirrors the language the customer is currently writing in (scans
+  /** Card language - mirrors the language the customer is currently writing in (scans
    *  the last few user messages so a short "yes" doesn't flip cards back to English). */
   readonly cardLang = computed<CardLang>(() => {
     const users = this.messages()
@@ -4250,7 +4250,7 @@ export class ChatWidgetComponent
   }
 
   onPrefillField(_key: string, value: string): void {
-    // Local only — mirror into prefillText so the generic text card's Confirm
+    // Local only - mirror into prefillText so the generic text card's Confirm
     // button enables as the user types. Do NOT commit to prefillData until Confirm
     // (confirmText does that), so an unconfirmed edit can't block an assistant-
     // resolved value via the clobber guard.
@@ -4353,7 +4353,7 @@ export class ChatWidgetComponent
     const role = this.auth.principal()?.role ?? "guest";
 
     const guestBody = { message: text, history, role, lang: this.convoLang(), categoryLocked: !!this.widget.prefillData().categoryId, collected: this.collectedKeys(), collectedData: this.collectedValues(), categoryId: this.widget.prefillData()["categoryId"] as string | undefined, answeredQuestions: this.answeredQuestions(), cardConfirm: this.nextSendCardConfirm, ...this.formAssistBody() };
-    // One automatic retry after a short pause before giving up — covers a transient blip
+    // One automatic retry after a short pause before giving up - covers a transient blip
     // (rate-limit window, cold provider, dropped connection) instead of dead-ending on the
     // first failure. Only the SECOND failure shows "Could not send message".
     const attempt = (isRetry: boolean) => {
@@ -4574,8 +4574,8 @@ export class ChatWidgetComponent
       return;
     }
 
-    // Text done. Action blocks (date pickers etc.) drip in one at a time — each
-    // as its own message bubble, like the text parts — so cards stream in naturally
+    // Text done. Action blocks (date pickers etc.) drip in one at a time - each
+    // as its own message bubble, like the text parts - so cards stream in naturally
     // instead of flashing all at once in a pre-allocated container.
     if (actionBlocks?.length) {
       this.revealCards(actionBlocks, 0, createdAt, forSessionId, isGuest);
@@ -4584,7 +4584,7 @@ export class ChatWidgetComponent
 
     this.sending.set(false);
     this.widget.chatStatus.set("active");
-    // No card in this reply — if it promised one and stranded the user, self-heal.
+    // No card in this reply - if it promised one and stranded the user, self-heal.
     this.armStuckWatchdog(parts.join(" "), isGuest, forSessionId);
   }
 

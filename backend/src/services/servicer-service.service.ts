@@ -1,4 +1,4 @@
-﻿import { randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 import { Prisma, PriceType, TaxMode } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { badRequest, conflict, notFound } from '../lib/errors';
@@ -51,7 +51,7 @@ export async function listServices(servicerId: string) {
 
 /**
  * Lists the servicer's fixed platform "big category" plus the sub-categories
- * under it — the options shown in the listing form's Sub Category field.
+ * under it - the options shown in the listing form's Sub Category field.
  */
 export async function listSubcategories(servicerId: string) {
   const servicer = await prisma.servicer.findUnique({
@@ -72,7 +72,7 @@ export async function listSubcategories(servicerId: string) {
 
 /**
  * Resolves the category a listing belongs to. A listing sits under the
- * servicer's fixed big category — either as an existing sub-category, a new
+ * servicer's fixed big category - either as an existing sub-category, a new
  * sub-category the servicer names (created on the fly), or the big category
  * itself when no sub-category is given.
  */

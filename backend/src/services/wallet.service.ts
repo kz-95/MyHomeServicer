@@ -3,7 +3,7 @@ import { logger } from '../lib/logger';
 
 /**
  * Get or create a wallet for an owner (user, servicer, or platform).
- * Uses the composite unique constraint (ownerId, ownerType) — idempotent.
+ * Uses the composite unique constraint (ownerId, ownerType) - idempotent.
  */
 export async function getOrCreateWallet(
   ownerId: string,

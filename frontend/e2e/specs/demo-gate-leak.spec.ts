@@ -10,9 +10,9 @@ import { loginAsAdmin } from '../fixtures/demo-auth';
  * credit/deposit balance behind the dialog. The fix renders an opaque
  * .gate-cover under the gate dialog so nothing behind it is visible.
  */
-test.describe('Demo gate PIN — no data leak', () => {
+test.describe('Demo gate PIN - no data leak', () => {
   test('switching to a customer from admin hides their balance until PIN entry', async ({ page }) => {
-    // 1. Real password login as admin (not gated) — lands inside the admin shell.
+    // 1. Real password login as admin (not gated) - lands inside the admin shell.
     await loginAsAdmin(page);
 
     // 2. Unlock the demo bar by typing the secret phrase.
@@ -31,11 +31,11 @@ test.describe('Demo gate PIN — no data leak', () => {
     // 5. The customer's balance must NOT be visible before the PIN. The credit
     //    pill is still in the DOM (the old shell stays mounted during the
     //    pending navigation), so toBeVisible() would pass right through the
-    //    cover — assert occlusion instead: the topmost element at the pill's
+    //    cover - assert occlusion instead: the topmost element at the pill's
     //    centre must not be the pill itself.
     const leaked = await page.evaluate(() => {
       const el = document.querySelector('.credit-amt');
-      if (!el) return false; // not rendered at all — no leak
+      if (!el) return false; // not rendered at all - no leak
       const r = el.getBoundingClientRect();
       const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
       return top !== null && (top === el || el.contains(top));

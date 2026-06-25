@@ -32,7 +32,7 @@ export async function transferBalance(
       const current = Number(deposit.currentBalance);
       const minReq = Number(deposit.minimumRequired);
       if (current - amount < minReq) {
-        throw badRequest(`Cannot transfer — minimum RM ${minReq.toFixed(2)} must remain in deposit`);
+        throw badRequest(`Cannot transfer - minimum RM ${minReq.toFixed(2)} must remain in deposit`);
       }
       await tx.servicerDeposit.update({
         where: { servicerId: servicerId },
@@ -95,7 +95,7 @@ export async function requestWithdrawal(
     throw badRequest(`Minimum withdrawal is RM ${minimum.amount ?? 50}`);
   }
 
-  // Reserve check — in-flight withdrawals reduce available balance (BE-001 double-spend fix).
+  // Reserve check - in-flight withdrawals reduce available balance (BE-001 double-spend fix).
   const inFlight = await prisma.servicerWithdrawal.aggregate({
     where: { servicerId: servicerId, status: { in: ['pending', 'approved'] } },
     _sum: { amount: true },

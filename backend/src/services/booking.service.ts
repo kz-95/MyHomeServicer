@@ -1,6 +1,7 @@
-﻿import { BookingStatus, TimeSlot, Prisma, SettlementMethod } from '@prisma/client';
+import { BookingStatus, TimeSlot, Prisma, SettlementMethod } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
+import { haversineKm } from '../lib/haversine';
 import { badRequest, businessRule, conflict, forbidden, notFound, paymentRequired } from '../lib/errors';
 import { emitToUser, emitToServicer, emitToServicers } from '../socket';
 import { requireOnboarded } from './servicer-quote.service';
@@ -33,7 +34,7 @@ const MYT_OFFSET_MS = 8 * 60 * 60_000;
  * Compute the UTC instant when a booking's service window ends.
  *
  * Uses explicit UTC arithmetic so the result is correct on any server
- * timezone — including UTC (the default for Docker / cloud deployments).
+ * timezone - including UTC (the default for Docker / cloud deployments).
  * The old `setHours()` used the server's local clock, causing no-show
  * detection to misfire by ±8 hours on a UTC server (BUG-001).
  *
@@ -44,16 +45,16 @@ const MYT_OFFSET_MS = 8 * 60 * 60_000;
  *     slot-end hour in MYT.
  *  3. Subtract the MYT offset to convert to real UTC.
  *
- * Example on a UTC server — morning slot, date = 2026-06-15T00:00:00Z:
+ * Example on a UTC server - morning slot, date = 2026-06-15T00:00:00Z:
  *   mytDate  →  2026-06-15T08:00:00Z (getUTCDate = 15)
  *   Date.UTC(2026,5,15,12)  →  2026-06-15T12:00:00Z  (naive MYT→UTC)
  *   minus 8 h  →  2026-06-15T04:00:00Z  ✓  (12:00 MYT = 04:00 UTC)
  */
 export function slotEndTime(date: Date, slot: TimeSlot): Date {
-  // Step 1 — get the MYT calendar date from an arbitrary UTC input.
+  // Step 1 - get the MYT calendar date from an arbitrary UTC input.
   const mytDate = new Date(date.getTime() + MYT_OFFSET_MS);
 
-  // Step 2+3 — build the slot-end instant in real UTC.
+  // Step 2+3 - build the slot-end instant in real UTC.
   return new Date(
     Date.UTC(
       mytDate.getUTCFullYear(),
@@ -74,14 +75,14 @@ interface SelectProposalOptions {
 
 /**
  * Customer selects a proposal. Creates a booking in `confirmed` (no servicer
- * re-confirm step — the customer's selection IS the confirmation), marks the
+ * re-confirm step - the customer's selection IS the confirmation), marks the
  * chosen proposal `selected` and the rest `rejected`, flips the quote to
  * `matched`.
  *
  * Two timing paths (spec §4):
- *   pay_now  — charge canonical total (credit or Stripe) → escrow.amount = total.
+ *   pay_now  - charge canonical total (credit or Stripe) → escrow.amount = total.
  *              paymentTiming='pay_now', settlementMethod=null.
- *   pay_later — NO charge at acceptance. paymentTiming='pay_later',
+ *   pay_later - NO charge at acceptance. paymentTiming='pay_later',
  *               settlementMethod from request. No escrow created.
  *
  * Both paths: copy proposal.lineItems → booking.lineItems snapshot.
@@ -100,13 +101,13 @@ export async function selectProposal(
   if (quote.status !== 'open') throw conflict('Quote is no longer open for selection');
 
   // Minimum 5s waiting period so all auto proposals arrive before selection
-  // (spec §operating-hours — fair bidding window for manual servicers).
+  // (spec §operating-hours - fair bidding window for manual servicers).
   const msSinceCreated = Date.now() - quote.createdAt.getTime();
   if (msSinceCreated < 5000) {
-    throw businessRule('Please wait a moment before selecting a proposal — other servicers may still be responding.');
+    throw businessRule('Please wait a moment before selecting a proposal - other servicers may still be responding.');
   }
 
-  // Block if customer has any unpaid invoice (soft enforcement — BE-1).
+  // Block if customer has any unpaid invoice (soft enforcement - BE-1).
   await requireNoUnpaidInvoice(userId);
 
   const proposal = await prisma.quoteProposal.findFirst({
@@ -171,7 +172,7 @@ export async function selectProposal(
         proposalId: proposal.id,
         userId,
         servicerId: proposal.servicerId,
-        // Customer-select auto-confirms — no servicer re-confirm step.
+        // Customer-select auto-confirms - no servicer re-confirm step.
         status: 'confirmed',
         confirmedAt: new Date(),
         price: proposal.proposedPrice,
@@ -217,7 +218,7 @@ export async function selectProposal(
         lineItemsSnapshot.reduce((s, li) => s + li.amount, 0),
       );
 
-      // Canonical total — this is the amount charged to customer's escrow.
+      // Canonical total - this is the amount charged to customer's escrow.
       const totalResult = computeTotal(lineItemsSnapshot, promoDiscount, config, tip);
       const escrowTotal = totalResult.total;
       const afterPromo = totalResult.afterPromo;
@@ -232,7 +233,7 @@ export async function selectProposal(
 
       // Gateway (card) payment: payment was already captured before booking
       // creation. Record the gateway_payment transaction linked to this booking
-      // and skip wallet deduction — funds are with Stripe, not the wallet.
+      // and skip wallet deduction - funds are with Stripe, not the wallet.
       if (opts.paymentIntentId) {
         await tx.transaction.create({
           data: {
@@ -267,7 +268,7 @@ export async function selectProposal(
           tx,
         );
       } else if (quote.budgetMax != null) {
-        // Credit was already held at quote creation — refund excess budget
+        // Credit was already held at quote creation - refund excess budget
         // or deduct shortfall if the proposal is more expensive than the budget.
         const budgetHold = Number(quote.budgetMax);
         const diff = budgetHold - escrowTotal;
@@ -285,7 +286,7 @@ export async function selectProposal(
             tx,
           );
         } else if (diff < 0) {
-          // Proposal exceeds budget hold — deduct the shortfall from wallet.
+          // Proposal exceeds budget hold - deduct the shortfall from wallet.
           const shortfall = -diff;
 
           // Block if wallet cannot cover the shortfall (no silent negative balance).
@@ -306,13 +307,13 @@ export async function selectProposal(
               servicerId: proposal.servicerId,
               userId,
               escrowId: escrow.id,
-              reference: 'Shortfall deduction — proposal exceeded budget',
+              reference: 'Shortfall deduction - proposal exceeded budget',
             },
             tx,
           );
         }
       } else {
-        // No prior hold (open-ended budget) — deduct total now.
+        // No prior hold (open-ended budget) - deduct total now.
         await adjustCredit('user', userId, -escrowTotal, tx);
         await recordTransaction(
           {
@@ -337,13 +338,13 @@ export async function selectProposal(
   await notify({
     servicerId: proposal.servicerId,
     type: 'jobs',
-    message: `You've been selected for a new job — it's confirmed and ready.`,
+    message: `You've been selected for a new job - it's confirmed and ready.`,
     linkUrl: '/servicer/jobs/active',
     category: quote.categoryId,
   });
 
   // Booking is confirmed at selection (no servicer re-confirm). Schedule the
-  // no-show detection job 30 min after the service window ends — this used to
+  // no-show detection job 30 min after the service window ends - this used to
   // run from confirmJob(), which the new flow no longer calls.
   await enqueue(
     JOB_NAMES.NOSHOW_DETECT,
@@ -591,7 +592,7 @@ export async function cashConfirm(servicerId: string, bookingId: string) {
   return updated;
 }
 
-/** Servicer cancels after taking the job — triggers a penalty. */
+/** Servicer cancels after taking the job - triggers a penalty. */
 export async function servicerCancelJob(servicerId: string, bookingId: string, reason: string) {
   const booking = await loadServicerBooking(servicerId, bookingId);
   if (['completed', 'cancelled'].includes(booking.status)) {
@@ -622,7 +623,7 @@ export async function servicerCancelJob(servicerId: string, bookingId: string, r
   return updated;
 }
 
-/** Servicer asks the customer to cancel instead — avoids a penalty. */
+/** Servicer asks the customer to cancel instead - avoids a penalty. */
 export async function requestMutualCancel(servicerId: string, bookingId: string, reason: string) {
   const booking = await loadServicerBooking(servicerId, bookingId);
   if (['completed', 'cancelled'].includes(booking.status)) {
@@ -668,6 +669,7 @@ export async function listServicerJobs(servicerId: string, status?: string) {
     },
   });
   const { formatOrderId } = await import('../lib/order-id');
+  const me = await prisma.servicer.findUnique({ where: { id: servicerId }, select: { lat: true, lng: true } });
 
   return Promise.all(
     jobs.map(async (j) => {
@@ -681,6 +683,12 @@ export async function listServicerJobs(servicerId: string, status?: string) {
         netPrice: Math.max(0, afterPromo - fee),
         orderId: formatOrderId(j.orderNumber, j.createdAt),
         etaMinutes: j.proposal?.etaMinutes ?? null,
+        lat: (j.quoteRequest.address as any)?.lat ?? null,
+        lng: (j.quoteRequest.address as any)?.lng ?? null,
+        address: j.quoteRequest.address?.address ?? null,
+        distanceKm: (j.quoteRequest.address as any)?.lat != null && (j.quoteRequest.address as any)?.lng != null && me?.lat != null && me?.lng != null
+          ? haversineKm((j.quoteRequest.address as any).lat, (j.quoteRequest.address as any).lng, me.lat, me.lng)
+          : null,
         customerName: showContact ? (user?.contactName ?? user?.name ?? null) : null,
         customerPhone: showContact ? (user?.contactNumber ?? user?.phone ?? null) : null,
       };
@@ -688,7 +696,7 @@ export async function listServicerJobs(servicerId: string, status?: string) {
   );
 }
 
-/** Full job detail for a servicer — customer contact is included only once confirmed. */
+/** Full job detail for a servicer - customer contact is included only once confirmed. */
 export async function getServicerJob(servicerId: string, bookingId: string) {
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, servicerId },
@@ -786,7 +794,7 @@ export async function listBookings(userId: string, status?: string) {
   });
 }
 
-/** Full booking detail — customer must own it. */
+/** Full booking detail - customer must own it. */
 export async function getBooking(userId: string, bookingId: string) {
   const { formatOrderId } = await import('../lib/order-id');
   const booking = await prisma.booking.findFirst({
@@ -974,7 +982,7 @@ async function computeSettlementAmounts(
  *
  * Credit: deduct from customer credit → record transaction → mark invoice paid.
  * Cash:   confirm cash received → deduct platform fee from servicer deposit
- *         (extends cashConfirm — used when servicer confirms cash).
+ *         (extends cashConfirm - used when servicer confirms cash).
  * Gateway: placeholder for Stripe (records pending charge).
  *
  * Validates settlementMethod matches booking's paymentTiming:
@@ -1151,7 +1159,7 @@ export async function completeGatewaySettlement(params: {
     return { total: 0, customerUserId: booking.userId, alreadyPaid: false };
   }
   if (invoice.paidAt) {
-    logger.info('Gateway settlement: invoice already paid — skipping', { bookingId, sessionId });
+    logger.info('Gateway settlement: invoice already paid - skipping', { bookingId, sessionId });
     return { total: Number(invoice.total ?? 0), customerUserId: booking.userId, alreadyPaid: true };
   }
 
@@ -1217,7 +1225,7 @@ export async function completeGatewaySettlement(params: {
 /**
  * List unpaid invoices for a customer.
  * Returns invoices where `paidAt` is null and `dueDate` has passed
- * (or dueDate is null — treat as overdue if older than 14 days).
+ * (or dueDate is null - treat as overdue if older than 14 days).
  */
 export async function listUnpaidInvoices(userId: string) {
   const invoices = await prisma.invoice.findMany({
@@ -1277,7 +1285,7 @@ export async function checkUnpaidEnforcement(userId: string): Promise<string[]> 
 
 /**
  * Strict unpaid-invoice guard. Blocks the customer if ANY invoice exists
- * where paidAt is null — regardless of due date or payment timing.
+ * where paidAt is null - regardless of due date or payment timing.
  * Used by both quote creation and proposal selection (BE-1 soft enforcement).
  */
 export async function requireNoUnpaidInvoice(userId: string): Promise<void> {
@@ -1416,11 +1424,11 @@ export async function reorderBooking(userId: string, bookingId: string) {
 
 /**
  * Resolve promo discount for a proposal selection (no invoice/quote request
- * context needed — this just reads the promo code and computes discount).
+ * context needed - this just reads the promo code and computes discount).
  */
 async function resolveProposalPromo(code: string | null, _subtotal: number): Promise<number> {
   if (!code) return 0;
-  // Promo code lookup removed — new promotion engine is trigger-based
+  // Promo code lookup removed - new promotion engine is trigger-based
   return 0;
 }
 
@@ -1459,7 +1467,7 @@ async function computeAfterPromo(servicerId: string, bookingId: string, price: n
   }
 
   // For post-booking fee computation, we cannot reliably get the promo code
-  // without including the quote request. Use 0 for simplicity — the fee base
+  // without including the quote request. Use 0 for simplicity - the fee base
   // difference from promo is negligible at this stage (no escrow for pay_later/cash).
   const promoDiscount = 0;
 

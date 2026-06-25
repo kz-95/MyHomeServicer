@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Non-destructive settings refresh. Upserts platform settings ONLY - budget
  * brackets + chat config (greeting tiers, prompts, etc.) - without touching
  * servicers, users, quotes, or any other data.

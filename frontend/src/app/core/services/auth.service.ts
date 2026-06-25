@@ -237,8 +237,8 @@ export class AuthService {
   }
 
   /**
-   * Sign out. Clears the local session first — so a hung or failed revoke can
-   * never leave the user appearing logged in on this device — then awaits the
+   * Sign out. Clears the local session first - so a hung or failed revoke can
+   * never leave the user appearing logged in on this device - then awaits the
    * backend refresh-token revoke. Resolves `true` when the revoke is confirmed,
    * `false` when it could not be reached (the token may stay valid server-side
    * until it expires). Callers that don't care can ignore the returned promise.
@@ -339,7 +339,7 @@ export class AuthService {
 
   /**
    * True when the active session came from the demo-bar quick-login and is a
-   * demo account — the only case the shared demo PIN (5201314) gate applies to.
+   * demo account - the only case the shared demo PIN (5201314) gate applies to.
    * Read by the route guards.
    */
   requiresDemoGate(): boolean {

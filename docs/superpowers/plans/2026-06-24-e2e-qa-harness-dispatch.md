@@ -1,14 +1,14 @@
-# E2E QA Harness — CEO Dispatch
+﻿# E2E QA Harness - CEO Dispatch
 
 > Generated: 2026-06-24 19:17 MYT
 > Branch: feat/sp3-dispatch-cards
-> Working tree: DIRTY — multiple uncommitted changes. Do NOT commit.
+> Working tree: DIRTY - multiple uncommitted changes. Do NOT commit.
 >
 > **Read first (in order):**
-> 1. `docs/superpowers/specs/2026-06-24-e2e-qa-harness.md` — 29-scenario design
-> 2. `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` — 32-task build plan
-> 3. `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` — existing pending work (DO NOT re-dispatch)
-> 4. `TODO.md` — current project state
+> 1. `docs/superpowers/specs/2026-06-24-e2e-qa-harness.md` - 29-scenario design
+> 2. `docs/superpowers/plans/2026-06-24-e2e-qa-harness-build.md` - 32-task build plan
+> 3. `docs/superpowers/plans/2026-06-24-remaining-items-dispatch.md` - existing pending work (DO NOT re-dispatch)
+> 4. `TODO.md` - current project state
 
 ---
 
@@ -19,7 +19,7 @@ CUTOFF = estimate + 5 min. If a task hits its cutoff without completing,
 the agent must STOP, report a blocker to the CEO log, and the CEO either
 extends the cutoff or flags the task for manual intervention.
 
-### GROUP A — Infrastructure (est. 1h 10m, cutoff 1h 55m)
+### GROUP A - Infrastructure (est. 1h 10m, cutoff 1h 55m)
 
 | Task | Description | Agent | Estimate | Cutoff |
 |------|-------------|-------|----------|--------|
@@ -30,7 +30,7 @@ extends the cutoff or flags the task for manual intervention.
 | 4 | Build DB check helpers | Backend | 15 min | 20 min |
 | 4b | Build seed helpers | DevOps | 5 min | 10 min |
 
-### GROUP B — Wiring (est. 15m, cutoff 25m)
+### GROUP B - Wiring (est. 15m, cutoff 25m)
 
 | Task | Description | Agent | Estimate | Cutoff |
 |------|-------------|-------|----------|--------|
@@ -41,7 +41,7 @@ extends the cutoff or flags the task for manual intervention.
 > spend more than 5 extra minutes debugging the `window.__SOCKET__`
 > approach.
 
-### GROUP C — Template (est. 45m, cutoff 1h)
+### GROUP C - Template (est. 45m, cutoff 1h)
 
 | Task | Description | Agent | Estimate | Cutoff |
 |------|-------------|-------|----------|--------|
@@ -51,7 +51,7 @@ extends the cutoff or flags the task for manual intervention.
 > within cutoff, the remaining 28 scenarios cannot be built.
 > Fix the root cause before proceeding.
 
-### GROUP D — Remaining 28 scenarios (est. 5h 40m, cutoff 7h 25m)
+### GROUP D - Remaining 28 scenarios (est. 5h 40m, cutoff 7h 25m)
 
 | Sub-group | Scenarios | Agent | Estimate | Cutoff |
 |-----------|-----------|-------|----------|--------|
@@ -70,7 +70,7 @@ extends the cutoff or flags the task for manual intervention.
 > instead of dispatching per-scenario. The auto-fix loop in
 > Group E will catch individual remaining failures.
 
-### GROUP E — Closing (est. 2h, cutoff 4h — includes fixer iterations)
+### GROUP E - Closing (est. 2h, cutoff 4h - includes fixer iterations)
 
 | Task | Description | Agent | Estimate | Cutoff |
 |------|-------------|-------|----------|--------|
@@ -89,7 +89,7 @@ extends the cutoff or flags the task for manual intervention.
 2. When a task hits its CUTOFF, the agent must:
    - Write what was completed so far to the log file
    - Write what is blocking to `ceo-log.md`
-   - STOP — do not continue
+   - STOP - do not continue
 3. The CEO decides: extend cutoff (if close to done), dispatch fixer, or flag for manual review.
 4. Cutoffs are HARD. No task should consume unbounded time.
 
@@ -131,7 +131,7 @@ extends the cutoff or flags the task for manual intervention.
 - One fix per dispatch in auto-fix loop. No batching unrelated fixes.
 - Track all progress in `docs/ai-context/logs/ceo-log.md`.
 - Do NOT commit anything until Group E complete OR explicitly told.
-- If any task hits cutoff, log it and move to the next task — do NOT let one stuck task block the entire pipeline. Return to it after the remaining tasks in the group are done.
+- If any task hits cutoff, log it and move to the next task - do NOT let one stuck task block the entire pipeline. Return to it after the remaining tasks in the group are done.
 
 ---
 

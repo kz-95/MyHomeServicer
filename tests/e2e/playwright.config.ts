@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: './scenarios',
   timeout: 120_000,
   retries: 0,
-  workers: 1, // serial — shared DB
+  workers: 1, // serial - shared DB
   use: {
     baseURL: 'http://localhost:4200',
     headless: true,

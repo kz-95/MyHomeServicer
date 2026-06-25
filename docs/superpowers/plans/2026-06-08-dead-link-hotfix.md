@@ -1,14 +1,14 @@
-# Dead-Link Hotfix Implementation Plan
+﻿# Dead-Link Hotfix Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix the 9 navigation links that point at routes which do not exist today, so no user-facing link, AI reply, or notification lands on a 404 — independent of the larger route redesign.
+**Goal:** Fix the 9 navigation links that point at routes which do not exist today, so no user-facing link, AI reply, or notification lands on a 404 - independent of the larger route redesign.
 
 **Architecture:** Each dead link is re-pointed to a route that **already exists right now** (not the future redesigned route), so this hotfix never depends on Phases 2–6 and never creates a new dead link. Two links whose destination genuinely does not exist (`/customer/chat`, `/contact`) are converted to open the in-app chat widget instead. Phases 2/3/6 will later re-point the renamed routes (e.g. `/customer/bookings` → `/customer/bookings/active`); this hotfix deliberately stops at today's valid routes.
 
 **Tech Stack:** Angular 21 (frontend, standalone components + signals), Node/TypeScript + Express + Prisma (backend), Jest (backend tests). No frontend unit-test framework is configured in this repo, so the verification gate for frontend changes is `npx tsc --noEmit` + `npx ng build` + a manual click, per the project's CLAUDE.md gates. Backend changes gate on `npx tsc --noEmit`.
 
-**Scope — the 9 dead links and their existing-route targets:**
+**Scope - the 9 dead links and their existing-route targets:**
 
 | # | Dead link | Site(s) | Re-point to (exists today) | Class |
 |---|-----------|---------|----------------------------|-------|
@@ -22,13 +22,13 @@
 | 8 | `/customer/chat` | `customer/pages/my-bookings.component.ts` `reportIssue()` | open chat widget | B |
 | 9 | `/contact` | `shared/chat-widget.component.ts` `runAction('report_bug')` | open chat widget (stay in-widget) | B |
 
-> NOT in scope (renamed but NOT dead — they resolve today, handled later in Phase 2/3/6):
+> NOT in scope (renamed but NOT dead - they resolve today, handled later in Phase 2/3/6):
 > `/customer/bookings` (chat prompt `:96`), `/customer/history` (chat prompt `:97`, `:518`),
-> `/servicer/jobs` (chat prompt `:85` — redirects to `/jobs/pending`), `/admin/*-settings`
+> `/servicer/jobs` (chat prompt `:85` - redirects to `/jobs/pending`), `/admin/*-settings`
 > sidebar links. Leave these untouched here.
 
 > ⚠️ Line numbers below are a 2026-06-08 snapshot. `shared/chat-widget.component.ts` and
-> `services/chat.service.ts` are under active edit — **locate each edit by the quoted
+> `services/chat.service.ts` are under active edit - **locate each edit by the quoted
 > string, not the line number.** All `old_string` blocks below are unique enough to match.
 
 ---
@@ -49,7 +49,7 @@ Find the `History` entry in the `quickLinks` array and change its `path`:
     { label: 'History', path: '/servicer/jobs/history', icon: '🗂️', detail: 'Past & completed jobs' },
 ```
 
-(`/servicer/jobs/history` already exists — shipped in Phase 1.)
+(`/servicer/jobs/history` already exists - shipped in Phase 1.)
 
 - [ ] **Step 2: Type-check**
 
@@ -95,7 +95,7 @@ git commit -m "fix(admin): dead /admin/dashboard navigate -> /admin"
 
 ---
 
-## Task 3: Class-B links — open the chat widget instead of navigating to a missing page
+## Task 3: Class-B links - open the chat widget instead of navigating to a missing page
 
 Two flows navigate to pages that do not exist. Both become "open the in-app chat widget."
 
@@ -119,7 +119,7 @@ Add the injected field next to the existing `private router = inject(Router);` l
 
 - [ ] **Step 2: Replace the dead `/customer/chat` navigate in `reportIssue()`**
 
-The server still creates the `booking_support` session (useful backend context); only the navigation changes — open the widget instead of routing to the nonexistent `/customer/chat` page.
+The server still creates the `booking_support` session (useful backend context); only the navigation changes - open the widget instead of routing to the nonexistent `/customer/chat` page.
 
 ```typescript
 // OLD
@@ -156,7 +156,7 @@ The server still creates the `booking_support` session (useful backend context);
       this.widget.close();
     } else if (action === "report_bug") {
       this.injectAssistantMessage(
-        "Sorry you hit a problem. Please describe what happened — what you were doing and what went wrong — and I'll log it for the team.",
+        "Sorry you hit a problem. Please describe what happened - what you were doing and what went wrong - and I'll log it for the team.",
       );
     }
   }
@@ -184,7 +184,7 @@ git commit -m "fix(chat): dead /customer/chat + /contact -> open chat widget in 
 
 ---
 
-## Task 4: Backend chat AI prompt — fix the 4 dead routes it tells the model to emit
+## Task 4: Backend chat AI prompt - fix the 4 dead routes it tells the model to emit
 
 **Files:**
 - Modify: `backend/src/services/chat.service.ts` (the `linkExamples`/`locationLinks` prompt strings, ~lines 85-102)
@@ -213,12 +213,12 @@ Only the **dead** routes change here. `/customer/bookings` (`:96`), `/customer/h
 - "where is my proposal" → [Proposals](/customer/proposals)
 - "where are my rewards / points / vouchers" → [Rewards](/customer/rewards)
 - "where is my account / profile / settings" → [Account](/customer/account)
-- "where is my wallet / credit / balance" → [Deposit & Credit](/customer/deposit) — but answer balance from the account context above; do NOT link to external bank or card pages
+- "where is my wallet / credit / balance" → [Deposit & Credit](/customer/deposit) - but answer balance from the account context above; do NOT link to external bank or card pages
 // NEW
 - "where is my proposal" → [My Quotes](/customer/quotes)
 - "where are my rewards / points / vouchers" → [Rewards](/customer/rewards)
 - "where is my account / profile / settings" → [Account](/customer/account)
-- "where is my wallet / credit / balance" → [Payments](/customer/transactions) — but answer balance from the account context above; do NOT link to external bank or card pages
+- "where is my wallet / credit / balance" → [Payments](/customer/transactions) - but answer balance from the account context above; do NOT link to external bank or card pages
 ```
 
 (Customer proposals live under `/customer/quotes/:id/proposals`; the generic landing is `/customer/quotes`. The customer wallet page is `/customer/transactions`, not `/customer/deposit`.)
@@ -230,7 +230,7 @@ Expected: exits 0.
 
 - [ ] **Step 4: Manual smoke (optional, needs a running LLM key)**
 
-Ask the in-app assistant (as servicer) "where are my jobs?" and (as customer) "where is my wallet?" — the returned markdown link should resolve to a real page, not 404.
+Ask the in-app assistant (as servicer) "where are my jobs?" and (as customer) "where is my wallet?" - the returned markdown link should resolve to a real page, not 404.
 
 - [ ] **Step 5: Commit**
 
@@ -241,7 +241,7 @@ git commit -m "fix(chat): AI prompt no longer emits dead routes (/servicer/quote
 
 ---
 
-## Task 5: Backend dispatch notification — fix the prefix-less `/bookings`
+## Task 5: Backend dispatch notification - fix the prefix-less `/bookings`
 
 **Files:**
 - Modify: `backend/src/services/dispatch.service.ts:234`
@@ -265,7 +265,7 @@ git commit -m "fix(chat): AI prompt no longer emits dead routes (/servicer/quote
   });
 ```
 
-(`/bookings` has no portal prefix and matches no frontend route — the "booking accepted" notification currently 404s when clicked. `/customer/bookings` resolves today; Phase 6 re-points it to `/customer/bookings/active`.)
+(`/bookings` has no portal prefix and matches no frontend route - the "booking accepted" notification currently 404s when clicked. `/customer/bookings` resolves today; Phase 6 re-points it to `/customer/bookings/active`.)
 
 - [ ] **Step 2: Type-check**
 
@@ -281,7 +281,7 @@ git commit -m "fix(dispatch): booking-accepted notification linkUrl /bookings ->
 
 ---
 
-## Task 6: Seed FAQ — fix the dead `/admin/money` reference
+## Task 6: Seed FAQ - fix the dead `/admin/money` reference
 
 **Files:**
 - Modify: `backend/prisma/seed/data/static.ts:3008` (the Financial Settings FAQ entry)
@@ -290,16 +290,16 @@ git commit -m "fix(dispatch): booking-accepted notification linkUrl /bookings ->
 
 ```typescript
 // OLD
-      "Financial Settings (/admin/money) has three tabs: Pricing (platform fee rate, fee mode), Rewards (loyalty tiers CRUD — Bronze/Silver/Gold/Platinum with point thresholds and bonus rates, reward catalog CRUD, redemption log), and Servicer (deposit minimum, withdrawal threshold, penalty amounts, fee baselines for travel and supplies). All changes require action PIN.",
+      "Financial Settings (/admin/money) has three tabs: Pricing (platform fee rate, fee mode), Rewards (loyalty tiers CRUD - Bronze/Silver/Gold/Platinum with point thresholds and bonus rates, reward catalog CRUD, redemption log), and Servicer (deposit minimum, withdrawal threshold, penalty amounts, fee baselines for travel and supplies). All changes require action PIN.",
 // NEW
-      "Financial Settings (/admin/money-settings) has three tabs: Pricing (platform fee rate, fee mode), Rewards (loyalty tiers CRUD — Bronze/Silver/Gold/Platinum with point thresholds and bonus rates, reward catalog CRUD, redemption log), and Servicer (deposit minimum, withdrawal threshold, penalty amounts, fee baselines for travel and supplies). All changes require action PIN.",
+      "Financial Settings (/admin/money-settings) has three tabs: Pricing (platform fee rate, fee mode), Rewards (loyalty tiers CRUD - Bronze/Silver/Gold/Platinum with point thresholds and bonus rates, reward catalog CRUD, redemption log), and Servicer (deposit minimum, withdrawal threshold, penalty amounts, fee baselines for travel and supplies). All changes require action PIN.",
 ```
 
 (`/admin/money` matches no route; the current Financial Settings page is `/admin/money-settings`. Phase 3 will later rename it to `/admin/settings/money` and update this string again.)
 
 > The other admin FAQ route strings in this file (`/admin/ai-chat-settings`,
 > `/admin/category-settings`, `/admin/queues`) are renamed-but-not-dead and are handled in
-> Phase 3/6 — do NOT change them here.
+> Phase 3/6 - do NOT change them here.
 
 - [ ] **Step 2: Type-check**
 
@@ -311,7 +311,7 @@ Expected: exits 0.
 The FAQ is served from the DB, so the fixed seed string only reaches an already-seeded environment after a reseed.
 
 Run: `cd backend && npm run db:reset`
-Expected: Prisma resets, re-applies migrations, and reseeds without error. (Local/dev only — never against production.)
+Expected: Prisma resets, re-applies migrations, and reseeds without error. (Local/dev only - never against production.)
 
 - [ ] **Step 4: Commit**
 
@@ -327,7 +327,7 @@ git commit -m "fix(seed): Financial Settings FAQ dead /admin/money -> /admin/mon
 - [ ] **Backend type-check:** `cd backend && npx tsc --noEmit` → exits 0
 - [ ] **Frontend type-check:** `cd frontend && npx tsc --noEmit` → exits 0
 - [ ] **Frontend build:** `cd frontend && npx ng build --configuration development` → bundle generation complete
-- [ ] **Grep guard — no dead route strings remain in the touched files:**
+- [ ] **Grep guard - no dead route strings remain in the touched files:**
 
 Run (PowerShell):
 ```powershell
@@ -343,7 +343,7 @@ NOT the fixed `/admin/money-settings`; `'/bookings'` is single-quoted to match t
 
 ## Notes for the implementer
 
-- This hotfix points at **routes that exist today**, on purpose. Do not "helpfully" point them at the redesigned routes (`/customer/bookings/active`, `/admin/settings/money`, etc.) — those don't exist yet and would re-introduce dead links. The redesign phases own those re-points.
+- This hotfix points at **routes that exist today**, on purpose. Do not "helpfully" point them at the redesigned routes (`/customer/bookings/active`, `/admin/settings/money`, etc.) - those don't exist yet and would re-introduce dead links. The redesign phases own those re-points.
 - Class A tasks (1, 2, 4, 5, 6) are pure string swaps; Class B (Task 3) is a small behavior change (open widget) and is the only one touching component logic.
 - No frontend unit tests exist in this repo; the gate is `tsc` + `ng build` + the manual smoke in Task 3. Do not scaffold a new test framework for this hotfix.
 - Each task commits independently so any single fix can be reverted in isolation.

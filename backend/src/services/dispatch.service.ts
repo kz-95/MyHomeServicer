@@ -41,7 +41,7 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
   if (broadcasts.length === 0) return;
 
   const now = new Date();
-  const mytNow = new Date(now.getTime() + 8 * 3600_000); // MYT (UTC+8) — shift before both day and hour reads
+  const mytNow = new Date(now.getTime() + 8 * 3600_000); // MYT (UTC+8) - shift before both day and hour reads
   const currentDay = WEEKDAYS[mytNow.getUTCDay()];
   const currentHour = mytNow.getUTCHours();
 
@@ -49,14 +49,14 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
   for (const bc of broadcasts) {
     const m = bc.servicer;
     if (!m.isOnline) {
-      logger.info('Servicer skipped — offline', { servicerId: m.id });
+      logger.info('Servicer skipped - offline', { servicerId: m.id });
       continue;
     }
 
     // Check working hours from ServicerSchedule.
     const schedule = m.schedules.filter((s) => s.weekday === currentDay && s.isAvailable);
     if (schedule.length === 0) {
-      logger.info('Servicer skipped — no working schedule for today', { servicerId: m.id, currentDay });
+      logger.info('Servicer skipped - no working schedule for today', { servicerId: m.id, currentDay });
       continue;
     }
 
@@ -65,7 +65,7 @@ export async function startDispatchRotation(quoteRequestId: string): Promise<voi
       return currentHour >= slotRange[0] && currentHour < slotRange[1];
     });
     if (!inWorkingHours) {
-      logger.info('Servicer skipped — outside working hours', { servicerId: m.id, currentDay, currentHour });
+      logger.info('Servicer skipped - outside working hours', { servicerId: m.id, currentDay, currentHour });
       continue;
     }
 
@@ -163,7 +163,7 @@ async function sendDispatchPrompt(
   await notify({
     servicerId,
     type: 'jobs',
-    message: `New dispatch: ${quote.category.name} — review and accept`,
+    message: `New dispatch: ${quote.category.name} - review and accept`,
     linkUrl: '/servicer/jobs',
   });
 }
@@ -207,7 +207,7 @@ export async function handleDispatchAccept(
   // Atomic "first accept wins": flip the quote open→matched in a single
   // conditional update inside the booking transaction. If another servicer
   // already matched it (or a customer selected a proposal), updateMany affects
-  // 0 rows and we abort before creating the booking — closing the findFirst
+  // 0 rows and we abort before creating the booking - closing the findFirst
   // race window (BUG: two servicers could both pass the old read check).
   const booking = await prisma.$transaction(async (tx) => {
     const claim = await tx.quoteRequest.updateMany({
@@ -289,7 +289,7 @@ export async function handleDispatchAccept(
       const budgetMax = qr.budgetMax != null ? Number(qr.budgetMax) : null;
 
       if (budgetMax != null) {
-        // Credit was held at quote creation — compare with escrow total.
+        // Credit was held at quote creation - compare with escrow total.
         const diff = budgetMax - escrowTotal;
         if (diff > 0) {
           // Refund excess budget hold back to customer.
@@ -306,7 +306,7 @@ export async function handleDispatchAccept(
             tx,
           );
         } else if (diff < 0) {
-          // Proposal exceeds budget hold — deduct the shortfall from wallet.
+          // Proposal exceeds budget hold - deduct the shortfall from wallet.
           const shortfall = -diff;
           const wallet = await tx.user.findUnique({
             where: { id: qr.userId },
@@ -327,14 +327,14 @@ export async function handleDispatchAccept(
               servicerId,
               userId: qr.userId,
               escrowId: escrow.id,
-              reference: 'Shortfall deduction — dispatch price exceeded budget',
+              reference: 'Shortfall deduction - dispatch price exceeded budget',
             },
             tx,
           );
         }
-        // diff === 0: budget hold exactly matches escrow — no adjustment needed.
+        // diff === 0: budget hold exactly matches escrow - no adjustment needed.
       } else {
-        // No prior hold (open-ended budget) — deduct total now.
+        // No prior hold (open-ended budget) - deduct total now.
         await adjustCredit('user', qr.userId, -escrowTotal, tx);
         await recordTransaction(
           {

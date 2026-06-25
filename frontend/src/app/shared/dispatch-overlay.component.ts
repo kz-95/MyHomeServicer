@@ -6,6 +6,7 @@ import { routeFor } from '../core/route-for';
 import { ApiService } from '../core/services/api.service';
 import { ToastService } from '../core/services/toast.service';
 import { MapViewComponent } from './map-view.component';
+import { IconComponent } from './icon.component';
 import QRCode from 'qrcode';
 
 interface JobDetail {
@@ -27,14 +28,14 @@ interface JobDetail {
 
 @Component({
     selector: 'app-dispatch-overlay',
-    imports: [CommonModule, FormsModule, RouterLink, MapViewComponent],
+    imports: [CommonModule, FormsModule, RouterLink, MapViewComponent, IconComponent],
     template: `
     <dialog #mainDlg class="dispatch-dialog wide-dlg" (mousedown)="onDown($event)" (mouseup)="onUp($event, 'main')" (cancel)="$event.preventDefault(); close()">
       @if (open()) {
         <div class="dispatch-overlay" role="dialog" aria-modal="true">
 
           <div class="dispatch-hd">
-            <strong>&#x1F4CB; Booking #{{ jobData()?.id?.slice(-8) }}</strong>
+            <strong><app-icon name="clipboard-list" sizeToken="sm" /> Booking #{{ jobData()?.id?.slice(-8) }}</strong>
             <span class="status-badge">{{ jobData()?.status }}</span>
             <button class="dispatch-close" (click)="close()" aria-label="Close">&times;</button>
           </div>
@@ -49,7 +50,7 @@ interface JobDetail {
 
               <section class="dispatch-panel customer-panel">
                 <button class="panel-header" (click)="togglePanel('customer')">
-                  Customer {{ expanded()['customer'] ? '\u25B2' : '\u25BC' }}
+                  Customer @if (expanded()['customer']) { <app-icon name="chevron-up" sizeToken="sm" /> } @else { <app-icon name="chevron-down" sizeToken="sm" /> }
                 </button>
                 @if (expanded()['customer']) {
                   <div class="panel-body">
@@ -63,14 +64,14 @@ interface JobDetail {
                     </div>
                     <div class="info-rows">
                       @if (jd.customerPhone) {
-                        <div class="info-row">&#x1F4DE; <a [href]="'tel:' + jd.customerPhone">{{ jd.customerPhone }}</a> <a [href]="waLink(jd.customerPhone)" target="_blank" rel="noopener" class="btn-wa">WhatsApp</a></div>
+                        <div class="info-row"><app-icon name="phone" sizeToken="sm" /><a [href]="'tel:' + jd.customerPhone">{{ jd.customerPhone }}</a> <a [href]="waLink(jd.customerPhone)" target="_blank" rel="noopener" class="btn-wa">WhatsApp</a></div>
                       }
-                      <div class="info-row">&#x1F4CD; {{ jd.address }}</div>
+                      <div class="info-row"><app-icon name="map-pin" sizeToken="sm" /> {{ jd.address }}</div>
                       @if (jd.propertyType) {
-                        <div class="info-row">&#x1F3E0; {{ jd.propertyType }}</div>
+                        <div class="info-row"><app-icon name="home" sizeToken="sm" /> {{ jd.propertyType }}</div>
                       }
                       @if (jd.contactName && jd.contactName !== jd.customerName) {
-                        <div class="info-row">&#x1F464; Contact: {{ jd.contactName }}{{ jd.contactNumber ? ' · ' + jd.contactNumber : '' }}</div>
+                        <div class="info-row"><app-icon name="user" sizeToken="sm" /> Contact: {{ jd.contactName }}{{ jd.contactNumber ? ' · ' + jd.contactNumber : '' }}</div>
                       }
                     </div>
                   </div>
@@ -79,7 +80,7 @@ interface JobDetail {
 
               <section class="dispatch-panel instructions-panel">
                 <button class="panel-header" (click)="togglePanel('instructions')">
-                  Instructions {{ expanded()['instructions'] ? '\u25B2' : '\u25BC' }}
+                  Instructions @if (expanded()['instructions']) { <app-icon name="chevron-up" sizeToken="sm" /> } @else { <app-icon name="chevron-down" sizeToken="sm" /> }
                 </button>
                 @if (expanded()['instructions']) {
                   <div class="panel-body">
@@ -94,15 +95,15 @@ interface JobDetail {
 
               <section class="dispatch-panel map-panel">
                 <button class="panel-header" (click)="togglePanel('map')">
-                  Map {{ expanded()['map'] ? '\u25B2' : '\u25BC' }}
+                  Map @if (expanded()['map']) { <app-icon name="chevron-up" sizeToken="sm" /> } @else { <app-icon name="chevron-down" sizeToken="sm" /> }
                 </button>
                 @if (expanded()['map']) {
                   <div class="panel-body">
                     @if (jd.lat != null && jd.lng != null) {
                       <app-map-view [lat]="jd.lat" [lng]="jd.lng" class="mini-map" />
                       <div class="map-actions">
-                        <a class="btn-ghost" [href]="gmapsUrl(jd.lat!, jd.lng!)" target="_blank" rel="noopener">&#x1F5FA; Google Maps</a>
-                        <a class="btn-ghost" [href]="wazeUrl(jd.lat!, jd.lng!)" target="_blank" rel="noopener">&#x1F6CE; Waze</a>
+                        <a class="btn-ghost" [href]="gmapsUrl(jd.lat!, jd.lng!)" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:4px;"><path d="M12 2C7.58 2 4 5.58 4 10c0 5.42 8 14 8 14s8-8.58 8-14c0-4.42-3.58-8-8-8z" fill="#4285F4" stroke="#4285F4" stroke-width="0.5"/><path d="M12 6c-2.21 0-4 1.79-4 4 0 2.21 1.79 4 4 4s4-1.79 4-4c0-2.21-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="#FFF"/><circle cx="12" cy="10" r="2" fill="#EA4335"/></svg> Google Maps</a>
+                        <a class="btn-ghost" [href]="wazeUrl(jd.lat!, jd.lng!)" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:4px;"><rect width="24" height="24" rx="6" fill="#33C5F3"/><path d="M6.5 7.5C6.5 5.57 8.07 4 10 4h4c1.93 0 3.5 1.57 3.5 3.5v1c0 1.66-1.34 3-3 3h-5c-1.66 0-3-1.34-3-3v-1z" fill="#FFF"/><circle cx="9" cy="7" r="1.2" fill="#33C5F3"/><circle cx="15" cy="7" r="1.2" fill="#33C5F3"/><path d="M8 10.5h8l-1 4.5H9l-1-4.5z" fill="#FFF"/><path d="M7 14l1 3h8l1-3" stroke="#FFF" stroke-width="1.5" stroke-linecap="round"/></svg> Waze</a>
                       </div>
                     } @else {
                       <p class="muted">No location available.</p>
@@ -113,7 +114,7 @@ interface JobDetail {
 
               <section class="dispatch-panel details-panel">
                 <button class="panel-header" (click)="togglePanel('details')">
-                  Job Details {{ expanded()['details'] ? '\u25B2' : '\u25BC' }}
+                  Job Details @if (expanded()['details']) { <app-icon name="chevron-up" sizeToken="sm" /> } @else { <app-icon name="chevron-down" sizeToken="sm" /> }
                 </button>
                 @if (expanded()['details']) {
                   <div class="panel-body">
@@ -153,7 +154,7 @@ interface JobDetail {
                           <img [src]="jd.arrivedPhotoUrl || jd.arrivePhotoUrl" class="job-photo" alt="Arrival" />
                         }
                       } @else {
-                        <button class="btn-ghost photo-btn" (click)="showArrivalPhoto.set(true)">&#x1F4F8; View arrival photo</button>
+                        <button class="btn-ghost photo-btn" (click)="showArrivalPhoto.set(true)"><app-icon name="camera" sizeToken="sm" /> View arrival photo</button>
                       }
                     </div>
                     @if (jd.donePhotoUrl) {
@@ -168,21 +169,21 @@ interface JobDetail {
 
               <section class="dispatch-panel visibility-panel">
                 <button class="panel-header" (click)="togglePanel('visibility')">
-                  My Contact Visibility {{ expanded()['visibility'] ? '\u25B2' : '\u25BC' }}
+                  My Contact Visibility @if (expanded()['visibility']) { <app-icon name="chevron-up" sizeToken="sm" /> } @else { <app-icon name="chevron-down" sizeToken="sm" /> }
                 </button>
                 @if (expanded()['visibility']) {
                   <div class="panel-body">
                     <p class="muted small">Your contact info visible to this customer:</p>
                     <div class="info-rows">
                       @if (jd.showEmailPublic && jd.servicerEmail) {
-                        <div class="info-row vis-on">&#x1F4E7; Email visible: {{ jd.servicerEmail }}</div>
+                        <div class="info-row vis-on"><app-icon name="mail" sizeToken="sm" /> Email visible: {{ jd.servicerEmail }}</div>
                       } @else {
-                        <div class="info-row vis-off">&#x1F4E7; Email hidden</div>
+                        <div class="info-row vis-off"><app-icon name="mail" sizeToken="sm" /> Email hidden</div>
                       }
                       @if (jd.showPhonePublic && jd.servicerPhone) {
-                        <div class="info-row vis-on">&#x1F4DE; Phone visible: {{ jd.servicerPhone }}</div>
+                        <div class="info-row vis-on"><app-icon name="phone" sizeToken="sm" /> Phone visible: {{ jd.servicerPhone }}</div>
                       } @else {
-                        <div class="info-row vis-off">&#x1F4DE; Phone hidden</div>
+                        <div class="info-row vis-off"><app-icon name="phone" sizeToken="sm" /> Phone hidden</div>
                       }
                     </div>
                     <p class="muted small top-gap">Adjust visibility in <a [routerLink]="[routeFor('servicer.account')]">Account Settings</a>.</p>
@@ -195,16 +196,16 @@ interface JobDetail {
             <div class="dispatch-actions">
               @if (!readOnly) {
                 @if (isStatus('confirmed')) {
-                  <button class="btn-primary" (click)="markArrived()">&#x1F4F8; Mark Arrived</button>
+                  <button class="btn-primary" (click)="markArrived()"><app-icon name="camera" sizeToken="sm" /> Mark Arrived</button>
                 }
                 @if (isStatus('in_progress')) {
-                  <button class="btn-primary" (click)="markDone()">&#x2705; Mark Done</button>
+                  <button class="btn-primary" (click)="markDone()"><app-icon name="check-circle" sizeToken="sm" /> Mark Done</button>
                 }
                 @if (isStatus('pending_confirm', 'confirmed')) {
-                  <button class="btn-ghost" (click)="openCancelModal()">&#x1F6AB; Cancel</button>
+                  <button class="btn-ghost" (click)="openCancelModal()"><app-icon name="x-circle" sizeToken="sm" /> Cancel</button>
                 }
               }
-              <button class="btn-ghost report-btn" (click)="openReportModal()">&#x1F6A8; Report Issue</button>
+              <button class="btn-ghost report-btn" (click)="openReportModal()"><app-icon name="alert-triangle" sizeToken="sm" /> Report Issue</button>
             </div>
             }
           }
@@ -215,7 +216,7 @@ interface JobDetail {
     <dialog #qrDlg class="dispatch-dialog" (mousedown)="onDown($event)" (mouseup)="onUp($event, 'qr')" (cancel)="$event.preventDefault(); showQr.set(false)">
       @if (showQr()) {
         <div class="dispatch-qr">
-          <h3>&#x1F4F1; Navigate from your phone</h3>
+          <h3><app-icon name="smartphone" sizeToken="sm" /> Navigate from your phone</h3>
           <div class="qr-code">
             @if (qrDataUrl()) {
               <img [src]="qrDataUrl()" alt="QR code" />
@@ -230,7 +231,7 @@ interface JobDetail {
     <dialog #reportDlg class="dispatch-dialog" (mousedown)="onDown($event)" (mouseup)="onUp($event, 'report')" (cancel)="$event.preventDefault(); closeReportModal()">
       @if (showReportModal()) {
         <div class="dispatch-cancel">
-          <h3>&#x1F6A8; Report an issue</h3>
+          <h3><app-icon name="alert-triangle" sizeToken="sm" /> Report an issue</h3>
           <p class="muted small">Describe the problem with this booking.</p>
           <form (ngSubmit)="submitReport()">
             <label>Subject *<input type="text" [(ngModel)]="reportSubject" name="rsubject" placeholder="Brief summary" required /></label>
@@ -248,7 +249,7 @@ interface JobDetail {
     <dialog #cancelDlg class="dispatch-dialog" (mousedown)="onDown($event)" (mouseup)="onUp($event, 'cancel')" (cancel)="$event.preventDefault(); cancelModalClose()">
       @if (showCancelModal()) {
         <div class="dispatch-cancel">
-          <h3>&#x1F6AB; Cancel this booking?</h3>
+          <h3><app-icon name="x-circle" sizeToken="sm" /> Cancel this booking?</h3>
           <form (ngSubmit)="submitCancel()">
             <label>Reason *<textarea [(ngModel)]="cancelReason" name="reason" rows="3" required></textarea></label>
             <label>PIN<input type="password" maxlength="6" [(ngModel)]="cancelPin" name="pin" placeholder="••••••" /></label>

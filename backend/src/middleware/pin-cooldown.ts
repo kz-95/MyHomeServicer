@@ -48,7 +48,7 @@ async function getPinConfig(): Promise<{ maxAttempts: number; cooldownSeconds: n
       cooldownSeconds = cooldownSetting.seconds;
     }
   } catch {
-    // DB unavailable — use defaults.
+    // DB unavailable - use defaults.
   }
 
   cached = { maxAttempts, cooldownSeconds, lastFetched: now };
@@ -67,7 +67,7 @@ function successKey(userId: string): string {
  * Check whether the user is in PIN cooldown.
  *
  * If the user recently verified their PIN successfully (success key exists),
- * the cooldown check is skipped — a fresh verification window is active.
+ * the cooldown check is skipped - a fresh verification window is active.
  */
 export async function checkPinCooldown(userId: string): Promise<void> {
   // If a recent successful verification exists, skip the failure-cooldown gate.
@@ -92,18 +92,18 @@ export async function checkPinCooldown(userId: string): Promise<void> {
  * Record a failed PIN attempt.
  *
  * Two keys are set:
- * 1. `pin:cooldown:{userId}` — failure counter used for lockout gating,
+ * 1. `pin:cooldown:{userId}` - failure counter used for lockout gating,
  *    TTL = configured cooldown (default 60 s).
- * 2. `pin:failures:{userId}` — failure counter with a 30-min tracking
+ * 2. `pin:failures:{userId}` - failure counter with a 30-min tracking
  *    TTL so the audit trail persists beyond the lockout window.
  */
 export async function recordPinFailure(userId: string): Promise<void> {
   const { cooldownSeconds } = await getPinConfig();
   const multi = redis.multi();
-  // Lockout key — short TTL so the user can retry after the cooldown.
+  // Lockout key - short TTL so the user can retry after the cooldown.
   multi.incr(failureKey(userId));
   multi.expire(failureKey(userId), cooldownSeconds);
-  // Audit / tracking key — longer TTL for failure memory.
+  // Audit / tracking key - longer TTL for failure memory.
   multi.incr(`pin:failures:${userId}`);
   multi.expire(`pin:failures:${userId}`, PIN_FAILURE_TRACKING_TTL_SECONDS);
   await multi.exec();
@@ -120,7 +120,7 @@ export async function recordPinFailure(userId: string): Promise<void> {
 export async function recordPinSuccess(userId: string): Promise<void> {
   // Clear the failure counter so a successful verification resets the strike count.
   await redis.del(failureKey(userId));
-  // Set a success marker with TTL — prevents indefinite storage (the core fix for BE-019).
+  // Set a success marker with TTL - prevents indefinite storage (the core fix for BE-019).
   await redis.set(successKey(userId), '1', 'EX', PIN_SUCCESS_TTL_SECONDS);
 }
 

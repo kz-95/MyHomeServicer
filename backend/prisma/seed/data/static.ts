@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Static seed data - categories, platform settings, penalty rules and
  * feature flags. Mirrors seed-plan.md.
  */

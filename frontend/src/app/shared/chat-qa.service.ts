@@ -17,7 +17,7 @@ export class ChatQaService {
 
   readonly running = signal(false);
   readonly status = signal("");
-  /** Per-session run counter — the XX suffix in the log filename. */
+  /** Per-session run counter - the XX suffix in the log filename. */
   private runSeq = 0;
 
   /** Begin a QA run. No-op if one is already running. */
@@ -78,7 +78,7 @@ export class ChatQaService {
         if (!(await tryWrite(resolvedName, text, true))) buffered += text;
       }
 
-      if (buffered) this.status.set("Log buffered (file locked) — retrying");
+      if (buffered) this.status.set("Log buffered (file locked) - retrying");
     };
 
     try {
@@ -108,7 +108,7 @@ export class ChatQaService {
       }
       this.status.set(
         buffered
-          ? `Log partially saved — ${buffered.length} bytes not written (see console)`
+          ? `Log partially saved - ${buffered.length} bytes not written (see console)`
           : `Saved logs/${resolvedName}.log`,
       );
       this.running.set(false);
@@ -116,7 +116,7 @@ export class ChatQaService {
   }
 
   /**
-   * ChatQA_Log_HHMMDDMMYYXX — hour, minute, day, month, 2-digit year, 2-digit run seq.
+   * ChatQA_Log_HHMMDDMMYYXX - hour, minute, day, month, 2-digit year, 2-digit run seq.
    * e.g. 04:18 on 08/06/26, run 01 → ChatQA_Log_041808062601.
    */
   private makeLogName(): string {

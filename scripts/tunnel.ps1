@@ -1,4 +1,4 @@
-# scripts/tunnel.ps1
+﻿# scripts/tunnel.ps1
 # ─────────────────────────────────────────────────────────────────────────────
 # Expose the app to the internet via a secure tunnel for off-network testing
 # (e.g. testing on a mobile device on a different network, sharing with a
@@ -45,7 +45,7 @@ if ($Tool -eq 'auto') {
         Write-Host ""
         Write-Host "Neither cloudflared nor ngrok was found." -ForegroundColor Red
         Write-Host ""
-        Write-Host "Install cloudflared (recommended — no account needed):" -ForegroundColor Yellow
+        Write-Host "Install cloudflared (recommended - no account needed):" -ForegroundColor Yellow
         Write-Host "  winget install --id Cloudflare.cloudflared" -ForegroundColor Cyan
         Write-Host ""
         Write-Host "Or install ngrok (free account required):" -ForegroundColor Yellow
@@ -66,7 +66,7 @@ Write-Host ""
 # ── Start the tunnel ──────────────────────────────────────────────────────────
 switch ($Tool) {
     'cloudflared' {
-        # Quick tunnel — no account, URL printed to stdout
+        # Quick tunnel - no account, URL printed to stdout
         # The URL is printed like: https://random-words.trycloudflare.com
         cloudflared tunnel --url "http://localhost:$Port"
     }

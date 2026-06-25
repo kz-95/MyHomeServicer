@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Demo seed script. Populates a development database with 36 servicers (1 per
  * service category, 6 for 3D Modeling), 3 customers, 1 admin, in-flight
  * quotes/bookings, penalty scenarios, promotions and AI chat history.
@@ -19,6 +19,632 @@ import { categories, children, platformSettings, penaltyRules, featureFlags, cha
 import { localizeQuestions } from './data/question-i18n';
 import { servicers, customers, DEMO_PASSWORD, ADMIN_PIN } from './data/accounts';
 import { BUDGET_RANGE_PRESETS } from './data/budget-ranges';
+
+// ── SP-3 Module Seeding ─────────────────────────────────────────────────────
+
+interface ModuleDef {
+  name: string;
+  questionKey: string;
+  optionValue: string;
+  price: number;
+  durationMin: number;
+  sku?: string;
+}
+
+/** Priced-question module definitions per category (questionKey + optionValue match static.ts exactly). */
+const CATEGORY_MODULES: Record<string, { label: string; proposal: string; auto: boolean; mods: ModuleDef[] }> = {
+
+  // ── Plumber ──────────────────────────────────────────────────────
+  plumber: {
+    label: 'PLB-STANDARD',
+    proposal: 'Thank you for your plumbing request! Our plumber will arrive with full equipment.',
+    auto: true,
+    mods: [
+      // action (priced: true)
+      { name: 'Repair', questionKey: 'action', optionValue: 'repair', price: 80, durationMin: 45 },
+      { name: 'Replace', questionKey: 'action', optionValue: 'replace', price: 100, durationMin: 60 },
+      { name: 'Install', questionKey: 'action', optionValue: 'install', price: 80, durationMin: 60 },
+      { name: 'Dismantle', questionKey: 'action', optionValue: 'dismantle', price: 60, durationMin: 30 },
+      // area (priced: true)
+      { name: 'Bathtub', questionKey: 'area', optionValue: 'bathtub', price: 30, durationMin: 45 },
+      { name: 'Pipe/Drain', questionKey: 'area', optionValue: 'pipe_drain', price: 20, durationMin: 30 },
+      { name: 'Shower', questionKey: 'area', optionValue: 'shower', price: 25, durationMin: 30 },
+      { name: 'Tap/Faucet/Sink', questionKey: 'area', optionValue: 'tap_faucet_sink', price: 15, durationMin: 20 },
+      { name: 'Toilet/WC', questionKey: 'area', optionValue: 'toilet_wc', price: 40, durationMin: 45 },
+      { name: 'Water heater', questionKey: 'area', optionValue: 'water_heater', price: 50, durationMin: 45 },
+      { name: 'Others', questionKey: 'area', optionValue: 'others', price: 20, durationMin: 30 },
+    ],
+  },
+
+  // ── Aircond Servicer ─────────────────────────────────────────────
+  'aircond-servicer': {
+    label: 'AC-STANDARD',
+    proposal: 'Thank you for choosing us! Our technician will arrive with full equipment.',
+    auto: true,
+    mods: [
+      { name: 'Wall Unit Chemical Wash', questionKey: 'aircon_service', optionValue: 'wall_chemical', price: 60, durationMin: 30 },
+      { name: 'Wall Unit General Service', questionKey: 'aircon_service', optionValue: 'wall_general', price: 40, durationMin: 25 },
+      { name: 'Wall Unit Overhaul', questionKey: 'aircon_service', optionValue: 'wall_overhaul', price: 120, durationMin: 60 },
+      { name: 'Cassette General Service', questionKey: 'aircon_service', optionValue: 'cassette_general', price: 50, durationMin: 25 },
+      { name: 'Cassette Chemical Wash', questionKey: 'aircon_service', optionValue: 'cassette_chemical', price: 70, durationMin: 30 },
+      { name: 'Cassette Overhaul', questionKey: 'aircon_service', optionValue: 'cassette_overhaul', price: 150, durationMin: 60 },
+      { name: 'Fault Check', questionKey: 'aircon_service', optionValue: 'faulty_check', price: 30, durationMin: 20 },
+    ],
+  },
+
+  // ── Electrical & Wiring ───────────────────────────────────────────
+  'electrical-wiring': {
+    label: 'ELEC-STANDARD',
+    proposal: 'Thank you for your electrical request! Our licensed electrician will attend.',
+    auto: true,
+    mods: [
+      // action (priced: true)
+      { name: 'Install', questionKey: 'action', optionValue: 'install', price: 80, durationMin: 45 },
+      { name: 'Repair', questionKey: 'action', optionValue: 'repair', price: 60, durationMin: 30 },
+      { name: 'Replace', questionKey: 'action', optionValue: 'replace', price: 100, durationMin: 60 },
+      { name: 'Inspection/Testing', questionKey: 'action', optionValue: 'inspection_testing', price: 50, durationMin: 30 },
+      // item (priced: true) - exact static.ts values
+      { name: 'Wiring/Rewiring', questionKey: 'item', optionValue: 'wiring_rewiring', price: 100, durationMin: 60 },
+      { name: 'Power Socket/Switch', questionKey: 'item', optionValue: 'power_socket_switch', price: 40, durationMin: 20 },
+      { name: 'Lighting/Downlight', questionKey: 'item', optionValue: 'lighting_downlight', price: 50, durationMin: 25 },
+      { name: 'Ceiling Fan', questionKey: 'item', optionValue: 'ceiling_fan', price: 60, durationMin: 30 },
+      { name: 'Distribution Board', questionKey: 'item', optionValue: 'distribution_board', price: 80, durationMin: 45 },
+      { name: 'Water Heater Point', questionKey: 'item', optionValue: 'water_heater_point', price: 80, durationMin: 40 },
+      { name: 'Doorbell/Intercom', questionKey: 'item', optionValue: 'doorbell_intercom', price: 30, durationMin: 15 },
+    ],
+  },
+
+  // ── Home Cleaning ─────────────────────────────────────────────────
+  'home-cleaning': {
+    label: 'CLN-STANDARD',
+    proposal: 'Thank you for booking! Our cleaning crew will arrive with all equipment.',
+    auto: true,
+    mods: [
+      { name: '1hr × 2 cleaners', questionKey: 'cleaning_option', optionValue: '1h_2c', price: 60, durationMin: 60 },
+      { name: '2hr × 2 cleaners', questionKey: 'cleaning_option', optionValue: '2h_2c', price: 100, durationMin: 120 },
+      { name: '3hr × 2 cleaners', questionKey: 'cleaning_option', optionValue: '3h_2c', price: 140, durationMin: 180 },
+      { name: '4hr × 2 cleaners', questionKey: 'cleaning_option', optionValue: '4h_2c', price: 180, durationMin: 240 },
+    ],
+  },
+
+  // ── Sofa/Mattress ─────────────────────────────────────────────────
+  'sofa-mattress-cleaning': {
+    label: 'SOFA-STANDARD',
+    proposal: 'Thank you for your sofa/mattress cleaning request!',
+    auto: true,
+    mods: [
+      // clean_for (priced: true)
+      { name: 'Leather sofa', questionKey: 'clean_for', optionValue: 'leather_sofa', price: 80, durationMin: 45 },
+      { name: 'Fabric sofa', questionKey: 'clean_for', optionValue: 'fabric_sofa', price: 70, durationMin: 45 },
+      { name: 'Single mattress', questionKey: 'clean_for', optionValue: 'single_mattress', price: 100, durationMin: 30 },
+      { name: 'Queen mattress', questionKey: 'clean_for', optionValue: 'queen_mattress', price: 120, durationMin: 40 },
+      { name: 'King mattress', questionKey: 'clean_for', optionValue: 'king_mattress', price: 150, durationMin: 50 },
+      // sofa_size (priced: true)
+      { name: '1-Seater', questionKey: 'sofa_size', optionValue: '1_seater', price: 40, durationMin: 20 },
+      { name: '2-Seater', questionKey: 'sofa_size', optionValue: '2_seater', price: 60, durationMin: 25 },
+      { name: '3-Seater', questionKey: 'sofa_size', optionValue: '3_seater', price: 80, durationMin: 30 },
+      { name: '4-Seater', questionKey: 'sofa_size', optionValue: '4_seater', price: 100, durationMin: 35 },
+      { name: 'L-Shape', questionKey: 'sofa_size', optionValue: 'l_shape', price: 120, durationMin: 40 },
+    ],
+  },
+
+  // ── Carpet ────────────────────────────────────────────────────────
+  'carpet-cleaning': {
+    label: 'CART-STANDARD',
+    proposal: 'Thank you for your carpet cleaning request! Eco-friendly solutions used.',
+    auto: true,
+    mods: [
+      { name: 'Rug - Small', questionKey: 'cleaning_type', optionValue: 'rug_1', price: 30, durationMin: 20 },
+      { name: 'Rug - Medium', questionKey: 'cleaning_type', optionValue: 'rug_2', price: 50, durationMin: 30 },
+      { name: 'Rug - Large', questionKey: 'cleaning_type', optionValue: 'rug_3', price: 70, durationMin: 40 },
+      { name: 'Rug - XL', questionKey: 'cleaning_type', optionValue: 'rug_4', price: 90, durationMin: 50 },
+      { name: 'Carpet Small', questionKey: 'cleaning_type', optionValue: 'carpet_small', price: 80, durationMin: 45 },
+      { name: 'Carpet Medium', questionKey: 'cleaning_type', optionValue: 'carpet_medium', price: 100, durationMin: 60 },
+      { name: 'Carpet Large', questionKey: 'cleaning_type', optionValue: 'carpet_large', price: 120, durationMin: 90 },
+    ],
+  },
+
+  // ── Curtain ───────────────────────────────────────────────────────
+  'curtain-cleaning': {
+    label: 'CURT-STANDARD',
+    proposal: 'Thank you for your curtain cleaning request!',
+    auto: true,
+    mods: [
+      // curtain_sizes (priced: true)
+      { name: 'Full 40"', questionKey: 'curtain_sizes', optionValue: 'full_height_40', price: 8, durationMin: 15 },
+      { name: 'Full 60"', questionKey: 'curtain_sizes', optionValue: 'full_height_60', price: 12, durationMin: 15 },
+      { name: 'Full 100"', questionKey: 'curtain_sizes', optionValue: 'full_height_100', price: 18, durationMin: 15 },
+      { name: 'Half 40"', questionKey: 'curtain_sizes', optionValue: 'half_height_40', price: 8, durationMin: 15 },
+      { name: 'Half 60"', questionKey: 'curtain_sizes', optionValue: 'half_height_60', price: 12, durationMin: 15 },
+      { name: 'Half 100"', questionKey: 'curtain_sizes', optionValue: 'half_height_100', price: 18, durationMin: 15 },
+      // cleaning_type (priced: true)
+      { name: 'Normal Cleaning', questionKey: 'cleaning_type', optionValue: 'normal_cleaning', price: 0, durationMin: 10 },
+      { name: 'Dry Cleaning', questionKey: 'cleaning_type', optionValue: 'dry_cleaning', price: 15, durationMin: 15 },
+    ],
+  },
+
+  // ── Event Planner ─────────────────────────────────────────────────
+  'event-planner': {
+    label: 'EVT-STANDARD',
+    proposal: 'Thank you for your event planning inquiry! Let us make it memorable.',
+    auto: true,
+    mods: [
+      // planning_services (priced: true) - exact static.ts optionValues + spec prices
+      { name: 'Style/Theme Selection', questionKey: 'planning_services', optionValue: 'style_theme', price: 800, durationMin: 120 },
+      { name: 'Budget Planning', questionKey: 'planning_services', optionValue: 'budget_planning', price: 500, durationMin: 60 },
+      { name: 'Invite & RSVP', questionKey: 'planning_services', optionValue: 'invite_rsvp', price: 300, durationMin: 45 },
+      { name: 'Vendor Selection', questionKey: 'planning_services', optionValue: 'vendor_selection', price: 400, durationMin: 60 },
+      { name: 'Vendor Coordination', questionKey: 'planning_services', optionValue: 'vendor_coordination', price: 600, durationMin: 90 },
+      { name: 'Floor Activity', questionKey: 'planning_services', optionValue: 'floor_activity', price: 300, durationMin: 30 },
+    ],
+  },
+
+  // ── Catering ──────────────────────────────────────────────────────
+  catering: {
+    label: 'CAT-STANDARD',
+    proposal: 'Thank you for choosing our catering service!',
+    auto: true,
+    mods: [
+      { name: 'Per person (1-50 pax)', questionKey: 'pax', optionValue: 'person', price: 25, durationMin: 5 },
+    ],
+  },
+
+  // ── Professional Organizer ────────────────────────────────────────
+  'professional-organizer': {
+    label: 'ORG-STANDARD',
+    proposal: 'Thank you for choosing our organizing service!',
+    auto: true,
+    mods: [
+      // home_size (priced: true) - exact static.ts values
+      { name: 'Studio/1BR', questionKey: 'home_size', optionValue: 'studio_1br', price: 60, durationMin: 60 },
+      { name: '2BR', questionKey: 'home_size', optionValue: '2br', price: 80, durationMin: 90 },
+      { name: '3BR', questionKey: 'home_size', optionValue: '3br', price: 120, durationMin: 120 },
+      { name: '4BR', questionKey: 'home_size', optionValue: '4br', price: 160, durationMin: 150 },
+      { name: '5BR+', questionKey: 'home_size', optionValue: '5br_plus', price: 200, durationMin: 180 },
+      { name: 'Landed/Bungalow', questionKey: 'home_size', optionValue: 'landed_bungalow', price: 250, durationMin: 240 },
+    ],
+  },
+
+  // ── Aircond Installer ─────────────────────────────────────────────
+  'aircond-installer': {
+    label: 'API-STANDARD',
+    proposal: 'Thank you for choosing us! Certified installers will handle everything.',
+    auto: true,
+    mods: [
+      // units (priced: true) - exact static.ts values (underscores, not dots)
+      { name: 'Wall 1.0HP', questionKey: 'units', optionValue: 'wall_1hp', price: 120, durationMin: 60 },
+      { name: 'Wall 1.5HP', questionKey: 'units', optionValue: 'wall_1_5hp', price: 150, durationMin: 60 },
+      { name: 'Wall 2.0HP', questionKey: 'units', optionValue: 'wall_2hp', price: 180, durationMin: 60 },
+      { name: 'Wall 2.5HP', questionKey: 'units', optionValue: 'wall_2_5hp', price: 220, durationMin: 90 },
+      { name: 'Wall 3.0HP', questionKey: 'units', optionValue: 'wall_3hp', price: 260, durationMin: 90 },
+      { name: 'Cassette 1.0HP', questionKey: 'units', optionValue: 'cassette_1hp', price: 350, durationMin: 120 },
+      { name: 'Cassette 1.5HP', questionKey: 'units', optionValue: 'cassette_1_5hp', price: 400, durationMin: 120 },
+      { name: 'Cassette 2.0HP', questionKey: 'units', optionValue: 'cassette_2hp', price: 500, durationMin: 120 },
+      { name: 'Cassette 2.5HP', questionKey: 'units', optionValue: 'cassette_2_5hp', price: 600, durationMin: 150 },
+      { name: 'Cassette 3.0HP', questionKey: 'units', optionValue: 'cassette_3hp', price: 800, durationMin: 180 },
+      { name: 'Dismantle Only', questionKey: 'units', optionValue: 'dismantle_only', price: 100, durationMin: 60 },
+    ],
+  },
+
+  // ── Carpenter ─────────────────────────────────────────────────────
+  carpenter: {
+    label: 'CRP-STANDARD',
+    proposal: 'Thank you for your carpentry request!',
+    auto: true,
+    mods: [
+      // action (priced: true)
+      { name: 'Repair', questionKey: 'action', optionValue: 'repair', price: 100, durationMin: 60 },
+      { name: 'Install', questionKey: 'action', optionValue: 'install', price: 150, durationMin: 90 },
+      { name: 'Custom Build', questionKey: 'action', optionValue: 'custom_build', price: 200, durationMin: 120 },
+      { name: 'Dismantle/Remove', questionKey: 'action', optionValue: 'dismantle_remove', price: 80, durationMin: 45 },
+      // item (priced: true) - exact static.ts values
+      { name: 'Cabinet (kitchen)', questionKey: 'item', optionValue: 'cabinet_kitchen', price: 200, durationMin: 120 },
+      { name: 'Wardrobe/Closet', questionKey: 'item', optionValue: 'wardrobe_closet', price: 250, durationMin: 150 },
+      { name: 'Shelves/Storage', questionKey: 'item', optionValue: 'shelves_storage', price: 80, durationMin: 45 },
+      { name: 'Door', questionKey: 'item', optionValue: 'door', price: 120, durationMin: 60 },
+      { name: 'Table/Desk', questionKey: 'item', optionValue: 'table_desk', price: 150, durationMin: 90 },
+      { name: 'TV Console', questionKey: 'item', optionValue: 'tv_console', price: 180, durationMin: 90 },
+      { name: 'Bed Frame', questionKey: 'item', optionValue: 'bed_frame', price: 250, durationMin: 150 },
+      { name: 'Flooring', questionKey: 'item', optionValue: 'flooring', price: 300, durationMin: 180 },
+      { name: 'Decking/Outdoor', questionKey: 'item', optionValue: 'decking_outdoor', price: 400, durationMin: 240 },
+    ],
+  },
+
+  // ── Interior Design ───────────────────────────────────────────────
+  'interior-design': {
+    label: 'INT-STANDARD',
+    proposal: 'Thank you for your interior design inquiry! We look forward to transforming your space.',
+    auto: true,
+    mods: [
+      // service_level (priced: true) - exact static.ts values
+      { name: 'Consultation Only', questionKey: 'service_level', optionValue: 'consultation_only', price: 200, durationMin: 60 },
+      { name: 'Concept + 3D Design', questionKey: 'service_level', optionValue: 'concept_3d', price: 400, durationMin: 120 },
+      { name: 'Design + Project Management', questionKey: 'service_level', optionValue: 'design_pm', price: 600, durationMin: 180 },
+      { name: 'Full Turnkey', questionKey: 'service_level', optionValue: 'full_turnkey', price: 800, durationMin: 300 },
+    ],
+  },
+
+  // ── Door/Gate ─────────────────────────────────────────────────────
+  'door-gate': {
+    label: 'GATE-STANDARD',
+    proposal: 'Thank you for your door/gate request!',
+    auto: true,
+    mods: [
+      // action (priced: true)
+      { name: 'New Install', questionKey: 'action', optionValue: 'new_install', price: 250, durationMin: 120 },
+      { name: 'Repair', questionKey: 'action', optionValue: 'repair', price: 120, durationMin: 60 },
+      { name: 'Replace', questionKey: 'action', optionValue: 'replace', price: 300, durationMin: 150 },
+      { name: 'Service/Maintenance', questionKey: 'action', optionValue: 'service_maintenance', price: 80, durationMin: 45 },
+      // gate_type (priced: true) - exact static.ts optionValues + spec prices
+      { name: 'Autogate (Swing)', questionKey: 'gate_type', optionValue: 'autogate_swing', price: 250, durationMin: 120 },
+      { name: 'Autogate (Sliding)', questionKey: 'gate_type', optionValue: 'autogate_sliding', price: 300, durationMin: 150 },
+      { name: 'Folding Gate', questionKey: 'gate_type', optionValue: 'folding_gate', price: 400, durationMin: 180 },
+      { name: 'Grille Gate', questionKey: 'gate_type', optionValue: 'grille_gate', price: 200, durationMin: 90 },
+      { name: 'Security/Metal Door', questionKey: 'gate_type', optionValue: 'security_metal_door', price: 350, durationMin: 120 },
+      { name: 'Roller Shutter', questionKey: 'gate_type', optionValue: 'roller_shutter', price: 300, durationMin: 120 },
+    ],
+  },
+
+  // ── Painting ──────────────────────────────────────────────────────
+  painting: {
+    label: 'PNT-STANDARD',
+    proposal: 'Thank you for your painting request!',
+    auto: true,
+    mods: [
+      // paint_scope (priced: true) - exact static.ts optionValues + spec prices
+      { name: 'One Room', questionKey: 'paint_scope', optionValue: 'one_room', price: 200, durationMin: 120 },
+      { name: 'Multiple Rooms', questionKey: 'paint_scope', optionValue: 'multiple_rooms', price: 500, durationMin: 300 },
+      { name: 'Whole House', questionKey: 'paint_scope', optionValue: 'whole_house', price: 1500, durationMin: 720 },
+      { name: 'Exterior/Facade', questionKey: 'paint_scope', optionValue: 'exterior', price: 1200, durationMin: 600 },
+      { name: 'Feature Wall', questionKey: 'paint_scope', optionValue: 'feature_wall', price: 300, durationMin: 180 },
+    ],
+  },
+
+  // ── Moving ────────────────────────────────────────────────────────
+  moving: {
+    label: 'MOV-STANDARD',
+    proposal: 'Thank you for choosing our moving service!',
+    auto: true,
+    mods: [
+      // move_type (priced: true)
+      { name: 'Whole Home', questionKey: 'move_type', optionValue: 'whole_home', price: 500, durationMin: 300 },
+      { name: 'Few Big Items', questionKey: 'move_type', optionValue: 'few_big_items', price: 200, durationMin: 120 },
+      { name: 'Single Item', questionKey: 'move_type', optionValue: 'single_item', price: 80, durationMin: 60 },
+      { name: 'Office', questionKey: 'move_type', optionValue: 'office', price: 600, durationMin: 360 },
+      // home_size (priced: true) - exact static.ts optionValues + spec prices
+      { name: 'Studio / 1 Room', questionKey: 'home_size', optionValue: 'studio', price: 200, durationMin: 120 },
+      { name: '2-3 Rooms', questionKey: 'home_size', optionValue: '2_3_rooms', price: 500, durationMin: 300 },
+      { name: '4+ Rooms or Landed', questionKey: 'home_size', optionValue: '4_plus', price: 800, durationMin: 480 },
+      { name: 'Just a Few Items', questionKey: 'home_size', optionValue: 'items_only', price: 150, durationMin: 90 },
+    ],
+  },
+
+  // ── Gardening ─────────────────────────────────────────────────────
+  gardening: {
+    label: 'GARD-STANDARD',
+    proposal: 'Thank you for your gardening request! We will bring all necessary tools.',
+    auto: true,
+    mods: [
+      // garden_work (priced: true) - exact static.ts values
+      { name: 'Lawn Mowing & Trimming', questionKey: 'garden_work', optionValue: 'lawn_mowing', price: 60, durationMin: 60 },
+      { name: 'Hedge & Bush Trimming', questionKey: 'garden_work', optionValue: 'hedge', price: 80, durationMin: 90 },
+      { name: 'Weeding & Clearing', questionKey: 'garden_work', optionValue: 'weeding', price: 50, durationMin: 60 },
+      { name: 'Tree Pruning', questionKey: 'garden_work', optionValue: 'tree_pruning', price: 100, durationMin: 120 },
+      { name: 'Landscaping & Planting', questionKey: 'garden_work', optionValue: 'landscaping', price: 200, durationMin: 240 },
+      // garden_size (priced: true)
+      { name: 'Small (<500sqft)', questionKey: 'garden_size', optionValue: 'small', price: 30, durationMin: 30 },
+      { name: 'Medium (500-2000sqft)', questionKey: 'garden_size', optionValue: 'medium', price: 50, durationMin: 45 },
+      { name: 'Large (>2000sqft)', questionKey: 'garden_size', optionValue: 'large', price: 80, durationMin: 60 },
+      { name: 'Not Sure', questionKey: 'garden_size', optionValue: 'not_sure', price: 60, durationMin: 45 },
+    ],
+  },
+
+  // ── Alarm/CCTV ────────────────────────────────────────────────────
+  'alarm-cctv': {
+    label: 'CAM-STANDARD',
+    proposal: 'Thank you for your security system request! Licensed installer will attend.',
+    auto: true,
+    mods: [
+      // action (priced: true)
+      { name: 'New Install', questionKey: 'action', optionValue: 'new_install', price: 400, durationMin: 180 },
+      { name: 'Add/Expand', questionKey: 'action', optionValue: 'add_expand', price: 200, durationMin: 90 },
+      { name: 'Repair', questionKey: 'action', optionValue: 'repair', price: 120, durationMin: 60 },
+      { name: 'Maintenance', questionKey: 'action', optionValue: 'maintenance', price: 100, durationMin: 60 },
+      { name: 'Relocate', questionKey: 'action', optionValue: 'relocate', price: 250, durationMin: 120 },
+      // system_type (priced: true) - exact static.ts values
+      { name: 'CCTV Cameras', questionKey: 'system_type', optionValue: 'cctv_cameras', price: 400, durationMin: 180 },
+      { name: 'Alarm System', questionKey: 'system_type', optionValue: 'alarm_system', price: 200, durationMin: 120 },
+      { name: 'Door Access/Intercom', questionKey: 'system_type', optionValue: 'door_access_intercom', price: 300, durationMin: 120 },
+      { name: 'Smart Doorbell', questionKey: 'system_type', optionValue: 'smart_doorbell', price: 150, durationMin: 60 },
+      { name: 'Motion Sensors', questionKey: 'system_type', optionValue: 'motion_sensors', price: 100, durationMin: 60 },
+    ],
+  },
+
+  // ── Roof ──────────────────────────────────────────────────────────
+  roof: {
+    label: 'ROOF-STANDARD',
+    proposal: 'Thank you for your roofing request! We will inspect and provide a solution.',
+    auto: true,
+    mods: [
+      // action (priced: true after this SP-3 fix)
+      { name: 'Leak Repair', questionKey: 'action', optionValue: 'leak_repair', price: 150, durationMin: 60 },
+      { name: 'Tile/Sheet Replacement', questionKey: 'action', optionValue: 'tile_sheet_replacement', price: 300, durationMin: 180 },
+      { name: 'Gutter Clean/Repair', questionKey: 'action', optionValue: 'gutter_clean_repair', price: 120, durationMin: 45 },
+      { name: 'Waterproofing', questionKey: 'action', optionValue: 'waterproofing', price: 500, durationMin: 240 },
+      { name: 'Full Re-roofing', questionKey: 'action', optionValue: 'full_reroofing', price: 1200, durationMin: 600 },
+      { name: 'Inspection Only', questionKey: 'action', optionValue: 'inspection_only', price: 100, durationMin: 30 },
+    ],
+  },
+
+  // ── Renovation ────────────────────────────────────────────────────
+  renovation: {
+    label: 'RENO-STANDARD',
+    proposal: 'Thank you for your renovation inquiry! We will arrange a site inspection.',
+    auto: true,
+    mods: [
+      // project_type (priced: true after this SP-3 fix)
+      { name: 'Full Home', questionKey: 'project_type', optionValue: 'full_home', price: 5000, durationMin: 1440 },
+      { name: 'Single Room', questionKey: 'project_type', optionValue: 'single_room', price: 2000, durationMin: 480 },
+      { name: 'Kitchen', questionKey: 'project_type', optionValue: 'kitchen', price: 3000, durationMin: 720 },
+      { name: 'Bathroom/Toilet', questionKey: 'project_type', optionValue: 'bathroom_toilet', price: 2000, durationMin: 480 },
+      { name: 'Extension/Add-on', questionKey: 'project_type', optionValue: 'extension_add_on', price: 4000, durationMin: 960 },
+      { name: 'Commercial/Office', questionKey: 'project_type', optionValue: 'commercial_office', price: 6000, durationMin: 1440 },
+    ],
+  },
+
+  // ── Gym Trainer (moved from GENERIC_AUTO to CATEGORY_MODULES since we add trainee) ─
+  'gym-trainer': {
+    label: 'GYM-STANDARD',
+    proposal: 'Thank you for choosing our training service!',
+    auto: true,
+    mods: [
+      // format (priced: true) - exact static.ts values
+      { name: 'At My Home', questionKey: 'format', optionValue: 'at_my_home', price: 80, durationMin: 60 },
+      { name: 'At Gym', questionKey: 'format', optionValue: 'at_gym', price: 60, durationMin: 60 },
+      { name: 'Outdoor/Park', questionKey: 'format', optionValue: 'outdoor_park', price: 70, durationMin: 60 },
+      { name: 'Online', questionKey: 'format', optionValue: 'online', price: 50, durationMin: 60 },
+      // trainee (priced: true)
+      { name: 'Individual', questionKey: 'trainee', optionValue: 'individual', price: 60, durationMin: 60 },
+      { name: 'Couple', questionKey: 'trainee', optionValue: 'couple', price: 90, durationMin: 60 },
+      { name: 'Small Group', questionKey: 'trainee', optionValue: 'small_group', price: 120, durationMin: 60 },
+    ],
+  },
+
+  // ── Music Class (moved from GENERIC_AUTO to CATEGORY_MODULES since we add instrument) ─
+  'music-class': {
+    label: 'MUSC-STANDARD',
+    proposal: 'Thank you for choosing our music class!',
+    auto: true,
+    mods: [
+      // format (priced: true) - exact static.ts values
+      { name: 'In-Person (at Tutor)', questionKey: 'format', optionValue: 'in_person_tutor', price: 70, durationMin: 60 },
+      { name: 'In-Person (at My Home)', questionKey: 'format', optionValue: 'in_person_home', price: 90, durationMin: 60 },
+      { name: 'Online', questionKey: 'format', optionValue: 'online', price: 50, durationMin: 60 },
+      // instrument (priced: true)
+      { name: 'Piano', questionKey: 'instrument', optionValue: 'piano', price: 80, durationMin: 60 },
+      { name: 'Guitar', questionKey: 'instrument', optionValue: 'guitar', price: 60, durationMin: 60 },
+      { name: 'Violin', questionKey: 'instrument', optionValue: 'violin', price: 70, durationMin: 60 },
+      { name: 'Drums', questionKey: 'instrument', optionValue: 'drums', price: 90, durationMin: 60 },
+      { name: 'Vocal/Singing', questionKey: 'instrument', optionValue: 'vocal_singing', price: 60, durationMin: 60 },
+      { name: 'Ukulele', questionKey: 'instrument', optionValue: 'ukulele', price: 50, durationMin: 60 },
+      { name: 'Music Theory', questionKey: 'instrument', optionValue: 'music_theory', price: 60, durationMin: 60 },
+      { name: 'Others', questionKey: 'instrument', optionValue: 'others', price: 50, durationMin: 60 },
+    ],
+  },
+
+  // ── Home Tutoring (moved from GENERIC_AUTO to CATEGORY_MODULES since we add level) ─
+  'home-tutoring': {
+    label: 'TUTR-STANDARD',
+    proposal: 'Thank you for choosing our tutoring service!',
+    auto: true,
+    mods: [
+      // format (priced: true) - exact static.ts values
+      { name: 'At My Home', questionKey: 'format', optionValue: 'at_my_home', price: 60, durationMin: 60 },
+      { name: 'At Tutor', questionKey: 'format', optionValue: 'at_tutor', price: 50, durationMin: 60 },
+      { name: 'Online', questionKey: 'format', optionValue: 'online', price: 40, durationMin: 60 },
+      // level (priced: true)
+      { name: 'Primary', questionKey: 'level', optionValue: 'primary', price: 40, durationMin: 60 },
+      { name: 'Lower Sec', questionKey: 'level', optionValue: 'lower_sec', price: 45, durationMin: 60 },
+      { name: 'SPM', questionKey: 'level', optionValue: 'spm', price: 55, durationMin: 60 },
+      { name: 'Pre-U', questionKey: 'level', optionValue: 'pre_u', price: 60, durationMin: 60 },
+      { name: 'University', questionKey: 'level', optionValue: 'university', price: 70, durationMin: 60 },
+      { name: 'Adult/Skills', questionKey: 'level', optionValue: 'adult_skills', price: 50, durationMin: 60 },
+    ],
+  },
+
+  // ── Cooking Class (moved from GENERIC_AUTO to CATEGORY_MODULES since we add setup) ─
+  'cooking-class': {
+    label: 'COOK-STANDARD',
+    proposal: 'Thank you for choosing our cooking class!',
+    auto: true,
+    mods: [
+      // format (priced: true) - exact static.ts values
+      { name: 'In-Person (at Venue)', questionKey: 'format', optionValue: 'in_person_venue', price: 80, durationMin: 90 },
+      { name: 'In-Person (at My Home)', questionKey: 'format', optionValue: 'in_person_home', price: 100, durationMin: 90 },
+      { name: 'Online', questionKey: 'format', optionValue: 'online', price: 60, durationMin: 60 },
+      // setup (priced: true)
+      { name: 'Private (1-on-1)', questionKey: 'setup', optionValue: 'private_1on1', price: 80, durationMin: 90 },
+      { name: 'Small Group', questionKey: 'setup', optionValue: 'small_group', price: 120, durationMin: 90 },
+      { name: 'Workshop/Event', questionKey: 'setup', optionValue: 'workshop_event', price: 200, durationMin: 120 },
+    ],
+  },
+
+  // ── 3D Modeling Class (moved from GENERIC_AUTO to CATEGORY_MODULES since we add field) ─
+  '3d-modeling-class': {
+    label: '3D-STANDARD',
+    proposal: 'Thank you for choosing our 3D modeling class!',
+    auto: true,
+    mods: [
+      // format (priced: true) - exact static.ts values
+      { name: 'Online', questionKey: 'format', optionValue: 'online', price: 60, durationMin: 90 },
+      { name: 'In-Person (at Tutor)', questionKey: 'format', optionValue: 'in_person_tutor', price: 100, durationMin: 90 },
+      { name: 'In-Person (at My Home)', questionKey: 'format', optionValue: 'in_person_home', price: 120, durationMin: 90 },
+      // field (priced: true)
+      { name: 'Environment/Prop', questionKey: 'field', optionValue: 'environment_prop', price: 80, durationMin: 90 },
+      { name: 'Animation/Cinematic', questionKey: 'field', optionValue: 'animation_cinematic', price: 100, durationMin: 90 },
+      { name: 'Character', questionKey: 'field', optionValue: 'character', price: 90, durationMin: 90 },
+      { name: 'Product/Industrial', questionKey: 'field', optionValue: 'product', price: 70, durationMin: 90 },
+      { name: 'Interior Design/Architecture', questionKey: 'field', optionValue: 'interior_design', price: 80, durationMin: 90 },
+      { name: '3D Printing', questionKey: 'field', optionValue: '3d_printing', price: 60, durationMin: 90 },
+      { name: 'Sculpting', questionKey: 'field', optionValue: 'sculpting', price: 90, durationMin: 90 },
+      { name: 'Others', questionKey: 'field', optionValue: 'others', price: 60, durationMin: 90 },
+    ],
+  },
+};
+
+/** Generic auto-accept for appliance repair + basic training categories (questionKey + optionValue match static.ts exactly). */
+const GENERIC_AUTO: Record<string, { label: string; proposal: string; questionKey: string; opts: Record<string, { label: string; price: number; dur: number }> }> = {
+  'washing-machine-repair': {
+    label: 'WM-STANDARD',
+    proposal: 'Thank you for your washing machine repair request! Our technician will diagnose the issue.',
+    questionKey: 'appliance',
+    opts: {
+      washing_machine_top: { label: 'Top Load', price: 60, dur: 45 },
+      washing_machine_front: { label: 'Front Load', price: 70, dur: 50 },
+      dryer: { label: 'Dryer', price: 50, dur: 40 },
+      washer_dryer_combo: { label: 'Washer-Dryer Combo', price: 80, dur: 60 },
+    },
+  },
+  'refrigerator-repair': {
+    label: 'FRDG-STANDARD',
+    proposal: 'Thank you for your refrigerator repair request!',
+    questionKey: 'fridge_type',
+    opts: {
+      single_door: { label: 'Single Door', price: 50, dur: 40 },
+      double_door: { label: 'Double Door', price: 70, dur: 50 },
+      side_by_side: { label: 'Side-by-Side', price: 90, dur: 60 },
+      mini_bar: { label: 'Mini/Bar Fridge', price: 40, dur: 30 },
+      chest_freezer: { label: 'Chest Freezer', price: 80, dur: 50 },
+    },
+  },
+  'tv-repair': {
+    label: 'TV-STANDARD',
+    proposal: 'Thank you for your TV repair request!',
+    questionKey: 'tv_type',
+    opts: {
+      led_lcd: { label: 'LED/LCD', price: 40, dur: 40 },
+      oled: { label: 'OLED', price: 60, dur: 45 },
+      plasma: { label: 'Plasma', price: 60, dur: 45 },
+      projector: { label: 'Projector', price: 80, dur: 50 },
+      smart_tv: { label: 'Smart TV', price: 50, dur: 45 },
+      unknown: { label: 'Not Sure', price: 50, dur: 40 },
+    },
+  },
+  'oven-repair': {
+    label: 'OVEN-STANDARD',
+    proposal: 'Thank you for your oven repair request!',
+    questionKey: 'oven_type',
+    opts: {
+      built_in_oven: { label: 'Built-in Oven', price: 80, dur: 60 },
+      freestanding: { label: 'Freestanding', price: 50, dur: 45 },
+      microwave: { label: 'Microwave', price: 40, dur: 30 },
+      microwave_oven_combo: { label: 'Microwave-Oven Combo', price: 60, dur: 45 },
+      gas_oven: { label: 'Gas Oven', price: 60, dur: 45 },
+    },
+  },
+  'water-heater-repair': {
+    label: 'WH-STANDARD',
+    proposal: 'Thank you for your water heater repair request!',
+    questionKey: 'heater_type',
+    opts: {
+      instant_single: { label: 'Instant (Single Point)', price: 60, dur: 45 },
+      storage_tank: { label: 'Storage Tank', price: 80, dur: 60 },
+      multipoint: { label: 'Multipoint', price: 70, dur: 45 },
+      solar: { label: 'Solar', price: 120, dur: 90 },
+      heat_pump: { label: 'Heat Pump', price: 150, dur: 90 },
+    },
+  },
+  'ceiling-fan-repair': {
+    label: 'FAN-STANDARD',
+    proposal: 'Thank you for your ceiling fan repair request!',
+    questionKey: 'fan_type',
+    opts: {
+      standard: { label: 'Standard', price: 50, dur: 30 },
+      decorative_dc: { label: 'Decorative/DC Fan', price: 70, dur: 40 },
+      industrial: { label: 'Industrial', price: 100, dur: 50 },
+      with_light_kit: { label: 'With Light Kit', price: 60, dur: 35 },
+      remote_controlled: { label: 'Remote-Controlled', price: 60, dur: 35 },
+    },
+  },
+  'aircond-repair': {
+    label: 'ACR-STANDARD',
+    proposal: 'Thank you for your aircond repair request!',
+    questionKey: 'aircon_type',
+    opts: {
+      wall_mounted_split: { label: 'Wall-Mounted (Split)', price: 60, dur: 45 },
+      cassette_ceiling: { label: 'Cassette/Ceiling', price: 80, dur: 60 },
+      portable: { label: 'Portable', price: 50, dur: 40 },
+      window: { label: 'Window', price: 60, dur: 40 },
+      inverter: { label: 'Inverter', price: 70, dur: 50 },
+    },
+  },
+  'art-class': {
+    label: 'ART-STANDARD',
+    proposal: 'Thank you for choosing our art class!',
+    questionKey: 'format',
+    opts: {
+      in_person_tutor: { label: 'In-Person (at Tutor)', price: 60, dur: 60 },
+      in_person_home: { label: 'In-Person (at My Home)', price: 80, dur: 60 },
+      online: { label: 'Online', price: 40, dur: 60 },
+    },
+  },
+  'language-class': {
+    label: 'LANG-STANDARD',
+    proposal: 'Thank you for choosing our language class!',
+    questionKey: 'format',
+    opts: {
+      in_person_tutor: { label: 'In-Person (at Tutor)', price: 60, dur: 60 },
+      in_person_home: { label: 'In-Person (at My Home)', price: 80, dur: 60 },
+      online: { label: 'Online', price: 40, dur: 60 },
+    },
+  },
+};
+
+// ── Module seeding helpers ───────────────────────────────────────────────────
+
+async function seedForServicer(
+  prisma: PrismaClient,
+  servicer: { id: string; businessName: string; categoryId: string },
+  label: string,
+  proposal: string,
+  auto: boolean,
+  mods: ModuleDef[],
+) {
+  if (mods.length === 0) { console.log(`  ${servicer.businessName}: manual (no modules)`); return; }
+
+  // Create/update modules
+  const moduleIds: string[] = [];
+  for (const mod of mods) {
+    const compositeKey = `${servicer.id}-${mod.questionKey}-${mod.optionValue}`.substring(0, 36).replace(/[^a-zA-Z0-9_-]/g, '');
+    const created = await prisma.servicerModule.upsert({
+      where: { id: compositeKey },
+      update: { name: mod.name, questionKey: mod.questionKey, optionValue: mod.optionValue, price: mod.price, durationMin: mod.durationMin, sku: mod.sku || null, active: true },
+      create: { servicerId: servicer.id, name: mod.name, questionKey: mod.questionKey, optionValue: mod.optionValue, price: mod.price, durationMin: mod.durationMin, sku: mod.sku || null, active: true },
+    });
+    moduleIds.push(created.id);
+  }
+
+  const basePrice = mods.reduce((s, m) => s + m.price, 0);
+  const durationMin = mods.reduce((s, m) => s + m.durationMin, 0);
+  const moduleRefs = moduleIds.map((moduleId) => ({ moduleId }));
+
+  // Find existing or create listing
+  const existing = await prisma.servicerService.findFirst({ where: { servicerId: servicer.id, title: { contains: label.substring(0, 8), mode: 'insensitive' } } });
+  const data = {
+    label, title: label, proposalPreset: proposal, basePrice, estimatedDurationMinutes: durationMin || 60,
+    autoAccept: auto, autoAcceptMessage: auto ? proposal : null, moduleRefs: moduleRefs as any, listingMode: 'advanced',
+    description: `Professional service - includes ${mods.map(m => m.name).join(', ')}`,
+  };
+
+  if (existing) {
+    await prisma.servicerService.update({ where: { id: existing.id }, data });
+  } else {
+    await prisma.servicerService.create({
+      data: { servicerId: servicer.id, categoryId: servicer.categoryId, priceType: 'fixed', taxMode: 'none', ...data },
+    });
+  }
+  console.log(`  ${servicer.businessName}: ${mods.length} modules, auto=${auto}`);
+}
 
 const prisma = new PrismaClient();
 const MANIFEST = join(__dirname, 'seeded-ids.json');
@@ -128,7 +754,7 @@ async function main(): Promise<void> {
               // Attach ms/zh/ta label translations so quote-flow cards render in the
               // customer's language instead of falling back to English.
               questionSchema: localizeQuestions(
-                c.questions,
+                c.questions as unknown as Parameters<typeof localizeQuestions>[0],
               ) as unknown as Prisma.InputJsonValue,
             }
           : {}),
@@ -254,6 +880,7 @@ async function main(): Promise<void> {
         phone: c.phone,
         passwordHash,
         actionPinHash: pinHash,
+        avatarUrl: `https://picsum.photos/seed/${encodeURIComponent(c.name)}/100/100`,
         contactName: c.name,
         contactNumber: c.phone,
         preferredTimeSlot: c.preferredTimeSlot ?? null,
@@ -385,8 +1012,12 @@ async function main(): Promise<void> {
       data: { type: 'deposit_topup', amount: topup, userId: uid, reference: 'Demo top-up' },
     });
     for (const d of customerBookingDeductions) {
+      const customerBooking = await prisma.booking.findFirst({
+        where: { userId: uid, status: 'completed' },
+        select: { id: true },
+      });
       await prisma.transaction.create({
-        data: { type: 'escrow_hold', amount: d.amount, userId: uid, reference: d.reference },
+        data: { type: 'escrow_hold', amount: d.amount, userId: uid, bookingId: customerBooking?.id ?? null, reference: d.reference },
       });
     }
     await prisma.user.update({
@@ -547,7 +1178,23 @@ async function main(): Promise<void> {
         lat: m.lat ?? areaCoords(m.area).lat,
         lng: m.lng ?? areaCoords(m.area).lng,
         rating: m.rating,
+        operatingHours: {
+          mon: { open: '09:00', close: '18:00' },
+          tue: { open: '09:00', close: '18:00' },
+          wed: { open: '09:00', close: '18:00' },
+          thu: { open: '09:00', close: '18:00' },
+          fri: { open: '09:00', close: '18:00' },
+          sat: { open: '09:00', close: '14:00' },
+          sun: { open: '09:00', close: '14:00' },
+        },
         onboarded: true,
+        serviceRadiusKm: (
+          ['home-cleaning', 'sofa-mattress-cleaning', 'carpet-cleaning', 'curtain-cleaning', 'professional-organizer', 'event-planner', 'catering'].includes(m.categorySlug) ? 10
+          : ['washing-machine-repair', 'refrigerator-repair', 'tv-repair', 'oven-repair', 'water-heater-repair', 'ceiling-fan-repair', 'aircond-repair'].includes(m.categorySlug) ? 15
+          : ['art-class', 'language-class', 'music-class', 'home-tutoring', 'cooking-class', 'gym-trainer', '3d-modeling-class'].includes(m.categorySlug) ? 20
+          : ['renovation', 'interior-design', 'roof', 'painting', 'aircond-installer', 'carpenter'].includes(m.categorySlug) ? 25
+          : Math.floor(Math.random() * 11) + 10
+        ),
         isDemo: true,
       },
     });
@@ -596,6 +1243,7 @@ async function main(): Promise<void> {
           servicerId: servicer.id,
           categoryId: categoryBySlug[m.categorySlug],
           title: s.title,
+          label: s.title,
           description: s.title,
           servicerSku: s.sku,
           basePrice: s.basePrice,
@@ -614,6 +1262,75 @@ async function main(): Promise<void> {
       if (s.sku) serviceBySku[s.sku] = svc.id;
     }
   }
+  console.log(`  ✓ ${servicers.length} servicers + services + deposits + presets`);
+
+  // ── SP-3 Module Seeding (merged from seed-sp3-modules.ts) ───────────────────
+  console.log('SP-3 Module seeding (all categories) started…');
+
+  // Seed explicit category modules - ALL servicers per category
+  for (const [slug, cfg] of Object.entries(CATEGORY_MODULES)) {
+    const srvcs = await prisma.servicer.findMany({
+      where: { category: { slug } },
+      select: { id: true, businessName: true, categoryId: true },
+    });
+    for (const s of srvcs) {
+      await seedForServicer(prisma, s, cfg.label, cfg.proposal, cfg.auto, cfg.mods);
+    }
+  }
+
+  // Seed generic appliance repair + basic training categories - ALL servicers
+  for (const [slug, cfg] of Object.entries(GENERIC_AUTO)) {
+    const srvcs = await prisma.servicer.findMany({
+      where: { category: { slug } },
+      select: { id: true, businessName: true, categoryId: true },
+    });
+    for (const s of srvcs) {
+      const mods: ModuleDef[] = Object.entries(cfg.opts).map(([val, info]) => ({
+        name: info.label, questionKey: cfg.questionKey, optionValue: val, price: info.price, durationMin: info.dur,
+      }));
+      await seedForServicer(prisma, s, cfg.label, cfg.proposal, true, mods);
+    }
+  }
+
+  // ── M1 Ahmad - modules but NO auto-accept on ANY listing ──────────
+  const m1 = await prisma.servicer.findFirst({
+    where: { businessName: { contains: 'Ahmad', mode: 'insensitive' }, category: { slug: 'plumber' } },
+    select: { id: true, businessName: true },
+  });
+  if (m1) {
+    await prisma.servicerService.updateMany({
+      where: { servicerId: m1.id, deletedAt: null },
+      data: { autoAccept: false, autoAcceptMessage: null },
+    });
+    console.log(`  M1 ${m1.businessName}: all listings set to manual (auto-accept disabled)`);
+  }
+  console.log('SP-3 Module seeding complete.');
+
+  // ── Refresh platform settings (merged from seed-settings.ts) ──
+  console.log('Refreshing platform settings…');
+  const allCats = await prisma.category.findMany({ select: { id: true, slug: true } });
+  const idBySlug2: Record<string, string> = {};
+  for (const c of allCats) idBySlug2[c.slug] = c.id;
+  const byCategoryId2: Record<string, { min: number; max: number | null }[]> = {};
+  for (const slug of Object.keys(BUDGET_RANGE_PRESETS)) {
+    const id = idBySlug2[slug];
+    if (id) byCategoryId2[id] = BUDGET_RANGE_PRESETS[slug];
+  }
+  await prisma.platformSettings.upsert({
+    where: { key: 'budget_ranges' },
+    create: { key: 'budget_ranges', value: { ranges: byCategoryId2 } as Prisma.InputJsonValue },
+    update: { value: { ranges: byCategoryId2 } as Prisma.InputJsonValue },
+  });
+  for (const s of platformSettings) {
+    const value = (s.value ?? Prisma.JsonNull) as Prisma.InputJsonValue;
+    await prisma.platformSettings.upsert({
+      where: { key: s.key },
+      create: { key: s.key, value },
+      update: { value },
+    });
+  }
+  console.log('  ✓ platform settings upserted (budget ranges + greeting tiers etc.)');
+
   // ── Demo quote helpers ──────────────────────────────────────────────────
   function sampleAnswers(categorySlug: string): Record<string, unknown> {
     const map: Record<string, Record<string, unknown>> = {
@@ -658,7 +1375,7 @@ async function main(): Promise<void> {
   function sampleNotes(payment: string): string {
     const notes: Record<string, string> = {
       pay_now: 'Park at visitor lot B. Use the side entrance on Jalan Setiabakti. Ring bell #3.',
-      pay_later: 'Please call 15 minutes before arrival. Pets on premises — kindly notify if allergic.',
+      pay_later: 'Please call 15 minutes before arrival. Pets on premises - kindly notify if allergic.',
       cash: 'Gate access code: #7721. Leave the receipt in the mailbox after service.',
     };
     return notes[payment] ?? '';
@@ -671,7 +1388,7 @@ async function main(): Promise<void> {
     categorySlug: string,
     opts: { timeSlot?: 'morning' | 'noon' | 'afternoon' | 'evening' | 'night'; status?: 'open' | 'matched'; budget?: [number, number]; payment?: 'pay_now' | 'pay_later' | 'cash'; deadline?: Date; serviceDetails?: Record<string, unknown>; notes?: string } = {},
   ) {
-    const cust = accounts.find((c) => c.ref === customerRef)!;
+    const cust = customers.find((c) => c.ref === customerRef)!;
     return prisma.quoteRequest.create({
       data: {
         userId: customerByRef[customerRef],
@@ -691,8 +1408,12 @@ async function main(): Promise<void> {
           ? new Date(opts.deadline.getTime() - 15 * 60_000)
           : minutes(offset - 15),
         status: opts.status ?? 'open',
-        serviceDetails: opts.serviceDetails ?? null,
+        serviceDetails: opts.serviceDetails
+          ? (opts.serviceDetails as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
         notes: opts.notes ?? null,
+        lat: 3.1390,
+        lng: 101.6869,
       },
     });
   }
@@ -722,7 +1443,7 @@ async function main(): Promise<void> {
   });
   await prisma.quoteBroadcast.create({ data: { quoteRequestId: activeQuote.id, servicerId: servicerByRef['M2'] } });
   await prisma.quoteProposal.create({
-    data: { quoteRequestId: activeQuote.id, servicerId: servicerByRef['M2'], proposedPrice: 110, message: 'CoolBreeze AC can handle this job.', etaMinutes: 60, isAuto: true },
+    data: { quoteRequestId: activeQuote.id, servicerId: servicerByRef['M2'], proposedPrice: 110, lineItems: [{ label: 'Service', amount: 110, taxable: true, serviceChargeable: true }], message: 'CoolBreeze AC can handle this job.', etaMinutes: 60, isAuto: true },
   });
 
   // Open plumbing quote (C_FRESH) → M1 broadcast + proposal.
@@ -741,7 +1462,7 @@ async function main(): Promise<void> {
   });
   await prisma.quoteBroadcast.create({ data: { quoteRequestId: plumbingOpenQuote.id, servicerId: servicerByRef['M1'] } });
   await prisma.quoteProposal.create({
-    data: { quoteRequestId: plumbingOpenQuote.id, servicerId: servicerByRef['M1'], proposedPrice: 100, message: 'Ahmad Plumbing can fix this - fast and reliable.', etaMinutes: 60 },
+    data: { quoteRequestId: plumbingOpenQuote.id, servicerId: servicerByRef['M1'], proposedPrice: 100, lineItems: [{ label: 'Service', amount: 100, taxable: true, serviceChargeable: true }], message: 'Ahmad Plumbing can fix this - fast and reliable.', etaMinutes: 60 },
   });
 
   // Open catering quote (C_LOYAL) → M9 broadcast + proposal.
@@ -760,7 +1481,7 @@ async function main(): Promise<void> {
   });
   await prisma.quoteBroadcast.create({ data: { quoteRequestId: cateringOpenQuote.id, servicerId: servicerByRef['M9'] } });
   await prisma.quoteProposal.create({
-    data: { quoteRequestId: cateringOpenQuote.id, servicerId: servicerByRef['M9'], proposedPrice: 200, message: 'Auntie Mei Catering - homestyle Malaysian menu.', etaMinutes: 180, isAuto: true },
+    data: { quoteRequestId: cateringOpenQuote.id, servicerId: servicerByRef['M9'], proposedPrice: 200, lineItems: [{ label: 'Service', amount: 200, taxable: true, serviceChargeable: true }], message: 'Auntie Mei Catering - homestyle Malaysian menu.', etaMinutes: 180, isAuto: true },
   });
 
   // Extra broadcasts (no proposal yet) - servicers see pending incoming quotes.
@@ -801,6 +1522,7 @@ async function main(): Promise<void> {
         quoteRequestId: q.id,
         servicerId: servicerByRef[servicerRef],
         proposedPrice: price,
+        lineItems: [{ label: 'Service', amount: price, taxable: true, serviceChargeable: true }],
         message: 'Proposal accepted by customer.',
         etaMinutes: 60,
         status: 'selected',
@@ -816,8 +1538,14 @@ async function main(): Promise<void> {
         status,
         price,
         paymentMode: payment,
+        lineItems: [
+          { label: 'Service', amount: price, taxable: true, serviceChargeable: true },
+        ],
+        settlementMethod: 'cash',
+        paymentTiming: status === 'completed' ? 'pay_later' : 'pay_later',
         scheduledDate: sched,
         timeSlot: 'morning',
+        notes: opts?.notes ?? sampleNotes(payment),
         confirmedAt: opts?.scheduledDate ?? (status !== 'pending_confirm' ? days(-2) : null),
         arrivedAt: ['in_progress', 'completed'].includes(status) ? (opts?.scheduledDate ?? days(-2)) : null,
         arrivePhotoUrl: ['in_progress', 'completed'].includes(status)
@@ -946,7 +1674,7 @@ async function main(): Promise<void> {
     { ref: 'M94',  slug: 'cooking-class',          prices: [55, 85, 130, 190],         count: 8  },
     { ref: 'M95',  slug: 'gym-trainer',            prices: [55, 75, 110, 170],         count: 8  },
     { ref: 'M96',  slug: 'alarm-cctv',             prices: [130, 240, 480, 950],       count: 8  },
-    // ── New categories (M97–M105) — Painting, Moving, Gardening ──
+    // ── New categories (M97–M105) - Painting, Moving, Gardening ──
     { ref: 'M97',  slug: 'painting',               prices: [120, 180, 240, 320],       count: 10 },
     { ref: 'M98',  slug: 'moving',                 prices: [200, 350, 500, 800],       count: 10 },
     { ref: 'M99',  slug: 'gardening',              prices: [80,  120, 180, 250],       count: 10 },
@@ -1019,6 +1747,9 @@ async function main(): Promise<void> {
         servicerId,
         invoiceNumber: `INV-SEED-${String(seqCounter).padStart(4, '0')}`,
         sequenceNumber: seqCounter++,
+        lineItems: [
+          { label: `${cb.servicerRef} service`, amount: cb.price, taxable: true, serviceChargeable: true },
+        ],
         subtotal: cb.price,
         promoDiscount,
         taxRate: 0,
@@ -1026,6 +1757,10 @@ async function main(): Promise<void> {
         tipAmount: 0,
         platformFee: Math.round(total * 0.08 * 100) / 100,
         total,
+        serviceChargeRate: 0,
+        serviceChargeAmount: 0,
+        sstApplies: false,
+        taxInclusive: false,
         paidAt: doneAt,
         issuedAt: doneAt,
         createdAt: doneAt,
@@ -1043,6 +1778,44 @@ async function main(): Promise<void> {
     });
   }
   console.log('  ✓ invoices + escrow_release for completed bookings');
+
+  // ── Escrow rows for dashboard (D1) ──
+  const escrowCandidates = allBulkCompleted.slice(0, 20);
+  for (let i = 0; i < escrowCandidates.length; i++) {
+    const cb = escrowCandidates[i];
+    const isHeld = i < 3;
+    await prisma.escrow.create({
+      data: {
+        bookingId: cb.booking.id,
+        amount: cb.price,
+        status: isHeld ? 'held' : 'released',
+        platformFeeBase: cb.price,
+        tipAmount: 0,
+        releasedAt: isHeld ? null : (cb.booking.doneAt ?? new Date()),
+      },
+    });
+  }
+  console.log(`  ✓ escrow rows (${escrowCandidates.length} total, 3 held)`);
+
+  // ── Urgent bookings + urgent_fee transactions (D4) ──
+  const urgentCandidates = allBulkCompleted.filter((_cb, i) => i % 3 === 0).slice(0, 3);
+  for (const ub of urgentCandidates) {
+    await prisma.booking.update({
+      where: { id: ub.booking.id },
+      data: { isUrgent: true, urgentFee: 150 },
+    });
+    await prisma.transaction.create({
+      data: {
+        type: 'urgent_fee',
+        amount: 30,
+        bookingId: ub.booking.id,
+        servicerId: servicerByRef[ub.servicerRef],
+        reference: 'Seed - urgent fee platform share',
+        createdAt: ub.booking.doneAt ?? new Date(),
+      },
+    });
+  }
+  console.log('  ✓ urgent bookings + urgent_fee transactions (3)');
 
   // ── Penalty scenarios ──
   // M3 (electrical-wiring) - active noshow penalty, deposit deducted.
@@ -1173,7 +1946,7 @@ async function main(): Promise<void> {
     { weekday: Weekday.sat, timeSlot: TimeSlot.morning },
     { weekday: Weekday.sun, timeSlot: TimeSlot.morning },
   ];
-  const allRefs = Array.from({ length: 96 }, (_, i) => `M${i + 1}`);
+  const allRefs = Array.from({ length: 105 }, (_, i) => `M${i + 1}`);
   const scheduleRows = allRefs.flatMap(ref =>
     weekdaySlots.map(slot => ({ servicerId: servicerByRef[ref], ...slot }))
   );
@@ -1339,22 +2112,54 @@ async function main(): Promise<void> {
     [0, 88.0, 54.5],
   ] as [number, ...number[]][];
 
+  // Build a map: categoryId → a representative completed booking in that category
+  const bookingIds = allBulkCompleted.map(cb => cb.booking.id);
+  const bookingsWithCats = await prisma.booking.findMany({
+    where: { id: { in: bookingIds } },
+    select: { id: true, quoteRequest: { select: { categoryId: true } } },
+  });
+  const catBookings = new Map<string, string>();
+  for (const b of bookingsWithCats) {
+    const catId = b.quoteRequest?.categoryId;
+    if (catId && !catBookings.has(catId)) catBookings.set(catId, b.id);
+  }
+  const catIds = [...catBookings.keys()];
+
+  let catIdx = 0;
   for (const [offset, ...amounts] of revenuePattern) {
     for (const amount of amounts) {
       const d = new Date();
       d.setDate(d.getDate() + offset);
       d.setHours(9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 60), 0, 0);
+      const catId = catIds[catIdx % catIds.length];
+      const bookingId = catBookings.get(catId)!;
+      catIdx++;
       await prisma.transaction.create({
         data: {
           type: 'platform_fee',
           amount,
+          bookingId,
           reference: 'Platform commission (seed)',
           createdAt: d,
         },
       });
     }
   }
-  console.log('  ✓ 30-day historical platform revenue (chart seed data)');
+  console.log('  ✓ 30-day historical platform revenue across categories (chart seed data)');
+
+  // ── Self-check: fail loudly if core history is empty ──
+  // Catches silent partial seeds (e.g. a mid-run ReferenceError that aborts before
+  // bulk bookings). Without this, the seed exits 0-ish and the DB looks "seeded"
+  // but servicer/admin charts are blank. Any zero here = hard failure.
+  const chkCompleted = await prisma.booking.count({ where: { status: 'completed' } });
+  const chkInvoices = await prisma.invoice.count();
+  const chkEscrow = await prisma.transaction.count({ where: { type: 'escrow_release' } });
+  if (chkCompleted === 0 || chkInvoices === 0 || chkEscrow === 0) {
+    throw new Error(
+      `Seed self-check FAILED - empty history (completed=${chkCompleted} invoices=${chkInvoices} escrow_release=${chkEscrow}). DB left partially seeded.`,
+    );
+  }
+  console.log(`  ✓ self-check: ${chkCompleted} completed, ${chkInvoices} invoices, ${chkEscrow} escrow_release`);
 
   // ── Manifest ──
   const counts = {

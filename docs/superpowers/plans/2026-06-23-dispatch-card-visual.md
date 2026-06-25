@@ -1,8 +1,8 @@
-# Dispatch Card Visual Redesign — Implementation Plan (Plan 2)
+﻿# Dispatch Card Visual Redesign - Implementation Plan (Plan 2)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [x]`) syntax.
 
-**Goal:** Redesign the servicer incoming-quote card so Price/Time/Place lead, the job's urgency + slot load + estimated duration + taken-status are visible, and the servicer can open the location in Google Maps/Waze — all from data the backend already (or now) sends.
+**Goal:** Redesign the servicer incoming-quote card so Price/Time/Place lead, the job's urgency + slot load + estimated duration + taken-status are visible, and the servicer can open the location in Google Maps/Waze - all from data the backend already (or now) sends.
 
 **Architecture:** Frontend-first. Extend the `IncomingQuote` interface with fields the backend already returns, restructure the card template (Price→Time→Place hierarchy + `[Urgent]` tag + slot-load badge + duration + `View on map` deep-link + ▾ details expander). One backend addition: `slotJobs` (servicer's existing jobs in the same date+slot) on `listIncomingQuotes`. Depends on Plan 1 (which adds `isUrgent`/`urgentFee` to the feed and the timing model).
 
@@ -15,17 +15,17 @@
 
 ## File Structure
 
-- `backend/src/services/servicer-quote.service.ts` — add `slotJobs` (+ `estimatedDurationMin` if available) to `listIncomingQuotes`.
-- `frontend/src/app/servicer/pages/incoming-quotes.component.ts` — interface + template + styles + deep-link/bucket helpers.
-- (optional) `frontend/e2e/specs/servicer-jobs.spec.ts` — assert the redesigned card renders Price/Time/Place + map link.
+- `backend/src/services/servicer-quote.service.ts` - add `slotJobs` (+ `estimatedDurationMin` if available) to `listIncomingQuotes`.
+- `frontend/src/app/servicer/pages/incoming-quotes.component.ts` - interface + template + styles + deep-link/bucket helpers.
+- (optional) `frontend/e2e/specs/servicer-jobs.spec.ts` - assert the redesigned card renders Price/Time/Place + map link.
 
 ---
 
-## Task 1: Backend — surface slot load on the incoming feed
+## Task 1: Backend - surface slot load on the incoming feed
 
 **Files:**
 - Modify: `backend/src/services/servicer-quote.service.ts` (`listIncomingQuotes`, `243-308`)
-- Test: `backend/tests/unit/slot-load.test.ts` (new — pure helper)
+- Test: `backend/tests/unit/slot-load.test.ts` (new - pure helper)
 
 - [x] **Step 1: Write a failing unit test for the slot-collision helper**
 
@@ -52,7 +52,7 @@ describe('countSlotJobs', () => {
 - [x] **Step 2: Run, verify fail**
 
 Run (from `backend/`): `npx jest tests/unit/slot-load.test.ts`
-Expected: FAIL — `countSlotJobs` not exported.
+Expected: FAIL - `countSlotJobs` not exported.
 
 - [x] **Step 3: Add the exported helper** to `servicer-quote.service.ts` (near the top, after imports):
 
@@ -115,7 +115,7 @@ git commit -m "feat(servicer): surface slot-load (jobs+duration) on incoming quo
 
 ---
 
-## Task 2: Frontend — extend the `IncomingQuote` interface
+## Task 2: Frontend - extend the `IncomingQuote` interface
 
 **Files:**
 - Modify: `frontend/src/app/servicer/pages/incoming-quotes.component.ts` (interface `10-21`)
@@ -156,7 +156,7 @@ interface IncomingQuote {
 - [x] **Step 2: Type-gate**
 
 Run (from `frontend/`): `npx tsc --noEmit`
-Expected: zero errors (the template still references the old subset — fine).
+Expected: zero errors (the template still references the old subset - fine).
 
 - [x] **Step 3: Commit**
 
@@ -167,7 +167,7 @@ git commit -m "feat(servicer): widen IncomingQuote to backend payload"
 
 ---
 
-## Task 3: Frontend — bucket label, deep-link, and place helpers
+## Task 3: Frontend - bucket label, deep-link, and place helpers
 
 **Files:**
 - Modify: `incoming-quotes.component.ts` (class body, near `expand`/`acceptListing`)
@@ -213,7 +213,7 @@ git commit -m "feat(servicer): slot-label + maps deep-link helpers"
 
 ---
 
-## Task 4: Frontend — restructure the card template
+## Task 4: Frontend - restructure the card template
 
 **Files:**
 - Modify: `incoming-quotes.component.ts` template (the `@for` card block, `54-98`)
@@ -235,7 +235,7 @@ git commit -m "feat(servicer): slot-label + maps deep-link helpers"
         </div>
 
         <div class="facts">
-          <div class="fact price">RM {{ q.budgetMin ?? '—' }} – {{ q.budgetMax ?? '—' }}
+          <div class="fact price">RM {{ q.budgetMin ?? '-' }} – {{ q.budgetMax ?? '-' }}
             @if (q.paymentMode) { <span class="pay">· {{ q.paymentMode === 'pay_now' ? 'Pay now' : (q.paymentMode === 'cash' ? 'Cash' : 'Pay later') }}</span> }
           </div>
           <div class="fact time">{{ q.preferredDate | date: 'EEE, MMM d' }} · {{ slotLabel(q.timeSlot) }}
@@ -288,7 +288,7 @@ git commit -m "feat(servicer): slot-label + maps deep-link helpers"
       }
 ```
 
-(Note: the old design split "Accept Job" and an expand-to-propose form. This keeps both — Accept = one-tap, expand reveals customer detail + the manual offer form.)
+(Note: the old design split "Accept Job" and an expand-to-propose form. This keeps both - Accept = one-tap, expand reveals customer detail + the manual offer form.)
 
 - [x] **Step 2: Add styles** to the `styles: [...]` block:
 
@@ -315,13 +315,13 @@ git commit -m "feat(servicer): slot-label + maps deep-link helpers"
 - [x] **Step 3: Type-gate + build**
 
 Run (from `frontend/`): `npx tsc --noEmit` then `ng build`
-Expected: build succeeds (AOT). Per project memory, run `ng build` — broken AOT can serve a stale `ng serve` bundle and mask errors.
+Expected: build succeeds (AOT). Per project memory, run `ng build` - broken AOT can serve a stale `ng serve` bundle and mask errors.
 
 - [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src/app/servicer/pages/incoming-quotes.component.ts
-git commit -m "feat(servicer): redesign dispatch card — price/time/place, urgent, slot-load, map link"
+git commit -m "feat(servicer): redesign dispatch card - price/time/place, urgent, slot-load, map link"
 ```
 
 ---
@@ -371,9 +371,9 @@ git commit -m "feat(servicer): live-remove taken quotes from incoming feed"
   consumed here come from Plan 1's feed fields.
 - Estimated duration on the card: shown via `slotJobs.totalDurationMin` for existing
   load; per-quote estimated duration (from the servicer's own listing pre-fill) is
-  surfaced in the `open`/propose flow already (`openQuote` returns prefill) — not
+  surfaced in the `open`/propose flow already (`openQuote` returns prefill) - not
   duplicated on the face to avoid clutter. Revisit if the demo wants it on the face.
-- Map embed (OSM iframe, Tier 2) intentionally omitted here — deep-link covers the
+- Map embed (OSM iframe, Tier 2) intentionally omitted here - deep-link covers the
   demo; embed is a follow-up if `lat/lng` seeding is confirmed.
 - Frontend has no unit runner; helpers (`openMap`, `slotLabel`) are verified by build +
   manual. `countSlotJobs` (backend, pure) IS unit-tested (Task 1).

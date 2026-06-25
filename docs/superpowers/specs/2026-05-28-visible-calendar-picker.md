@@ -1,4 +1,4 @@
-# Visible Calendar Date Picker
+﻿# Visible Calendar Date Picker
 
 > 2026-05-28 · Brainstorming session · Approved
 
@@ -12,7 +12,7 @@ Replace the native `type="date"` inputs on the customer and guest quote forms wi
 |------|---------|--------|
 | Customer quote form (`quote-form.component.ts`) | `type="date"` + separate time slot radios | Calendar component with integrated time slots |
 | Guest quote form (`guest-quote.component.ts`) | `type="date"` + separate time slot radios | Calendar component with integrated time slots |
-| Edit quote modal (`my-quotes.component.ts`) | `type="date"` | Keep as-is — no change |
+| Edit quote modal (`my-quotes.component.ts`) | `type="date"` | Keep as-is - no change |
 
 ## UI Layout
 
@@ -36,31 +36,31 @@ Replace the native `type="date"` inputs on the customer and guest quote forms wi
 
 **Key behaviors:**
 
-- **Visible by default** — the calendar grid shows open when the form loads
-- **Collapsible** — clicking the ▾ arrow on the input row hides/shows the calendar grid
-- **Month navigation** — ◀ and ▶ arrows cycle months, no year dropdown (keep it simple)
-- **Date selection** — clicking a day fills the input above with readable format (e.g. "28 May 2026 (Thursday)")
-- **Time slots** — rendered directly below the calendar grid as pill buttons, not separate radios
-- **min date** — past dates are greyed out and unclickable (today is the minimum)
+- **Visible by default** - the calendar grid shows open when the form loads
+- **Collapsible** - clicking the ▾ arrow on the input row hides/shows the calendar grid
+- **Month navigation** - ◀ and ▶ arrows cycle months, no year dropdown (keep it simple)
+- **Date selection** - clicking a day fills the input above with readable format (e.g. "28 May 2026 (Thursday)")
+- **Time slots** - rendered directly below the calendar grid as pill buttons, not separate radios
+- **min date** - past dates are greyed out and unclickable (today is the minimum)
 
 ## Component design
 
 Build a new shared component: `shared/calendar-picker.component.ts`
 
 **Inputs:**
-- `selectedDate: string` — two-way bindable (YYYY-MM-DD format for ngModel compatibility)
-- `selectedSlot: string` — two-way bindable
-- `minDate: string` — YYYY-MM-DD minimum date (defaults to today)
-- `availableSlots: string[]` — which time slots to show (defaults to all 5)
+- `selectedDate: string` - two-way bindable (YYYY-MM-DD format for ngModel compatibility)
+- `selectedSlot: string` - two-way bindable
+- `minDate: string` - YYYY-MM-DD minimum date (defaults to today)
+- `availableSlots: string[]` - which time slots to show (defaults to all 5)
 
 **Outputs:**
 - `selectedDateChange: string`
 - `selectedSlotChange: string`
 
 **Internal state:**
-- `viewMonth: number` — currently displayed month (0-11)
-- `viewYear: number` — currently displayed year
-- `collapsed: boolean` — is the calendar collapsed?
+- `viewMonth: number` - currently displayed month (0-11)
+- `viewYear: number` - currently displayed year
+- `collapsed: boolean` - is the calendar collapsed?
 
 **Template structure:**
 ```
@@ -94,7 +94,7 @@ Replace lines ~224-247 (date input + time slot radios) with:
 Replace lines ~224-240 (date input + time slot radios) with the same component.
 
 ### Form state
-No change to `f.preferredDate` or `f.timeSlot` — the component uses the same string format.
+No change to `f.preferredDate` or `f.timeSlot` - the component uses the same string format.
 
 ## No backend changes
 

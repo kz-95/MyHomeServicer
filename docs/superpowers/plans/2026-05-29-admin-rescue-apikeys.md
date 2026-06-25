@@ -1,10 +1,10 @@
-# Admin Rescue System + API Keys Vault — Implementation Plan
+﻿# Admin Rescue System + API Keys Vault - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Three-tier admin recovery chain (self-service → backup email OTP → super admin rescue) + encrypted API key vault stored in DB.
 
-**Architecture:** Admin identity extends `User` model with `passwordChangedAt`, `backupEmail`, `vaultPasswordHash`. Rescue uses `AdminOtp` table with SHA-256 hashed OTPs. API keys use AES-256-GCM encryption keyed from `JWT_SECRET` (Layer 1 — boot-time), vault password is a bcrypt-guarded UI access gate (Layer 2). Rescue email sent via Google Gmail API OAuth2 for reliability.
+**Architecture:** Admin identity extends `User` model with `passwordChangedAt`, `backupEmail`, `vaultPasswordHash`. Rescue uses `AdminOtp` table with SHA-256 hashed OTPs. API keys use AES-256-GCM encryption keyed from `JWT_SECRET` (Layer 1 - boot-time), vault password is a bcrypt-guarded UI access gate (Layer 2). Rescue email sent via Google Gmail API OAuth2 for reliability.
 
 **Tech Stack:** Express.js, Prisma, Node.js `crypto` (AES-256-GCM, HMAC-SHA256, pbkdf2), bcrypt, Google Gmail API (OAuth2), Angular standalone components.
 
@@ -17,12 +17,12 @@
 | # | File | Purpose |
 |---|------|---------|
 | 1 | `backend/src/lib/config-vault.ts` | System key derivation, AES-256-GCM encrypt/decrypt, in-memory cache, load/refresh/get |
-| 2 | `backend/src/lib/gmail-rescue.ts` | Google Gmail API OAuth2 client — sends recovery email to coffeeinveins@gmail.com |
+| 2 | `backend/src/lib/gmail-rescue.ts` | Google Gmail API OAuth2 client - sends recovery email to coffeeinveins@gmail.com |
 | 3 | `backend/src/services/admin-rescue.service.ts` | OTP generation (6-digit, SHA-256 hash), verification, password/PIN reset, backup email management |
 | 4 | `backend/src/routes/admin-rescue.routes.ts` | Rescue endpoints (Tier 2 + Tier 3): forgot-password, rescue, verify-otp, reset-password |
 | 5 | `backend/src/routes/admin-vault.routes.ts` | API key vault endpoints: GET, PUT, unlock, change-vault-password, test/:keyName |
 | 6 | `frontend/src/app/admin/pages/setup-wizard.component.ts` | First-login 4-step wizard (backup email → PIN → password → vault password optional) |
-| 7 | `frontend/src/app/admin/pages/api-keys.component.ts` | API Keys vault page — locked/unlocked states, key list grouped by category |
+| 7 | `frontend/src/app/admin/pages/api-keys.component.ts` | API Keys vault page - locked/unlocked states, key list grouped by category |
 
 ### Files to Modify
 
@@ -45,7 +45,7 @@
 
 ---
 
-## Phase A — Schema + Rescue System
+## Phase A - Schema + Rescue System
 
 ### Task A1: Schema changes
 
@@ -111,7 +111,7 @@ Add these after the existing `isDemo` field (around line 289).
 - [ ] **Step 5: Update .env.example**
 
 ```
-# Gmail API — super admin rescue (Tier 3) — stored here, NOT in API keys vault
+# Gmail API - super admin rescue (Tier 3) - stored here, NOT in API keys vault
 GOOGLE_GMAIL_CLIENT_ID=
 GOOGLE_GMAIL_CLIENT_SECRET=
 GOOGLE_GMAIL_REFRESH_TOKEN=
@@ -125,7 +125,7 @@ npx tsc --noEmit
 npx prisma db push --accept-data-loss
 ```
 
-Expected: `tsc` shows zero errors (pre-existing Prisma client errors may appear — run db push first). `db push` confirms tables created.
+Expected: `tsc` shows zero errors (pre-existing Prisma client errors may appear - run db push first). `db push` confirms tables created.
 
 ---
 
@@ -139,7 +139,7 @@ Expected: `tsc` shows zero errors (pre-existing Prisma client errors may appear 
 - [ ] **Step 1: Add `setupRequired` to AuthPrincipal**
 
 ```typescript
-// backend/src/types/express.d.ts — add to AuthPrincipal interface:
+// backend/src/types/express.d.ts - add to AuthPrincipal interface:
 export interface AuthPrincipal {
   id: string;
   kind: 'user' | 'servicer';
@@ -345,10 +345,10 @@ export async function sendOtpToRescueEmail(reason: string, ip: string, userAgent
     },
   });
 
-  const subject = '[URGENT] MyHomeServicer Admin Recovery — Action Required';
+  const subject = '[URGENT] MyHomeServicer Admin Recovery - Action Required';
   const body = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MyHomeServicer — Super Admin Recovery
+MyHomeServicer - Super Admin Recovery
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 A recovery request was made for the MyHomeServicer admin panel.
@@ -454,7 +454,7 @@ export async function resetAdminPassword(token: string, newPassword: string, new
     adminId: admin.id,
     details: {},
   });
-  logger.warn('Admin rescue completed — all credentials reset', { adminId: admin.id });
+  logger.warn('Admin rescue completed - all credentials reset', { adminId: admin.id });
 }
 ```
 
@@ -464,7 +464,7 @@ export async function resetAdminPassword(token: string, newPassword: string, new
 cd backend && npx tsc --noEmit
 ```
 
-Expected: zero errors. (The `sendRescueEmail` import will error if file not yet created — that's fine, next task creates it.)
+Expected: zero errors. (The `sendRescueEmail` import will error if file not yet created - that's fine, next task creates it.)
 
 ---
 
@@ -537,7 +537,7 @@ export async function sendRescueEmail(subject: string, body: string): Promise<vo
   } catch (err) {
     logger.error('Failed to send rescue email via Gmail API', { error: (err as Error).message });
     // Fallback to console so dev is not broken
-    console.log(`\n[GMAIL API FAILED — DEV FALLBACK] To: ${RESCUE_EMAIL_TO}`);
+    console.log(`\n[GMAIL API FAILED - DEV FALLBACK] To: ${RESCUE_EMAIL_TO}`);
     console.log(`Subject: ${subject}`);
     console.log(`Body:\n${body}\n`);
   }
@@ -580,7 +580,7 @@ import { findAdmin, sendOtpToBackupEmail, sendOtpToRescueEmail, verifyOtp, reset
 export const adminRescueRouter = Router();
 
 /**
- * POST /auth/admin/forgot-password — send OTP to backup email (Tier 2).
+ * POST /auth/admin/forgot-password - send OTP to backup email (Tier 2).
  * Extends the existing POST /auth/forgot-password flow (called from auth.routes.ts).
  */
 adminRescueRouter.post(
@@ -591,7 +591,7 @@ adminRescueRouter.post(
     const email = req.body.email.toLowerCase().trim();
     const admin = await findAdmin();
     if (!admin || admin.email !== email) {
-      // Not the admin — return generic message (no user enumeration)
+      // Not the admin - return generic message (no user enumeration)
       return res.json({ message: 'If the email exists, a recovery code has been sent.' });
     }
     if (!admin.backupEmail) {
@@ -606,7 +606,7 @@ adminRescueRouter.post(
 );
 
 /**
- * POST /auth/admin/rescue — super admin break glass (Tier 3).
+ * POST /auth/admin/rescue - super admin break glass (Tier 3).
  * Rate-limited: 1 req / 15 min / IP
  */
 adminRescueRouter.post(
@@ -623,7 +623,7 @@ adminRescueRouter.post(
 );
 
 /**
- * POST /auth/admin/verify-otp — verify OTP and get password-reset token.
+ * POST /auth/admin/verify-otp - verify OTP and get password-reset token.
  */
 adminRescueRouter.post(
   '/verify-otp',
@@ -638,7 +638,7 @@ adminRescueRouter.post(
 );
 
 /**
- * POST /auth/admin/reset-password — consume token and reset credentials
+ * POST /auth/admin/reset-password - consume token and reset credentials
  */
 adminRescueRouter.post(
   '/reset-password',
@@ -885,7 +885,7 @@ Expected: zero errors.
 ### Task A7: Audit trail for rescue events
 
 **Files:**
-- Modify: `backend/src/services/ledger.service.ts` (check if `recordAudit` already handles arbitrary details — if so, no change needed)
+- Modify: `backend/src/services/ledger.service.ts` (check if `recordAudit` already handles arbitrary details - if so, no change needed)
 
 - [ ] **Step 1: Verify audit function signature**
 
@@ -917,11 +917,11 @@ import { configVault } from './lib/config-vault';
 await configVault.loadVault();
 ```
 
-Note: `config-vault.ts` will be created in Task B1 — for now just add the import and call (will cause tsc error until B1 is done, which is fine for ordering).
+Note: `config-vault.ts` will be created in Task B1 - for now just add the import and call (will cause tsc error until B1 is done, which is fine for ordering).
 
 ---
 
-## Phase B — API Keys Vault
+## Phase B - API Keys Vault
 
 ### Task B1: Config-vault library
 
@@ -941,7 +941,7 @@ class ConfigVault {
   private systemKey!: Buffer;
 
   constructor() {
-    // Layer 1: system key derived from JWT_SECRET — always available at boot.
+    // Layer 1: system key derived from JWT_SECRET - always available at boot.
     // Changing JWT_SECRET will invalidate all stored keys (they must be re-entered).
     this.systemKey = crypto.createHmac('sha256', env.JWT_SECRET)
       .update('admin-config-vault')
@@ -1047,8 +1047,8 @@ export const adminVaultRouter = Router();
 adminVaultRouter.use(requireAuth, requireAdmin);
 
 /**
- * GET /admin/api-keys — list all keys (masked).
- * No vault password needed — just shows key names and whether a value exists.
+ * GET /admin/api-keys - list all keys (masked).
+ * No vault password needed - just shows key names and whether a value exists.
  */
 adminVaultRouter.get(
   '/',
@@ -1060,7 +1060,7 @@ adminVaultRouter.get(
 );
 
 /**
- * POST /admin/api-keys/unlock — verify vault password, return decrypted values.
+ * POST /admin/api-keys/unlock - verify vault password, return decrypted values.
  */
 adminVaultRouter.post(
   '/unlock',
@@ -1088,7 +1088,7 @@ adminVaultRouter.post(
 );
 
 /**
- * POST /admin/api-keys/initialize — set vault password for the first time.
+ * POST /admin/api-keys/initialize - set vault password for the first time.
  */
 adminVaultRouter.post(
   '/initialize',
@@ -1110,7 +1110,7 @@ adminVaultRouter.post(
 );
 
 /**
- * PUT /admin/api-keys — upsert multiple key values.
+ * PUT /admin/api-keys - upsert multiple key values.
  * Requires vault to be unlocked (carries vaultPassword in body).
  */
 adminVaultRouter.put(
@@ -1148,7 +1148,7 @@ adminVaultRouter.put(
 );
 
 /**
- * POST /admin/api-keys/change-vault-password — change the vault access password.
+ * POST /admin/api-keys/change-vault-password - change the vault access password.
  * Admin must know the current vault password.
  */
 adminVaultRouter.post(
@@ -1174,7 +1174,7 @@ adminVaultRouter.post(
 );
 
 /**
- * POST /admin/api-keys/delete/:keyName — remove a key override (falls back to .env).
+ * POST /admin/api-keys/delete/:keyName - remove a key override (falls back to .env).
  */
 adminVaultRouter.delete(
   '/:keyName',
@@ -1243,7 +1243,7 @@ Expected: zero errors.
 
 ---
 
-## Phase C — Frontend UI
+## Phase C - Frontend UI
 
 ### Task C1: Admin routes + nav
 
@@ -1408,7 +1408,7 @@ export class SetupWizardComponent {
         this.auth.refresh().subscribe({
           next: () => this.step.set(4),
           error: () => {
-            // Refresh failed — force relogin
+            // Refresh failed - force relogin
             this.auth.logout();
             this.router.navigate(['/login']);
           },
@@ -1713,7 +1713,7 @@ Find the login form template and add below the submit button:
       <p>Enter your admin email to receive a recovery code via your backup email.</p>
       <input type="email" [(ngModel)]="rescueEmail" placeholder="Admin email" />
       <button (click)="sendForgotPassword()">Send Recovery Code</button>
-      <p class="rescue-or">— or —</p>
+      <p class="rescue-or">- or -</p>
       <button class="btn-danger" (click)="rescueStep = 'reason'">Super Admin Rescue (break glass)</button>
     }
     @if (rescueStep === 'reason') {

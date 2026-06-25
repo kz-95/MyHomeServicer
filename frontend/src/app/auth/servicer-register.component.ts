@@ -55,7 +55,7 @@ interface Category {
           <label>Contact name<input [(ngModel)]="name" name="name" [class.input-error]="fieldErr()['name']" (ngModelChange)="clearErr('name')" (blur)="validateField('name')" /></label>
           @if (fieldErr()['name']) { <span class="field-err">{{ fieldErr()['name'] }}</span> }
           <label>Email<input [(ngModel)]="email" name="email" autocomplete="username" [disabled]="emailLocked()" [class.input-error]="fieldErr()['email']" (ngModelChange)="clearErr('email')" (blur)="validateField('email')" /></label>
-          @if (emailLocked()) { <span class="muted hint">Verified email — locked to your account.</span> }
+          @if (emailLocked()) { <span class="muted hint">Verified email - locked to your account.</span> }
           @if (fieldErr()['email']) { <span class="field-err">{{ fieldErr()['email'] }}</span> }
           <label>Phone<app-phone-input [(ngModel)]="phone" name="phone" (ngModelChange)="clearErr('phone')"></app-phone-input></label>
           @if (fieldErr()['phone']) { <span class="field-err">{{ fieldErr()['phone'] }}</span> }
@@ -369,7 +369,7 @@ export class ServicerRegisterComponent implements OnInit {
   categories = signal<Category[]>([]);
   showGoogle = Boolean(this.config.googleClientId);
   googleUrl = googleServicerUrl;
-  /** True when the email came from a signed-in account (Google or existing) — locked. */
+  /** True when the email came from a signed-in account (Google or existing) - locked. */
   emailLocked = signal(false);
 
   name = '';

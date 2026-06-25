@@ -1,6 +1,6 @@
-# SP-3 — Service Listings Redesign (Design Spec)
+﻿# SP-3 - Service Listings Redesign (Design Spec)
 
-> **Status:** DESIGN — 2026-06-12
+> **Status:** DESIGN - 2026-06-12
 > **Parent initiative:** `2026-06-12-servicer-profile-initiative-findings.md`
 > **Depends on:** SP-5 (ServicerContact for contact-prefill; account `serviceRadiusKm`).
 > **Scope:** Replace the listing wizard + thin proposal with a clean modules-based
@@ -18,7 +18,7 @@ per-option pricing, modules, and tax overrides.
 ## 2. Goals
 
 - Design backward from **(a) what the customer sees** and **(b) auto-accept**.
-- **Richer customer output, leaner servicer input** — derive, don't re-type.
+- **Richer customer output, leaner servicer input** - derive, don't re-type.
 - Simple path for newcomers; advanced power behind a clear opt-in.
 - One reusable **Modules** library (CRUD) replacing ad-hoc per-option/module UX.
 
@@ -27,7 +27,7 @@ per-option pricing, modules, and tax overrides.
 - Business-profile concerns (contacts, tax config, radius) → **SP-5**.
 - Popout firing gate → **SP-1**; manual `isOnline` toggle → **SP-2**.
 
-## 4. Core principle — derive, don't re-type
+## 4. Core principle - derive, don't re-type
 
 | Customer proposal shows | Derived from |
 |---|---|
@@ -43,31 +43,31 @@ A servicer does **one** service type. **No category picker anywhere**; listings 
 modules inherit `Servicer.categoryId` (changed only via the SP-5 admin-reviewed
 flow). **No sub-category.**
 
-## 6. IA — `/servicer/services` → 2 tabs
+## 6. IA - `/servicer/services` → 2 tabs
 
 Route restructure mirroring the existing jobs tabs:
-- **`/servicer/services/module`** — Title + [Add] · search · [filter] · sort + reverse · card grid. **Default tab** (redirect from `/servicer/services`).
-- **`/servicer/services/listings`** — Title + [Add] · search · [Status filter] · sort + reverse · card grid.
+- **`/servicer/services/module`** - Title + [Add] · search · [filter] · sort + reverse · card grid. **Default tab** (redirect from `/servicer/services`).
+- **`/servicer/services/listings`** - Title + [Add] · search · [Status filter] · sort + reverse · card grid.
 
 > **2026-06-25:** Tab order swapped. Modules is now the first/default tab because the logical flow is: create modules first → then attach them when creating a listing. Redirect from `/servicer/services` changed from `listings` to `module`.
 
-### 6.1 Listings tab — card (3-line collapsed + expand)
+### 6.1 Listings tab - card (3-line collapsed + expand)
 - Collapsed (3 lines): photo · title · short desc · `RM price · duration · N modules ·
   auto-accept ●` · **status toggle** (Active/Draft) · **⋯ menu**.
 - ⋯ menu: **Edit · Duplicate · Activate/Deactivate · Delete**.
 - Expand (▾): modules (included/add-on), question schema, auto-accept summary, `Preview as customer`.
 
-### 6.2 Modules tab — card + add/edit
-- Card: name · price · SKU (or —) · "used in N listings" · [Edit].
-- Add/Edit modal: **name*, price*, SKU (optional)** — nothing else (see §8 tax).
+### 6.2 Modules tab - card + add/edit
+- Card: name · price · SKU (or -) · "used in N listings" · [Edit].
+- Add/Edit modal: **name*, price*, SKU (optional)** - nothing else (see §8 tax).
 
-## 7. Module model — `ServicerModule` (business_modules)
+## 7. Module model - `ServicerModule` (business_modules)
 
 `{ id, servicerId FK, name, price (Decimal), sku?, active, timestamps }`
 - Reusable priced item; unifies the old "what's included" text + pricing modules.
-- **No per-item tax flags** (flat tax — §8). Migrating `PricingModule`/`moduleRefs` → this.
+- **No per-item tax flags** (flat tax - §8). Migrating `PricingModule`/`moduleRefs` → this.
 
-## 8. Pricing — Model B (transparent stacking) + FLAT tax
+## 8. Pricing - Model B (transparent stacking) + FLAT tax
 
 Tax config lives **entirely in the business profile**; applied flat (no per-line flags).
 ```
@@ -80,7 +80,7 @@ tax-inclusive    → prices already include tax; total = subtotal; serviceCharge
 ```
 - Add-on tick on the **proposal** recomputes `total` live + is captured into the booking.
 
-## 9. Duration — mirrors the price model
+## 9. Duration - mirrors the price model
 
 - **Simple:** one flat estimate.
 - **Advanced:** `duration = base + Σ matched option deltas + Σ included module deltas`.
@@ -91,47 +91,47 @@ tax-inclusive    → prices already include tax; total = subtotal; serviceCharge
 - **Customer display:** estimate + arrival window (e.g. "~90 min · today 2–4pm";
   window from calendar work-hours).
 
-## 10. Listing create — mode chooser → Simple OR Advanced
+## 10. Listing create - mode chooser → Simple OR Advanced
 
 **+ Add** opens a chooser: **⚡ Simple** vs **⚙ Advanced**.
 
-### 10.1 SIMPLE — one screen, publish fast
+### 10.1 SIMPLE - one screen, publish fast
 - Photo (opt), title*, short desc (opt), price type, base price*, est. duration.
-- **"What jobs do you want?"** — category questions as **offered/N-A toggles**
+- **"What jobs do you want?"** - category questions as **offered/N-A toggles**
   (no per-option pricing). Drives matching + auto-accept Q-match.
 - No modules, no auto-accept → manual quoting. Convert to Advanced via Edit.
 
-### 10.2 ADVANCED — 3-step wizard
-- Step ① **Basics** (required) — same basics. **Publish-now** here.
-- Step ② **Pricing & options** (optional) — Modules picker (each **included** or
+### 10.2 ADVANCED - 3-step wizard
+- Step ① **Basics** (required) - same basics. **Publish-now** here.
+- Step ② **Pricing & options** (optional) - Modules picker (each **included** or
   **optional add-on**; `+ New module` inline) + per-option price **and duration** on
   the category questions. A listing may have **zero modules** (question-only).
-- Step ③ **Auto-accept** (optional) — auto-accept toggle + auto message.
+- Step ③ **Auto-accept** (optional) - auto-accept toggle + auto message.
   (Radius/coverage is **account-level** in the business profile, not here.)
-- **Preview** = `👁 Preview as customer` toggle (overlay), any step — not a step.
+- **Preview** = `👁 Preview as customer` toggle (overlay), any step - not a step.
 - Nav: step dots clickable + skip-ahead once Basics valid; guided hints; only Basics required.
 
 ### 10.3 Question schema = "what jobs you want"
 A job-preference filter (which job types/options the servicer takes) → drives which
 quotes reach them + auto-accept Q-match. Per-option **pricing** is Advanced-only.
 
-## 11. Auto-accept engine — ALL 4 gates always apply
+## 11. Auto-accept engine - ALL 4 gates always apply
 
 When auto-accept is ON, all four enforced (not individually toggleable):
-1. **Budget fit** — compute total for THIS quote (base + included modules +
+1. **Budget fit** - compute total for THIS quote (base + included modules +
    matched question-option upcharges + flat tax; **add-ons excluded**).
    Pass if `total ≤ quote.budgetMax` (no max → passes). `priceType` hourly/quote →
    no auto-accept.
-2. **Availability** — `quote.preferredDate + timeSlot` ticked-available in **calendar
+2. **Availability** - `quote.preferredDate + timeSlot` ticked-available in **calendar
    work-hours** (live, respects per-week rest) AND `isOnline`.
-3. **Coverage** — `haversine(serviceArea coords, quote address) ≤ account
+3. **Coverage** - `haversine(serviceArea coords, quote address) ≤ account
    serviceRadiusKm` for **any** service area.
-4. **Q-match** — every customer answer maps to an **offered** option (not N/A).
+4. **Q-match** - every customer answer maps to an **offered** option (not N/A).
 - **Cap:** servicer not already at `maxAutoAccepts` (**per-account**) concurrent auto-accepts.
 - All pass → create proposal at computed total, `isAuto=true`. Replaces
   `quoteMatchesAutoAccept` + `MerchantProposalPreset` (`quote.service.ts:353`).
 
-## 12. Customer proposal view — `/customer/quotes/:id/proposals`
+## 12. Customer proposal view - `/customer/quotes/:id/proposals`
 
 - List of proposal cards · sort (price/rating/distance/recent) + reverse · filter (rating).
 - **Card collapsed:** logo · businessName · ★rating(count) · auto-proposed badge ·
@@ -141,15 +141,15 @@ When auto-accept is ON, all four enforced (not individually toggleable):
   recompute total) · message · coverage summary · [Choose this servicer].
 - Selected add-ons captured into the booking.
 
-## 13. Seeding (demo) — `docs/ai-context/seed-plan.md` + seed data
+## 13. Seeding (demo) - `docs/ai-context/seed-plan.md` + seed data
 
 - **Modules:** a few per demo servicer, category-apt (Aircon → Chemical Wash RM30, Gas Top-up RM25).
 - **Listings:** seed **both** a Simple listing and an Advanced listing per demo
   servicer (modules incl/add-on + question-option pricing + auto-accept on), so
   matching + proposals + breakdown are exercised end-to-end.
 - Seed demo servicers + listings under painting/moving/gardening (existing gap).
-- (Business-profile-side seeding — contacts, operating hours, tax, Public Bank
-  withdrawal, radius — is covered by SP-5 seeding.)
+- (Business-profile-side seeding - contacts, operating hours, tax, Public Bank
+  withdrawal, radius - is covered by SP-5 seeding.)
 
 ## 14. Backend changes summary
 
@@ -182,9 +182,9 @@ When auto-accept is ON, all four enforced (not individually toggleable):
 
 ---
 
-## 17. 2026-06-25 Redesign — Module-First Listing Form
+## 17. 2026-06-25 Redesign - Module-First Listing Form
 
-> **Status:** DESIGN — 2026-06-25
+> **Status:** DESIGN - 2026-06-25
 > **Supersedes:** §6 tab order, §10 Simple/Advanced split, §7 module model (extended)
 
 ### 17.1 No Simple/Advanced split
@@ -197,9 +197,9 @@ Removed. One unified listing form. No mode chooser. The old `listing-wizard.comp
 |-------|:---:|------|-------|
 | **Label** | ✅ | Servicer only | Internal reference to identify their own listing |
 | **Title** | ✅ | Customer-facing | Shown on proposals, browse cards |
-| **Description** | — | Servicer only | Internal notes |
+| **Description** | - | Servicer only | Internal notes |
 | **Proposal Preset** | ✅ | Auto-accept + manual | Auto-accept fires this message; manual can load + edit it |
-| **Enable Auto** | — | System | Toggle. When ON, auto-accept gates run on matching quotes |
+| **Enable Auto** | - | System | Toggle. When ON, auto-accept gates run on matching quotes |
 
 ### 17.3 Modules (min 1 required)
 
@@ -211,7 +211,7 @@ Each module is a priced option that maps a category question answer to a price, 
 | **Option Value** | ✅ | Which answer triggers it (e.g. `chemical_wash`) |
 | **Price (RM)** | ✅ | Added to total when customer's answer matches |
 | **Duration (min)** | ✅ | Added to estimated job time on match |
-| **SKU** | — | Optional identifier |
+| **SKU** | - | Optional identifier |
 
 When a customer's quote has `questionKey = optionValue`, that module's price + duration are included in the proposal breakdown.
 
@@ -225,6 +225,38 @@ When a customer's quote has `questionKey = optionValue`, that module's price + d
 
 ### 17.5 Seeding Requirement
 
-Every priced question option across all 32 categories must be covered by at least 1-3 auto-accept listings. When any customer orders any service, an auto-proposal fires. Exception: M1 (Ahmad Plumber) — manual only, no auto-accept.
+Every priced question option across all 34 categories must be covered by at least 1-3 auto-accept listings. When any customer orders any service, an auto-proposal fires. Exception: M1 (Ahmad Plumber) - manual only, no auto-accept.
 
 See companion seeding plan: `docs/superpowers/plans/2026-06-25-sp3-seeding-coverage.md`.
+
+### 17.6 Payment Flow (2026-06-25)
+
+Card payment via Stripe is available for guest checkout only. Registered customers use wallet credit or cash.
+
+| Flow | Card (Stripe) | Wallet Credit | Cash |
+|------|:---:|:---:|:---:|
+| Guest | ✅ Checkout redirect | ❌ | ❌ |
+| Pay now (registered) | ❌ | ✅ | ❌ |
+| Pay later (registered) | ❌ | ✅ | ✅ |
+
+Rationale: card option removed from registered flows to prevent customers from bypassing payment (no card hold or authorization was taken at quote time). Guest flow uses Stripe Checkout with upfront payment + escrow hold.
+
+### 17.7 UX Polish (2026-06-25) - `feat/ux-polish`
+
+**Active job card:**
+- Two-column layout: left (date/session/timer/customer/price) + right (badge/details/map in row, mark_done/WhatsApp in row)
+- Session-first hierarchy with bigger left-column text
+- Colored status pill via `statusBadgeClass` utility
+- Distance km computed server-side via Haversine
+- Cancel removed from card (moved to Details overlay)
+
+**Pending card:**
+- Distance km tag + Map button
+
+**Dispatch overlay:**
+- Panels reordered: Customer → Instructions → Map → Details → Contact Visibility
+- Map with direct GMaps/Waze links
+- Question answers display from `serviceDetails`
+- Arrival photo as toggle button
+- API flattened: `getServicerJob` returns flat fields for customer/address/location
+- Emoji icons replaced with Lucide SVG `<app-icon>` components

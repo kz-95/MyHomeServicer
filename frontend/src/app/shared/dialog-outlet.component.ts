@@ -11,7 +11,7 @@ import { DialogService } from '../core/services/dialog.service';
  * `dialog.confirm()` / `dialog.prompt()` rather than use native browser
  * dialogs.
  *
- * Uses a native <dialog> + showModal() so it lives in the browser top layer —
+ * Uses a native <dialog> + showModal() so it lives in the browser top layer -
  * immune to ancestor transform/overflow clipping and always viewport-centered.
  * See frontend/STYLE-RULES.md "Overlays & modals". Do NOT revert to a
  * position:fixed backdrop.

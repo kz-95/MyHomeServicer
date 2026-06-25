@@ -1,5 +1,5 @@
 /**
- * Unit tests — booking service: pure helpers + status-guard logic.
+ * Unit tests - booking service: pure helpers + status-guard logic.
  *
  * Infrastructure modules (prisma, socket, queue, notifications, ledger) are
  * mocked so no database or Redis connection is required.

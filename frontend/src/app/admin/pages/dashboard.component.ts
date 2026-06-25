@@ -47,7 +47,7 @@ interface FinancialDashboard {
   dailyRevenue: DailyRevenuePoint[];
 }
 
-/** Admin dashboard — platform stats, pending queues, financial overview with revenue chart. */
+/** Admin dashboard - platform stats, pending queues, financial overview with revenue chart. */
 @Component({
   selector: 'app-admin-dashboard',
   host: { class: 'page-enter' },
@@ -167,7 +167,7 @@ interface FinancialDashboard {
             &middot; Fees: <strong>RM {{ feesTotal() | number:'1.2-2' }}</strong>
           </p>
         } @else {
-          <p class="muted">No revenue data yet — bookings will populate this chart.</p>
+          <p class="muted">No revenue data yet - bookings will populate this chart.</p>
         }
       </div>
 

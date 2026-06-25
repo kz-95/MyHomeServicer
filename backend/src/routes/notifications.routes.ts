@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { body } from 'express-validator';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -9,7 +9,7 @@ import { notFound } from '../lib/errors';
 import { readPrefs, NOTIFICATION_TYPES } from '../services/notification.service';
 
 /**
- * Notification endpoints — role-agnostic. Works for customers, admins
+ * Notification endpoints - role-agnostic. Works for customers, admins
  * (USER rows) and servicers alike; the recipient is resolved from `req.user`.
  */
 export const notificationsRouter = Router();
@@ -20,7 +20,7 @@ function ownWhere(u: { kind: string; id: string }) {
   return u.kind === 'servicer' ? { servicerId: u.id } : { userId: u.id };
 }
 
-/** GET /notifications — the caller's notifications, newest first. */
+/** GET /notifications - the caller's notifications, newest first. */
 notificationsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -33,7 +33,7 @@ notificationsRouter.get(
   }),
 );
 
-/** GET /notifications/prefs — the caller's notification settings. */
+/** GET /notifications/prefs - the caller's notification settings. */
 notificationsRouter.get(
   '/prefs',
   asyncHandler(async (req, res) => {
@@ -55,7 +55,7 @@ notificationsRouter.get(
   }),
 );
 
-/** PUT /notifications/prefs — update notification settings. */
+/** PUT /notifications/prefs - update notification settings. */
 notificationsRouter.put(
   '/prefs',
   validate([
@@ -77,7 +77,7 @@ notificationsRouter.put(
   }),
 );
 
-/** PATCH /notifications/read-all — mark every notification read. */
+/** PATCH /notifications/read-all - mark every notification read. */
 notificationsRouter.patch(
   '/read-all',
   asyncHandler(async (req, res) => {
@@ -89,7 +89,7 @@ notificationsRouter.patch(
   }),
 );
 
-/** PATCH /notifications/:id/read — mark one notification read. */
+/** PATCH /notifications/:id/read - mark one notification read. */
 notificationsRouter.patch(
   '/:id/read',
   asyncHandler(async (req, res) => {

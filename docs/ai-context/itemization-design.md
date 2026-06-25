@@ -1,4 +1,4 @@
-# Itemization Design — Service Listing vs Line Items
+﻿# Itemization Design - Service Listing vs Line Items
 
 > **Status:** Design doc, deferred execution  
 > **Written:** 2026-06-24  
@@ -12,8 +12,8 @@ The current system has two separate concepts that overlap:
 
 | Concept | Where it lives | What it represents |
 |---|---|---|
-| **Service Listing** (`ServicerService`) | Servicer catalog | What the servicer *offers* — title, base price, modules, pricing rules |
-| **Line Items** (`Booking.lineItems`, JSON) | Each booking | What the customer *actually pays for* — itemised breakdown at booking creation |
+| **Service Listing** (`ServicerService`) | Servicer catalog | What the servicer *offers* - title, base price, modules, pricing rules |
+| **Line Items** (`Booking.lineItems`, JSON) | Each booking | What the customer *actually pays for* - itemised breakdown at booking creation |
 
 Today, `Booking.lineItems` is a free-form JSON array populated from the quote details + urgent fee. It is not structurally linked to the `ServicerService` or its `PricingModule` references. This works for the demo but needs alignment for production:
 
@@ -52,7 +52,7 @@ model ServicerService {
 model PricingModule {
   id           String
   servicerId   String
-  label        String          // e.g. "Wall Unit — Chemical Cleaning"
+  label        String          // e.g. "Wall Unit - Chemical Cleaning"
   defaultPrice Decimal
   taxable      Boolean
   // ...
@@ -63,8 +63,8 @@ model PricingModule {
 
 ```jsonc
 [
-  { "label": "Wall Unit — Chemical Cleaning", "amount": 110, "qty": 2 },
-  { "label": "Ceiling Cassette — General", "amount": 150, "qty": 1 },
+  { "label": "Wall Unit - Chemical Cleaning", "amount": 110, "qty": 2 },
+  { "label": "Ceiling Cassette - General", "amount": 150, "qty": 1 },
   { "label": "Urgent (same-day)", "amount": 150, "qty": 1 },
   { "label": "Platform Service Charge", "amount": 12, "qty": 1 }
 ]
@@ -156,7 +156,7 @@ The JSON snapshot gives a human-readable audit trail without requiring JOINs. Th
 
 ## 5. Open Questions
 
-1. **Should `lineItems` be queryable by `moduleId`?** (e.g. "how many wall-unit-chemical bookings this month?") — adds a JOIN but useful for analytics. Answer: yes, add the FK in P1.
+1. **Should `lineItems` be queryable by `moduleId`?** (e.g. "how many wall-unit-chemical bookings this month?") - adds a JOIN but useful for analytics. Answer: yes, add the FK in P1.
 
 2. **Tax per line item or per booking?** Malaysian SST is per transaction, but line-item-level granularity supports GST-style jurisdictions. Answer: store `taxAmount` at line-item level, sum for booking total.
 

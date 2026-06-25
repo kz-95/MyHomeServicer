@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Question-schema label translations (ms / zh / ta), keyed by the canonical English
  * label string. Attached to every category's questionSchema at seed time by
  * `localizeQuestions`, so quote-flow cards render in the customer's language instead

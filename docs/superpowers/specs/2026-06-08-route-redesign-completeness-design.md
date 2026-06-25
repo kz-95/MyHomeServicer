@@ -1,11 +1,11 @@
-# Route Redesign — Completeness Audit & Link Reroute
+﻿# Route Redesign - Completeness Audit & Link Reroute
 
 > 2026-06-08 · Companion spec to `2026-06-08-route-redesign.md` · Design
 
 ## Purpose
 
 The original route-redesign spec is a **frontend route map**: it inventories 18
-component/route files. But application routes are emitted from a much wider surface —
+component/route files. But application routes are emitted from a much wider surface -
 **backend notification links, Stripe return URLs, global-search results, the chat AI
 system prompt, and dynamic link arrays.** If the frontend renames routes while these
 emitters keep minting the old paths, every newly-created notification, AI reply, and
@@ -15,7 +15,7 @@ This spec is the **completeness layer**: it enumerates *every* navigation refere
 the app (changed and unchanged, so coverage is auditable), picks a reroute strategy,
 and adds the pieces the original spec omitted.
 
-> ⚠️ **Line numbers are indicative (snapshot 2026-06-08) — match by route string + file,
+> ⚠️ **Line numbers are indicative (snapshot 2026-06-08) - match by route string + file,
 > not by line.** `shared/chat-widget.component.ts` in particular is under active edit (the
 > AI-chat bugfix work), so its cites drift quickly (e.g. `navigateByUrl` has moved from
 > ~1971/3074 → ~2144/3393 within a day). The file + the literal route string are the
@@ -25,11 +25,11 @@ and adds the pieces the original spec omitted.
 
 **Redirects + fix sources** (belt-and-suspenders):
 
-1. **Redirect layer** — Angular redirect route entries for every renamed path. Catches
+1. **Redirect layer** - Angular redirect route entries for every renamed path. Catches
    stored DB `linkUrl`s, bookmarks, and external links permanently. (These entries are
    missing from the original spec's route-config examples.)
-2. **Fix frontend sources** — components/services that still point at old paths.
-3. **Fix backend sources** — notification `linkUrl` emitters, Stripe return URLs,
+2. **Fix frontend sources** - components/services that still point at old paths.
+3. **Fix backend sources** - notification `linkUrl` emitters, Stripe return URLs,
    global-search `route` fields, and the chat AI prompt (which also has dead links today).
 
 Rationale: stored notification `linkUrl` rows and external links can't be migrated, so
@@ -52,29 +52,29 @@ layer a permanent crutch and leaves the AI's dead links broken. Do both.
 | `/admin/ai-chat-settings` | `/admin/settings/ai-chat` |
 | `/admin/category-settings` | `/admin/settings/categories` |
 | `/admin/queues` | `/admin/queues/{withdrawals,appeals,category,reports}` |
-| `/admin/dashboard` *(dead link — never existed)* | `/admin` |
+| `/admin/dashboard` *(dead link - never existed)* | `/admin` |
 | `/customer/chat`, `/contact` *(dead links)* | removed (chat is a widget) |
-| `/customer/proposals`, `/customer/deposit`, `/servicer/quotes` *(dead — AI prompt only)* | corrected (see §5) |
+| `/customer/proposals`, `/customer/deposit`, `/servicer/quotes` *(dead - AI prompt only)* | corrected (see §5) |
 
 ---
 
-## 2. Frontend — declarative `routerLink`
+## 2. Frontend - declarative `routerLink`
 
 ### 2a. NEEDS CHANGE
 | File:line | Current | New | Owning phase |
 |-----------|---------|-----|------|
-| `servicer/pages/dashboard.component.ts:93` | `['/servicer/jobs']` (link labelled "View history →" — lands on pending, not history) | `['/servicer/jobs','history']` | **6 (was unlisted)** |
+| `servicer/pages/dashboard.component.ts:93` | `['/servicer/jobs']` (link labelled "View history →" - lands on pending, not history) | `['/servicer/jobs','history']` | **6 (was unlisted)** |
 | `servicer/pages/dashboard.component.ts:294` | `/servicer/jobs` (quickLink "Pending Requests") | `/servicer/jobs/pending` | **6 (was unlisted)** |
 | `servicer/pages/dashboard.component.ts:295` | `/servicer/jobs` (quickLink "Active Jobs") | `/servicer/jobs/active` | **6 (was unlisted)** |
-| `servicer/pages/dashboard.component.ts:296` | `/servicer/history` (quickLink "History") *(DEAD — no such route)* | `/servicer/jobs/history` | **6 (was unlisted)** |
+| `servicer/pages/dashboard.component.ts:296` | `/servicer/history` (quickLink "History") *(DEAD - no such route)* | `/servicer/jobs/history` | **6 (was unlisted)** |
 | `admin/pages/dashboard.component.ts:53,57,61,65` | `/admin/queues` + `?tab=` | `/admin/queues/{withdrawals,appeals,category,reports}` | 3 (spec covered) |
 
 > `servicer/pages/dashboard.component.ts:296` emits `/servicer/history`, which is not a
-> registered route — already a dead quickLink today. Fold into the dead-link hotfix.
+> registered route - already a dead quickLink today. Fold into the dead-link hotfix.
 
 ### 2a-note. Verified NOT a change (agent false-positives rejected)
 - `core/services/notification.service.ts:185` `linkQuoteList` → `/customer/quotes` is **correct/unchanged** (quote list, not bookings).
-- `shared/notification-panel.component.ts:688,689` → `/{servicer,customer}/notifications` — unchanged base routes (per-role dynamic).
+- `shared/notification-panel.component.ts:688,689` → `/{servicer,customer}/notifications` - unchanged base routes (per-role dynamic).
 
 ### 2b. ALREADY DONE (Phase 1)
 | File:line | Note |
@@ -82,7 +82,7 @@ layer a permanent crutch and leaves the AI's dead links broken. Do both.
 | `servicer/pages/jobs.component.ts:117,120,123` | tab routerLinks → `/servicer/jobs/{pending,active,history}` |
 | `servicer/pages/calendar.component.ts:888,892` | `viewJob()` → `/servicer/jobs/:id` |
 
-### 2c. NO CHANGE (verified — routes unchanged)
+### 2c. NO CHANGE (verified - routes unchanged)
 `admin/dashboard:33` (`/admin/users`), `customer/browse:76`, `customer/my-quotes:53,86,93,97`,
 `dispatch-overlay:97`, `quote-form:136,590`, `deposit:204`, `jobs:515`, `shell:171,203,267`,
 `my-bookings:73`, `chat-widget:145`, all auth/public pages (`login`, `register`,
@@ -92,13 +92,13 @@ layer a permanent crutch and leaves the AI's dead links broken. Do both.
 
 ---
 
-## 3. Frontend — imperative navigation (`router.navigate` / `navigateByUrl` / `window`)
+## 3. Frontend - imperative navigation (`router.navigate` / `navigateByUrl` / `window`)
 
 ### 3a. NEEDS CHANGE
 | File:line | Current | New | Owning phase |
 |-----------|---------|-----|------|
 | `customer/pages/proposals.component.ts:466` | `['/customer/bookings']` `?id=` | `['/customer/bookings/active']` (or `/:id`) | 2 (spec covered) |
-| `customer/pages/my-bookings.component.ts:724` | `['/customer/chat']` (dead) | remove — open widget via `ChatWidgetService` | 4 (spec covered) |
+| `customer/pages/my-bookings.component.ts:724` | `['/customer/chat']` (dead) | remove - open widget via `ChatWidgetService` | 4 (spec covered) |
 | `admin/pages/setup-wizard.component.ts:99` | `['/admin/dashboard']` (dead) | `['/admin']` | 3 (spec covered) |
 | `shared/chat-widget.component.ts` (~2784, `navigate(["/customer/bookings"])`) | `['/customer/bookings']` (`report_booking`) | `['/customer/bookings/active']` | 4 (spec covered) |
 | `shared/chat-widget.component.ts` (~2787, `navigate(["/contact"])`) | `['/contact']` (dead) | remove / replace action | 4 (spec covered) |
@@ -114,13 +114,13 @@ guards (dynamic `/${role}`, `/login`, `/admin`), `home:1646,1695,1698,1704`, `ac
 (`/customer/quote/new`), `quote-form:2068` (`/customer/quotes`), `jobs:1180` (print window),
 `jobs:1216`/`deposit:534` (relative `navigate([])`), `services:612,616`, `rewards:496`,
 `stripe-payment.service` (external Stripe URLs), `listing-wizard:865,868,951`,
-`pull-to-refresh` (reload), `shell:1945,2010,2019,2079,2089,2095` (portal roots —
+`pull-to-refresh` (reload), `shell:1945,2010,2019,2079,2089,2095` (portal roots -
 spec non-goal: shell hard-nav unchanged), `notification-panel:681,687` / `notifications:211`
-/ `snackbar:244` (all delegate to `notification.service.routeFor()` — fixed in §4).
+/ `snackbar:244` (all delegate to `notification.service.routeFor()` - fixed in §4).
 
 ---
 
-## 4. Frontend — services
+## 4. Frontend - services
 
 | File:line | Current | New | Owning phase |
 |-----------|---------|-----|------|
@@ -131,34 +131,34 @@ emitting correct paths (§5) **and** on the redirect layer (§7) for already-sto
 
 ---
 
-## 5. Backend — link emitters (the original spec's blind spot)
+## 5. Backend - link emitters (the original spec's blind spot)
 
-### 5a. Notification `linkUrl` — NEEDS CHANGE
+### 5a. Notification `linkUrl` - NEEDS CHANGE
 | File:line | Current | New |
 |-----------|---------|-----|
 | `services/booking.service.ts:271,696,729` | `/servicer/jobs` | `/servicer/jobs/pending` |
 | `services/booking.service.ts:344,432` | `/customer/bookings` | `/customer/bookings/active` |
 | `services/quote.service.ts:347,664,717` | `/servicer/jobs` | `/servicer/jobs/pending` |
 | `services/dispatch.service.ts:150` | `/servicer/jobs` | `/servicer/jobs/pending` |
-| `services/dispatch.service.ts:234` | `/bookings` *(DEAD — missing `/customer` prefix; no such route)* | `/customer/bookings/active` |
+| `services/dispatch.service.ts:234` | `/bookings` *(DEAD - missing `/customer` prefix; no such route)* | `/customer/bookings/active` |
 | `routes/stripe.routes.ts:643` | `/customer/bookings` | `/customer/bookings/active` |
 
-> `dispatch.service.ts:234` emits `/bookings` (no portal prefix) — already a broken
+> `dispatch.service.ts:234` emits `/bookings` (no portal prefix) - already a broken
 > notification link in production. Fold into the §5d dead-link hotfix.
 
-### 5b. Stripe checkout return URLs — NEEDS CHANGE
+### 5b. Stripe checkout return URLs - NEEDS CHANGE
 | File:line | Current | New |
 |-----------|---------|-----|
 | `services/booking.service.ts:839,840` | `/customer/bookings?stripe_settled=` / `?stripe_cancel=` | `/customer/bookings/active?...` |
 | `routes/stripe.routes.ts:93,94` | `/customer/bookings?pay=success` / `?pay=cancelled` | `/customer/bookings/active?...` |
 
-### 5c. Global search `route` field (`routes/index.ts`) — NEEDS CHANGE
+### 5c. Global search `route` field (`routes/index.ts`) - NEEDS CHANGE
 | File:line | Current | New |
 |-----------|---------|-----|
 | `routes/index.ts:390` | `/servicer/jobs` (Job result) | `/servicer/jobs/pending` |
 | `routes/index.ts:421` | `/customer/bookings` (Booking result) | `/customer/bookings/active` |
 
-### 5d. Chat AI system prompt (`services/chat.service.ts`) — NEEDS CHANGE + BUG FIX
+### 5d. Chat AI system prompt (`services/chat.service.ts`) - NEEDS CHANGE + BUG FIX
 The prompt instructs the model to emit markdown links; frontend `navigateByUrl`s them.
 Two problems: redesign-stale routes **and** routes that are already dead today.
 
@@ -166,8 +166,8 @@ Two problems: redesign-stale routes **and** routes that are already dead today.
 |-----------|---------|-----|
 | `:96` | `/customer/bookings` | `/customer/bookings/active` |
 | `:97` | `/customer/history` | `/customer/bookings/history` |
-| `:99` | `/customer/proposals` *(DEAD — no such route)* | `/customer/quotes` (proposals live under `/customer/quotes/:id/proposals`) |
-| `:102` | `/customer/deposit` *(DEAD — customer wallet is `/customer/transactions`)* | `/customer/transactions` |
+| `:99` | `/customer/proposals` *(DEAD - no such route)* | `/customer/quotes` (proposals live under `/customer/quotes/:id/proposals`) |
+| `:102` | `/customer/deposit` *(DEAD - customer wallet is `/customer/transactions`)* | `/customer/transactions` |
 | `:85` | `/servicer/quotes` *(DEAD)* | `/servicer/jobs/pending` |
 | `:85` | `/servicer/jobs` | `/servicer/jobs/pending` |
 | `:86` | `/admin/dashboard` *(DEAD)* | `/admin` |
@@ -177,10 +177,10 @@ Two problems: redesign-stale routes **and** routes that are already dead today.
 > `/admin/dashboard`) are broken in production **now**, independent of the redesign.
 > Candidate for a hotfix ahead of the rest of Phase 6.
 
-### 5f. Seed AI-chat FAQ knowledge base — NEEDS CHANGE + BUG FIX
+### 5f. Seed AI-chat FAQ knowledge base - NEEDS CHANGE + BUG FIX
 `backend/prisma/seed/data/static.ts` holds FAQ/knowledge-base entries the chatbot
 serves to users as navigation instructions ("go to …"). These are seeded into the DB
-and surfaced by the AI — same user-facing risk as the chat prompt (§5d). The route
+and surfaced by the AI - same user-facing risk as the chat prompt (§5d). The route
 strings live inside prose answer text.
 
 | File:line | Current | New |
@@ -188,7 +188,7 @@ strings live inside prose answer text.
 | `static.ts:2891` | `/admin/queues` | `/admin/queues/withdrawals` |
 | `static.ts:2931` | `/admin/ai-chat-settings` | `/admin/settings/ai-chat` |
 | `static.ts:2956,2967` | `/admin/category-settings` | `/admin/settings/categories` |
-| `static.ts:3008` | `/admin/money` *(DEAD — neither old `/admin/money-settings` nor new path)* | `/admin/settings/money` |
+| `static.ts:3008` | `/admin/money` *(DEAD - neither old `/admin/money-settings` nor new path)* | `/admin/settings/money` |
 
 OK (unchanged): `static.ts:2681` (`/servicer/services/new`), `:2864` (`/admin/users`),
 `:3016` (`/admin/settings`).
@@ -196,7 +196,7 @@ OK (unchanged): `static.ts:2681` (`/servicer/services/new`), `:2864` (`/admin/us
 > Seed strings require a **reseed** (or a data migration on existing FAQ rows) to take
 > effect in environments already seeded. `/admin/money` (`:3008`) is dead today.
 
-### 5e. Backend NO CHANGE (verified — routes unchanged)
+### 5e. Backend NO CHANGE (verified - routes unchanged)
 `stripe.routes:304,596` (`/customer/transactions`), `stripe.routes:539` (`/servicer/deposit`),
 `stripe.routes:162,163` / `user.routes:128,129` (`/customer/account?topup`), `servicer.routes:366,367`
 (`/servicer/deposit?topup`), `servicer-quote.service:426` & `quote.jobs:43` (`/customer/quotes/:id/proposals`),
@@ -206,7 +206,7 @@ OK (unchanged): `static.ts:2681` (`/servicer/services/new`), `:2864` (`/admin/us
 
 ---
 
-## 6. Redirect routes — MISSING from the original spec's config examples
+## 6. Redirect routes - MISSING from the original spec's config examples
 
 The original spec lists these in backward-compat *tables* but omits them from the example
 `Routes` arrays. They must be added as real entries (otherwise stored/external old links 404):
@@ -215,7 +215,7 @@ The original spec lists these in backward-compat *tables* but omits them from th
 // customer.routes.ts
 { path: 'history', redirectTo: 'bookings/history', pathMatch: 'full' },
 // NOTE: bare /customer/bookings is handled by the bookings parent's own
-// `{ path: '', redirectTo: 'active' }` child — do NOT add a sibling `bookings` redirect.
+// `{ path: '', redirectTo: 'active' }` child - do NOT add a sibling `bookings` redirect.
 { path: 'notification-settings', redirectTo: 'notifications/settings', pathMatch: 'full' },
 
 // servicer.routes.ts
@@ -248,17 +248,17 @@ that renames each route. Everything backend/dynamic becomes a new **Phase 6**.
 | 1 | Servicer jobs | ✅ done. `jobs '' → pending` redirect already in. |
 | 2 | Customer bookings | + `customer.routes` redirects: `history`, `notification-settings` |
 | 3 | Admin settings + queues | + `admin.routes` redirects: `dashboard`, `*-settings` |
-| 4 | Shared + dead links | (unchanged — chat-widget `/contact`, `/customer/chat`) |
+| 4 | Shared + dead links | (unchanged - chat-widget `/contact`, `/customer/chat`) |
 | 5 | Detail pages (stretch) | (unchanged) |
 | **6 (NEW)** | **Backend & dynamic links** | All §5 backend emitters, §5d chat AI prompt (+dead-link fix), §2a servicer dashboard, §4 frontend `notification.service`, §3 `navigateByUrl(href)` source-fix. Independent of 1-5; ship after frontend lands. |
 
 ### Optional hotfix (ahead of Phase 6)
-These are broken **now**, independent of the redesign — split into a standalone fix if desired:
+These are broken **now**, independent of the redesign - split into a standalone fix if desired:
 - Chat AI prompt dead links: `/customer/proposals`, `/customer/deposit`, `/servicer/quotes`, `/admin/dashboard` (§5d)
 - `dispatch.service.ts:234` `/bookings` (missing `/customer` prefix → no route match)
 - `servicer/pages/dashboard.component.ts:296` `/servicer/history` (no such route) (§2a)
 - `customer/pages/my-bookings.component.ts:724` `/customer/chat` & `chat-widget.component.ts` `/contact` (§3a, Phase 4)
-- `seed/data/static.ts:3008` `/admin/money` (FAQ text — dead route served to users) (§5f)
+- `seed/data/static.ts:3008` `/admin/money` (FAQ text - dead route served to users) (§5f)
 
 ---
 
@@ -276,7 +276,7 @@ These are broken **now**, independent of the redesign — split into a standalon
 | Seed AI FAQ knowledge base | `prisma/seed/data/static.ts` | 5 lines, incl. 1 dead `/admin/money`; needs reseed (Phase 6) |
 | Backend tests | `backend/tests/**` | all `/api/v1/*` endpoints (unchanged); `MANUAL-TEST-PLAN.md` stale prose only (non-runtime) |
 | Redirect scaffolding | `customer/servicer/admin.routes` | added §6 |
-| Route guards (`canActivate`) | `admin.routes` users/queues/api-keys | 🔴 must carry onto restructured routes — §9f |
+| Route guards (`canActivate`) | `admin.routes` users/queues/api-keys | 🔴 must carry onto restructured routes - §9f |
 | Security review | navigateByUrl / routeFor / `:id` IDOR / guards | §9 |
 | Docs sync | TODO.md, original spec, security-notes, ceo-run-roadmap | updated same session |
 
@@ -285,32 +285,32 @@ These are broken **now**, independent of the redesign — split into a standalon
 The reroute touches navigation primitives, so it was reviewed for open-redirect, unsafe
 navigation, IDOR, and cross-portal/data leaks.
 
-### 9a. Dynamic route construction — clean
+### 9a. Dynamic route construction - clean
 All concatenated/template routes resolve to server-derived, redesign-unchanged targets:
 `/${role}` / `portalPath()` / `createUrlTree(['/'+role])` (`role` from server `Principal`),
 `${base}/quote/new` (`base` ∈ {customer, guest}). `api.service`/`auth.service`
 `${base}${path}` are API calls (`/api/v1`), not routes. **No renamed route hides in a
 concatenation; no user input flows into a route path.**
 
-### 9b. `navigateByUrl(href)` — harden the relative-path guard (low severity)
+### 9b. `navigateByUrl(href)` - harden the relative-path guard (low severity)
 `chat-widget.component.ts:1997,3220` guard `href.startsWith("/")`, which also admits the
 protocol-relative `//evil.com`. Not exploitable (Angular router is same-origin and cannot
 perform a cross-origin redirect), but as defense-in-depth the guard should reject `//`
 and `/\`. Mitigating: AI markdown links all render `target="_blank"` (`:1981`) and
 `handleThreadClick` returns early on `_blank`, so AI-controlled hrefs never reach
-`navigateByUrl` in-app — only app-authored relative links do.
+`navigateByUrl` in-app - only app-authored relative links do.
 
-### 9c. `routeFor()` returns `linkUrl` unguarded — keep `linkUrl` backend-controlled
+### 9c. `routeFor()` returns `linkUrl` unguarded - keep `linkUrl` backend-controlled
 `core/services/notification.service.ts:184` returns `n.linkUrl` verbatim, then
 panel/snackbar/notifications `navigateByUrl()` it. Safe today because every emitter sets
-`linkUrl` to a static literal (§5) — **never** built from user input. Rule for Phase 6:
+`linkUrl` to a static literal (§5) - **never** built from user input. Rule for Phase 6:
 keep `linkUrl` server-controlled, and add a `startsWith('/') && !startsWith('//')` guard
 in `routeFor()` so a future bad emitter can't become an open-redirect.
 
-### 9d. New `:id` detail routes are IDOR surfaces — enforce server-side authz
+### 9d. New `:id` detail routes are IDOR surfaces - enforce server-side authz
 `/servicer/jobs/:id`, `/customer/bookings/:id`, `/admin/users/:id`, `/admin/merchants/:id`
 (Phase 5) must rely on **server-side ownership/role checks on the backing endpoint**, not
-on the route. The existing `GET /servicer/jobs/:id` overlay already authorizes — replicate
+on the route. The existing `GET /servicer/jobs/:id` overlay already authorizes - replicate
 that for every new detail page. The route param is not an access-control boundary.
 
 ### 9f. ⚠️ Carry the admin PIN guard onto restructured routes (don't drop it in the refactor)
@@ -318,11 +318,11 @@ that for every new detail page. The route param is not an access-control boundar
 (`admin.routes.ts`): `users` (L27), `queues` (L32), `settings/api-keys` (L68). It is a
 **demo safeguard** (prompts for `1234` so that during a presentation a stray click
 doesn't (a) burn LLM tokens or (b) let someone edit admin settings and break the live
-site) — not a hardened auth control, and that's by design.
+site) - not a hardened auth control, and that's by design.
 
 The risk is purely mechanical: the **original spec's example `adminRoutes` config omits the
 `canActivate`s**, so copying it verbatim would silently *stop the PIN prompt from firing* on
-Queues / Accounts / API Keys after the refactor. Not an attacker bypass — just the demo
+Queues / Accounts / API Keys after the refactor. Not an attacker bypass - just the demo
 gate quietly disappearing. To preserve current behaviour:
 - `queues` becomes a parent with children → put `canActivate: [adminActionPinGuard]` on the
   **parent** `queues` node so all four sub-routes inherit it (a guard on `''`-redirect alone
@@ -347,6 +347,6 @@ weakens neither. Redirect routes (`redirectTo`) carry no params and add no surfa
 Guest routes, public/auth roots, `/services/:slug`, demo-bar dynamic redirects,
 `shell.component` hard navigations, external URLs (Stripe, Google Maps), the
 `/customer/account?topup` and `/servicer/deposit?topup` returns (routes unchanged),
-backend OAuth `res.redirect`s (`auth.routes.ts:222,229` → `/login`, `/auth/callback` —
+backend OAuth `res.redirect`s (`auth.routes.ts:222,229` → `/login`, `/auth/callback` -
 unchanged), and `admin/users` internal `?tab=` (component keeps its own tabs per the
 original spec).

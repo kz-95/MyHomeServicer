@@ -1,8 +1,8 @@
 /**
- * Unit tests — booking background jobs:
- *   noshow.detect  — threshold-based auto-ban, counter reset on arrival
- *   penalty.deduct — idempotency guard, percentage vs flat calculation
- *   escrow.release — open-report hold, fee math, merchant payout
+ * Unit tests - booking background jobs:
+ *   noshow.detect  - threshold-based auto-ban, counter reset on arrival
+ *   penalty.deduct - idempotency guard, percentage vs flat calculation
+ *   escrow.release - open-report hold, fee math, merchant payout
  *
  * All infrastructure (Prisma, Redis/queue, socket, notification, ledger,
  * settings) is mocked. Handlers are accessed by calling register() and then
@@ -269,7 +269,7 @@ describe('penalty.deduct handler', () => {
     mockPrisma.penaltyLog.create.mockResolvedValue({});
   });
 
-  it('is idempotent — skips if a penalty log already exists for the booking', async () => {
+  it('is idempotent - skips if a penalty log already exists for the booking', async () => {
     mockPrisma.penaltyLog.findFirst.mockResolvedValue({ id: 'existing-penalty' });
 
     const handler = getHandler('penalty.deduct');

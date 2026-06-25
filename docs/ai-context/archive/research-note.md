@@ -1,8 +1,8 @@
-# Note — reporting a problem through the help chat
+﻿# Note - reporting a problem through the help chat
 
 > Status: **superseded**. Dify was removed; the AI stack is now direct
 > Gemini/DeepSeek/OpenAI provider calls via `chat.service.ts`. Report flow
-> still uses the booking_support context type — see `POST /chat/session`
+> still uses the booking_support context type - see `POST /chat/session`
 > with `contextType: 'booking_support'`.
 
 ## Original intent (preserved for reference)

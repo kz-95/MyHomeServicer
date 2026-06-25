@@ -1,4 +1,4 @@
-# PIN in Registration + Account Settings
+﻿# PIN in Registration + Account Settings
 
 > 2026-05-28 · Brainstorming session · Ready for execution
 
@@ -9,9 +9,9 @@ Every servicer has a 6-digit action PIN. Used to confirm cancellations, withdraw
 ## Current state
 
 - `Servicer` model has `pinHash` field (from prior admin PIN work)
-- `PinService` exists — `requirePin(req)` reads `x-action-pin` header, verifies bcrypt hash
+- `PinService` exists - `requirePin(req)` reads `x-action-pin` header, verifies bcrypt hash
 - Admin uses PIN for platform settings changes (`PATCH /admin/settings`, `PATCH /admin/categories/:id`)
-- **No servicer PIN** — servicers have no PIN set or verified
+- **No servicer PIN** - servicers have no PIN set or verified
 
 ## Schema
 
@@ -71,7 +71,7 @@ Returns `{ ok: true }` if PIN matches, `{ ok: false }` if not. Used by the cance
 Add optional PIN step to servicer registration:
 
 ```typescript
-// POST /auth/register — existing endpoint. After account creation:
+// POST /auth/register - existing endpoint. After account creation:
 // If pin is provided in body:
 if (body.pin) {
   const pinHash = await bcrypt.hash(body.pin, 12);
@@ -167,7 +167,7 @@ The combined cancel modal (detailed in the dispatch-overlay spec) contains:
 | `backend/src/routes/servicer.routes.ts` | Add `pin-status`, `change-pin`, `verify-pin` routes |
 | `frontend/src/app/pages/register.component.ts` | Add Step 3: optional PIN setup |
 | `frontend/src/app/servicer/pages/account.component.ts` | Add PIN section + change modal |
-| `backend/tests/money.test.ts` (existing) | Not affected — PIN is separate |
+| `backend/tests/money.test.ts` (existing) | Not affected - PIN is separate |
 
 ## DoD
 

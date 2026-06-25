@@ -18,13 +18,13 @@ import { AuthService } from './auth.service';
 export class SocketService {
   private auth = inject(AuthService);
   private socket: Socket | null = null;
-  /** The token the live socket handshook with — used to detect account switches. */
+  /** The token the live socket handshook with - used to detect account switches. */
   private connectedToken: string | null = null;
 
   connect(): void {
     const token = this.auth.accessToken ?? '';
 
-    // First connection — build the socket with the current credential.
+    // First connection - build the socket with the current credential.
     if (!this.socket) {
       this.connectedToken = token;
       this.socket = io(environment.socketUrl || '/', {
@@ -39,7 +39,7 @@ export class SocketService {
       return;
     }
 
-    // Account switched (token changed) — re-handshake on the SAME socket so
+    // Account switched (token changed) - re-handshake on the SAME socket so
     // existing on() listeners stay registered, but the server drops us from the
     // previous user's room and joins the new one. Without this the singleton
     // socket keeps delivering the previous account's notifications (leak).
@@ -55,7 +55,7 @@ export class SocketService {
       return;
     }
 
-    // Same account, socket idle (e.g. dropped) — just reconnect.
+    // Same account, socket idle (e.g. dropped) - just reconnect.
     if (!this.socket.connected) this.socket.connect();
   }
 

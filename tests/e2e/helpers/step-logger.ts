@@ -34,7 +34,7 @@ export class StepLogger {
     const ts = new Date().toISOString();
     const header = [
       `═══════════════════════════════════════════════════════════`,
-      `STEP ${this.stepCount} — ${title}   [${ts}]`,
+      `STEP ${this.stepCount} - ${title}   [${ts}]`,
       `═══════════════════════════════════════════════════════════`,
       '',
     ].join('\n');
@@ -74,7 +74,7 @@ export class StepLogger {
   }
 
   screenshot(label: string, page: any): void {
-    // called after page.screenshot — just logs the filename
+    // called after page.screenshot - just logs the filename
     this.writeLine(`  📷 ${label}`);
   }
 

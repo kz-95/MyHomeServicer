@@ -1,4 +1,4 @@
-# E2E QA Harness — Implementation Plan
+﻿# E2E QA Harness - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -14,13 +14,13 @@
 
 ```
 tests/e2e/
-├── playwright.config.ts              — 2 browser contexts, baseURL, test dir
+├── playwright.config.ts              - 2 browser contexts, baseURL, test dir
 ├── helpers/
-│   ├── step-logger.ts                — incremental fs.writeSync logger
-│   ├── auth-helpers.ts               — login as demo users (C_FRESH, M1-M36, Admin)
-│   ├── seed-helpers.ts               — db:reset before run
-│   ├── db-check.ts                   — Prisma queries for assertion
-│   └── socket-watcher.ts             — wait for Socket.io events in browser
+│   ├── step-logger.ts                - incremental fs.writeSync logger
+│   ├── auth-helpers.ts               - login as demo users (C_FRESH, M1-M36, Admin)
+│   ├── seed-helpers.ts               - db:reset before run
+│   ├── db-check.ts                   - Prisma queries for assertion
+│   └── socket-watcher.ts             - wait for Socket.io events in browser
 └── scenarios/
     ├── 01-happy-path.spec.ts
     ├── 02-dispatch-accept.spec.ts
@@ -34,7 +34,7 @@ tests/e2e/
     └── 29-seed-integrity.spec.ts
 
 logs/
-└── e2e-qa-harness_00001_17:50/       — auto-created per run
+└── e2e-qa-harness_00001_17:50/       - auto-created per run
     ├── scenario-01.log
     ├── scenario-01-step-01.png
     └── ...
@@ -66,7 +66,7 @@ export default defineConfig({
   testDir: './scenarios',
   timeout: 120_000,
   retries: 0,
-  workers: 1, // serial — shared DB
+  workers: 1, // serial - shared DB
   use: {
     baseURL: 'http://localhost:4200',
     headless: true,
@@ -146,7 +146,7 @@ export class StepLogger {
     const ts = new Date().toISOString();
     const header = [
       `═══════════════════════════════════════════════════════════`,
-      `STEP ${this.stepCount} — ${title}   [${ts}]`,
+      `STEP ${this.stepCount} - ${title}   [${ts}]`,
       `═══════════════════════════════════════════════════════════`,
       '',
     ].join('\n');
@@ -186,7 +186,7 @@ export class StepLogger {
   }
 
   screenshot(label: string, page: any): void {
-    // called after page.screenshot — just logs the filename
+    // called after page.screenshot - just logs the filename
     this.writeLine(`  📷 ${label}`);
   }
 
@@ -486,7 +486,7 @@ export async function waitForSocketEvent(
           if (appRoot) {
             const ng = (appRoot as any).__ngContext__;
             // Walk injector tree to find SocketService
-            // This is fragile — prefer exposing socket globally in dev
+            // This is fragile - prefer exposing socket globally in dev
           }
           return;
         }
@@ -530,7 +530,7 @@ git commit -m "feat(e2e): socket event watcher helper"
 
 **Files:**
 - Modify: `frontend/src/app/core/socket.service.ts` (add one line: `(window as any).__SOCKET__ = this.socket;` in constructor or `ngOnInit`)
-- The Angular app does not currently expose the Socket.io instance globally. This is a hidden dependency — either the frontend must be patched to expose it, or the watcher must use a different strategy.
+- The Angular app does not currently expose the Socket.io instance globally. This is a hidden dependency - either the frontend must be patched to expose it, or the watcher must use a different strategy.
 
 Add to `socket.service.ts`:
 ```typescript
@@ -558,7 +558,7 @@ npx playwright test tests/e2e/scenarios/01-happy-path.spec.ts --project=chromium
 
 ---
 
-### Task 6: Build Scenario 1 (happy path) — the template all others follow
+### Task 6: Build Scenario 1 (happy path) - the template all others follow
 
 **Files:**
 - Create: `tests/e2e/scenarios/01-happy-path.spec.ts`
@@ -583,7 +583,7 @@ let customerId: string | null = null;
 let bookingId: string | null = null;
 let balanceBefore: number = 0;
 
-test.describe('Scenario 1 — Full Happy Path', () => {
+test.describe('Scenario 1 - Full Happy Path', () => {
 
   test.beforeAll(async ({ browser }) => {
     log = new StepLogger('01');
@@ -613,14 +613,14 @@ test.describe('Scenario 1 — Full Happy Path', () => {
     await contextS?.close();
   });
 
-  test('1.1 — Customer logs in', async () => {
+  test('1.1 - Customer logs in', async () => {
     log.step('Customer logs in as C_FRESH');
     await loginAs(pageC, 'C_FRESH', log);
     await pageC.screenshot({ path: getScreenshotPath(SCENARIO_ID, 1) });
     log.screenshot('Customer logged in', null);
   });
 
-  test('1.2 — Customer navigates to Find Service', async () => {
+  test('1.2 - Customer navigates to Find Service', async () => {
     log.step('Customer navigates to Find Service');
     await pageC.goto('http://localhost:4200/customer/findService');
     const heading = pageC.locator('h1, .page-title');
@@ -630,7 +630,7 @@ test.describe('Scenario 1 — Full Happy Path', () => {
     log.screenshot('Find Service page', null);
   });
 
-  test('1.3 — Customer clicks Aircon Service category', async () => {
+  test('1.3 - Customer clicks Aircon Service category', async () => {
     log.step('Customer selects Aircon Service category');
     const airconCard = pageC.locator('.svc-card, .cat, [data-category="aircond"], text=Aircon').first();
     await expect(airconCard).toBeVisible({ timeout: 5000 });
@@ -641,8 +641,8 @@ test.describe('Scenario 1 — Full Happy Path', () => {
     log.ok('Navigated to quote form');
   });
 
-  test('1.4 — Customer fills quote form', async () => {
-    log.step('Customer fills quote form — Choose Service step');
+  test('1.4 - Customer fills quote form', async () => {
+    log.step('Customer fills quote form - Choose Service step');
 
     // Select category if not pre-filled
     const budgetSelect = pageC.locator('select, [formControlName="budget"]').first();
@@ -669,7 +669,7 @@ test.describe('Scenario 1 — Full Happy Path', () => {
 
   // ... continue with all steps: Contact, Summary, Bill, Submit, Verify quote ...
 
-  test('1.5 — Servicer logs in and sees quote', async () => {
+  test('1.5 - Servicer logs in and sees quote', async () => {
     log.step('Servicer logs in as M2_WEI');
     await loginAs(pageS, 'M2_WEI', log);
     await pageS.goto('http://localhost:4200/servicer/jobs');
@@ -683,7 +683,7 @@ test.describe('Scenario 1 — Full Happy Path', () => {
 
   // ... propose, accept, confirm, arrive, done, verify escrow ...
 
-  test('1.12 — Verify escrow integrity', async () => {
+  test('1.12 - Verify escrow integrity', async () => {
     log.step('Verify escrow integrity');
     if (bookingId) {
       await verifyEscrowIntegrity(bookingId, log);
@@ -705,7 +705,7 @@ npx playwright test tests/e2e/scenarios/01-happy-path.spec.ts --project=chromium
 
 ```bash
 git add tests/e2e/scenarios/01-happy-path.spec.ts
-git commit -m "feat(e2e): Scenario 1 — full happy path (template)"
+git commit -m "feat(e2e): Scenario 1 - full happy path (template)"
 ```
 
 ---
@@ -727,18 +727,18 @@ git commit -m "feat(e2e): Scenario 1 — full happy path (template)"
 4. Replace test steps with scenario-specific actions from the spec
 5. Keep the infrastructure identical (logger, auth, DB checks, screenshot)
 5. Run: `npx playwright test tests/e2e/scenarios/0X-name.spec.ts`
-6. Commit: `feat(e2e): Scenario X — [name]`
+6. Commit: `feat(e2e): Scenario X - [name]`
 
 Build scenarios in this order (each builds on prior patterns):
-- 02, 02b, 02c (dispatch variations — same setup)
-- 03 (urgent — extends happy path)
-- 04 (shortfall — negative test)
-- 05 (admin dashboard — DB-only assertions)
+- 02, 02b, 02c (dispatch variations - same setup)
+- 03 (urgent - extends happy path)
+- 04 (shortfall - negative test)
+- 05 (admin dashboard - DB-only assertions)
 - 06-08 (dispatch edge cases)
 - 09-15 (auth, validation, registration)
 - 16-20 (guest, auto-accept, calendar, images, chat)
 - 21-28 (remaining scenarios)
-- 29 (seed integrity — DB counts only)
+- 29 (seed integrity - DB counts only)
 
 ### Per-scenario seed prerequisites
 
@@ -746,14 +746,14 @@ Some scenarios require specific seeded data beyond the base `seed:test`. Verify 
 
 | Scenario | Requires | Source |
 |----------|----------|--------|
-| 03 — Urgent | `urgent_same_day_fee` platform setting (RM 150) | Seed: `seedPlan` inserts platform setting row |
-| 17 — Auto-Accept | At least 1 listing with `autoAccept:true` for aircond category | Seed: `M2_WEI` should have autoAccept listing |
-| 21 — Working Hours | `M2_WEI` schedule set to Mon-Fri 09:00-17:00 | Seed: `ServicerSchedule` rows |
-| 22 — Multi-Servicer | 3+ aircond servicers online + in working hours | Seed: `isOnline:true` on M1, M2, M3 |
-| 13 — UI Visual | Frontend dev server running (`ng serve`) on port 4200 | Not a seed issue, but Playwright needs a live server |
-| 20 — Chat AI | Dify API key configured OR local fallback available | Env: `DIFY_API_KEY` or `NODE_ENV=development` |
-| 24 — Top-Up (Stripe) | `STRIPE_SECRET_KEY` env var if testing Stripe path | Env; dev mode bypass available |
-| 28 — Rate Limiting | Rate-limit middleware active + cooldown config | Seed: `platform_settings` rate-limit keys |
+| 03 - Urgent | `urgent_same_day_fee` platform setting (RM 150) | Seed: `seedPlan` inserts platform setting row |
+| 17 - Auto-Accept | At least 1 listing with `autoAccept:true` for aircond category | Seed: `M2_WEI` should have autoAccept listing |
+| 21 - Working Hours | `M2_WEI` schedule set to Mon-Fri 09:00-17:00 | Seed: `ServicerSchedule` rows |
+| 22 - Multi-Servicer | 3+ aircond servicers online + in working hours | Seed: `isOnline:true` on M1, M2, M3 |
+| 13 - UI Visual | Frontend dev server running (`ng serve`) on port 4200 | Not a seed issue, but Playwright needs a live server |
+| 20 - Chat AI | Dify API key configured OR local fallback available | Env: `DIFY_API_KEY` or `NODE_ENV=development` |
+| 24 - Top-Up (Stripe) | `STRIPE_SECRET_KEY` env var if testing Stripe path | Env; dev mode bypass available |
+| 28 - Rate Limiting | Rate-limit middleware active + cooldown config | Seed: `platform_settings` rate-limit keys |
 
 > **Checklist before building any scenario:** Run `npm run db:reset && npm run seed:test`. Confirm exit 0. Verify the prerequisite above for the target scenario is met.
 
@@ -764,7 +764,7 @@ Some scenarios require specific seeded data beyond the base `seed:test`. Verify 
 - [ ] **Step 1: Spec coverage check**
   - Skim `docs/superpowers/specs/2026-06-24-e2e-qa-harness.md`
   - Verify all 29 scenarios have a corresponding `.spec.ts` file task
-  - Gap: none — all 29 covered
+  - Gap: none - all 29 covered
 
 - [ ] **Step 2: Placeholder scan**
   - Search plan for "TBD", "TODO", "implement later"
@@ -772,7 +772,7 @@ Some scenarios require specific seeded data beyond the base `seed:test`. Verify 
 
 - [ ] **Step 3: Type consistency**
   - `StepLogger` interface used consistently across all helpers
-  - `getScreenshotPath()` takes `(scenarioId: number, stepNum: number)` — consistent with usage
+  - `getScreenshotPath()` takes `(scenarioId: number, stepNum: number)` - consistent with usage
   - `RUN_DIR` set once in `step-logger.ts`, consumed by `auth-helpers.ts` via env var
 
 ---
@@ -803,14 +803,14 @@ git commit -m "feat(e2e): complete 29-scenario QA harness"
 
 ---
 
-### Task 31: Auto-Fix Loop — Self-Healing Harness
+### Task 31: Auto-Fix Loop - Self-Healing Harness
 
 **Goal:** When a scenario fails, a fixer agent reads the root cause analysis from the incremental log, fixes the bug, commits, and the scenario re-runs. Iterates until the scenario passes 100%. Only then moves to the next scenario.
 
 **Architecture:** A controller script runs one scenario at a time. On failure, parses the log for `ROOT CAUSE:` and `✗` lines, dispatches a fixer agent with the exact findings, waits for commit+push, then re-runs the same scenario. Repeats up to 3 times per scenario before flagging for manual review.
 
 **Files:**
-- Create: `tests/e2e/auto-fix-loop.ps1` (PowerShell controller — self-contained, no Node.js dependency)
+- Create: `tests/e2e/auto-fix-loop.ps1` (PowerShell controller - self-contained, no Node.js dependency)
 - Create: `tests/e2e/helpers/failure-parser.ts` (standalone utility for manual log inspection; NOT called by the PS script directly)
 
 **Flow:**
@@ -871,7 +871,7 @@ export function parseFailureLog(logPath: string): FailureReport | null {
 
   for (const line of lines) {
     // Detect step header
-    const stepMatch = line.match(/^STEP (\d+) — (.+?)\s+\[/);
+    const stepMatch = line.match(/^STEP (\d+) - (.+?)\s+\[/);
     if (stepMatch) {
       report.stepNumber = parseInt(stepMatch[1]);
       report.stepTitle = stepMatch[2];
@@ -923,7 +923,7 @@ export function formatFixerPrompt(report: FailureReport): string {
   ].join('\n')).join('\n');
 
   return [
-    `SCENARIO ${report.scenarioId} FAILED — ${report.failures.length} failures.`,
+    `SCENARIO ${report.scenarioId} FAILED - ${report.failures.length} failures.`,
     '',
     `Failed at STEP ${report.stepNumber}: ${report.stepTitle}`,
     '',
@@ -939,7 +939,7 @@ export function formatFixerPrompt(report: FailureReport): string {
     '```',
     '',
     `ACTION: Read the root cause analysis. Fix the bug in the source code.`,
-    `Then commit with: fix(e2e): scenario ${report.scenarioId} — ${report.stepTitle.toLowerCase()}`,
+    `Then commit with: fix(e2e): scenario ${report.scenarioId} - ${report.stepTitle.toLowerCase()}`,
     `Use: git add <files> && git commit -m "..." && git push origin feat/sp3-dispatch-cards`,
     '',
     `After fix, the harness re-runs scenario ${report.scenarioId} automatically.`,
@@ -959,8 +959,8 @@ export function scenarioPassed(logPath: string): boolean {
 
 ```powershell
 # tests/e2e/auto-fix-loop.ps1
-# Self-healing E2E harness — runs one scenario at a time, auto-fixes on failure
-# PowerShell 5.1 compatible — no external module dependencies
+# Self-healing E2E harness - runs one scenario at a time, auto-fixes on failure
+# PowerShell 5.1 compatible - no external module dependencies
 
 param(
   [int]$StartScenario = 1,
@@ -1078,7 +1078,7 @@ Write-Host "══════════════════════�
 - [ ] **Step 3: Create the fixer agent prompt template**
 
 ```
-# tests/e2e/.fixer-prompt.txt — auto-generated by harness on failure
+# tests/e2e/.fixer-prompt.txt - auto-generated by harness on failure
 
 The E2E harness writes the exact fixer prompt into this file. The CEO reads it
 and dispatches it to a backend or frontend agent. The prompt contains:
@@ -1090,26 +1090,26 @@ and dispatches it to a backend or frontend agent. The prompt contains:
 
 FIXER AGENT RULES (read before ANY action):
 
-1. UNDERSTAND FIRST — Read the failure report. Read the root cause analysis.
+1. UNDERSTAND FIRST - Read the failure report. Read the root cause analysis.
    Read the referenced source files. Do NOT apply a fix without understanding
    WHY the failure happened.
 
-2. VERIFY THE HARNESS IS CORRECT — The harness may have a bug in its assertion.
+2. VERIFY THE HARNESS IS CORRECT - The harness may have a bug in its assertion.
    If the expected value is wrong (e.g., harness expects 200 but code correctly
-   returns 250 because of a promo), the harness is wrong — NOT the code.
+   returns 250 because of a promo), the harness is wrong - NOT the code.
    Do NOT "fix" the code to match a wrong harness assertion.
    Instead, report: "HARNESS BUG: expected X but code correctly returns Y because..."
 
-3. TRACE THE FULL PATH — Follow the data flow from source to assertion.
+3. TRACE THE FULL PATH - Follow the data flow from source to assertion.
    Example: escrow amount off by 20? Trace: quote.create → computeTotal →
    selectProposal → escrow_hold transaction. Find where 20 is lost.
 
-4. CONFIDENCE GATE — Only apply the fix if you are ≥90% confident.
+4. CONFIDENCE GATE - Only apply the fix if you are ≥90% confident.
    If 50-89% confident: write "TENTATIVE FIX" with reasoning, let human decide.
    If <50% confident: write "NEEDS INVESTIGATION" with what you checked and where
    to look next. Do NOT apply code changes.
 
-4b. UI DESIGN GUARDRAIL — If the failure is visual/layout (screenshot diff,
+4b. UI DESIGN GUARDRAIL - If the failure is visual/layout (screenshot diff,
     wrong selector, wrong text position, wrong dimensions), the current UI may
     have been intentionally redesigned. Do NOT revert component code to match
     outdated test expectations. Update the test (selector, snapshot, expected
@@ -1117,7 +1117,7 @@ FIXER AGENT RULES (read before ANY action):
     functional bugs (broken interaction, crash, missing data). Screenshot tests:
     re-generate with `npx playwright test --update-snapshots`.
 
-5. ONE FIX PER FAILURE — Each failure gets its own analysis. Don't batch
+5. ONE FIX PER FAILURE - Each failure gets its own analysis. Don't batch
    unrelated fixes together. Each commit fixes one root cause.
 
 6. VERIFY AFTER FIX:
@@ -1127,7 +1127,7 @@ FIXER AGENT RULES (read before ANY action):
    - frontend changes: ng build --configuration development → exit 0
 
 7. COMMIT FORMAT:
-   fix(e2e): scenario XX — <root cause in ≤72 chars>
+   fix(e2e): scenario XX - <root cause in ≤72 chars>
    
    [optional body explaining the fix]
 
@@ -1146,7 +1146,7 @@ and the scenario re-runs automatically.
 - [ ] **Step 4: Add confidence gate to failure parser output**
 
 ```typescript
-// Add to failure-parser.ts — append to formatFixerPrompt():
+// Add to failure-parser.ts - append to formatFixerPrompt():
 
 export function formatFixerPrompt(report: FailureReport): string {
   // ... existing code ...
@@ -1154,7 +1154,7 @@ export function formatFixerPrompt(report: FailureReport): string {
   const confidenceChecklist = [
     '',
     '═══════════════════════════════════════════════════════════',
-    'BEFORE YOU FIX — RUN THIS CHECKLIST:',
+    'BEFORE YOU FIX - RUN THIS CHECKLIST:',
     '═══════════════════════════════════════════════════════════',
     '',
     '□ 1. READ the root cause analysis above. Do you understand it?',
@@ -1185,7 +1185,7 @@ export function formatFixerPrompt(report: FailureReport): string {
 
 ```bash
 git add tests/e2e/helpers/failure-parser.ts tests/e2e/auto-fix-loop.ps1 tests/e2e/.fixer-prompt.txt
-git commit -m "feat(e2e): auto-fix loop — self-healing harness per scenario"
+git commit -m "feat(e2e): auto-fix loop - self-healing harness per scenario"
 ```
 
 ---
@@ -1213,7 +1213,7 @@ After fixer pushes:
 
 **Execution handoff:** Plan complete. Two options:
 
-1. **Subagent-Driven (recommended)** — dispatch one agent per task, review between tasks
-2. **Inline Execution** — execute in this session using executing-plans, batch with checkpoints
+1. **Subagent-Driven (recommended)** - dispatch one agent per task, review between tasks
+2. **Inline Execution** - execute in this session using executing-plans, batch with checkpoints
 
 Which approach?

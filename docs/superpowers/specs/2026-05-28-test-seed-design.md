@@ -1,4 +1,4 @@
-# Test Seed Redesign
+﻿# Test Seed Redesign
 
 > 2026-05-28 · brainstorming session · approved
 
@@ -20,7 +20,7 @@ seed-test.ts         → test layer (new file)
 
 ## Demo layer (seed.ts)
 
-Unchanged core — only modifications:
+Unchanged core - only modifications:
 - M5, M9, M10 service areas: add `'KL'` to each (already done, `25691c2`)
 - Remove stale `platform_charge` ref in seed-plan.md (doc sync only)
 - Trim M9's 60 bulk auto-generated service listings to 3-5 (speed)
@@ -48,7 +48,7 @@ Unchanged core — only modifications:
 ### Actors
 
 **1 test customer:**
-- Email: `test.customer@demo.internal` (backend-only, no login — `isDemo: false`)
+- Email: `test.customer@demo.internal` (backend-only, no login - `isDemo: false`)
 - Address: generic KL address for service area matching
 
 **4 test servicers:**
@@ -123,16 +123,16 @@ Platform `sst_rate` setting = 6% (standard Malaysian SST). Test servicers s2 and
 
 | File | Action |
 |------|--------|
-| `backend/prisma/seed/seed-test.ts` | **New** — test data seeding function |
-| `backend/prisma/seed/seed.ts` | **Modify** — import and call test seed when `--test` flag present |
-| `backend/package.json` | **Modify** — add `reseed-test` script |
-| `scripts/fresh-start.*` | **Modify** — add test variant |
-| `docs/ai-context/seed-plan.md` | **Modify** — document test layer + remove stale refs |
-| `TODO.md` | **Modify** — tick remaining seed items |
+| `backend/prisma/seed/seed-test.ts` | **New** - test data seeding function |
+| `backend/prisma/seed/seed.ts` | **Modify** - import and call test seed when `--test` flag present |
+| `backend/package.json` | **Modify** - add `reseed-test` script |
+| `scripts/fresh-start.*` | **Modify** - add test variant |
+| `docs/ai-context/seed-plan.md` | **Modify** - document test layer + remove stale refs |
+| `TODO.md` | **Modify** - tick remaining seed items |
 
 ## Non-goals (deferred)
 
-- Admin-configurable service duration — separate feature
-- SST per-listing override — already supported by schema, not seeded
-- Service charge rate seeding — kept at 0% for simplicity in test matrix
-- Tip seeding — omitted from test matrix (tip is user-input, not calculation path dependent)
+- Admin-configurable service duration - separate feature
+- SST per-listing override - already supported by schema, not seeded
+- Service charge rate seeding - kept at 0% for simplicity in test matrix
+- Tip seeding - omitted from test matrix (tip is user-input, not calculation path dependent)

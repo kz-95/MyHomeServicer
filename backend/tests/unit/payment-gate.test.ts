@@ -1,15 +1,15 @@
 /**
- * Unit tests — payment gate before broadcast (2026-06-17)
+ * Unit tests - payment gate before broadcast (2026-06-17)
  *
  * createQuote / settleAndBroadcastGuestQuote deduct a credit "hold" BEFORE the
  * quote is broadcast to servicers. The exact amount held is computeHoldAmount()
- * — the same function GET /quotes/estimate shows on the Bill step, so the figure
+ * - the same function GET /quotes/estimate shows on the Bill step, so the figure
  * the gate moves can never drift from what the customer saw. These tests pin
  * that contract (the money the gate deducts), independent of the DB.
  */
 import { computeHoldAmount } from '../../src/lib/money';
 
-describe('payment gate — hold amount deducted before broadcast', () => {
+describe('payment gate - hold amount deducted before broadcast', () => {
   it('holds exactly budgetMax for a bounded pay_now budget', () => {
     expect(computeHoldAmount(200, 0)).toBe(200);
   });

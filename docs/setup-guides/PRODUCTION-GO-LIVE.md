@@ -1,7 +1,7 @@
-# Production Go-Live Checklist
+﻿# Production Go-Live Checklist
 
 > What to change when moving from dev to a real business deployment.
-> All values here are **placeholders** — replace with your actual production credentials.
+> All values here are **placeholders** - replace with your actual production credentials.
 
 ---
 
@@ -18,7 +18,7 @@
 
 ---
 
-## 1. Stripe — test → live
+## 1. Stripe - test → live
 
 ### 1.1 Swap to live keys
 
@@ -50,9 +50,9 @@ Stripe publishes their webhook IPs at https://stripe.com/docs/ips. If your firew
 
 ---
 
-## 2. Frontend — production build
+## 2. Frontend - production build
 
-The frontend is served via **Cloudflare Pages** (connected to GitHub). The Cloudflare Pages `_redirects` rule proxies `/api/v1/*` to the Railway backend, so no separate `environment.prod.ts` is needed — the frontend uses relative `/api/v1` paths.
+The frontend is served via **Cloudflare Pages** (connected to GitHub). The Cloudflare Pages `_redirects` rule proxies `/api/v1/*` to the Railway backend, so no separate `environment.prod.ts` is needed - the frontend uses relative `/api/v1` paths.
 
 Build for production (triggered automatically by Cloudflare Pages on push):
 
@@ -61,19 +61,19 @@ cd frontend
 npx ng build
 ```
 
-Output root: `frontend/dist/myhomeservicer/browser` — set this as the **Build output directory** in Cloudflare Pages.
+Output root: `frontend/dist/myhomeservicer/browser` - set this as the **Build output directory** in Cloudflare Pages.
 
 **Never use `ng serve` in production.** It's a dev-only dev server with no compression, no cache headers, and the Angular CLI sourcemaps exposed.
 
 ---
 
-## 3. Backend — environment variables
+## 3. Backend - environment variables
 
 All of these go in Railway's **Variables** tab for the backend service. Railway auto-provides `DATABASE_URL` and `REDIS_URL` from the Postgres and Redis plugins:
 
 ```env
 # ── Runtime
-NODE_ENV=production                      # CRITICAL — blocks demo accounts + dev endpoints
+NODE_ENV=production                      # CRITICAL - blocks demo accounts + dev endpoints
 PORT=3000
 TZ=Asia/Kuala_Lumpur
 
@@ -128,17 +128,17 @@ SMTP_FROM=MyHomeServicer <noreply@myhomeservicer.com>
 
 ---
 
-## 4. Database — Prisma migrations
+## 4. Database - Prisma migrations
 
-This project uses **Prisma migrations** (committed under `backend/prisma/migrations/`) in dev and prod — reviewed SQL, an audit trail, and fail-fast-on-drift. The Railway **start command** applies pending migrations on every deploy:
+This project uses **Prisma migrations** (committed under `backend/prisma/migrations/`) in dev and prod - reviewed SQL, an audit trail, and fail-fast-on-drift. The Railway **start command** applies pending migrations on every deploy:
 
 ```jsonc
-// root package.json — "start" (run by railway.json deploy.startCommand "npm start")
+// root package.json - "start" (run by railway.json deploy.startCommand "npm start")
 "start": "cd backend && npx prisma migrate deploy && npx prisma generate && node dist/index.js"
 ```
 
-- `prisma migrate deploy` only applies migrations already committed under `prisma/migrations/`. It is idempotent (a deploy with no new migrations is a no-op), never auto-generates DDL, and aborts the deploy on schema drift — so prod can't be silently rewritten on boot.
-- **Changing the schema:** run `npm run db:migrate` (`prisma migrate dev --name <change>`) locally, commit the new `prisma/migrations/<ts>_<change>/` folder, push — the next deploy applies it.
+- `prisma migrate deploy` only applies migrations already committed under `prisma/migrations/`. It is idempotent (a deploy with no new migrations is a no-op), never auto-generates DDL, and aborts the deploy on schema drift - so prod can't be silently rewritten on boot.
+- **Changing the schema:** run `npm run db:migrate` (`prisma migrate dev --name <change>`) locally, commit the new `prisma/migrations/<ts>_<change>/` folder, push - the next deploy applies it.
 - `DATABASE_URL` must point to the production PostgreSQL instance (Railway Postgres plugin auto-provides it). Use connection pooling (PgBouncer / your provider's pooler) for higher concurrency.
 
 ### 4.1 One-time baseline of a pre-existing prod DB
@@ -146,16 +146,16 @@ This project uses **Prisma migrations** (committed under `backend/prisma/migrati
 If the prod DB was previously created with `db push` (tables exist, but no `_prisma_migrations` history), the first `migrate deploy` will fail with **P3005 (schema not empty)**. Resolve it once, then deploys are clean:
 
 ```bash
-# Option A — keep existing prod data: mark the baseline migration as already applied
+# Option A - keep existing prod data: mark the baseline migration as already applied
 railway run npx prisma migrate resolve --applied 0_init
 
-# Option B — demo env, fine to wipe: reset + re-apply + reseed
+# Option B - demo env, fine to wipe: reset + re-apply + reseed
 railway run npx prisma migrate reset --force
 ```
 
 ### 4.2 Demo data / PINs on prod
 
-`migrate deploy` does NOT seed. To load demo accounts (and the demo PINs — action PIN `1234`, demo login gate `5201314`), run a one-off in the Railway shell: `railway run npm run seed` (additive) or `railway run npm run db:reset` (DESTRUCTIVE — `migrate reset --force`, wipes + re-applies + reseeds; demo environments only).
+`migrate deploy` does NOT seed. To load demo accounts (and the demo PINs - action PIN `1234`, demo login gate `5201314`), run a one-off in the Railway shell: `railway run npm run seed` (additive) or `railway run npm run db:reset` (DESTRUCTIVE - `migrate reset --force`, wipes + re-applies + reseeds; demo environments only).
 
 ---
 
@@ -165,8 +165,8 @@ railway run npx prisma migrate reset --force
 
 All traffic must be HTTPS. Both platforms handle this automatically:
 
-- **Cloudflare Pages** — HTTPS is automatic (free SSL)
-- **Railway** — HTTPS is automatic (free SSL for all `.railway.app` domains)
+- **Cloudflare Pages** - HTTPS is automatic (free SSL)
+- **Railway** - HTTPS is automatic (free SSL for all `.railway.app` domains)
 
 ### 5.2 CORS
 
@@ -178,15 +178,15 @@ The global rate limiter (`backend/src/middleware/rate-limit.ts`) uses defaults s
 
 - Global: default is probably fine for a small launch
 - Auth routes (`/auth/login`, `/auth/register`): ensure stricter limits to prevent brute force
-- AI chat: rate-limited per-user already — verify limits make sense for your user base
+- AI chat: rate-limited per-user already - verify limits make sense for your user base
 
 ### 5.4 Process management
 
-Railway handles process lifecycle automatically — no PM2 needed. The `railway.json` at the repo root configures restart policy.
+Railway handles process lifecycle automatically - no PM2 needed. The `railway.json` at the repo root configures restart policy.
 
 ---
 
-## 6. Google Maps — referrer restrictions
+## 6. Google Maps - referrer restrictions
 
 In **Google Cloud Console** → **APIs & Services** → **Credentials**:
 
@@ -207,8 +207,8 @@ This ensures even if the key leaks (it's visible in the browser's page source), 
 
 When `NODE_ENV=production`:
 
-- **Demo account login is blocked** — middleware rejects `is_demo: true` accounts
-- **Seed script refuses to run** — `npm run reseed` exits with an error
+- **Demo account login is blocked** - middleware rejects `is_demo: true` accounts
+- **Seed script refuses to run** - `npm run reseed` exits with an error
 - **`POST /dev/topup`** and other dev-only endpoints throw 403
 
 **Before going live:**
@@ -264,6 +264,6 @@ npx ng build --configuration production  # Exit 0, dist/ populated
 | NODE_ENV | `development` | `production` |
 | Demo accounts | Allowed | Blocked |
 | Dev endpoints | Active | 403 |
-| Schema sync | `prisma migrate dev` (Run.bat → `migrate reset`) | `prisma migrate deploy` — automatic in the deploy start command |
+| Schema sync | `prisma migrate dev` (Run.bat → `migrate reset`) | `prisma migrate deploy` - automatic in the deploy start command |
 | Secrets storage | `.env` file | Railway Variables tab |
 | Process | `npm run dev` | Railway managed |

@@ -1,4 +1,4 @@
-# TODO-CS — Code Simplifier Tracking
+﻿# TODO-CS - Code Simplifier Tracking
 
 > **Goal:** Run code-simplifier on ALL source files, one by one.  
 > **Started:** 2026-06-09  
@@ -18,7 +18,7 @@
 
 ---
 
-## 🔴 Priority 1 — Largest files (>500 lines, biggest wins)
+## 🔴 Priority 1 - Largest files (>500 lines, biggest wins)
 
 ### backend/src/
 
@@ -79,7 +79,7 @@
 
 ---
 
-## 🟠 Priority 2 — Medium files (100-500 lines)
+## 🟠 Priority 2 - Medium files (100-500 lines)
 
 ### backend/src/
 

@@ -3,7 +3,7 @@ import { env } from '../config/env';
 
 /**
  * Secret-redaction formatter. Scrubs anything matching known secret patterns
- * before it ever reaches a transport — see security-notes.md §3 Layer 5.
+ * before it ever reaches a transport - see security-notes.md §3 Layer 5.
  */
 const SECRET_KEYS = [
   'password',
@@ -59,8 +59,8 @@ function redactValue(value: unknown): unknown {
 
 /**
  * Redacts secrets in place. The top-level winston `info` object is mutated
- * (never rebuilt) so its internal Symbol-keyed properties — which the
- * colorize / printf formatters depend on — are preserved.
+ * (never rebuilt) so its internal Symbol-keyed properties - which the
+ * colorize / printf formatters depend on - are preserved.
  */
 const redactFormat = winston.format((info) => {
   for (const key of Object.keys(info)) {
@@ -82,7 +82,7 @@ export const logger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-/** Morgan stream adapter — request logs flow through winston. */
+/** Morgan stream adapter - request logs flow through winston. */
 export const morganStream = {
   write: (message: string) => logger.http?.(message.trim()) ?? logger.info(message.trim()),
 };

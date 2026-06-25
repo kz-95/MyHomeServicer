@@ -6,7 +6,7 @@ import { Role } from '@prisma/client';
  *
  * NOTE: passport (added for Google OAuth) ships `@types/passport`, which declares
  * `Request.user?: Express.User`. We therefore extend `Express.User` rather than
- * redeclaring `Request.user` — otherwise passport's declaration wins (silently,
+ * redeclaring `Request.user` - otherwise passport's declaration wins (silently,
  * under `skipLibCheck`) and `req.user` is typed as the empty `Express.User`.
  */
 export interface AuthPrincipal {

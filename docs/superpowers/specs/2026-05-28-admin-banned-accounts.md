@@ -1,4 +1,4 @@
-# Admin Banned Accounts Tab
+﻿# Admin Banned Accounts Tab
 
 > 2026-05-28 · Brainstorming session · Ready for execution
 > Dependency: requires **Deactivate Account** spec (BannedEmail model + ban logic)
@@ -9,7 +9,7 @@ Admin can view and manage banned email addresses from a dedicated UI tab. See wh
 
 ## Where it lives
 
-New tab under **Admin → Platform Settings** — alongside General, Categories, Servicer, Location, Thumbnails (from the admin-redesign spec):
+New tab under **Admin → Platform Settings** - alongside General, Categories, Servicer, Location, Thumbnails (from the admin-redesign spec):
 
 ```
 ┌──────────┬──────────────┬───────────┬─────────────┬──────────────┬──────────┐
@@ -61,7 +61,7 @@ Response: { message: 'Email unbanned.' }
 
 ## Frontend
 
-**File:** `admin/pages/settings.component.ts` — add "Banned" tab
+**File:** `admin/pages/settings.component.ts` - add "Banned" tab
 
 ### Template
 
@@ -97,7 +97,7 @@ Response: { message: 'Email unbanned.' }
 │                                            │
 │  [Ban]     [Cancel]                        │
 └────────────────────────────────────────────┘
-(PIN-gated — admin PIN required)
+(PIN-gated - admin PIN required)
 ```
 
 ### Unban confirmation

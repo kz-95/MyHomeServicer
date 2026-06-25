@@ -4,7 +4,7 @@ import { getPlatformFeeRate } from './settings.service';
 import { computePlatformFee } from '../lib/money';
 
 /**
- * Fee Engine — replaces the hardcoded `platform_fee_rate` single-setting model
+ * Fee Engine - replaces the hardcoded `platform_fee_rate` single-setting model
  * with a FeeRule table that supports flat, percentage, and tiered fee rules,
  * optionally scoped by appliesTo (booking|withdrawal|topup) and categoryId.
  *
@@ -31,8 +31,8 @@ export async function listFeeRules() {
  * Find active FeeRules applicable to a given context.
  * Returns rules sorted by priority (lowest first, stacked).
  *
- * @param appliesTo — 'booking' | 'withdrawal' | 'topup'
- * @param categoryId — optional category scope (null = global rules only)
+ * @param appliesTo - 'booking' | 'withdrawal' | 'topup'
+ * @param categoryId - optional category scope (null = global rules only)
  */
 export async function getApplicableFeeRules(
   appliesTo: string,
@@ -59,9 +59,9 @@ export async function getApplicableFeeRules(
  *
  * Falls back to the legacy `platform_fee_rate` setting if no FeeRules exist.
  *
- * @param baseAmount — the base for fee calculation (afterPromo for bookings)
- * @param appliesTo — 'booking' | 'withdrawal' | 'topup'
- * @param categoryId — optional category scope
+ * @param baseAmount - the base for fee calculation (afterPromo for bookings)
+ * @param appliesTo - 'booking' | 'withdrawal' | 'topup'
+ * @param categoryId - optional category scope
  * @returns total fee in MYR (rounded to 2dp)
  */
 export async function computeFees(
@@ -71,7 +71,7 @@ export async function computeFees(
 ): Promise<number> {
   const rules = await getApplicableFeeRules(appliesTo, categoryId);
 
-  // No FeeRules configured — fall back to legacy platform_fee_rate
+  // No FeeRules configured - fall back to legacy platform_fee_rate
   if (rules.length === 0) {
     const rate = await getPlatformFeeRate();
     return computePlatformFee(baseAmount, rate);

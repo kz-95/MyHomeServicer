@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Servicer and customer account seed data.
  * 96 servicers (3 sets × 32 categories) + 9 new category servicers
  * (Painting ×3, Moving ×3, Gardening ×3) = 105 total.

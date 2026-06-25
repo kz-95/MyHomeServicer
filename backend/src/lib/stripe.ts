@@ -3,7 +3,7 @@ import { env } from '../config/env';
 import { logger } from './logger';
 
 /**
- * Stripe client — initialised from STRIPE_SECRET_KEY env var.
+ * Stripe client - initialised from STRIPE_SECRET_KEY env var.
  * If the key is not set the client is null and all operations
  * gracefully report that Stripe is not configured.
  */
@@ -132,7 +132,7 @@ export async function createTopUpSession(
  *
  * Mirrors createTopUpSession (Stripe-hosted page → no publishable key, minimal PCI
  * scope). The CALLER must derive amountMYR server-side from the booking's invoice
- * total — never from client input — and verify booking ownership before calling.
+ * total - never from client input - and verify booking ownership before calling.
  *
  * @param bookingId  The booking whose invoice is being paid (for webhook reconciliation).
  * @param amountMYR  Server-derived invoice total in Malaysian Ringgit.
@@ -251,7 +251,7 @@ export function verifyWebhookSignature(
   signature: string,
 ): StripeWebhookEvent | null {
   if (!env.STRIPE_WEBHOOK_SECRET) {
-    logger.warn('Stripe webhook secret not configured — cannot verify signature');
+    logger.warn('Stripe webhook secret not configured - cannot verify signature');
     return null;
   }
 

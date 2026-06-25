@@ -1,5 +1,5 @@
 /**
- * E2E tests — admin panel actions.
+ * E2E tests - admin panel actions.
  *
  * Covers: admin login, merchant ban/unban (PIN-gated), category-request
  * approval (PIN-gated), withdrawal review, and appeal review.
@@ -35,7 +35,7 @@ e2e('Admin panel actions (end-to-end)', () => {
     await Promise.allSettled([prisma.$disconnect(), closeQueue(), closeRedis()]);
   });
 
-  // ── Setup — log in ────────────────────────────────────────────────────────
+  // ── Setup - log in ────────────────────────────────────────────────────────
 
   it('admin can log in', async () => {
     const res = await api()

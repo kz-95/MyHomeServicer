@@ -31,7 +31,7 @@ interface ServicerProfile {
  *
  * The parent owns a `servicerId` signal; set it to open, clear it to close.
  * Follows STYLE-RULES §7.0/§7.8 via the shared <app-modal> (Esc + backdrop +
- * ✕ all dismiss — read-only info, so non-blocking is intentional).
+ * ✕ all dismiss - read-only info, so non-blocking is intentional).
  */
 @Component({
   selector: 'app-servicer-detail-popup',

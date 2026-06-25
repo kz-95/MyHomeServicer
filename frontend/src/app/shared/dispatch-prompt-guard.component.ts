@@ -1,4 +1,4 @@
-﻿import { Component, ElementRef, OnInit, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/services/api.service';

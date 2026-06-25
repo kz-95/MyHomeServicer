@@ -1,4 +1,4 @@
-# Deposit, Credit, and Promotion System — Implementation Plan
+﻿# Deposit, Credit, and Promotion System - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` (recommended) or `executing-plans` to implement this plan task-by-task.
 
@@ -14,28 +14,28 @@
 
 ### New files
 ```
-backend/src/services/deposit.service.ts      — Transfer + withdrawal logic
-backend/src/services/promotion.service.ts    — Promotion evaluation engine
-backend/src/services/onboarding.service.ts   — Onboarding gate check
-frontend/src/app/admin/pages/promotions-tab.component.ts — Admin promo CRUD (or section in settings)
+backend/src/services/deposit.service.ts      - Transfer + withdrawal logic
+backend/src/services/promotion.service.ts    - Promotion evaluation engine
+backend/src/services/onboarding.service.ts   - Onboarding gate check
+frontend/src/app/admin/pages/promotions-tab.component.ts - Admin promo CRUD (or section in settings)
 ```
 
 ### Modified files
 ```
-backend/prisma/schema.prisma                 — Add Promotion model + Servicer fields + ServicerDeposit.minimumRequired
-backend/src/routes/servicer.routes.ts        — /me/topup, /me/transfer, /me/withdrawal (PIN gate)
-backend/src/routes/stripe.routes.ts          — Webhook: credit servicer.creditBalance
-backend/src/routes/admin.routes.ts           — /promotions CRUD
-backend/src/services/booking.service.ts      — Onboarding gate on propose/confirm
-backend/src/lib/stripe.ts                    — (no change — reuse createTopUpSession)
-frontend/src/app/admin/pages/settings.component.ts — Promotions tab
-frontend/src/app/servicer/pages/deposit.component.ts — Redesign with transfer UI + top-up
-frontend/src/app/servicer/pages/account.component.ts — Bank account section
-frontend/src/app/shared/shell.component.ts   — Onboarding gate modal
-backend/prisma/seed/data/static.ts           — Default promotions
-backend/prisma/seed/seed.ts                  — Promotion seeding
-docs/ai-context/schema-notes.md             — Document new fields
-docs/api-reference/api-doc.md               — Document new endpoints
+backend/prisma/schema.prisma                 - Add Promotion model + Servicer fields + ServicerDeposit.minimumRequired
+backend/src/routes/servicer.routes.ts        - /me/topup, /me/transfer, /me/withdrawal (PIN gate)
+backend/src/routes/stripe.routes.ts          - Webhook: credit servicer.creditBalance
+backend/src/routes/admin.routes.ts           - /promotions CRUD
+backend/src/services/booking.service.ts      - Onboarding gate on propose/confirm
+backend/src/lib/stripe.ts                    - (no change - reuse createTopUpSession)
+frontend/src/app/admin/pages/settings.component.ts - Promotions tab
+frontend/src/app/servicer/pages/deposit.component.ts - Redesign with transfer UI + top-up
+frontend/src/app/servicer/pages/account.component.ts - Bank account section
+frontend/src/app/shared/shell.component.ts   - Onboarding gate modal
+backend/prisma/seed/data/static.ts           - Default promotions
+backend/prisma/seed/seed.ts                  - Promotion seeding
+docs/ai-context/schema-notes.md             - Document new fields
+docs/api-reference/api-doc.md               - Document new endpoints
 ```
 
 ---
@@ -105,7 +105,7 @@ minimumRequired Decimal  @default(100) @map("minimum_required") @db.Decimal(10, 
 
 Change `42 models` → `43 models`:
 ```prisma
-// End of schema — 43 models (42 domain + IdempotencyFallback infrastructure).
+// End of schema - 43 models (42 domain + IdempotencyFallback infrastructure).
 ```
 
 - [x] **Step 5: Run db push**
@@ -277,7 +277,7 @@ Before the `csvCell` function at the end of admin.routes.ts, add:
 ```typescript
 // ── Promotions ──────────────────────────────────────────────────────────────
 
-/** GET /admin/promotions — list all, search, filter */
+/** GET /admin/promotions - list all, search, filter */
 adminRouter.get(
   '/promotions',
   asyncHandler(async (req, res) => {
@@ -298,7 +298,7 @@ adminRouter.get(
   }),
 );
 
-/** POST /admin/promotions — create (PIN-gated) */
+/** POST /admin/promotions - create (PIN-gated) */
 adminRouter.post(
   '/promotions',
   requirePin,
@@ -334,7 +334,7 @@ adminRouter.post(
   }),
 );
 
-/** PATCH /admin/promotions/:id — update (PIN-gated) */
+/** PATCH /admin/promotions/:id - update (PIN-gated) */
 adminRouter.patch(
   '/promotions/:id',
   requirePin,
@@ -364,7 +364,7 @@ adminRouter.patch(
   }),
 );
 
-/** DELETE /admin/promotions/:id — soft-delete (deactivate, PIN-gated) */
+/** DELETE /admin/promotions/:id - soft-delete (deactivate, PIN-gated) */
 adminRouter.delete(
   '/promotions/:id',
   requirePin,
@@ -898,7 +898,7 @@ import { transferBalance, requestWithdrawal } from '../services/deposit.service'
 
 After the withdrawal endpoint (~line 302), add:
 ```typescript
-/** POST /servicer/me/transfer — transfer between deposit and credit. */
+/** POST /servicer/me/transfer - transfer between deposit and credit. */
 servicerRouter.post(
   '/me/transfer',
   requireAuth,
@@ -937,7 +937,7 @@ servicerRouter.post(
 - [x] **Step 4: Add POST /servicer/me/topup**
 
 ```typescript
-/** POST /servicer/me/topup — Stripe Checkout URL or instant dev fallback. */
+/** POST /servicer/me/topup - Stripe Checkout URL or instant dev fallback. */
 servicerRouter.post(
   '/me/topup',
   requireAuth,
@@ -969,7 +969,7 @@ Expected: zero errors.
 
 In `backend/src/routes/stripe.routes.ts`, update the `checkout.session.completed` handler to credit servicer.creditBalance when the user is a servicer:
 ```typescript
-// After checkout.session.completed — find the user
+// After checkout.session.completed - find the user
 const userId = session.metadata?.userId;
 const amount = parseFloat(session.metadata?.amountMYR ?? '0');
 
@@ -1299,7 +1299,7 @@ After the Business Details section and before the PIN section, add:
     <div class="row two-col">
       <label>Bank name
         <select [(ngModel)]="f.bankName" name="bn">
-          <option value="">— Select —</option>
+          <option value="">- Select -</option>
           <option value="CIMB">CIMB</option>
           <option value="Maybank">Maybank</option>
           <option value="Public Bank">Public Bank</option>
@@ -1391,7 +1391,7 @@ bankAccount?: string | null;
 
 **Files:**
 - Create: `backend/src/services/onboarding.service.ts`
-- Modify: `backend/src/services/booking.service.ts` — gate propose/confirm calls
+- Modify: `backend/src/services/booking.service.ts` - gate propose/confirm calls
 
 - [x] **Step 1: Create onboarding service**
 
@@ -1419,7 +1419,7 @@ export async function requireOnboarded(servicerId: string): Promise<OnboardingCh
   if (servicer.kycStatus !== 'approved') missing.push('kyc');
 
   if (missing.length === 0) {
-    // All requirements met — mark onboarded
+    // All requirements met - mark onboarded
     await prisma.servicer.update({
       where: { id: servicerId },
       data: { onboarded: true },
@@ -1534,7 +1534,7 @@ After categories are created, but before the end:
 // ── Default promotions ──
 for (const promo of DEFAULT_PROMOTIONS) {
   await prisma.promotion.upsert({
-    where: { id: promo.label }, // no unique constraint on label — use a specific upsert
+    where: { id: promo.label }, // no unique constraint on label - use a specific upsert
     // Alternative: just create since they don't exist yet
     create: {
       label: promo.label,
@@ -1551,7 +1551,7 @@ for (const promo of DEFAULT_PROMOTIONS) {
     // Can't upsert without a unique field that matches. Use createMany with skipDuplicates.
   });
 }
-// Better approach — use findFirst + create pattern:
+// Better approach - use findFirst + create pattern:
 for (const promo of DEFAULT_PROMOTIONS) {
   const existing = await prisma.promotion.findFirst({ where: { label: promo.label } });
   if (!existing) {
@@ -1584,7 +1584,7 @@ Expected: seeds complete without error.
 {
   category: 'payments',
   question: 'What is the difference between Deposit and Credit in my servicer account?',
-  answer: 'Your Deposit is a security buffer where job earnings land first. It ensures you have funds available to cover any fees or penalties. Your Credit is withdrawable — you can top it up via card and request withdrawals to your bank. You can transfer excess Deposit above the minimum (RM 100) into your Credit at any time.',
+  answer: 'Your Deposit is a security buffer where job earnings land first. It ensures you have funds available to cover any fees or penalties. Your Credit is withdrawable - you can top it up via card and request withdrawals to your bank. You can transfer excess Deposit above the minimum (RM 100) into your Credit at any time.',
   tier: 'servicer,admin',
 },
 {
@@ -1602,7 +1602,7 @@ Expected: seeds complete without error.
 {
   category: 'payments',
   question: 'How do promotions work on MyHomeServicer?',
-  answer: 'Admin can create promotions that automatically apply discounts at checkout or top-up. For example, "5% off all orders" gives customers a 5% discount on every booking. Promotions are evaluated based on their trigger conditions — you don\'t need to enter a code.',
+  answer: 'Admin can create promotions that automatically apply discounts at checkout or top-up. For example, "5% off all orders" gives customers a 5% discount on every booking. Promotions are evaluated based on their trigger conditions - you don\'t need to enter a code.',
   tier: 'admin',
 },
 {

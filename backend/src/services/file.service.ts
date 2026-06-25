@@ -80,7 +80,7 @@ export async function createPresignedUpload(input: {
 
 /**
  * Confirms a completed upload. For photos, EXIF metadata is stripped with
- * `sharp` (security-notes.md §8) — best-effort when S3 is configured.
+ * `sharp` (security-notes.md §8) - best-effort when S3 is configured.
  */
 export async function confirmUpload(fileId: string, ownerId: string) {
   const file = await prisma.file.findUnique({ where: { id: fileId } });
@@ -93,7 +93,7 @@ export async function confirmUpload(fileId: string, ownerId: string) {
     try {
       await stripExif(file.s3Key, file.mimeType);
     } catch (err) {
-      logger.warn('EXIF strip failed — continuing', { fileId, error: (err as Error).message });
+      logger.warn('EXIF strip failed - continuing', { fileId, error: (err as Error).message });
     }
   }
 

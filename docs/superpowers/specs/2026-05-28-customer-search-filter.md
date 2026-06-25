@@ -1,4 +1,4 @@
-# Customer Search & Filter — F-D
+﻿# Customer Search & Filter - F-D
 
 > 2026-05-28 · Brainstorming session · Ready for execution
 
@@ -19,7 +19,7 @@ Nav rename "Upcoming Bookings" → "Upcoming": ✅ Already done in `customer-she
 
 ## What to build
 
-### 1. Order History — search + filter
+### 1. Order History - search + filter
 
 **File:** `frontend/src/app/customer/pages/order-history.component.ts`
 
@@ -45,13 +45,13 @@ Template currently renders a flat list of `HistoryItem[]` with servicer name, ca
 Component logic additions:
 - `search = signal('')`
 - `statusFilter = signal<string>('all')`
-- `filteredItems = computed(() => { ... })` — filters `items()` by search (servicerName, categoryName) and status (`type` field maps to 'completed' or 'cancelled')
+- `filteredItems = computed(() => { ... })` - filters `items()` by search (servicerName, categoryName) and status (`type` field maps to 'completed' or 'cancelled')
 
 Imports to add: `FormsModule` (for `[(ngModel)]`), `signal`, `computed` from `@angular/core`.
 
 Styles to add: Copy the `.toolbar`, `.search`, `.chips`, `.chip` rules from MyBookingsComponent's styles block.
 
-### 2. Rewards — search + tier filter
+### 2. Rewards - search + tier filter
 
 **File:** `frontend/src/app/customer/pages/rewards.component.ts`
 
@@ -73,7 +73,7 @@ Add a toolbar above the `.grid`:
 
 Component logic additions:
 - `search = signal('')`
-- `filteredRewards = computed(() => ...)` — filters `rewards` by title or detail containing the search term
+- `filteredRewards = computed(() => ...)` - filters `rewards` by title or detail containing the search term
 - Template: change `@for (r of rewards; ...)` → `@for (r of filteredRewards(); ...)`
 
 Imports to add: `FormsModule`, `signal`, `computed`.
@@ -97,7 +97,7 @@ The `.toolbar`, `.search`, `.chips`, and `.chip` CSS classes are duplicated acro
 
 ## Non-goals
 
-- No backend changes — all filtering is client-side on loaded data
-- No pagination — data volumes are small (history < 100 items, rewards = 4)
-- No sort controls — ordering is by date (newest first) from the backend
-- The Rewards data is still demo/static (no backend) — search is purely cosmetic/UX
+- No backend changes - all filtering is client-side on loaded data
+- No pagination - data volumes are small (history < 100 items, rewards = 4)
+- No sort controls - ordering is by date (newest first) from the backend
+- The Rewards data is still demo/static (no backend) - search is purely cosmetic/UX

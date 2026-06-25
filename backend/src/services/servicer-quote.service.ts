@@ -140,7 +140,7 @@ export function computePrefill(
   const basePrice = Number(service.basePrice);
   const pricedQuestions = (questionSchema ?? []).filter((q) => q.priced === true && q.active !== false);
 
-  // No priced questions in this category — no pre-fill needed.
+  // No priced questions in this category - no pre-fill needed.
   if (pricedQuestions.length === 0) return { defaultTotal: basePrice, basePrice, breakdown: [] };
 
   // Parse the option-price map. If the service has none, return base-only.
@@ -158,7 +158,7 @@ export function computePrefill(
   let hasDuration = false;
 
   for (const question of pricedQuestions) {
-    // Skip questions hidden by showIf branching — they are excluded from pricing.
+    // Skip questions hidden by showIf branching - they are excluded from pricing.
     if (!isQuestionVisible(question, answers)) continue;
 
     const raw = answers[question.key];
@@ -191,7 +191,7 @@ export function computePrefill(
         }
       }
     } else {
-      // checkbox / radio — answer is string or string[].
+      // checkbox / radio - answer is string or string[].
       const selected = Array.isArray(raw) ? raw : [raw];
       for (const optionValue of selected) {
         const entry = questionPriceMap[optionValue];
@@ -213,7 +213,7 @@ export function computePrefill(
   }
 
   // defaultTotal: sum of all matched option prices (not additive on top of
-  // base — the option prices are the per-item prices, and the servicer sets
+  // base - the option prices are the per-item prices, and the servicer sets
   // them to already include their base margin).  For multi-select jobs
   // (e.g. "wall chemical + wall general") the total is the sum across units.
   // Base price serves as the fallback / minimum.
@@ -257,7 +257,7 @@ export function formatServiceDetails(
 
 export async function listIncomingQuotes(servicerId: string, status?: string) {
   const broadcasts = await prisma.quoteBroadcast.findMany({
-    // BE-045: defence-in-depth — never surface a quote created by this
+    // BE-045: defence-in-depth - never surface a quote created by this
     // servicer's own paired customer account ("customer mode") in their feed.
     where: {
       servicerId,
@@ -352,16 +352,16 @@ export async function listIncomingQuotes(servicerId: string, status?: string) {
  *     "basePrice": 110,
  *     "breakdown": [
  *       { "questionKey": "aircon_service", "optionValue": "wall_chemical",
- *         "label": "Wall Unit — Chemical Cleaning (Recommended)", "price": 110 },
+ *         "label": "Wall Unit - Chemical Cleaning (Recommended)", "price": 110 },
  *       { "questionKey": "aircon_service", "optionValue": "wall_general",
- *         "label": "Wall Unit — General Cleaning", "price": 80 }
+ *         "label": "Wall Unit - General Cleaning", "price": 80 }
  *     ]
  *   }
  * }
  * ```
  * `proposalPrefill` is `null` when the category has no priced questions.
  *
- * (Previous shape was `204 No Content` — this endpoint now returns `200 JSON`
+ * (Previous shape was `204 No Content` - this endpoint now returns `200 JSON`
  *  as documented in COORDINATION.md §API contracts.)
  */
 export async function openQuote(
@@ -404,12 +404,12 @@ export async function openQuote(
   if (!quote) throw notFound('Quote not found');
 
   // BE-046: a servicer cannot open a quote created by their own paired
-  // customer account ("customer mode" — the same person).
+  // customer account ("customer mode" - the same person).
   if (quote.user.email === pairedCustomerEmail(servicerId)) {
     throw forbidden('You cannot act on a quote request from your own customer account');
   }
 
-  // Find servicer's service for this category — prefer one with modifiers.
+  // Find servicer's service for this category - prefer one with modifiers.
   const services = await prisma.servicerService.findMany({
     where: { servicerId, categoryId: quote.categoryId, deletedAt: null },
     select: { basePrice: true, modifiers: true },
@@ -470,7 +470,7 @@ export async function submitProposal(servicerId: string, quoteId: string, input:
   if (!quote) throw notFound('Quote not found');
 
   // BE-047: a servicer must not submit a proposal on a quote created by their
-  // own paired customer account ("customer mode" — the same person). This is
+  // own paired customer account ("customer mode" - the same person). This is
   // the authoritative server-side reject: it holds even when the request is
   // made directly, bypassing the (already self-filtered) incoming feed.
   if (quote.user.email === pairedCustomerEmail(servicerId)) {
@@ -541,7 +541,7 @@ export async function submitProposal(servicerId: string, quoteId: string, input:
 
 /**
  * One-tap accept: submit a proposal at the servicer's listing-computed
- * `{ price, duration, message }` (SP-3 engine) — no manual form. The customer
+ * `{ price, duration, message }` (SP-3 engine) - no manual form. The customer
  * still selects among proposals; this just fills the proposal automatically.
  */
 export async function acceptQuoteListing(servicerId: string, quoteId: string) {

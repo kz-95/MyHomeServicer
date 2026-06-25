@@ -1,5 +1,5 @@
 /**
- * Unit tests — SPEC-2 non-refundable fee logic: computeNonRefundableAmount().
+ * Unit tests - SPEC-2 non-refundable fee logic: computeNonRefundableAmount().
  *
  * computeNonRefundableAmount is a pure function exported from
  * booking.service.ts. It decides which portion of a held escrow is NOT
@@ -8,7 +8,7 @@
  *  - the inspection fee becomes non-refundable once an inspection booking is
  *    completed (done)
  *
- * No mocks, no DB calls — the function takes a plain booking-shaped object.
+ * No mocks, no DB calls - the function takes a plain booking-shaped object.
  */
 
 import { computeNonRefundableAmount } from '../../src/services/booking.service';
@@ -39,7 +39,7 @@ const ESCROW_AMOUNT = 100;
 
 // ── Travel fee (post-arrive) ─────────────────────────────────────────────────
 
-describe('computeNonRefundableAmount — travel fee', () => {
+describe('computeNonRefundableAmount - travel fee', () => {
   it('nothing is non-refundable when the servicer has not arrived', () => {
     const nonRefundable = computeNonRefundableAmount(
       booking({ travelFee: decimal(20) }),
@@ -68,7 +68,7 @@ describe('computeNonRefundableAmount — travel fee', () => {
 
 // ── Inspection fee (inspection booking + post-done) ──────────────────────────
 
-describe('computeNonRefundableAmount — inspection fee', () => {
+describe('computeNonRefundableAmount - inspection fee', () => {
   it('inspection fee is non-refundable once an inspection booking is done', () => {
     const nonRefundable = computeNonRefundableAmount(
       booking({ isInspection: true, doneAt: new Date(), inspectionFee: decimal(30) }),
@@ -95,7 +95,7 @@ describe('computeNonRefundableAmount — inspection fee', () => {
 
 // ── Combined travel + inspection ─────────────────────────────────────────────
 
-describe('computeNonRefundableAmount — combined', () => {
+describe('computeNonRefundableAmount - combined', () => {
   it('deducts both travel (arrived) and inspection (done) fees', () => {
     const travelFee = 20;
     const inspectionFee = 30;

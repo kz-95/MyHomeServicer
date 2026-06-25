@@ -1,5 +1,5 @@
 /**
- * SP-3 Module Seeding (2026-06-25) — ALL CATEGORIES
+ * SP-3 Module Seeding (2026-06-25) - ALL CATEGORIES
  * Run AFTER the main seed.ts.
  *
  * Usage: npx ts-node prisma/seed/seed-sp3-modules.ts  OR  npm run seed:modules
@@ -105,10 +105,10 @@ const CATEGORY_MODULES: Record<string, { label: string; proposal: string; auto: 
     proposal: 'Thank you for your carpet cleaning request! Eco-friendly solutions used.',
     auto: true,
     mods: [
-      { name: 'Rug — Small', questionKey: 'cleaning_type', optionValue: 'rug_1', price: 30, durationMin: 20 },
-      { name: 'Rug — Medium', questionKey: 'cleaning_type', optionValue: 'rug_2', price: 50, durationMin: 30 },
-      { name: 'Rug — Large', questionKey: 'cleaning_type', optionValue: 'rug_3', price: 70, durationMin: 40 },
-      { name: 'Rug — XL', questionKey: 'cleaning_type', optionValue: 'rug_4', price: 90, durationMin: 50 },
+      { name: 'Rug - Small', questionKey: 'cleaning_type', optionValue: 'rug_1', price: 30, durationMin: 20 },
+      { name: 'Rug - Medium', questionKey: 'cleaning_type', optionValue: 'rug_2', price: 50, durationMin: 30 },
+      { name: 'Rug - Large', questionKey: 'cleaning_type', optionValue: 'rug_3', price: 70, durationMin: 40 },
+      { name: 'Rug - XL', questionKey: 'cleaning_type', optionValue: 'rug_4', price: 90, durationMin: 50 },
       { name: 'Carpet Small', questionKey: 'cleaning_type', optionValue: 'carpet_small', price: 80, durationMin: 45 },
       { name: 'Carpet Medium', questionKey: 'cleaning_type', optionValue: 'carpet_medium', price: 100, durationMin: 60 },
       { name: 'Carpet Large', questionKey: 'cleaning_type', optionValue: 'carpet_large', price: 120, durationMin: 90 },
@@ -121,12 +121,12 @@ const CATEGORY_MODULES: Record<string, { label: string; proposal: string; auto: 
     proposal: 'Thank you for your curtain cleaning request!',
     auto: true,
     mods: [
-      { name: 'Full 40" — Normal', questionKey: 'curtain_sizes', optionValue: 'full_height_40', price: 8, durationMin: 15 },
-      { name: 'Full 60" — Normal', questionKey: 'curtain_sizes', optionValue: 'full_height_60', price: 12, durationMin: 15 },
-      { name: 'Full 100" — Normal', questionKey: 'curtain_sizes', optionValue: 'full_height_100', price: 18, durationMin: 15 },
-      { name: 'Half 40" — Normal', questionKey: 'curtain_sizes', optionValue: 'half_height_40', price: 8, durationMin: 15 },
-      { name: 'Half 60" — Normal', questionKey: 'curtain_sizes', optionValue: 'half_height_60', price: 12, durationMin: 15 },
-      { name: 'Half 100" — Normal', questionKey: 'curtain_sizes', optionValue: 'half_height_100', price: 18, durationMin: 15 },
+      { name: 'Full 40" - Normal', questionKey: 'curtain_sizes', optionValue: 'full_height_40', price: 8, durationMin: 15 },
+      { name: 'Full 60" - Normal', questionKey: 'curtain_sizes', optionValue: 'full_height_60', price: 12, durationMin: 15 },
+      { name: 'Full 100" - Normal', questionKey: 'curtain_sizes', optionValue: 'full_height_100', price: 18, durationMin: 15 },
+      { name: 'Half 40" - Normal', questionKey: 'curtain_sizes', optionValue: 'half_height_40', price: 8, durationMin: 15 },
+      { name: 'Half 60" - Normal', questionKey: 'curtain_sizes', optionValue: 'half_height_60', price: 12, durationMin: 15 },
+      { name: 'Half 100" - Normal', questionKey: 'curtain_sizes', optionValue: 'half_height_100', price: 18, durationMin: 15 },
     ],
   },
 
@@ -292,8 +292,8 @@ const CATEGORY_MODULES: Record<string, { label: string; proposal: string; auto: 
     proposal: 'Thank you for your roofing request! We will inspect and provide a solution.',
     auto: true,
     mods: [
-      { name: 'Leak Repair — Pitched', questionKey: 'action', optionValue: 'patch_leak', price: 150, durationMin: 60 },
-      { name: 'Leak Repair — Flat', questionKey: 'action', optionValue: 'patch_leak', price: 120, durationMin: 45 },
+      { name: 'Leak Repair - Pitched', questionKey: 'action', optionValue: 'patch_leak', price: 150, durationMin: 60 },
+      { name: 'Leak Repair - Flat', questionKey: 'action', optionValue: 'patch_leak', price: 120, durationMin: 45 },
       { name: 'Full Roof Repair', questionKey: 'action', optionValue: 'repair', price: 300, durationMin: 180 },
       { name: 'Roof Replacement', questionKey: 'action', optionValue: 'replace', price: 800, durationMin: 480 },
       { name: 'New Roof Installation', questionKey: 'action', optionValue: 'new_roof', price: 1200, durationMin: 600 },
@@ -337,7 +337,7 @@ const GENERIC_AUTO: Record<string, { label: string; proposal: string; questionKe
 async function seedModules() {
   console.log('SP-3 Module seeding (all categories) started…');
 
-  // Seed explicit category modules — ALL servicers per category
+  // Seed explicit category modules - ALL servicers per category
   for (const [slug, cfg] of Object.entries(CATEGORY_MODULES)) {
     const servicers = await prisma.servicer.findMany({
       where: { category: { slug } },
@@ -348,7 +348,7 @@ async function seedModules() {
     }
   }
 
-  // Seed generic appliance repair + training categories — ALL servicers
+  // Seed generic appliance repair + training categories - ALL servicers
   for (const [slug, cfg] of Object.entries(GENERIC_AUTO)) {
     const servicers = await prisma.servicer.findMany({
       where: { category: { slug } },
@@ -362,7 +362,7 @@ async function seedModules() {
     }
   }
 
-  // ── M1 Ahmad — modules but NO auto-accept on ANY listing ──────────
+  // ── M1 Ahmad - modules but NO auto-accept on ANY listing ──────────
   const m1 = await prisma.servicer.findFirst({
     where: { businessName: { contains: 'Ahmad', mode: 'insensitive' }, category: { slug: 'plumber' } },
     select: { id: true, businessName: true, categoryId: true },

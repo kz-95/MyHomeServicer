@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { Weekday, TimeSlot } from '@prisma/client';
 import { TIME_SLOTS } from '../lib/time-slots';
 import { body } from 'express-validator';
@@ -107,7 +107,7 @@ export const servicerRouter = Router();
 servicerRouter.use(requireAuth, requireServicer);
 
 /**
- * POST /servicer/customer-session — enter "customer mode".
+ * POST /servicer/customer-session - enter "customer mode".
  * Returns (creating on first use) the servicer's paired customer-account session so
  * a servicer can operate the platform as a customer. The frontend stashes the
  * servicer session and swaps in these tokens. Mounted at /api/v1/servicer.
@@ -122,19 +122,19 @@ servicerRouter.post(
 
 // ── Profile, earnings, deposit ───────────────────────────────────────────────
 
-/** GET /servicer/me — servicer profile with settings. */
+/** GET /servicer/me - servicer profile with settings. */
 servicerRouter.get(
   '/me',
   asyncHandler(async (req, res) => res.json(await getServicerProfile(req.user!.id))),
 );
 
-/** GET /servicer/me/personal — personal profile (User record linked by shared email). */
+/** GET /servicer/me/personal - personal profile (User record linked by shared email). */
 servicerRouter.get(
   '/me/personal',
   asyncHandler(async (req, res) => res.json(await getPersonalProfile(req.user!.email))),
 );
 
-/** PATCH /servicer/me/personal — update personal profile fields on the linked User record. */
+/** PATCH /servicer/me/personal - update personal profile fields on the linked User record. */
 servicerRouter.patch(
   '/me/personal',
   validate([
@@ -150,7 +150,7 @@ servicerRouter.patch(
   }),
 );
 
-/** POST /servicer/me/identity-change-request — request admin review of identity fields. */
+/** POST /servicer/me/identity-change-request - request admin review of identity fields. */
 servicerRouter.post(
   '/me/identity-change-request',
   validate([body('proposed').isObject()]),
@@ -161,7 +161,7 @@ servicerRouter.post(
 );
 
 
-/** GET /servicer/me/deposit — deposit balances. */
+/** GET /servicer/me/deposit - deposit balances. */
 servicerRouter.get(
   '/me/deposit',
   asyncHandler(async (req, res) => {
@@ -175,7 +175,7 @@ servicerRouter.get(
   }),
 );
 
-/** POST /servicer/me/deposit — record a deposit top-up request. */
+/** POST /servicer/me/deposit - record a deposit top-up request. */
 servicerRouter.post(
   '/me/deposit',
   idempotency,
@@ -188,7 +188,7 @@ servicerRouter.post(
   }),
 );
 
-/** PATCH /servicer/me — update editable profile fields. */
+/** PATCH /servicer/me - update editable profile fields. */
 servicerRouter.patch(
   '/me',
   validate([
@@ -224,7 +224,7 @@ servicerRouter.patch(
   }),
 );
 
-/** PATCH /servicer/me/online — toggle online status (V1: no-op, endpoint for post-V1). */
+/** PATCH /servicer/me/online - toggle online status (V1: no-op, endpoint for post-V1). */
 servicerRouter.patch(
   '/me/online',
   validate([body('isOnline').isBoolean()]),
@@ -266,7 +266,7 @@ servicerRouter.get(
   }),
 );
 
-/** GET /servicer/me/credit-log — credit balance movement history. */
+/** GET /servicer/me/credit-log - credit balance movement history. */
 servicerRouter.get(
   '/me/credit-log',
   asyncHandler(async (req, res) => {
@@ -284,7 +284,7 @@ servicerRouter.get(
   }),
 );
 
-/** GET /servicer/me/invoices/by-booking/:bookingId — invoice for a specific booking. */
+/** GET /servicer/me/invoices/by-booking/:bookingId - invoice for a specific booking. */
 servicerRouter.get(
   '/me/invoices/by-booking/:bookingId',
   asyncHandler(async (req, res) => {
@@ -292,7 +292,7 @@ servicerRouter.get(
   }),
 );
 
-/** GET /servicer/me/invoices/:id — full invoice breakdown. */
+/** GET /servicer/me/invoices/:id - full invoice breakdown. */
 servicerRouter.get(
   '/me/invoices/:id',
   asyncHandler(async (req, res) => {
@@ -302,7 +302,7 @@ servicerRouter.get(
 
 // ── Penalties & appeals ──────────────────────────────────────────────────────
 
-/** GET /servicer/me/penalties — list penalties with appeal status. */
+/** GET /servicer/me/penalties - list penalties with appeal status. */
 servicerRouter.get(
   '/me/penalties',
   asyncHandler(async (req, res) => {
@@ -310,7 +310,7 @@ servicerRouter.get(
   }),
 );
 
-/** POST /servicer/me/penalties/:id/appeal — file an appeal for a penalty. */
+/** POST /servicer/me/penalties/:id/appeal - file an appeal for a penalty. */
 servicerRouter.post(
   '/me/penalties/:id/appeal',
   validate([body('reason').isString().trim().notEmpty()]),
@@ -319,7 +319,7 @@ servicerRouter.post(
   }),
 );
 
-/** GET /servicer/me/penalties/:id/appeal — get appeal status. */
+/** GET /servicer/me/penalties/:id/appeal - get appeal status. */
 servicerRouter.get(
   '/me/penalties/:id/appeal',
   asyncHandler(async (req, res) => {
@@ -329,7 +329,7 @@ servicerRouter.get(
 
 // ── KYC documents ────────────────────────────────────────────────────────────
 
-/** POST /servicer/me/documents — submit a KYC document (upload via presign first). */
+/** POST /servicer/me/documents - submit a KYC document (upload via presign first). */
 servicerRouter.post(
   '/me/documents',
   validate([
@@ -341,7 +341,7 @@ servicerRouter.post(
   }),
 );
 
-/** GET /servicer/me/documents — list submitted KYC documents and approval status. */
+/** GET /servicer/me/documents - list submitted KYC documents and approval status. */
 servicerRouter.get(
   '/me/documents',
   asyncHandler(async (req, res) => {
@@ -351,7 +351,7 @@ servicerRouter.get(
 
 // ── Category requests ────────────────────────────────────────────────────────
 
-/** POST /servicer/me/category-requests — request a new platform category. */
+/** POST /servicer/me/category-requests - request a new platform category. */
 servicerRouter.post(
   '/me/category-requests',
   validate([
@@ -364,7 +364,7 @@ servicerRouter.post(
   }),
 );
 
-/** GET /servicer/me/category-requests — list own requests with status. */
+/** GET /servicer/me/category-requests - list own requests with status. */
 servicerRouter.get(
   '/me/category-requests',
   asyncHandler(async (req, res) => {
@@ -380,7 +380,7 @@ servicerRouter.get(
   }),
 );
 
-/** POST /servicer/me/transfer — transfer between deposit and credit balances. */
+/** POST /servicer/me/transfer - transfer between deposit and credit balances. */
 servicerRouter.post(
   '/me/transfer',
   idempotency,
@@ -394,7 +394,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/me/topup — create a Stripe Checkout session for credit top-up. */
+/** POST /servicer/me/topup - create a Stripe Checkout session for credit top-up. */
 servicerRouter.post(
   '/me/topup',
   idempotency,
@@ -428,7 +428,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/me/withdrawal — request a withdrawal of credit (PIN-gated, uses stored bank details). */
+/** POST /servicer/me/withdrawal - request a withdrawal of credit (PIN-gated, uses stored bank details). */
 servicerRouter.post(
   '/me/withdrawal',
   idempotency,
@@ -477,7 +477,7 @@ servicerRouter.patch(
   }),
 );
 
-/** DELETE /servicer/me/promotions/:id — deactivate. */
+/** DELETE /servicer/me/promotions/:id - deactivate. */
 servicerRouter.delete(
   '/me/promotions/:id',
   asyncHandler(async (req, res) => {
@@ -496,7 +496,7 @@ servicerRouter.get(
   }),
 );
 
-/** GET /servicer/me/subcategories — big category + its sub-categories. */
+/** GET /servicer/me/subcategories - big category + its sub-categories. */
 servicerRouter.get(
   '/me/subcategories',
   asyncHandler(async (req, res) => {
@@ -532,7 +532,7 @@ const serviceValidators = [
   body('sstApplies').optional({ values: 'null' }).isBoolean(),
 ];
 
-/** Partial validators for PATCH — same rules but all fields optional. */
+/** Partial validators for PATCH - same rules but all fields optional. */
 const servicePatchValidators = [
   body('title').optional().isString().trim().notEmpty(),
   body('label').optional({ values: 'null' }).isString().trim(),
@@ -577,7 +577,7 @@ servicerRouter.patch(
   }),
 );
 
-/** DELETE /servicer/me/services/:id — soft delete. */
+/** DELETE /servicer/me/services/:id - soft delete. */
 servicerRouter.delete(
   '/me/services/:id',
   asyncHandler(async (req, res) => {
@@ -596,7 +596,7 @@ servicerRouter.patch(
 );
 
 /**
- * GET /servicer/me/services/:id/preview — listing price breakdown preview.
+ * GET /servicer/me/services/:id/preview - listing price breakdown preview.
  *
  * Query: ?answers={"type":"wall","units":{"unit":3}}  (optional JSON string)
  * Returns: lineItems[], total, subtotal, serviceCharge, sst, durationMin,
@@ -668,7 +668,7 @@ servicerRouter.get(
     const breakdown = computeListingPrice(listing, modulesById, answersRaw as Answers, taxConfig, []);
     const durationMin = computeListingDurationMin(listing, modulesById, answersRaw as Answers, []);
 
-    // Auto-accept eligibility summary (without quote context — just structural check).
+    // Auto-accept eligibility summary (without quote context - just structural check).
     const autoAcceptEligible = service.autoAccept && service.priceType === 'fixed';
     const autoAcceptReasons: string[] = [];
     if (!service.autoAccept) autoAcceptReasons.push('auto-accept is off');
@@ -739,7 +739,7 @@ servicerRouter.delete(
 
 // ── Incoming quotes ──────────────────────────────────────────────────────────
 
-/** GET /servicer/quotes — quotes broadcast to this servicer. */
+/** GET /servicer/quotes - quotes broadcast to this servicer. */
 servicerRouter.get(
   '/quotes',
   asyncHandler(async (req, res) => {
@@ -749,7 +749,7 @@ servicerRouter.get(
 );
 
 /**
- * POST /servicer/quotes/:id/open — mark a broadcast quote as opened.
+ * POST /servicer/quotes/:id/open - mark a broadcast quote as opened.
  *
  * Phase 6: now returns 200 JSON with `proposalPrefill` (was 204 No Content).
  * `proposalPrefill` is null when the category has no priced questions.
@@ -765,7 +765,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/quotes/:id/propose — submit a proposal. */
+/** POST /servicer/quotes/:id/propose - submit a proposal. */
 servicerRouter.post(
   '/quotes/:id/propose',
   proposalLimiter,
@@ -790,7 +790,7 @@ servicerRouter.post(
 );
 
 /**
- * POST /servicer/quotes/:id/accept-listing — one-tap accept.
+ * POST /servicer/quotes/:id/accept-listing - one-tap accept.
  * Submits a proposal at the servicer's listing-computed price/duration/message
  * (SP-3 engine) with no manual form. The customer still picks among proposals.
  */
@@ -805,7 +805,7 @@ servicerRouter.post(
 
 // ── Jobs (bookings) ──────────────────────────────────────────────────────────
 
-/** GET /servicer/jobs — this servicer's jobs. */
+/** GET /servicer/jobs - this servicer's jobs. */
 servicerRouter.get(
   '/jobs',
   asyncHandler(async (req, res) => {
@@ -814,7 +814,7 @@ servicerRouter.get(
 );
 
 /**
- * GET /servicer/bookings/:id/location — return customer lat/lng + address
+ * GET /servicer/bookings/:id/location - return customer lat/lng + address
  * for map display. Only servicers assigned to the booking can see this.
  */
 servicerRouter.get(
@@ -842,7 +842,7 @@ servicerRouter.get(
 );
 
 /**
- * GET /servicer/bookings/:id/invoice-preview — returns a preview of what the
+ * GET /servicer/bookings/:id/invoice-preview - returns a preview of what the
  * invoice WILL look like for a booking (for servicer review before marking done).
  * Calls computeTotal() with the actual line items but creates no database row.
  */
@@ -853,7 +853,7 @@ servicerRouter.get(
   }),
 );
 
-/** GET /servicer/jobs/:id — full booking detail. */
+/** GET /servicer/jobs/:id - full booking detail. */
 servicerRouter.get(
   '/jobs/:id',
   asyncHandler(async (req, res) => {
@@ -861,7 +861,7 @@ servicerRouter.get(
   }),
 );
 
-/** POST /servicer/jobs/:id/confirm — confirm a pending job. */
+/** POST /servicer/jobs/:id/confirm - confirm a pending job. */
 servicerRouter.post(
   '/jobs/:id/confirm',
   validate([body('confirm').isBoolean().toBoolean()]),
@@ -870,7 +870,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/jobs/:id/arrive — mark arrived with an optional arrival photo. */
+/** POST /servicer/jobs/:id/arrive - mark arrived with an optional arrival photo. */
 servicerRouter.post(
   '/jobs/:id/arrive',
   asyncHandler(async (req, res) => {
@@ -878,7 +878,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/jobs/:id/done — mark job done with an optional completion photo. */
+/** POST /servicer/jobs/:id/done - mark job done with an optional completion photo. */
 servicerRouter.post(
   '/jobs/:id/done',
   asyncHandler(async (req, res) => {
@@ -886,7 +886,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/jobs/:id/cash-confirm — confirm cash received (cash jobs only). */
+/** POST /servicer/jobs/:id/cash-confirm - confirm cash received (cash jobs only). */
 servicerRouter.post(
   '/jobs/:id/cash-confirm',
   idempotency,
@@ -895,7 +895,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/jobs/:id/cancel — cancel after taking (triggers penalty). */
+/** POST /servicer/jobs/:id/cancel - cancel after taking (triggers penalty). */
 servicerRouter.post(
   '/jobs/:id/cancel',
   validate([body('reason').isString().trim().notEmpty()]),
@@ -904,7 +904,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/jobs/:id/mutual-cancel — ask customer to cancel instead (no penalty). */
+/** POST /servicer/jobs/:id/mutual-cancel - ask customer to cancel instead (no penalty). */
 servicerRouter.post(
   '/jobs/:id/mutual-cancel',
   validate([body('reason').isString().trim().notEmpty()]),
@@ -913,7 +913,7 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/jobs/:id/report — report a problem with a job. */
+/** POST /servicer/jobs/:id/report - report a problem with a job. */
 servicerRouter.post(
   '/jobs/:id/report',
   validate([
@@ -1014,7 +1014,7 @@ servicerRouter.get(
 // ── Dispatch (SP4) ──────────────────────────────────────────────────────────
 
 /**
- * POST /servicer/dispatch/:broadcastId/accept — servicer accepts a dispatch prompt.
+ * POST /servicer/dispatch/:broadcastId/accept - servicer accepts a dispatch prompt.
  * Atomic "first accept wins": on success, creates booking + notifies customer.
  */
 servicerRouter.post(
@@ -1027,7 +1027,7 @@ servicerRouter.post(
 );
 
 /**
- * POST /servicer/dispatch/:broadcastId/decline — servicer declines a dispatch prompt.
+ * POST /servicer/dispatch/:broadcastId/decline - servicer declines a dispatch prompt.
  * Marks declined, rotates to next eligible servicer.
  */
 servicerRouter.post(
@@ -1040,7 +1040,7 @@ servicerRouter.post(
 
 // ── PIN management ────────────────────────────────────────────────────────────
 
-/** GET /servicer/account/pin-status — check whether a PIN has been set. */
+/** GET /servicer/account/pin-status - check whether a PIN has been set. */
 servicerRouter.get(
   '/account/pin-status',
   asyncHandler(async (req, res) => {
@@ -1049,7 +1049,7 @@ servicerRouter.get(
   }),
 );
 
-/** PUT /servicer/account/pin — set or change the servicer PIN. Current PIN is
+/** PUT /servicer/account/pin - set or change the servicer PIN. Current PIN is
  *  required only when one is already set (first-time setup needs none). */
 servicerRouter.put(
   '/account/pin',
@@ -1076,7 +1076,7 @@ servicerRouter.put(
   }),
 );
 
-/** POST /servicer/account/verify-pin — verify a PIN, returns { ok: boolean }. */
+/** POST /servicer/account/verify-pin - verify a PIN, returns { ok: boolean }. */
 servicerRouter.post(
   '/account/verify-pin',
   validate([
@@ -1099,7 +1099,7 @@ servicerRouter.post(
 
 // ── Business Contacts CRUD ─────────────────────────────────────────────────
 
-/** GET /servicer/contacts — list all business contacts for the authenticated servicer. */
+/** GET /servicer/contacts - list all business contacts for the authenticated servicer. */
 servicerRouter.get(
   '/contacts',
   asyncHandler(async (req, res) => {
@@ -1107,7 +1107,7 @@ servicerRouter.get(
   }),
 );
 
-/** POST /servicer/contacts — create a new business contact. */
+/** POST /servicer/contacts - create a new business contact. */
 servicerRouter.post(
   '/contacts',
   validate([
@@ -1122,7 +1122,7 @@ servicerRouter.post(
   }),
 );
 
-/** PATCH /servicer/contacts/:id — update a business contact. */
+/** PATCH /servicer/contacts/:id - update a business contact. */
 servicerRouter.patch(
   '/contacts/:id',
   validate([
@@ -1137,7 +1137,7 @@ servicerRouter.patch(
   }),
 );
 
-/** DELETE /servicer/contacts/:id — delete a business contact. */
+/** DELETE /servicer/contacts/:id - delete a business contact. */
 servicerRouter.delete(
   '/contacts/:id',
   asyncHandler(async (req, res) => {
@@ -1148,7 +1148,7 @@ servicerRouter.delete(
 
 // ── Deactivate account ───────────────────────────────────────────────────────
 
-/** POST /servicer/me/deactivate — permanently deactivate servicer account. */
+/** POST /servicer/me/deactivate - permanently deactivate servicer account. */
 servicerRouter.post(
   '/me/deactivate',
   requireAuth,
@@ -1177,7 +1177,7 @@ servicerRouter.post(
 
 // ── Fee breakdown ─────────────────────────────────────────────────────────────
 
-/** GET /servicer/me/fee-breakdown — platform fee transparency breakdown. */
+/** GET /servicer/me/fee-breakdown - platform fee transparency breakdown. */
 servicerRouter.get(
   '/me/fee-breakdown',
   asyncHandler(async (req, res) => {
@@ -1208,7 +1208,7 @@ servicerRouter.get(
 
 // ── Working-hours schedule ────────────────────────────────────────────────────
 
-/** GET /servicer/me/schedule — all schedule slots for the authenticated servicer. */
+/** GET /servicer/me/schedule - all schedule slots for the authenticated servicer. */
 servicerRouter.get(
   '/me/schedule',
   requireAuth,
@@ -1222,7 +1222,7 @@ servicerRouter.get(
   }),
 );
 
-/** PATCH /servicer/me/schedule — upsert schedule slots.
+/** PATCH /servicer/me/schedule - upsert schedule slots.
  *  Body: { slots: Array<{ weekday, timeSlot, available }> }
  */
 servicerRouter.patch(

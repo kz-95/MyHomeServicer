@@ -1,4 +1,4 @@
-# Servicer Proposal Prompt Guard — F-A
+﻿# Servicer Proposal Prompt Guard - F-A
 
 > 2026-05-28 · Brainstorming session · Ready for execution
 
@@ -6,7 +6,7 @@
 
 When a new quote request arrives, the servicer sees a **floating action prompt** (not just a background notification) that lets them immediately respond with a proposal. Currently the servicer has to navigate to the Jobs tab, find the pending quote, expand it, and fill the proposal form. The guard makes this flow proactive.
 
-## Current state — MVP already built
+## Current state - MVP already built
 
 **File:** `frontend/src/app/servicer/servicer-shell.component.ts`
 
@@ -19,12 +19,12 @@ The MVP prompt is implemented:
 - "View & respond" → navigates to `/servicer/jobs`
 
 **What's missing (vs original concept):**
-- No inline proposal form — servicer is redirected to Jobs tab
+- No inline proposal form - servicer is redirected to Jobs tab
 - No customer identity shown (avatar + name from Phase 6)
 - No `computePrefill()` integration to pre-populate the proposal
 - Prompt covers the whole screen width, not contextually anchored
 
-## Enhancement — Inline proposal form in prompt
+## Enhancement - Inline proposal form in prompt
 
 ### Frontend change
 
@@ -145,8 +145,8 @@ submitProposal(): void {
 ### API requirements (Backend)
 
 The existing `GET /servicer/quotes/:id` endpoint already returns quote details. Ensure it includes:
-- `customerName` and `customerAvatarUrl` (from Phase 6 — ✅ Already done)
-- `estimatedPrice` (from `computePrefill()` — ✅ Already wired in `submitProposal()` endpoint)
+- `customerName` and `customerAvatarUrl` (from Phase 6 - ✅ Already done)
+- `estimatedPrice` (from `computePrefill()` - ✅ Already wired in `submitProposal()` endpoint)
 
 No new backend endpoints needed.
 
@@ -175,4 +175,4 @@ No new backend endpoints needed.
 1. **Multi-quote queue:** Cycle through multiple pending quotes, respond to all without leaving the prompt
 2. **Line items:** Show `computePrefill()` line items with override ability
 3. **Auto-accept integration:** If quote matches auto-accept rules, show "Auto-accept triggered ✓" instead of the form
-4. **Sound:** Play a subtle chime when `quote.new` fires (not the notification sound — a distinct quote-arrival sound)
+4. **Sound:** Play a subtle chime when `quote.new` fires (not the notification sound - a distinct quote-arrival sound)

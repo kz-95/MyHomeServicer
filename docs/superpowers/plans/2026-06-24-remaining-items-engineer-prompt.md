@@ -1,4 +1,4 @@
-# Engineering Brief — Remaining Items
+﻿# Engineering Brief - Remaining Items
 
 > **Date**: 2026-06-24 · **Branch**: `feat/sp3-dispatch-cards` (NEVER commit to master)
 > **Source of truth**: `TODO.md` · **Target**: 20 remaining items across DEMO-BLOCKING, STRETCH, and PLATFORM POLISH
@@ -8,7 +8,7 @@
 
 ## Project Overview
 
-**MyServicer** — on-demand home services marketplace (Airbnb TaskRabbit for Malaysia).
+**MyServicer** - on-demand home services marketplace (Airbnb TaskRabbit for Malaysia).
 Full-stack: Angular 18 standalone (signals, `@if/@for`), Express + TypeScript, Prisma + PostgreSQL,
 Redis + BullMQ, Socket.io, Stripe. 49 Prisma models, ~1400-line schema.
 
@@ -23,7 +23,7 @@ Now hardening the platform for demo walkthrough and production readiness.
 - **Branch**: `feat/sp3-dispatch-cards`. Never commit to `master`.
 - Commit per item with a **clear Conventional Commits message** (e.g., `feat(sp4): wire isOnline presence for live dispatch rotation`).
 - NO `Co-Authored-By:` / NO AI attribution trailer. NO `--no-verify`.
-- NEVER `git add -A` — stage only files this item touched.
+- NEVER `git add -A` - stage only files this item touched.
 - Before pushing, squash/rebase into clean commits. No long chains of WIP commits.
 
 ---
@@ -33,17 +33,17 @@ Now hardening the platform for demo walkthrough and production readiness.
 ### Backend
 - **STOP the backend server (port 3000) before ANY `prisma migrate`.** The Windows DLL lock on
   `query_engine-windows.dll.node` makes `prisma generate` fail silently (P2022 on next login).
-- After every `backend/src/` edit: `rtk proxy npx tsc --noEmit` (NOT plain `rtk npx tsc` — hides source errors).
+- After every `backend/src/` edit: `rtk proxy npx tsc --noEmit` (NOT plain `rtk npx tsc` - hides source errors).
 - After schema changes: `npm run db:migrate -- --name <change>` → commit the migration folder → restart server.
 - All money fields use `Prisma.Decimal`. Never `float`/`number` for currency.
-- Never pass `req.body` directly to Prisma — pick fields explicitly.
+- Never pass `req.body` directly to Prisma - pick fields explicitly.
 - BullMQ job payloads validated with Zod.
 - Run `npm test` (Jest) after backend changes. 382 tests should stay green.
 
 ### Frontend
 - After every change: `npx tsc --noEmit` THEN `ng build --configuration development`.
   A broken AOT serves stale `ng serve` bundles and masks errors. Both must pass.
-- All modals/dialogs MUST use `<app-modal>` (native `<dialog>` + `showModal()`) — NEVER hand-roll
+- All modals/dialogs MUST use `<app-modal>` (native `<dialog>` + `showModal()`) - NEVER hand-roll
   `position: fixed` backdrops inside feature/page components (STYLE-RULES §7.0).
 - Use existing `--color-*` CSS tokens. Angular standalone components + signals.
 
@@ -52,16 +52,16 @@ Now hardening the platform for demo walkthrough and production readiness.
 
 ---
 
-## Items — Ordered by Priority
+## Items - Ordered by Priority
 
 ### PRIORITY 1: Demo-critical
 
 | # | Item | Effort | Notes |
 |---|------|--------|-------|
-| **8** | Finance engine — verify end-to-end | M | Walk the money path with real numbers: escrow_hold → escrow_release + platform_fee → urgent-fee 20/80 split → admin dashboard. Verify every number reconciles. |
+| **8** | Finance engine - verify end-to-end | M | Walk the money path with real numbers: escrow_hold → escrow_release + platform_fee → urgent-fee 20/80 split → admin dashboard. Verify every number reconciles. |
 | **S2** | Distance km on dispatch card | M | Add `lat`/`lng` to `Servicer` model (schema + migration), seed coordinates for demo servicers, add Haversine helper to backend, return `distanceKm` in `listIncomingQuotes` feed, render "~X km away" on card face. |
-| **SP4** | Full SP4 live-dispatch | L | Wire `isOnline` presence + `ServicerSchedule` working-hours gating into `dispatch.service.ts` → `startDispatchRotation`. Admin-configurable rotation timer. Decline → rotate → async fallback. Google Map preview in accept prompt. Spec: `docs/superpowers/specs/2026-05-30-live-order-accept-dispatch-design.md`. This unblocks item 7 — the demo overlay won't fire without presence/availability live. |
-| **7** | Live dispatch overlay — verify | S | After SP4 wiring, walk end-to-end: quote created → rotation fires → accept-now overlay pops with countdown → servicer accepts/declines → next servicer on timeout. Verify online/offline guard. |
+| **SP4** | Full SP4 live-dispatch | L | Wire `isOnline` presence + `ServicerSchedule` working-hours gating into `dispatch.service.ts` → `startDispatchRotation`. Admin-configurable rotation timer. Decline → rotate → async fallback. Google Map preview in accept prompt. Spec: `docs/superpowers/specs/2026-05-30-live-order-accept-dispatch-design.md`. This unblocks item 7 - the demo overlay won't fire without presence/availability live. |
+| **7** | Live dispatch overlay - verify | S | After SP4 wiring, walk end-to-end: quote created → rotation fires → accept-now overlay pops with countdown → servicer accepts/declines → next servicer on timeout. Verify online/offline guard. |
 
 ### PRIORITY 2: Dispatch card polish
 
@@ -91,7 +91,7 @@ Now hardening the platform for demo walkthrough and production readiness.
 | **VAL** | Cancel reason presets + form validation UX + admin footer | S | Dropdown presets for cancel reasons. Per-form error states where missing. Wire admin footer links. |
 | **SEC** | IDOR audit + Decimal-as-string + global-search | M | Audit all `:id` route params for ownership checks. Ensure Decimal fields serialize to string (JSON safety). Verify global search covers all relevant fields. |
 | **RFG** | routeFor() relative-path guard | S | Defense-in-depth: ensure all route navigations use typed paths, not magic strings. |
-| **ITM** | Itemization | M | Separate "service listing" (offering) vs "itemized line items" (parts/labour breakdown). Defer execution until SP3-SP4 land — just document the design decision. |
+| **ITM** | Itemization | M | Separate "service listing" (offering) vs "itemized line items" (parts/labour breakdown). Defer execution until SP3-SP4 land - just document the design decision. |
 
 ### PRIORITY 5: Stretch
 
@@ -111,17 +111,17 @@ Now hardening the platform for demo walkthrough and production readiness.
 | 8 (finance verify) | `backend/src/services/booking.service.ts` (selectProposal ~line 89, escrow → line 213), `backend/src/routes/stripe.routes.ts` |
 | LINK (dead links) | `backend/src/services/notification.service.ts` (notify emitters), `backend/src/routes/stripe.routes.ts` (return URLs), `frontend/src/app/servicer/pages/dashboard.component.ts` (quickLinks) |
 | SP3 (listing wizard) | `frontend/src/app/servicer/pages/services.component.ts` (monolith), `frontend/src/app/servicer/pages/listing-advanced.component.ts` (reference wizard), memory `project-sp3-wizard-design` |
-| SEC (IDOR audit) | All `backend/src/routes/*.ts` — grep `req.params` crossed with `req.user!.id` ownership checks |
+| SEC (IDOR audit) | All `backend/src/routes/*.ts` - grep `req.params` crossed with `req.user!.id` ownership checks |
 
 ---
 
 ## Verification Gates
 
 After each item:
-1. Backend: `rtk proxy npx tsc --noEmit` — 0 new errors
-2. Backend: `npm test` — all existing tests green
-3. Frontend: `npx tsc --noEmit` — 0 errors
-4. Frontend: `ng build --configuration development` — exit 0
+1. Backend: `rtk proxy npx tsc --noEmit` - 0 new errors
+2. Backend: `npm test` - all existing tests green
+3. Frontend: `npx tsc --noEmit` - 0 errors
+4. Frontend: `ng build --configuration development` - exit 0
 5. Tick the item checkbox in `TODO.md`
 6. Summarize what changed (1-2 lines)
 

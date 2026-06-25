@@ -1,4 +1,4 @@
-﻿import { Server as HttpServer } from 'http';
+import { Server as HttpServer } from 'http';
 import { Server as IOServer, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createRedisAdapterPair } from '../lib/redis';
@@ -42,7 +42,7 @@ export function initSocket(server: HttpServer): IOServer {
       next();
       return;
     }
-    // Dev-bypass fallback — email-as-token, never honoured in production.
+    // Dev-bypass fallback - email-as-token, never honoured in production.
     if (isProd) {
       next(new Error('Unauthorized'));
       return;
@@ -113,7 +113,7 @@ export function emitToServicer(servicerId: string, event: string, payload: unkno
   io?.to(`servicer:${servicerId}`).emit(event, payload);
 }
 
-/** Emit a quote broadcast to a specific set of servicer rooms — never global. */
+/** Emit a quote broadcast to a specific set of servicer rooms - never global. */
 export function emitToServicers(servicerIds: string[], event: string, payload: unknown): void {
   if (!io || servicerIds.length === 0) return;
   const rooms = servicerIds.map((id) => `servicer:${id}`);

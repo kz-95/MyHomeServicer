@@ -185,7 +185,7 @@ describe('computeTotal', () => {
     it('total = 153 + 5.40 + 8.42 = 166.82', () => expect(r.total).toBe(166.82));
   });
 
-  describe('SST not registered, exclusive — no sst even with rate set', () => {
+  describe('SST not registered, exclusive - no sst even with rate set', () => {
     const r = computeTotal(
       BASE_ITEMS,
       0,
@@ -217,7 +217,7 @@ describe('computeTotal', () => {
     it('serviceCharge = 6.00 (extracted for display)', () => expect(r.serviceCharge).toBe(6.00));
     // SST embedded: (170 + 6) - (170+6)/(1+0.06) = 176 - 166.04 = 9.96
     it('sst ≈ 9.96 (extracted for display)', () => expect(r.sst).toBeCloseTo(9.96, 1));
-    // total = afterPromo + tip = 170 (nothing added — amounts already inclusive)
+    // total = afterPromo + tip = 170 (nothing added - amounts already inclusive)
     it('total = 170 (SC and SST already in line amounts)', () => expect(r.total).toBe(170));
   });
 

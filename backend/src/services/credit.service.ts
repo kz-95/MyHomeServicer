@@ -3,7 +3,7 @@ import { ApiError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
 
 /**
- * Credit wallet helpers — simple add/deduct on a user's or servicer's
+ * Credit wallet helpers - simple add/deduct on a user's or servicer's
  * `creditBalance`, plus the unified platform fee (backed by FeeRule engine
  * with fallback to money.ts).
  *
@@ -17,8 +17,8 @@ import { prisma } from '../lib/prisma';
  * Computes the platform fee using the FeeRule engine (P2 fintech).
  * Falls back to the legacy `platform_fee_rate` setting if no FeeRules exist.
  *
- * @param amount — base amount for fee calculation (afterPromo)
- * @param categoryId — optional category for per-category fee rules
+ * @param amount - base amount for fee calculation (afterPromo)
+ * @param categoryId - optional category for per-category fee rules
  */
 export async function computeFee(amount: number, categoryId?: string): Promise<number> {
   const { computeFees } = await import('./fee-engine.service');

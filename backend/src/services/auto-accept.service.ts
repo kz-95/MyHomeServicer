@@ -7,21 +7,21 @@ const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 /**
  * Evaluates whether a quote matches a servicer service's auto-accept rules
  * (schema-notes.md §Auto-accept matching). Conditions are budget overlap,
- * property type, time slot, and weekday — all optional and ANDed together.
+ * property type, time slot, and weekday - all optional and ANDed together.
  */
 export function quoteMatchesAutoAccept(quote: QuoteRequest, service: ServicerService): boolean {
   if (!service.autoAccept || !service.autoAcceptConditions) return false;
 
   const parsed = autoAcceptConditionsSchema.safeParse(service.autoAcceptConditions);
   if (!parsed.success) {
-    logger.warn('Invalid auto_accept_conditions JSON — skipping', { serviceId: service.id });
+    logger.warn('Invalid auto_accept_conditions JSON - skipping', { serviceId: service.id });
     return false;
   }
   const c = parsed.data;
 
   // Budget: the servicer matches as long as the customer can afford the
   // servicer's floor price. A service priced *below* the customer's budget
-  // still fits — a generous budget is never a disqualifier; only a customer
+  // still fits - a generous budget is never a disqualifier; only a customer
   // whose maximum can't reach the servicer's minimum is rejected.
   if (c.budget_min !== undefined || c.budget_max !== undefined) {
     const qMax = quote.budgetMax ? Number(quote.budgetMax) : Number.MAX_SAFE_INTEGER;

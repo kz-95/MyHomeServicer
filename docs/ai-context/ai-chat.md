@@ -1,4 +1,4 @@
-# AI Chat Assistant — Rules, Details & Flows
+﻿# AI Chat Assistant - Rules, Details & Flows
 
 Single reference for the in-app chat assistant: architecture, the quote flow, every
 prompt rule, the deterministic guards, anti-hallucination layers, the QA harness, and the
@@ -18,7 +18,7 @@ regression net. Source of truth is the code; this doc explains how the pieces fi
 
 ```
 Frontend (chat-widget.component.ts)
-   │  POST /chat/guest            (no auth, stateless — client sends history)
+   │  POST /chat/guest            (no auth, stateless - client sends history)
    │  POST /chat/session/:id/message   (auth, server-persisted history)
    ▼
 Express route (chat.routes.ts)  →  injection guard  →  sendToAi()
@@ -48,7 +48,7 @@ flowchart TD
 
 There is **no RAG / vector DB**. Knowledge is assembled deterministically into the prompt
 (FAQs by tier, live account data via SQL, the service catalog). This is correct for the
-current corpus size — it all fits in the prompt. Revisit only if the knowledge corpus
+current corpus size - it all fits in the prompt. Revisit only if the knowledge corpus
 outgrows the prompt budget.
 
 ---
@@ -85,7 +85,7 @@ facts, and navigation links.
 
 **The single biggest anti-hallucination mechanism.** When the user **confirms a card**
 (taps date/time/budget/address/contact/question, or picks a service) the next card is
-fully determined by what's been collected — the LLM would only add prose that can
+fully determined by what's been collected - the LLM would only add prose that can
 hallucinate, mistranslate, re-ask, or stall. So those turns skip the LLM entirely.
 
 **Trigger.** The client sets `cardConfirm: true` on the request **only** for card-confirm
@@ -109,9 +109,9 @@ The ack is a **fixed string**, never LLM-generated, so it cannot hallucinate or
 mistranslate. To make the ack-only turn render cleanly the ack is non-empty (an empty
 `answer` would hit the client's `|| fallbackReply` and show boilerplate).
 
-**RULE — a confirmation is NOT an edit (`wantsFieldEdit`).** After an LLM reply, a guard
+**RULE - a confirmation is NOT an edit (`wantsFieldEdit`).** After an LLM reply, a guard
 drops any `quote_field` / `quote_question` card for a field the client already `collected`
-(show each card once) — UNLESS the user is asking to change something, in which case the
+(show each card once) - UNLESS the user is asking to change something, in which case the
 card is kept so they can re-enter it. That edit-intent test is the single exported
 `wantsFieldEdit(message)`, used by all three edit gates (re-extract, confirmed-card dedup,
 single-field edit). It must treat **"correct" as a confirmation, not an edit**: "yes that's
@@ -127,7 +127,7 @@ loop). Unit-tested in `chat-flow.test.ts`.
 ## 5. The quote flow (field order)
 
 `nextStepBlocks(collected)` is the **single source of truth** for order and never skips
-ahead — it re-emits the current missing card every turn until it's filled:
+ahead - it re-emits the current missing card every turn until it's filled:
 
 ```
 1. Service     → quote_options card(s) (user picks; category_lock records the choice)
@@ -152,12 +152,12 @@ stateDiagram-v2
     note right of Service
         nextStepBlocks re-emits the
         current missing card every turn
-        — flow can't skip ahead
+        - flow can't skip ahead
     end note
 ```
 
 Because the order is server-enforced, the user **cannot advance past a missing required
-field** — even with the chat input unlocked, the pending card simply reappears until
+field** - even with the chat input unlocked, the pending card simply reappears until
 filled. This is why the input does not need to be locked (see §9).
 
 Required base fields: `preferredDate, timeSlot, address, budgetMax, contactName,
@@ -180,8 +180,8 @@ The LLM embeds machine-readable cards as `[action:TYPE] ...key: value... [/actio
 | `quote_prefill` | the review/submit card | renders only as the last message |
 | `category_lock` | silently record the confirmed service | UUID must resolve to a category whose name appears in the reply text, else dropped |
 | `form_fill` | fill a field on the real /quote/new form | requires a key |
-| `profile_field` / `pin_required` | servicer profile edits (PIN-gated) | — |
-| `link` / `retry` | navigation / try-again | — |
+| `profile_field` / `pin_required` | servicer profile edits (PIN-gated) | - |
+| `link` / `retry` | navigation / try-again | - |
 
 Unknown types and invented services are dropped by validation.
 
@@ -201,7 +201,7 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
 
 **Language**
 - Always reply in the **same language** the user is writing in (en / ms / zh / ta /
-  rojak). `opts.lang` pins the language and overrides per-turn detection — templated card
+  rojak). `opts.lang` pins the language and overrides per-turn detection - templated card
   confirmations ("My budget is RM150") are button clicks, NOT a language switch.
 - Service names from the catalog stay in their original form.
 - **`convoLang` lifecycle (frontend, `chat-widget`):** the pinned language is sticky
@@ -210,9 +210,9 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
   identity answer; it is **re-derived from the restored thread** on "yes, it's me" and
   "continue last session" (`deriveConvoLang`). Without the reset, a new customer inherited
   the previous thread's language (e.g. English user answered entirely in Chinese).
-- **RULE — "no, not me" wipes the WHOLE quote flow, not just the language.** A returning-guest
+- **RULE - "no, not me" wipes the WHOLE quote flow, not just the language.** A returning-guest
   decline (`confirmIdentity(false)`) means a different person on this device, so it calls
-  `resetQuoteFlowState()` — clearing the locked category, date, time, budget, address, contact
+  `resetQuoteFlowState()` - clearing the locked category, date, time, budget, address, contact
   AND service answers (every card signal + the shared `prefillData`), plus the persisted copy
   (`clearGuestPrefill`). Clearing only name/phone/address left the prior guest's **locked
   service in memory**, so the next person inherited it and the flow looped on its card. The
@@ -230,13 +230,13 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
     service card is pending and the user types a short affirmation in any supported
     language (en yes/ok/that's it · ms ya/betul/boleh · zh 对/没错/就是这个 · ta ஆம்/சரி),
     the frontend locks that category itself and routes the turn through the card-confirm
-    short-circuit — it does NOT wait for the model to emit `category_lock` (which it often
+    short-circuit - it does NOT wait for the model to emit `category_lock` (which it often
     forgets). Negations and long messages are excluded. This is what stops typing-only
     customers (who never tap) from looping forever on "please tap the card".
   - **Identifier checker (`maybeAutoAnswerQuestion` + `nearestOption`):** when a single
     radio service-question card is pending and the user TYPES an answer, the frontend
-    matches it lexically — exact / substring (either way) / a 1-2 char typo / token overlap
-    — against each option's value AND every localized label (en/ms/zh/ta). If it's
+    matches it lexically - exact / substring (either way) / a 1-2 char typo / token overlap
+    - against each option's value AND every localized label (en/ms/zh/ta). If it's
     confidently NEAR one option (score ≥ 0.8 and clearly ahead of the runner-up), it CLICKS
     that option (`answerRadio` → structured confirm), so the turn skips the LLM entirely: no
     re-ask loop, no model drift. A loose/ambiguous answer (token overlap caps at 0.7) falls
@@ -248,7 +248,7 @@ Assembled by `buildSystemPrompt` (FAQ reference + persona) and `buildAssistantPr
 - After a rejection, ask ONE clarifying question max, then act (re-offer the best fit).
 - Never re-list collected values in prose (the review card is the single source of truth).
 
-**RULE — address is hard-locked (structured-only).** Unlike every other field (soft hint,
+**RULE - address is hard-locked (structured-only).** Unlike every other field (soft hint,
 input stays usable), the **address card LOCKS the composer**: while an unconfirmed
 `quote_field:address` card is on screen the chat input + send are disabled and the user is
 directed to fill the card. Reason: the address needs its structured controls (No. / Street /
@@ -257,10 +257,10 @@ quote form at page 2**. Enforced end-to-end:
 - **Frontend** (`chat-widget`): `addressLockActive` disables the composer; `address` counts
   as collected ONLY when `addressConfirmed()` (structured confirm), never from a raw string.
 - **Backend** (`chat.service`): a free-text/pre-filled address VALUE never marks `address`
-  done — only the client's structured `collected` does — so the card keeps showing until
+  done - only the client's structured `collected` does - so the card keeps showing until
   filled. `extractAddress` may still pre-fill the street for convenience.
 - **QA harness**: even type-only personas fill the address via the structured card.
-This is the ONE intentional exception to "no blocking locks" — every other field stays soft.
+This is the ONE intentional exception to "no blocking locks" - every other field stays soft.
 
 **Behavior with messy input**
 - Customers ramble, joke, overshare, or say absurd things. Stay unflappable: pull the one
@@ -288,7 +288,7 @@ This is the ONE intentional exception to "no blocking locks" — every other fie
 - **One auto-retry on a failed send**: a transient HTTP failure (429 / cold provider /
   dropped connection) retries once after ~3.5 s before showing "Could not send message".
   Distinct from "out of service" (a successful 200 where the LLM chain was exhausted).
-- **No `.env` key fallback**: keys come only from the `llmApiKey` DB table — `npm run db:reset`
+- **No `.env` key fallback**: keys come only from the `llmApiKey` DB table - `npm run db:reset`
   leaves it empty (the seed seeds none), so re-add keys in Admin → API Keys after a reset.
 
 ---
@@ -298,11 +298,11 @@ This is the ONE intentional exception to "no blocking locks" — every other fie
 - **Card rendering**: each `actionBlock` renders its own control; cards reveal one at a
   time (300–800 ms apart) for a human feel.
 - **Dedup**: a confirmed field renders collapsed (✓ value) via its `*Confirmed` signal +
-  `valueCollected`, and drops out of the pending set — never re-editable in-card (edits
+  `valueCollected`, and drops out of the pending set - never re-editable in-card (edits
   happen later at the quote-review/form stage).
 - **Soft input hint (non-blocking)**: while a required card is pending, a hint shows above
   the input (`cardInputHint`, localized, joined when several pend). The input stays fully
-  usable — the user can ask anything mid-flow. The flow can't be skipped because the
+  usable - the user can ask anything mid-flow. The flow can't be skipped because the
   server re-shows the pending card (§5), so a UI lock is unnecessary.
 - **`sendConfirm()`**: card confirms set `nextSendCardConfirm` so the request carries
   `cardConfirm: true` (§4). The flag is consumed after the body is built and survives the
@@ -321,7 +321,7 @@ This is the ONE intentional exception to "no blocking locks" — every other fie
 
 | Layer | Catches |
 |-------|---------|
-| Deterministic card-confirm turns (§4) | most flow hallucination — LLM not even called |
+| Deterministic card-confirm turns (§4) | most flow hallucination - LLM not even called |
 | Server-enforced field order (§5) | skipped steps, jump-to-review |
 | `validateActionBlock` | invented services / bad UUIDs |
 | `category_lock` text-match check | wrong service locked |
@@ -357,13 +357,13 @@ grounding check is the recommended next addition.
 
 Simulates real customers booking end-to-end against the live bot. Persona matrix of
 **7 typing × 6 tones × 8 behaviors × 6 sortings × 5 languages = 10,080 combinations**
-(× 16 services ≈ 161k scenario shapes), driving the real card handlers — by tap, ~35%
+(× 16 services ≈ 161k scenario shapes), driving the real card handlers - by tap, ~35%
 free-text fields, ~40% free-text questions, or fully typed (the `typing_shortcut` /
 `typing_adhd` personas never tap a card). Runs until the review card (success) or a stall /
 loop / timeout. Per-turn log shows `SENT` (frontend) / `RECV` (backend) / `DATA` (prefill).
 
-**Full rules — axes, possibility calculation, every structural check, the log format, how to
-run, known limitations — live in [`chat-qa-harness.md`](chat-qa-harness.md).**
+**Full rules - axes, possibility calculation, every structural check, the log format, how to
+run, known limitations - live in [`chat-qa-harness.md`](chat-qa-harness.md).**
 
 **Fit**: strong for flow/structural correctness; partial for free-form prose hallucination
 (only the LLM judge sees it). It's a happy-path booking driver by design (~90% quote-flow).
@@ -376,11 +376,11 @@ Requires LLM keys (it drives the real bot).
 The chat files are full of guards that look like cruft but are **past bug fixes**. Protect
 them before running any sweeping refactor:
 
-1. **Baseline commit** — a known-good revert point.
+1. **Baseline commit** - a known-good revert point.
 2. **Unit tests** (`chat-flow.test.ts`) pin `nextStepBlocks` + `computeNextCards` (17
    cases): field order, dedup, question→review handoff, i18n. Run: `npx jest chat-flow`.
-3. **QA harness pass-rate gate** — run N scenarios before AND after; the rate must not drop.
-4. **`npx tsc --noEmit`** (backend) + **`ng build`** (frontend) — type + template gates.
+3. **QA harness pass-rate gate** - run N scenarios before AND after; the rate must not drop.
+4. **`npx tsc --noEmit`** (backend) + **`ng build`** (frontend) - type + template gates.
 5. **Diff review** the simplifier's output before merge; never auto-merge over flow code.
 
 Make the tests + harness a gate the simplifier must pass: green → let it work → still green

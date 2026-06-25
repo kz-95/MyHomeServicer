@@ -1,14 +1,14 @@
 /**
  * SP-3 auto-accept engine (spec §11). When a listing has auto-accept ON, ALL
  * FOUR gates must pass (they are not individually toggleable):
- *   1. Budget   — computed total ≤ quote.budgetMax (no max → passes). hourly/quote
+ *   1. Budget   - computed total ≤ quote.budgetMax (no max → passes). hourly/quote
  *                 price types never auto-accept.
- *   2. Availability — servicer isOnline AND the quote's weekday+slot is ticked
+ *   2. Availability - servicer isOnline AND the quote's weekday+slot is ticked
  *                 available in their calendar work-hours (empty schedule = always on).
- *   3. Coverage — quote within `serviceRadiusKm` of any coordinate service area
+ *   3. Coverage - quote within `serviceRadiusKm` of any coordinate service area
  *                 (no quote coords or no coord areas → passes, matching the lenient
  *                 broadcast matcher).
- *   4. Q-match  — every selected question-option the listing has an opinion on is
+ *   4. Q-match  - every selected question-option the listing has an opinion on is
  *                 offered (not N/A).
  * The per-account `maxAutoAccepts` cap is enforced by the caller.
  *
@@ -71,7 +71,7 @@ function parseCoords(area: string): { lat: number; lng: number } | null {
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
-/** Coverage gate — true if within radius of any coord area (or no coords to test). */
+/** Coverage gate - true if within radius of any coord area (or no coords to test). */
 function coverageOk(quote: QuoteLite, servicer: ServicerLite): boolean {
   if (quote.lat == null || quote.lng == null) return true;
   const coordAreas = servicer.serviceAreas.map(parseCoords).filter((c): c is { lat: number; lng: number } => c !== null);
@@ -81,12 +81,12 @@ function coverageOk(quote: QuoteLite, servicer: ServicerLite): boolean {
   );
 }
 
-/** Availability gate — online AND weekday+slot ticked available (empty schedule = on). */
+/** Availability gate - online AND weekday+slot ticked available (empty schedule = on). */
 function availabilityOk(quote: QuoteLite, servicer: ServicerLite, schedules: ScheduleLite[]): boolean {
   if (!servicer.isOnline) return false;
   if (schedules.length === 0) return true;
   // Resolve the weekday in Malaysia time (UTC+8). A quote near UTC midnight maps
-  // to the wrong calendar day under raw getUTCDay() — shift by +8h first.
+  // to the wrong calendar day under raw getUTCDay() - shift by +8h first.
   const MYT_OFFSET_MS = 8 * 60 * 60_000;
   const weekday = WEEKDAYS[new Date(new Date(quote.preferredDate).getTime() + MYT_OFFSET_MS).getUTCDay()];
   const slot = schedules.find((s) => s.weekday === weekday && s.timeSlot === quote.timeSlot);
@@ -108,7 +108,7 @@ function resolveModules(
 }
 
 /**
- * Q-match gate — every selected customer answer must have at least one
+ * Q-match gate - every selected customer answer must have at least one
  * matching module (questionKey + optionValue). Modules with no questionKey
  * are informational (not used for matching).
  *

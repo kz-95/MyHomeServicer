@@ -1,4 +1,4 @@
-﻿import { Job } from 'bullmq';
+import { Job } from 'bullmq';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
@@ -28,7 +28,7 @@ const CONSECUTIVE_BAN_THRESHOLD = 3;
 const WEEKLY_BAN_THRESHOLD = 5;
 
 /**
- * noshow.detect — fires 30 min after the service window ends. If the servicer
+ * noshow.detect - fires 30 min after the service window ends. If the servicer
  * never marked arrived, the booking is treated as a no-show: it is cancelled,
  * escrow refunded, the servicer's no-show counters incremented, an auto-ban
  * applied if a threshold is hit, and penalty.deduct is enqueued.
@@ -38,13 +38,13 @@ async function handleNoshowDetect(job: Job): Promise<void> {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) return;
 
-  // Servicer showed up — reset the consecutive counter and stop.
+  // Servicer showed up - reset the consecutive counter and stop.
   if (['in_progress', 'completed'].includes(booking.status)) {
     await prisma.servicer.update({
       where: { id: servicerId },
       data: { consecutiveNoshow: 0 },
     });
-    logger.info('noshow.detect — servicer showed, counter reset', { bookingId });
+    logger.info('noshow.detect - servicer showed, counter reset', { bookingId });
     return;
   }
   // Already resolved some other way.
@@ -62,7 +62,7 @@ async function handleNoshowDetect(job: Job): Promise<void> {
       data: {
         status: 'cancelled',
         cancelledBy: 'servicer',
-        cancelReason: 'No-show — servicer did not arrive',
+        cancelReason: 'No-show - servicer did not arrive',
         cancelConfirmedAt: new Date(),
       },
     });
@@ -82,7 +82,7 @@ async function handleNoshowDetect(job: Job): Promise<void> {
           servicerId,
           userId: booking.userId,
           escrowId: escrow.id,
-          reference: 'Refund — servicer no-show',
+          reference: 'Refund - servicer no-show',
         },
         tx,
       );
@@ -124,7 +124,7 @@ async function handleNoshowDetect(job: Job): Promise<void> {
 }
 
 /**
- * penalty.deduct — deducts a penalty from the servicer's deposit. Idempotent:
+ * penalty.deduct - deducts a penalty from the servicer's deposit. Idempotent:
  * if a PENALTY_LOG already exists for the booking the job is a no-op so
  * retries never double-charge (security-notes.md §10).
  */
@@ -133,7 +133,7 @@ async function handlePenaltyDeduct(job: Job): Promise<void> {
 
   const existing = await prisma.penaltyLog.findFirst({ where: { bookingId } });
   if (existing) {
-    logger.info('penalty.deduct — penalty already applied, skipping', { bookingId });
+    logger.info('penalty.deduct - penalty already applied, skipping', { bookingId });
     return;
   }
 
@@ -141,7 +141,7 @@ async function handlePenaltyDeduct(job: Job): Promise<void> {
     where: { type: penaltyType, isActive: true },
   });
   if (!rule) {
-    logger.warn('penalty.deduct — no active rule', { penaltyType });
+    logger.warn('penalty.deduct - no active rule', { penaltyType });
     return;
   }
 
@@ -167,7 +167,7 @@ async function handlePenaltyDeduct(job: Job): Promise<void> {
         amount,
         bookingId,
         servicerId,
-        reference: `Penalty — ${penaltyType}`,
+        reference: `Penalty - ${penaltyType}`,
       },
       tx,
     );
@@ -182,11 +182,11 @@ async function handlePenaltyDeduct(job: Job): Promise<void> {
       },
     });
   });
-  logger.info('penalty.deduct — applied', { bookingId, servicerId, amount });
+  logger.info('penalty.deduct - applied', { bookingId, servicerId, amount });
 }
 
 /**
- * escrow.release — releases held funds to the servicer once a job is done and
+ * escrow.release - releases held funds to the servicer once a job is done and
  * no report or dispute is open. The platform fee is split off; tips pass through whole.
  * Uses the FeeRule engine (P2) with fallback to legacy platform_fee_rate.
  */
@@ -194,7 +194,7 @@ async function handleEscrowRelease(job: Job): Promise<void> {
   const { bookingId, escrowId } = escrowPayload.parse(job.data);
   const escrow = await prisma.escrow.findUnique({ where: { id: escrowId } });
   if (!escrow || escrow.status !== 'held') {
-    logger.info('escrow.release — nothing to release', { escrowId });
+    logger.info('escrow.release - nothing to release', { escrowId });
     return;
   }
 
@@ -202,7 +202,7 @@ async function handleEscrowRelease(job: Job): Promise<void> {
   const openReport = await prisma.report.findFirst({ where: { bookingId, status: 'open' } });
   const openDispute = await prisma.dispute.findFirst({ where: { bookingId, status: { in: ['open', 'under_review'] } } });
   if (openReport || openDispute) {
-    logger.info('escrow.release — held: open report or dispute, retrying later', { bookingId });
+    logger.info('escrow.release - held: open report or dispute, retrying later', { bookingId });
     await enqueue(JOB_NAMES.ESCROW_RELEASE, { bookingId, escrowId }, { delay: 60 * 60_000 });
     return;
   }
@@ -290,13 +290,13 @@ async function handleEscrowRelease(job: Job): Promise<void> {
 
   // Platform-promo payback may now apply.
   await enqueue(JOB_NAMES.PROMO_CREDIT_PAYBACK, { bookingId }, { jobId: `promo:${bookingId}` });
-  logger.info('escrow.release — released', { bookingId, servicerPayout, platformFee });
+  logger.info('escrow.release - released', { bookingId, servicerPayout, platformFee });
 }
 
-/** noshow.weekly_reset — clears every servicer's weekly no-show counter. */
+/** noshow.weekly_reset - clears every servicer's weekly no-show counter. */
 async function handleWeeklyReset(): Promise<void> {
   const result = await prisma.servicer.updateMany({ data: { weeklyNoshow: 0 } });
-  logger.info('noshow.weekly_reset — counters reset', { servicers: result.count });
+  logger.info('noshow.weekly_reset - counters reset', { servicers: result.count });
 }
 
 /** Registers the Phase 3 booking/escrow/penalty jobs. */

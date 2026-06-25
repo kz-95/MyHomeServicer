@@ -1,6 +1,6 @@
-# SP-5 — Servicer Business Profile Restructure (Design Spec)
+﻿# SP-5 - Servicer Business Profile Restructure (Design Spec)
 
-> **Status:** DESIGN — 2026-06-12
+> **Status:** DESIGN - 2026-06-12
 > **Parent initiative:** `2026-06-12-servicer-profile-initiative-findings.md`
 > **Scope:** Restructure `/servicer/account` into a single Business Profile page,
 > add a multi-contact model, surface dead/invisible fields, and lay data
@@ -14,7 +14,7 @@
 11 stacked sections in scattered order. It mixes business and personal concerns,
 hides several collected fields (no UI), carries dead fields, and offers only a
 single point-of-contact when servicers need many. A servicer is also a customer
-(same identity — linked `User` by shared email, `servicer.routes.ts:113`), so
+(same identity - linked `User` by shared email, `servicer.routes.ts:113`), so
 personal account management belongs on the customer side, not duplicated here.
 
 ## 2. Goals
@@ -49,7 +49,7 @@ uses its existing "My account").
 6. Money (read-only)
 7. Danger Zone
 
-> **Withdrawal / bank details are NOT on this page** — they move to the deposit
+> **Withdrawal / bank details are NOT on this page** - they move to the deposit
 > page (`/servicer/deposit`), alongside deposit/withdrawal money management.
 
 ---
@@ -58,11 +58,11 @@ uses its existing "My account").
 
 ### 5.1 Business Identity
 - **Identity:** `businessName`, `logo` (presign upload), `bio`.
-- **Business Contacts (new — CRUD, ≤10):** see §6.
+- **Business Contacts (new - CRUD, ≤10):** see §6.
 
 ### 5.2 Type of Services
 - **Primary category** (`categoryId`): view + **change-request** (admin-reviewed,
-  consistent with the existing `ServicerIdentityChangeRequest` pattern — a category
+  consistent with the existing `ServicerIdentityChangeRequest` pattern - a category
   change affects matching/dispatch, so it is not a silent direct edit).
 - **Service areas** (`serviceAreas`): Google-Maps-autodetect input on top + Add
   button, chips below.
@@ -84,7 +84,7 @@ uses its existing "My account").
 
 ### 5.4 Business & Tax
 - `entityType`, `businessRegistrationNumber`, `taxNumber`.
-- `isCompany` — **auto-derived** from `entityType` on save (sole_proprietorship =
+- `isCompany` - **auto-derived** from `entityType` on save (sole_proprietorship =
   false; partnership/enterprise/sdn_bhd = true). No separate input; shown read-only.
 - **Tax config + calculator (merged panel):** `sstRegistered`, `sstNumber`,
   `serviceChargeRate`, `taxInclusive`. A live "try amount" field shows the
@@ -95,10 +95,10 @@ uses its existing "My account").
 - **Invoice preview (read-only):** renders a sample invoice using the current
   settings + tax config.
 
-> **Bank / Withdrawal** (`bankName`, `bankAccount`) — **relocated to the deposit
+> **Bank / Withdrawal** (`bankName`, `bankAccount`) - **relocated to the deposit
 > page** (`/servicer/deposit`), with deposit/withdrawal money management. Still
 > critical: payout + quoting gate (`servicer-quote.service.ts:23` blocks quoting
-> when missing) — the gate is unchanged, only the edit surface moves.
+> when missing) - the gate is unchanged, only the edit surface moves.
 
 ### 5.5 Action PIN
 - Change / verify the servicer action PIN (`pinHash`). Business-side security.
@@ -111,7 +111,7 @@ uses its existing "My account").
 
 ---
 
-## 6. New model — `ServicerContact`
+## 6. New model - `ServicerContact`
 
 Table `business_contacts`:
 
@@ -131,7 +131,7 @@ Table `business_contacts`:
 - **`number` OR `email` required** (at least one).
 - **≥1 contact** per servicer (cannot delete the last one).
 - **≤10 contacts** per servicer.
-- **Exactly one `isPrimary`** — setting a new primary clears the old; the primary
+- **Exactly one `isPrimary`** - setting a new primary clears the old; the primary
   is the customer-facing fallback default and cannot be deleted while primary
   (reassign first).
 
@@ -140,7 +140,7 @@ Table `business_contacts`:
   Public contact visibility is now per-contact via `visibleToCustomer`.
 
 ### Forward dependency (SP-3)
-- Service listings may only **prefill a contact chosen from this list** — never
+- Service listings may only **prefill a contact chosen from this list** - never
   free-type. Prevents an unauthorized/random contact slipping into a buried
   listing unnoticed. (Enforcement implemented in SP-3.)
 
@@ -159,7 +159,7 @@ Table `business_contacts`:
 
 - Business Profile `operatingHours` = **base template**.
 - Saving operating hours **seeds/updates** Calendar/WorkHours.
-- Calendar/WorkHours **does NOT write back** to the business profile — it is the
+- Calendar/WorkHours **does NOT write back** to the business profile - it is the
   servicer's **per-week override** ("resting this week").
 - **Service listings take no job during non-ticked hours in Calendar/WorkHours.**
 - Backend cron `servicer.online_sync` (`servicer.jobs.ts:57`, every 5 min) already
@@ -173,7 +173,7 @@ Table `business_contacts`:
 
 - Add **`backupEmail`** input to the customer account Profile section
   (`customer/pages/account.component.ts`). User-record field; recovery email.
-- The servicer **Personal Details section is removed** — personal management lives
+- The servicer **Personal Details section is removed** - personal management lives
   here (emergency contact, name/phone, notifications, danger zone already exist).
 
 ## 9. Navigation cleanup
@@ -181,7 +181,7 @@ Table `business_contacts`:
 - Remove the redundant dashboard/stats block from the `/servicer/jobs/history` tab
   (`jobs.component.ts` history view).
 - **Relocate bank/withdrawal edit** (`bankName`, `bankAccount`) from the account
-  page to the deposit page (`/servicer/deposit`). UI move only — the update
+  page to the deposit page (`/servicer/deposit`). UI move only - the update
   endpoint and the quoting gate are unchanged.
 
 ---
@@ -202,7 +202,7 @@ Table `business_contacts`:
 ## 11. Out of scope / open
 
 - `categoryId` change flow assumed **admin-reviewed**; confirm vs direct edit.
-- Cleanup migration dropping `showEmailPublic`/`showPhonePublic` columns — separate,
+- Cleanup migration dropping `showEmailPublic`/`showPhonePublic` columns - separate,
   after the new contacts are live.
 
 ## 12. Testing

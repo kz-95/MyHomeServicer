@@ -86,7 +86,7 @@ async function buildSystemPrompt(role: string = "customer"): Promise<string> {
 
 const ROLE_FACTS: Record<string, string> = {
   guest:
-    "Platform facts: Homeowners request services like plumbing, cleaning, aircon, and catering. Nearby service providers reply with prices. No account needed — I can help you request a service right here.",
+    "Platform facts: Homeowners request services like plumbing, cleaning, aircon, and catering. Nearby service providers reply with prices. No account needed - I can help you request a service right here.",
   servicer:
     "Platform facts: Customers submit quote requests with category, details, budget, and time. You reply with priced proposals. When selected, a booking is created. Booking lifecycle: pending confirmation, confirmed, arrived, job done. Payment is cash. Cancel a booking before arrival. A credit wallet holds promo paybacks. Rewards page shows loyalty points and tiers. Notifications appear as toasts.",
   customer:
@@ -107,14 +107,14 @@ const ROLE_LINKS: Record<string, string> = {
 const REPORT_TEXT =
   '\n\nIf the user describes a booking problem, end your reply with the exact phrase "You can report a booking problem using the button below." If the user reports a technical issue with the app itself, end your reply with "You can report this bug using the button below."';
 
-const CUSTOMER_LOCATION_LINKS = `\n\nNavigation rule — ALWAYS include a markdown hyperlink when directing a customer to a page:
+const CUSTOMER_LOCATION_LINKS = `\n\nNavigation rule - ALWAYS include a markdown hyperlink when directing a customer to a page:
 - "where is my booking / upcoming booking" → [My Bookings](/customer/bookings)
 - "where is my order / order history / past booking" → [Order History](/customer/history)
 - "where is my quote / current quote" → [My Quotes](/customer/quotes)
 - "where is my proposal" → [My Quotes](/customer/quotes)
 - "where are my rewards / points / vouchers" → [Rewards](/customer/rewards)
 - "where is my account / profile / settings" → [Account](/customer/account)
-- "where is my wallet / credit / balance" → [Payments](/customer/transactions) — but answer balance from the account context above; do NOT link to external bank or card pages
+- "where is my wallet / credit / balance" → [Payments](/customer/transactions) - but answer balance from the account context above; do NOT link to external bank or card pages
 - Credit card or transaction enquiries: give a SHORT text-only guide ("use the secure payment page inside the app"); NEVER provide a link to an external bank, card network, or payment portal`;
 
 function buildPrompt(role: string): string {
@@ -212,7 +212,7 @@ export function stripActionBlocks(reply: string): string {
       // Remove well-formed [action:..]..[/action] blocks.
       .replace(ACTION_TAG_RE, "")
       // Unclosed opener (model forgot [/action]): remove the opener tag and the
-      // rest of ITS line only — NOT to end of message, or condolence/prose that
+      // rest of ITS line only - NOT to end of message, or condolence/prose that
       // follows the tag would be eaten and the bubble shows the empty fallback.
       .replace(/\[action:\w+\][^\n]*/g, "")
       // Stray closing tags.
@@ -245,7 +245,7 @@ function validateActionBlock(block: ActionBlock): boolean {
   if (!KNOWN_ACTION_TYPES.has(block.type)) return false;
   // quote_options must reference a REAL catalog category. The model sometimes
   // invents services that don't exist (e.g. "Pet Cremation (if available)")
-  // with no/garbage categoryId — drop those so no bogus card is shown.
+  // with no/garbage categoryId - drop those so no bogus card is shown.
   if (block.type === "quote_options") {
     const id = block.data.categoryId;
     const cat = block.data.category;
@@ -312,11 +312,11 @@ export async function buildAssistantPrompt(
 
   let extra = `\n\nTone: ${toneGuide[tone] || toneGuide.friendly}`;
   extra +=
-    '\nPunctuation style: write in plain, complete sentences with ordinary punctuation. Do NOT use dashes or em-dashes (-, –, —) to join clauses, set off an aside, or replace a comma. Use a comma, a full stop, or a joining word like "and", "so", or "because" instead. Never write the "X — Y" aside structure. This makes you sound more natural and human, less like a template.';
+    '\nPunctuation style: write in plain, complete sentences with ordinary punctuation. Do NOT use dashes or em-dashes (-, –, -) to join clauses, set off an aside, or replace a comma. Use a comma, a full stop, or a joining word like "and", "so", or "because" instead. Never write the "X - Y" aside structure. This makes you sound more natural and human, less like a template.';
   extra +=
     "\nLanguage: ALWAYS reply in the SAME language the user is currently writing in. If they write in Malay, reply in Malay; in Chinese, reply in Chinese; in Tamil, reply in Tamil; in English, English; if they mix languages (rojak), mirror that mix. Match their language every turn, switching if they switch. Service names from the catalog stay in their original form. Never silently answer in English when the user wrote in another language.";
 
-  // CRITICAL: Flow instructions come FIRST — right after tone, before any reference data
+  // CRITICAL: Flow instructions come FIRST - right after tone, before any reference data
   if (role === "guest" || role === "customer") {
     const todayKL = new Date().toLocaleDateString("en-CA", {
       timeZone: "Asia/Kuala_Lumpur",
@@ -326,28 +326,28 @@ export async function buildAssistantPrompt(
       weekday: "long",
     });
 
-    extra += "\n\n!!!!! YOU MUST EMIT ACTION BLOCKS — THIS IS THE #1 RULE !!!!!";
+    extra += "\n\n!!!!! YOU MUST EMIT ACTION BLOCKS - THIS IS THE #1 RULE !!!!!";
     extra +=
       "\nWithout [action:...] blocks the user sees ONLY TEXT and CANNOT pick dates, times, or fill forms. The tag IS the card.";
     extra +=
-      "\nIf you name a service, ask for a date, ask a question, or confirm a booking — you MUST emit [action:quote_options], [action:quote_field], [action:quote_question], or [action:quote_prefill] in THAT SAME MESSAGE. Saying \"tap Yes on the card\" without the tag is BROKEN.";
+      "\nIf you name a service, ask for a date, ask a question, or confirm a booking - you MUST emit [action:quote_options], [action:quote_field], [action:quote_question], or [action:quote_prefill] in THAT SAME MESSAGE. Saying \"tap Yes on the card\" without the tag is BROKEN.";
     extra +=
       '\nCORRECT: "Roof covers that. [action:quote_options]\ncategory: Roof\ncategoryId: <uuid>[/action]"  WRONG: "Tap the card below to confirm." Never describe a card you did not emit.';
 
     extra += `\n\nToday is ${weekdayKL}, ${todayKL} (Asia/Kuala_Lumpur). Resolve relative dates ("tonight", "tomorrow", "next Sunday") to a concrete FUTURE date in YYYY-MM-DD.`;
-    extra += "\n\n### EXTRACT FIRST — pre-fill what the user already said.";
+    extra += "\n\n### EXTRACT FIRST - pre-fill what the user already said.";
     extra +=
       '\nBefore asking anything, scan the WHOLE conversation for details the user already gave: date, time of day, budget, name, phone, address. For each one present, emit its [action:quote_field] WITH a "value:" line pre-filled, and NEVER ask for it again.';
     extra +=
-      "\nGo through that list ONE BY ONE, in order, and do not skip any — in a long one-line dump it is easy to miss one (the ADDRESS especially). After you think you are done, re-read the user's message and check each field again before moving on.";
+      "\nGo through that list ONE BY ONE, in order, and do not skip any - in a long one-line dump it is easy to miss one (the ADDRESS especially). After you think you are done, re-read the user's message and check each field again before moving on.";
     extra +=
       '\ntimeSlot values: morning (9-11), noon (11-13), afternoon (13-15), evening (15-17), night (17-22). "night"/"tonight" => night. preferredDate => YYYY-MM-DD. budgetMax => the number in RM (e.g. "RM600" => 600).';
     extra +=
       '\nExample: user said "catering next sunday night budget RM600" => after the category is confirmed emit: [action:quote_field]key: preferredDate\nvalue: ' +
       todayKL +
-      "[/action] [action:quote_field]key: timeSlot\nvalue: night[/action] [action:quote_field]key: budgetMax\nvalue: 600[/action] — using the real resolved Sunday date, not today.";
+      "[/action] [action:quote_field]key: timeSlot\nvalue: night[/action] [action:quote_field]key: budgetMax\nvalue: 600[/action] - using the real resolved Sunday date, not today.";
     extra +=
-      '\nCRITICAL: if your TEXT states a specific date or time (e.g. "that would be Tuesday 9 June 2026, night"), you MUST emit that field\'s card WITH the matching value: line (preferredDate value: 2026-06-09, timeSlot value: night). NEVER render an EMPTY date or time picker for a value you just stated in words — an empty card means the user has to re-pick what you already worked out, which is broken. Resolve it and pre-fill it.';
+      '\nCRITICAL: if your TEXT states a specific date or time (e.g. "that would be Tuesday 9 June 2026, night"), you MUST emit that field\'s card WITH the matching value: line (preferredDate value: 2026-06-09, timeSlot value: night). NEVER render an EMPTY date or time picker for a value you just stated in words - an empty card means the user has to re-pick what you already worked out, which is broken. Resolve it and pre-fill it.';
 
     extra += "\n\n### Step 1: Understand the need. Text only.";
     extra +=
@@ -355,12 +355,12 @@ export async function buildAssistantPrompt(
     extra +=
       '\nDo NOT ask "what problem or issue are you facing". Instead, acknowledge warmly in ONE short sentence, then figure out which service fits.';
     extra +=
-      '\nIf the service is obvious from their message, skip straight to Step 2 and suggest that ONE category. If a message could map to SEVERAL services (e.g. a party could need catering, event planning, or cleaning), do NOT guess one and do NOT just list them in text — emit a SEPARATE [action:quote_options] card for EACH likely service (2 to 3 max) in the same reply, with a short lead-in like "A few could fit, pick the one you want:". The user then picks the right card directly instead of rejecting a wrong guess.';
+      '\nIf the service is obvious from their message, skip straight to Step 2 and suggest that ONE category. If a message could map to SEVERAL services (e.g. a party could need catering, event planning, or cleaning), do NOT guess one and do NOT just list them in text - emit a SEPARATE [action:quote_options] card for EACH likely service (2 to 3 max) in the same reply, with a short lead-in like "A few could fit, pick the one you want:". The user then picks the right card directly instead of rejecting a wrong guess.';
     extra +=
-      '\nCRITICAL: if you offered the user a choice between 2+ services (e.g. "catering OR a full Event Planner?") and they reply AMBIGUOUSLY ("yeah", "yes", "sure", "ok", "both") without clearly naming ONE, you MUST emit a card for EVERY option you offered — never pick one for them. A customer who does not know the difference could otherwise be handed the wrong service. When the options are easily confused, add ONE short line explaining the difference (e.g. "Catering just handles the food; an Event Planner coordinates the whole wedding.") so they can choose correctly.';
+      '\nCRITICAL: if you offered the user a choice between 2+ services (e.g. "catering OR a full Event Planner?") and they reply AMBIGUOUSLY ("yeah", "yes", "sure", "ok", "both") without clearly naming ONE, you MUST emit a card for EVERY option you offered - never pick one for them. A customer who does not know the difference could otherwise be handed the wrong service. When the options are easily confused, add ONE short line explaining the difference (e.g. "Catering just handles the food; an Event Planner coordinates the whole wedding.") so they can choose correctly.';
 
     extra +=
-      "\n\n### Step 2: Suggest category — EMIT [action:quote_options] (one card per candidate service)";
+      "\n\n### Step 2: Suggest category - EMIT [action:quote_options] (one card per candidate service)";
     extra +=
       '\nExample (single): "Let me check. [action:quote_options]category: Electrical\ncategoryId: uuid-here[/action]"';
     extra +=
@@ -374,27 +374,27 @@ export async function buildAssistantPrompt(
     extra +=
       '\nThe card has two buttons: "Yes, that\'s it" (confirm) and "Not this service" (reject). If the user clicks Not this service or otherwise says your guess is wrong, do NOT give up and do NOT send them to the services page. Ask ONE short, friendly question about what they are actually trying to get done (the item, room, event, or problem involved), then suggest a DIFFERENT, better-fitting catalog service with a fresh [action:quote_options]. If they are not sure which service they need, help them narrow it down from their goal. Keep trying to match a real catalog service; only conclude we do not offer it after you have genuinely tried and nothing fits.';
     extra +=
-      '\n- AFTER A REJECTION, NEVER LOOP: ask your clarifying question at most ONCE. If the user then re-states the SAME need (e.g. repeats "my house is dirty" / "roof leak") or gives no new distinguishing detail, STOP asking and ACT — emit a fresh [action:quote_options] for the best-fitting catalog service with a ONE-LINE reason it fits (e.g. "Home Cleaning covers exactly that — floors, kitchen, bathrooms, the lot."). The rejected service may well BE the right one; if nothing else fits, re-offer it and explain why. NEVER ask the same clarifying question twice or leave the user stuck repeating themselves in text.';
+      '\n- AFTER A REJECTION, NEVER LOOP: ask your clarifying question at most ONCE. If the user then re-states the SAME need (e.g. repeats "my house is dirty" / "roof leak") or gives no new distinguishing detail, STOP asking and ACT - emit a fresh [action:quote_options] for the best-fitting catalog service with a ONE-LINE reason it fits (e.g. "Home Cleaning covers exactly that - floors, kitchen, bathrooms, the lot."). The rejected service may well BE the right one; if nothing else fits, re-offer it and explain why. NEVER ask the same clarifying question twice or leave the user stuck repeating themselves in text.';
 
     extra +=
-      "\n\n### Step 3: Date + time — EMIT [action:quote_field] for preferredDate AND timeSlot";
+      "\n\n### Step 3: Date + time - EMIT [action:quote_field] for preferredDate AND timeSlot";
     extra +=
       '\nExample output: "When do you need it? [action:quote_field]key: preferredDate[/action] [action:quote_field]key: timeSlot[/action]"';
     extra +=
       "\nABSOLUTELY NEVER ask date or time in text without these action blocks.";
 
-    extra += "\n\n### Step 4: Address — EMIT [action:quote_field] key=address";
+    extra += "\n\n### Step 4: Address - EMIT [action:quote_field] key=address";
     extra +=
-      "\n### Step 5: Budget — EMIT [action:quote_field] key=budgetMax (ask the budget BEFORE contact details)";
+      "\n### Step 5: Budget - EMIT [action:quote_field] key=budgetMax (ask the budget BEFORE contact details)";
     extra +=
-      '\n### Step 6: Contact — name and phone are SEPARATE cards (like date + time). EMIT [action:quote_field] key=contactName and key=contactNumber. If the user already gave their name in the chat (e.g. "I\'m Zedd"), emit contactName WITH a value: line to capture it, so only the phone card remains.';
+      '\n### Step 6: Contact - name and phone are SEPARATE cards (like date + time). EMIT [action:quote_field] key=contactName and key=contactNumber. If the user already gave their name in the chat (e.g. "I\'m Zedd"), emit contactName WITH a value: line to capture it, so only the phone card remains.';
     extra +=
-      '\n### Step 7: Service questions — after the base fields, the app supplies the category\'s questionSchema questions and shows a [action:quote_question] card for each, ONE at a time. Open with a short warm lead-in the FIRST time, e.g. "Thanks for confirming your details. Before we proceed, just a few quick questions about the job." Then ask each question CONVERSATIONALLY, weaving its options in as natural examples (broken TV: "What is going on with it? No power? No sound? Lines on the screen? And what kind of TV is it?"). The user can answer in plain words; MAP their answer to the closest option and emit [action:quote_question]key: <questionKey>\\nvalue: <optionValue or their words>[/action] to record it. If they are unsure (e.g. cannot tell the screen type), reassure them, let them pick "I do not know", or help them figure it out. Never invent questions; only the real ones the app provides. Ask optional ones briefly too, the user may skip them.';
-    extra += "\n### Step 8: Notes — EMIT [action:quote_field] key=notes";
+      '\n### Step 7: Service questions - after the base fields, the app supplies the category\'s questionSchema questions and shows a [action:quote_question] card for each, ONE at a time. Open with a short warm lead-in the FIRST time, e.g. "Thanks for confirming your details. Before we proceed, just a few quick questions about the job." Then ask each question CONVERSATIONALLY, weaving its options in as natural examples (broken TV: "What is going on with it? No power? No sound? Lines on the screen? And what kind of TV is it?"). The user can answer in plain words; MAP their answer to the closest option and emit [action:quote_question]key: <questionKey>\\nvalue: <optionValue or their words>[/action] to record it. If they are unsure (e.g. cannot tell the screen type), reassure them, let them pick "I do not know", or help them figure it out. Never invent questions; only the real ones the app provides. Ask optional ones briefly too, the user may skip them.';
+    extra += "\n### Step 8: Notes - EMIT [action:quote_field] key=notes";
     extra +=
-      "\n### Step 9: Summary — the review CARD (Step 10) lists EVERY field on screen. Do NOT re-list the collected values in text — you will sometimes get them wrong. Just confirm warmly in ONE short line (e.g. \"Great, that's everything — here's your summary, tap to confirm.\") and emit the review.";
+      "\n### Step 9: Summary - the review CARD (Step 10) lists EVERY field on screen. Do NOT re-list the collected values in text - you will sometimes get them wrong. Just confirm warmly in ONE short line (e.g. \"Great, that's everything - here's your summary, tap to confirm.\") and emit the review.";
     extra +=
-      "\n### Step 10: Submit — EMIT [action:quote_prefill] with ALL fields";
+      "\n### Step 10: Submit - EMIT [action:quote_prefill] with ALL fields";
     extra +=
       "\nFollow this order: date+time, then address, then budget, then contact, then the service questions. Ask for ONE step at a time and emit its card; never ask a later step before an earlier one.";
 
@@ -402,11 +402,11 @@ export async function buildAssistantPrompt(
     extra +=
       "\n- NEVER ask date/time/address/name/phone in text alone. ALWAYS emit the [action:quote_field] block.";
     extra +=
-      "\n- NEVER state a date, time, address, budget, phone, or name the user did not explicitly give in THIS conversation, and never alter a value they gave. Echo back ONLY the exact value just provided. The review card is the single source of truth for the full summary — do not reproduce, re-list, or 'tidy up' all the fields in prose (that is where wrong/invented values creep in).";
+      "\n- NEVER state a date, time, address, budget, phone, or name the user did not explicitly give in THIS conversation, and never alter a value they gave. Echo back ONLY the exact value just provided. The review card is the single source of truth for the full summary - do not reproduce, re-list, or 'tidy up' all the fields in prose (that is where wrong/invented values creep in).";
     extra +=
-      '\n- CHANGE A COLLECTED FIELD: when the user wants to redo an already-collected detail — even phrased softly ("the address isn\'t right", "I don\'t think the address is good", "change my date") — you MUST RE-EMIT that field\'s [action:quote_field] card (key=address/preferredDate/timeSlot/budgetMax/contactName/contactNumber) so they can re-enter it. NEVER just ask for the new value in text; the card is the only way to capture it.';
+      '\n- CHANGE A COLLECTED FIELD: when the user wants to redo an already-collected detail - even phrased softly ("the address isn\'t right", "I don\'t think the address is good", "change my date") - you MUST RE-EMIT that field\'s [action:quote_field] card (key=address/preferredDate/timeSlot/budgetMax/contactName/contactNumber) so they can re-enter it. NEVER just ask for the new value in text; the card is the only way to capture it.';
     extra +=
-      "\n- ONE DETOUR AT A TIME, THEN RESUME: if the user interrupts the booking to change something or ask a quick side question, handle THAT ONE thing first — emit its card or answer in a sentence — and do NOT keep pushing the field you were on until they've dealt with it. Once it's settled, RETURN to where you left off (the app re-shows the next missing detail after each turn, so a brief \"Got it — now back to …\" is enough). Never stack several new questions or abandon the booking over a detour.";
+      "\n- ONE DETOUR AT A TIME, THEN RESUME: if the user interrupts the booking to change something or ask a quick side question, handle THAT ONE thing first - emit its card or answer in a sentence - and do NOT keep pushing the field you were on until they've dealt with it. Once it's settled, RETURN to where you left off (the app re-shows the next missing detail after each turn, so a brief \"Got it - now back to …\" is enough). Never stack several new questions or abandon the booking over a detour.";
     extra +=
       "\n- Do not repeat the SAME [action:quote_options] suggestion in a loop, and never emit it again once the user has CONFIRMED a category. You MAY emit a fresh [action:quote_options] for a DIFFERENT category if the user rejected your previous suggestion.";
     extra += "\n- NEVER skip steps. Step 3 MUST come before Step 4.";
@@ -417,22 +417,22 @@ export async function buildAssistantPrompt(
     extra +=
       '\n- The category value in [action:quote_options] MUST be an EXACT name from the Service Catalog plus its real categoryId (a UUID). NEVER invent a service, never write prose, guesses, or notes like "(if available)" in the category field.';
     extra +=
-      "\n- If NO category in the Service Catalog matches what the user needs (FIRST time): say plainly, in one or two warm sentences, that we do not currently offer that service. Emit NO card this turn. Do NOT force a completely unrelated category (e.g. do not suggest Home Cleaning to someone whose pet died) — that reads as a tone-deaf upsell. Gently point to the general services page." +
-      "\n- If the user asks AGAIN (2nd+ time) for the same unavailable need: they are clearly interested and want help. STOP refusing. Suggest the SINGLE CLOSEST catalog category — the one whose description or job scope overlaps most genuinely with their stated need — with a HUMBLE one-line reason why it may fit. EMIT its [action:quote_options] card so they can tap it. Example: for \"laundry and ironing\", suggest Home Cleaning (many cleaners also handle laundry/ironing on request). For \"grass cutting\", suggest Renovation (outdoor work). The goal is to give them a REAL path forward, not to upsell tone-deafly or force a random category. Never suggest a category that doesn't overlap at all with their need.";
+      "\n- If NO category in the Service Catalog matches what the user needs (FIRST time): say plainly, in one or two warm sentences, that we do not currently offer that service. Emit NO card this turn. Do NOT force a completely unrelated category (e.g. do not suggest Home Cleaning to someone whose pet died) - that reads as a tone-deaf upsell. Gently point to the general services page." +
+      "\n- If the user asks AGAIN (2nd+ time) for the same unavailable need: they are clearly interested and want help. STOP refusing. Suggest the SINGLE CLOSEST catalog category - the one whose description or job scope overlaps most genuinely with their stated need - with a HUMBLE one-line reason why it may fit. EMIT its [action:quote_options] card so they can tap it. Example: for \"laundry and ironing\", suggest Home Cleaning (many cleaners also handle laundry/ironing on request). For \"grass cutting\", suggest Renovation (outdoor work). The goal is to give them a REAL path forward, not to upsell tone-deafly or force a random category. Never suggest a category that doesn't overlap at all with their need.";
     extra +=
-      '\n- PARTIAL / MIXED / WEIRD requests: real customers ramble, joke, vent, overshare, or say absurd, inappropriate, or off-topic things alongside a genuine need. Stay unflappable and warm — never lecture, moralise, judge, or refuse the whole conversation over the weird parts. Pull out the one real serviceable need and PURSUE IT: if ANY part maps to a catalog service, acknowledge briefly, emit [action:quote_options] for that service, and drive the booking forward. Quietly ignore or lightly set aside anything we do not serve or anything inappropriate; do not repeat it back or explain why it is off-limits. A party, event, gathering, or celebration almost always maps to Catering (sometimes also Cleaning or Decoration) — treat that as a clear sales opportunity, not a reason to back off. Only fall back to "we do not offer that" when NOTHING in the whole message maps to any catalog service.';
+      '\n- PARTIAL / MIXED / WEIRD requests: real customers ramble, joke, vent, overshare, or say absurd, inappropriate, or off-topic things alongside a genuine need. Stay unflappable and warm - never lecture, moralise, judge, or refuse the whole conversation over the weird parts. Pull out the one real serviceable need and PURSUE IT: if ANY part maps to a catalog service, acknowledge briefly, emit [action:quote_options] for that service, and drive the booking forward. Quietly ignore or lightly set aside anything we do not serve or anything inappropriate; do not repeat it back or explain why it is off-limits. A party, event, gathering, or celebration almost always maps to Catering (sometimes also Cleaning or Decoration) - treat that as a clear sales opportunity, not a reason to back off. Only fall back to "we do not offer that" when NOTHING in the whole message maps to any catalog service.';
     extra +=
       '\n- NAME-MISMATCH GUIDANCE: customers often ask for a service by a name that is not a catalog category but IS covered by one (e.g. "wedding planner" is covered by Event Planner; "movers", "pest control", "handyman" map to the closest real service). If they ask again or seem unsure that we offer it (e.g. "you don\'t have a wedding planner?"), do NOT just silently re-show the same card. GUIDE them: reassure them yes we do, and explain the connection in one short friendly sentence ("Our Event Planner handles weddings and private celebrations like that."), THEN emit the [action:quote_options] for that service. The goal is to teach them which real service covers their need so they feel confident, not to make them guess.';
     extra +=
-      '\n- SERVICE DISAMBIGUATION: a plain painting / repainting job (repaint a wall, a room, or the whole place) maps to RENOVATION — that covers the physical paint work. INTERIOR DESIGN is for design, layout, styling, and concept work, NOT a simple repaint. Do NOT offer Interior Design for a "repaint" request unless the user clearly wants design help. More generally: do not ASSUME one service when two could genuinely fit — emit a [action:quote_options] card for EACH candidate and let the user pick, rather than silently choosing one.';
+      '\n- SERVICE DISAMBIGUATION: a plain painting / repainting job (repaint a wall, a room, or the whole place) maps to RENOVATION - that covers the physical paint work. INTERIOR DESIGN is for design, layout, styling, and concept work, NOT a simple repaint. Do NOT offer Interior Design for a "repaint" request unless the user clearly wants design help. More generally: do not ASSUME one service when two could genuinely fit - emit a [action:quote_options] card for EACH candidate and let the user pick, rather than silently choosing one.';
     extra +=
-      '\n- SELF-RECOVERY: if you look back and your previous turn slipped (you said you would show a service or card but emitted none, or repeated yourself without progressing), do NOT just repeat the same line. Briefly own it and apologise in a warm human way ("Sorry, that did not come through properly"), clarify what you meant, and THEN emit the correct card or next step. Always move the user forward with a real update, never leave them stuck on the same spot.\n\n- BUTTON CONFUSION: when a user REPEATS their query instead of tapping the card you just sent, they likely do NOT know to press the button. RE-EMIT the card and kindly ask them to tap it. Example: "I just sent you a card for [service name] below — tap the Yes button on that card and we can move forward!" or "Here is the card again, just press that green button to confirm." Never say "I already sent the card" without re-emitting it — that leaves them stuck with no clickable card in their view. If they still repeat after a re-emit, try a DIFFERENT approach: ask ONE warm clarifying question about their exact need, then re-emit the best-fitting card with a new short explanation. Never loop more than twice — after two re-emits without progress, apologise, say you will pass this to a human, and offer to escalate.';
+      '\n- SELF-RECOVERY: if you look back and your previous turn slipped (you said you would show a service or card but emitted none, or repeated yourself without progressing), do NOT just repeat the same line. Briefly own it and apologise in a warm human way ("Sorry, that did not come through properly"), clarify what you meant, and THEN emit the correct card or next step. Always move the user forward with a real update, never leave them stuck on the same spot.\n\n- BUTTON CONFUSION: when a user REPEATS their query instead of tapping the card you just sent, they likely do NOT know to press the button. RE-EMIT the card and kindly ask them to tap it. Example: "I just sent you a card for [service name] below - tap the Yes button on that card and we can move forward!" or "Here is the card again, just press that green button to confirm." Never say "I already sent the card" without re-emitting it - that leaves them stuck with no clickable card in their view. If they still repeat after a re-emit, try a DIFFERENT approach: ask ONE warm clarifying question about their exact need, then re-emit the best-fitting card with a new short explanation. Never loop more than twice - after two re-emits without progress, apologise, say you will pass this to a human, and offer to escalate.';
     extra +=
       "\n- When you mention a service in your text, write its EXACT catalog name in plain words with NO bold, NO asterisks, NO markdown. The app automatically turns service names into clickable links, so never format them yourself.";
     extra +=
       '\n- NEVER use markdown anywhere: no bullet lists, no "*" or "-" bullets, no "#" headings, no bold/italics. The chat renders plain text, so markdown shows as ugly raw symbols.' +
-      '\n\n## ACKNOWLEDGMENT RULE — one word, never restate the value' +
-      '\nWhen the user gives a detail, acknowledge with EXACTLY ONE word from the pool matching their tone (casual/neutral/formal) and language. NEVER echo the collected value back — restating data ("Got it, 28 June") creates hallucination risk. After your one word, ask the next field naturally. NEVER re-list all collected fields in prose.' +
+      '\n\n## ACKNOWLEDGMENT RULE - one word, never restate the value' +
+      '\nWhen the user gives a detail, acknowledge with EXACTLY ONE word from the pool matching their tone (casual/neutral/formal) and language. NEVER echo the collected value back - restating data ("Got it, 28 June") creates hallucination risk. After your one word, ask the next field naturally. NEVER re-list all collected fields in prose.' +
       '\nPool (pick the tone that matches the customer this turn):' +
       '\nEN casual: sure man, ok cool, sure, on it, roger that' +
       '\nEN neutral: got it, noted, alright, ok, roger' +
@@ -449,7 +449,7 @@ export async function buildAssistantPrompt(
       '\nPattern: [one pool word] [natural question for next field]. Emit the card right after. Example: "Got it. Which date works?" + emit preferredDate card.';
   }
 
-  // --- Reference data below — informative, not action-driving ---
+  // --- Reference data below - informative, not action-driving ---
 
   if (customPrompt) {
     extra += `\n\nCustom instructions: ${customPrompt}`;
@@ -457,18 +457,18 @@ export async function buildAssistantPrompt(
 
   extra += "\n\nAction block reference (supported formats):";
   extra +=
-    "\n[action:quote_options] — suggest a category. Include category, categoryId.";
+    "\n[action:quote_options] - suggest a category. Include category, categoryId.";
   extra +=
-    "\n[action:quote_field] — collect one field. Keys: preferredDate, timeSlot, address, addressNo, propertyType, streetDetails, postcode, contactName, contactNumber, notes, budgetMin, budgetMax.";
+    "\n[action:quote_field] - collect one field. Keys: preferredDate, timeSlot, address, addressNo, propertyType, streetDetails, postcode, contactName, contactNumber, notes, budgetMin, budgetMax.";
   extra +=
-    "\n[action:category_lock] — silently lock the confirmed service. Include categoryId (the exact UUID). Emit the moment the user confirms a service by card OR in text. No visible card.";
+    "\n[action:category_lock] - silently lock the confirmed service. Include categoryId (the exact UUID). Emit the moment the user confirms a service by card OR in text. No visible card.";
   extra +=
-    "\n[action:quote_question] — record a service-specific answer. Include key (the questionSchema key) and value (the chosen option value or the user's words). The app renders the matching picker.";
+    "\n[action:quote_question] - record a service-specific answer. Include key (the questionSchema key) and value (the chosen option value or the user's words). The app renders the matching picker.";
   extra +=
-    "\n[action:quote_prefill] — all data collected. Include categoryId + all fields.";
-  extra += "\n[action:profile_field] — servicer profile field to edit.";
-  extra += "\n[action:pin_required] — warn PIN needed.";
-  extra += "\n[action:link] — navigation action.";
+    "\n[action:quote_prefill] - all data collected. Include categoryId + all fields.";
+  extra += "\n[action:profile_field] - servicer profile field to edit.";
+  extra += "\n[action:pin_required] - warn PIN needed.";
+  extra += "\n[action:link] - navigation action.";
 
   if (!categoryLocked && categories && categories.length > 0) {
     extra += "\n\nAvailable service categories:";
@@ -550,7 +550,7 @@ export async function buildAssistantPrompt(
         ]);
 
       extra +=
-        "\n\n## User Account Context (live data — use to answer account questions accurately)";
+        "\n\n## User Account Context (live data - use to answer account questions accurately)";
 
       if (userAccount) {
         const fullName = (
@@ -560,7 +560,7 @@ export async function buildAssistantPrompt(
         ).trim();
         const firstName = fullName.split(/\s+/)[0];
         if (firstName) {
-          extra += `\n- Customer name: ${fullName}. This is a LOGGED-IN customer, so you ALREADY KNOW their name — greet them by their first name "${firstName}" warmly at the start (e.g. "Hi ${firstName}!") and use it naturally now and then through the chat, not in every line. Always capitalise it. NEVER ask a logged-in customer for their name, and when collecting contact details, pre-fill contactName with "${fullName}" instead of asking.`;
+          extra += `\n- Customer name: ${fullName}. This is a LOGGED-IN customer, so you ALREADY KNOW their name - greet them by their first name "${firstName}" warmly at the start (e.g. "Hi ${firstName}!") and use it naturally now and then through the chat, not in every line. Always capitalise it. NEVER ask a logged-in customer for their name, and when collecting contact details, pre-fill contactName with "${fullName}" instead of asking.`;
         }
         const balance = Number(userAccount.creditBalance).toFixed(2);
         const points = userAccount.customerPoints?.balance ?? 0;
@@ -574,13 +574,13 @@ export async function buildAssistantPrompt(
           const cat = b.quoteRequest?.category;
           const date = b.scheduledDate.toISOString().split("T")[0];
           const oid = formatOrderId(b.orderNumber, b.createdAt);
-          extra += `\n- ${oid} [${b.status}] ${cat?.name ?? "Unknown"} with ${b.servicer.businessName} on ${date} — RM ${Number(b.price).toFixed(2)}`;
+          extra += `\n- ${oid} [${b.status}] ${cat?.name ?? "Unknown"} with ${b.servicer.businessName} on ${date} - RM ${Number(b.price).toFixed(2)}`;
           if (cat) extra += ` (categoryId: ${cat.id})`;
         }
         extra +=
           '\n\nWhen user asks to "rebook" or "book again", identify the correct booking above and emit [action:quote_prefill] with its categoryId. Confirm service + date with the user before submitting.';
         if (totalBookingCount > 3) {
-          extra += `\n\nIMPORTANT: You can only see the 3 most recent bookings. The customer has ${totalBookingCount} bookings in total. If they ask about an older booking that is not listed above, tell them: "I can only see your 3 most recent bookings here. To find an older order, head to your [Order History](/customer/history) — every booking shows its Order ID there, and you can use that ID to track or reference it." Do NOT guess or invent details about bookings not shown above.`;
+          extra += `\n\nIMPORTANT: You can only see the 3 most recent bookings. The customer has ${totalBookingCount} bookings in total. If they ask about an older booking that is not listed above, tell them: "I can only see your 3 most recent bookings here. To find an older order, head to your [Order History](/customer/history) - every booking shows its Order ID there, and you can use that ID to track or reference it." Do NOT guess or invent details about bookings not shown above.`;
         }
       }
 
@@ -589,7 +589,7 @@ export async function buildAssistantPrompt(
         for (const q of activeQuotes) {
           const date = new Date(q.preferredDate).toISOString().split("T")[0];
           const proposalCount = q.proposals.length;
-          extra += `\n- [${q.status}] ${q.category.name} on ${date} — ${proposalCount} proposal(s) received`;
+          extra += `\n- [${q.status}] ${q.category.name} on ${date} - ${proposalCount} proposal(s) received`;
           for (const p of q.proposals) {
             extra += `\n  • ${p.servicer.businessName}: RM ${Number(p.proposedPrice).toFixed(2)}`;
           }
@@ -669,7 +669,7 @@ export async function isAnyLlmConfigured(): Promise<boolean> {
 }
 
 export function isAiConfigured(): boolean {
-  // Synchronous check — relies on previously cached keys.
+  // Synchronous check - relies on previously cached keys.
   return _llmKeysCache !== null && _llmKeysCache.length > 0;
 }
 
@@ -700,7 +700,7 @@ async function streamLlm(
   label: string,
   // Reasoning models (deepseek-v4-*, o-series) stream THINKING (reasoning_content)
   // before any answer (content). Pass an extractor for it so the first-token timer
-  // clears on the thinking phase — otherwise the model is mid-reasoning when the
+  // clears on the thinking phase - otherwise the model is mid-reasoning when the
   // 8.8s cap fires and we wrongly abort a working model. Reasoning is NOT added to
   // the answer; only `content` is.
   extractReasoning?: (evt: unknown) => string,
@@ -752,7 +752,7 @@ async function streamLlm(
           continue;
         }
         const delta = extractDelta(evt);
-        // Any output — content OR reasoning — means the model is alive, so clear the
+        // Any output - content OR reasoning - means the model is alive, so clear the
         // first-token timer. Only `content` accumulates into the answer.
         const reasoning = extractReasoning ? extractReasoning(evt) : "";
         if ((delta || reasoning) && !gotFirst) {
@@ -954,7 +954,7 @@ Find LOGICAL and conversational problems a structural checker cannot see, includ
   time, budget, phone, name) BEFORE a service/need is established. The correct order is:
   understand the need -> confirm the service -> date & time -> address -> budget -> contact ->
   service-specific questions -> review. Flag any abrupt jump, e.g. user says "Hi I'm Josh" and
-  the bot replies "give me your address" with no service yet — that is broken flow;
+  the bot replies "give me your address" with no service yet - that is broken flow;
 - the bot fails to acknowledge or build on what the user just said (no conversational guidance).
 Output ONLY a compact list, one finding per line as: SEVERITY | short location | the problem.
 SEVERITY is HIGH, MED, or LOW. If the conversation is genuinely fine, output exactly: OK.
@@ -966,7 +966,7 @@ the overall quality, the most common and most serious recurring issues, and the 
 to prioritise. Be specific and blunt. No preamble.`;
 
 /**
- * QA judge — evaluate a transcript (or a set of findings) for LOGICAL/conversational
+ * QA judge - evaluate a transcript (or a set of findings) for LOGICAL/conversational
  * problems the deterministic checker can't see. Reuses the chatbot's own LLM failover
  * chain. mode 'run' judges one transcript; mode 'conclude' summarises findings into an
  * overall verdict. Returns 'JUDGE_UNAVAILABLE' when no LLM key is configured.
@@ -976,7 +976,7 @@ export async function judgeConversation(
   mode: "run" | "conclude",
 ): Promise<string> {
   const system = mode === "conclude" ? QA_CONCLUDE_SYSTEM : QA_JUDGE_SYSTEM;
-  // QA always uses deepseek-v4-flash when a DeepSeek key is configured — keeps the
+  // QA always uses deepseek-v4-flash when a DeepSeek key is configured - keeps the
   // judge off the quota-limited Gemini keys and consistent across runs. noFallback so
   // an empty reply never becomes the customer-facing localFallback boilerplate.
   try {
@@ -1018,7 +1018,7 @@ export async function judgeConversation(
 // The deterministic regex extractors (budget/phone/name/date/question options) are
 // brittle against slang-wrapped answers ("eh boss, i can spend about 302 lah"). When
 // they miss, the reply LLM still UNDERSTANDS the message and says "noted" while the
-// state machine stays pinned on the field — prose and cards diverge and the flow
+// state machine stays pinned on the field - prose and cards diverge and the flow
 // loops (ChatQA_Log_005312062601). This fallback closes that gap: one small,
 // strict-JSON LLM call that reads ONLY the pending field/question out of the user's
 // message. Every result is hard-validated before it can enter the state, and any
@@ -1034,7 +1034,7 @@ Never invent or guess a value that is not in the message.`;
 async function llmExtractRaw(userPrompt: string): Promise<unknown> {
   let reply = "";
   // Same provider preference as the QA judge: DeepSeek flash first (cheap, off the
-  // quota-limited keys), then the normal failover chain. Always noFallback — the
+  // quota-limited keys), then the normal failover chain. Always noFallback - the
   // localFallback boilerplate must never be parsed as an extraction result.
   try {
     const dsKey = (await getLlmKeys()).find((k) => k.provider === "deepseek");
@@ -1067,7 +1067,7 @@ async function llmExtractRaw(userPrompt: string): Promise<unknown> {
         }
       }
     } catch {
-      /* no provider — extraction unavailable */
+      /* no provider - extraction unavailable */
     }
   }
   if (!reply) return undefined;
@@ -1096,7 +1096,7 @@ const LLM_EXTRACT_FIELDS: Record<string, string> = {
  * LLM fallback for ONE pending base field the regex extractors missed. Validation is
  * strict per field (format/enum, and the digits must actually appear in the message
  * for budget/phone) so a hallucinated value can never enter the booking state.
- * Address is deliberately unsupported — it is structured-card-only by design.
+ * Address is deliberately unsupported - it is structured-card-only by design.
  */
 export async function llmExtractFieldValue(
   key: string,
@@ -1148,7 +1148,7 @@ export async function llmExtractFieldValue(
 /**
  * LLM fallback mapping a free-text answer onto a service-question's option values
  * when matchQuestionAnswer's literal matching missed (paraphrase, cross-language
- * answer). Only option questions — the result is whitelisted against the schema's
+ * answer). Only option questions - the result is whitelisted against the schema's
  * option values, so the LLM can only ever pick from what the admin defined.
  */
 export async function llmExtractQuestionAnswer(
@@ -1210,7 +1210,7 @@ function parseJsonStringArray(s: string): string[] | null {
 
 /**
  * Translate a batch of UI labels to one language via the LLM chain. Returns a same-order
- * array, or [] when no LLM is reachable / the reply can't be parsed — the caller then
+ * array, or [] when no LLM is reachable / the reply can't be parsed - the caller then
  * leaves those labels untranslated (the QA harness flags any that stay in English).
  */
 async function translateBatch(
@@ -1297,7 +1297,7 @@ export async function autoTranslateQuestionSchema(
     if (!missing.length) continue;
     const uniqueBases = [...new Set(missing.map((s) => s.base))];
     const translated = await translateBatch(uniqueBases, name);
-    if (translated.length !== uniqueBases.length) continue; // LLM down — leave untranslated
+    if (translated.length !== uniqueBases.length) continue; // LLM down - leave untranslated
     const map = new Map(uniqueBases.map((b, i) => [b, translated[i]]));
     for (const s of missing) {
       const t = map.get(s.base);
@@ -1344,7 +1344,7 @@ function noteKeyFailure(id: string, err: unknown): void {
   }
 }
 
-/** One attempt in the failover chain — a named LLM the chain can try in order. */
+/** One attempt in the failover chain - a named LLM the chain can try in order. */
 interface LlmAttempt {
   id: string; // stable id for cooldown tracking
   label: string; // for logs
@@ -1353,7 +1353,7 @@ interface LlmAttempt {
 
 /**
  * Build the ordered list of LLMs to try from the admin-configured DB keys
- * (priority order, fallback key last). The chain treats them all the same —
+ * (priority order, fallback key last). The chain treats them all the same -
  * it does not care which vendor each one is.
  */
 async function buildLlmChain(
@@ -1371,7 +1371,7 @@ async function buildLlmChain(
   } catch {
     /* DB unavailable */
   }
-  // Primary keys first, fallback keys last — single pass partition.
+  // Primary keys first, fallback keys last - single pass partition.
   const primary: typeof llmKeys = [];
   const fallback: typeof llmKeys = [];
   for (const k of llmKeys) (k.isFallback ? fallback : primary).push(k);
@@ -1413,7 +1413,7 @@ async function tryAiChain(
   let lastErr: unknown;
 
   // Rotate through the LLMs; if all cold-time-out (no quota cooldown) and we still
-  // have budget, rotate again — a backup that was cold on the first pass is warm on
+  // have budget, rotate again - a backup that was cold on the first pass is warm on
   // the next, so the retry lands without making the user wait on one slow provider.
   while (Date.now() < deadline) {
     const chain = await buildLlmChain(systemPrompt, message, history, role);
@@ -1433,11 +1433,11 @@ async function tryAiChain(
         });
       }
     }
-    // No LLM was even tried (all cooling down / none configured) — stop, don't spin.
+    // No LLM was even tried (all cooling down / none configured) - stop, don't spin.
     if (!triedAny) break;
   }
 
-  // Budget exhausted or nothing available — throw to trigger the local fallback.
+  // Budget exhausted or nothing available - throw to trigger the local fallback.
   throw lastErr instanceof Error
     ? lastErr
     : new Error("No AI provider available");
@@ -1475,16 +1475,16 @@ function buildBannedWordsReplacer(
 }
 
 /**
- * Replace em-dash / en-dash / horizontal-bar (— – ―) with a spaced hyphen.
+ * Replace em-dash / en-dash / horizontal-bar (- – ―) with a spaced hyphen.
  * Models lean on em-dashes heavily; banning via prompt is advisory and ignored,
- * so we normalise deterministically here. "party—nice" / "party — nice" both
+ * so we normalise deterministically here. "party-nice" / "party - nice" both
  * become "party - nice"; ranges like "9:00–11:00" become "9:00 - 11:00".
  */
 function normalizeDashes(text: string): string {
   // No-dash style: turn em/en dashes AND " - " clause-joins into commas, so the
   // assistant reads as natural sentences instead of dash-spliced fragments.
   // (Hyphenated words like "follow-up" have no surrounding spaces and are untouched.)
-  return text.replace(/\s*[—–―]\s*/g, ", ").replace(/ - /g, ", ");
+  return text.replace(/\s*[-–―]\s*/g, ", ").replace(/ - /g, ", ");
 }
 
 /**
@@ -1573,7 +1573,7 @@ function parseDateTimeFromText(text: string): { date?: string; slot?: string } {
   return out;
 }
 
-// DISABLED & REMOVED — free-text name extraction (extractName + NON_NAME_WORDS) was too aggressive.
+// DISABLED & REMOVED - free-text name extraction (extractName + NON_NAME_WORDS) was too aggressive.
 // It captured false positives like "From" from "I'm from KL" and caused
 // returning-guest greetings to display hallucinated names ("Hello there, is this From?").
 // Names are now ONLY captured from the explicit contact-name form card where the
@@ -1581,13 +1581,13 @@ function parseDateTimeFromText(text: string): { date?: string; slot?: string } {
 
 /**
  * Extract a phone number the user typed in reply to "what's your phone number?".
- * Assumes a Malaysian number (+60) when no country code is given — drops a leading
+ * Assumes a Malaysian number (+60) when no country code is given - drops a leading
  * 0 and prepends +60. Returns a full E.164-ish string or undefined. Only called
  * while the phone card is showing, so a bare number run is safely the phone.
  */
 function extractPhone(message: string): string | undefined {
   // Strip date-shaped tokens FIRST so "2026-06-19" / "19/06/2026" are never read as a
-  // phone number — the old loose match grabbed the booking date and falsely filled
+  // phone number - the old loose match grabbed the booking date and falsely filled
   // contactNumber, which skipped the phone card and looped the assistant.
   const cleaned = message
     .replace(/\b\d{4}-\d{1,2}-\d{1,2}\b/g, " ")
@@ -1609,7 +1609,7 @@ function extractPhone(message: string): string | undefined {
  * Extract a budget amount (RM) the user stated, so the budget slider can pre-select
  * the matching bracket instead of defaulting to the lowest. Matches "RM999", "999
  * budget", "budget of 1000", "around 1500", and spend-verb phrasings with a bare
- * number ("i can spend about 302", "can pay 150") — the rm-anchored-only pattern
+ * number ("i can spend about 302", "can pay 150") - the rm-anchored-only pattern
  * missed those while the reply LLM acknowledged them, splitting prose from state
  * (ChatQA_Log_005312062601). Returns the first plausible amount.
  */
@@ -1627,7 +1627,7 @@ function extractBudget(text: string): number | undefined {
  * Extract a free-text street address from a user message, conservatively: only when
  * it carries a 5-digit Malaysian postcode OR a strong street marker (jalan/lorong/…)
  * with a house/unit number. Returns the trimmed line so the address card can be
- * pre-filled and marked collected — otherwise a typed address never registers and the
+ * pre-filled and marked collected - otherwise a typed address never registers and the
  * bot re-asks it every turn (the "address card loops forever" bug). The frontend still
  * geocodes the value to populate the structured sub-fields.
  */
@@ -1655,7 +1655,7 @@ export function extractAddress(text: string): string | undefined {
   if (!best) return undefined;
   // Strip conversational filler around the address so a rojak-wrapped line like
   // "eh boss, 18 jalan tempua 5, bandar puchong jaya 47100 lor, can help anot?"
-  // stores as just "18 jalan tempua 5, bandar puchong jaya 47100" — otherwise the
+  // stores as just "18 jalan tempua 5, bandar puchong jaya 47100" - otherwise the
   // wrapper pollutes the street and the quote form can't parse it.
   let s = best;
   const startAnchor = s.search(
@@ -1682,7 +1682,7 @@ export function extractAddress(text: string): string | undefined {
 }
 
 /**
- * Extract a contact name from the user's OWN message. Conservative by design — runs only
+ * Extract a contact name from the user's OWN message. Conservative by design - runs only
  * while the name is still being collected (caller step-gates it), because a loose scan
  * historically produced junk names ("From" from "I'm from KL"). Two paths:
  *   1. an explicit lead-in: "my name is X" / "name's X" / "I'm X" / "call me X" / "saya X";
@@ -1722,14 +1722,14 @@ export function extractName(
  * checkbox are left to the model so we never capture an unrelated message.
  *
  * Matches against the option's value AND every localized label (en/ms/zh/ta), so an
- * answer given in the customer's language confirms — without this the question card
+ * answer given in the customer's language confirms - without this the question card
  * looped forever in zh/ta chats (the option labels are translated but the answer was
  * only compared to the English label). Tolerates a rojak wrapper around the answer.
  */
 
 /**
  * Strip sentences from the LLM's text reply that re-ask for already-confirmed
- * fields. The card dedup already strips the cards — this prevents the text from
+ * fields. The card dedup already strips the cards - this prevents the text from
  * contradicting the on-screen state (e.g. "I need your phone number" when Phone
  * is in the CONFIRMED DETAILS). Without this, users see a bot that keeps asking
  * for their phone number even though it's already filled on screen.
@@ -1744,7 +1744,7 @@ function stripReaskSentences(
   ]);
   if (!confirmed.size) return text;
 
-  // Phone re-ask patterns — only strip when contactNumber is already confirmed
+  // Phone re-ask patterns - only strip when contactNumber is already confirmed
   if (
     confirmed.has("contactNumber") &&
     /\b(phone\s*(number|#)?|(need|get|share|provide|reach|contact|call)\s*(your\s*)?(phone|number)|still\s*(need|missing|waiting)\s*(your\s*)?(phone|number)|(i('?m| am)\s*)?(still\s*)?(need|missing|waiting)\s*(your\s*)?(phone|number|contact))\b/i.test(
@@ -1765,7 +1765,7 @@ function stripReaskSentences(
     }
   }
 
-  // Budget re-ask patterns — only strip when budgetMax is already confirmed
+  // Budget re-ask patterns - only strip when budgetMax is already confirmed
   if (
     confirmed.has("budgetMax") &&
     /\b(budget|spend|price range|how much|capture.*budget|let me.*budget|still.*budget|need.*budget)\b/i.test(
@@ -1802,7 +1802,7 @@ export function matchQuestionAnswer(
   const text = message.trim();
   if (!text) return undefined;
   // Length caps are PER TYPE, not global. Option matching is substring-based and
-  // safe on longer slang-wrapped answers — "eh boss, so basically Motor/Engine, if
+  // safe on longer slang-wrapped answers - "eh boss, so basically Motor/Engine, if
   // that makes sense lah, can help anot?" is ~76 chars; the old global 60 cap
   // rejected it, the question was never marked answered, and the same card looped
   // forever (ChatQA_Log_005312062601). Numeric capture stays tighter: long messages
@@ -1811,11 +1811,11 @@ export function matchQuestionAnswer(
   if (q.type === "number" || q.type === "quantity") {
     if (text.length > 120) return undefined;
     // Real users wrap their answer in framing text ("about 1", "roughly 3 cameras",
-    // "Hi, could you help me — about 1? Thank you."). The old \D{0,8} limit rejected
+    // "Hi, could you help me - about 1? Thank you."). The old \D{0,8} limit rejected
     // anything with more than 8 non-digit chars before the number, so every QA
     // persona that wraps answers in polite framing got "undefined" and the LLM
     // treated "about 1" as noise instead of the camera-count answer.
-    // Extract ANY plausible count — 1-7 digit run with 0-200 surrounding non-digits,
+    // Extract ANY plausible count - 1-7 digit run with 0-200 surrounding non-digits,
     // anchored to word boundaries so "abc123def" still works but random strings don't.
     // Multiple matches: pick the LAST (closest to the tail = most likely the answer,
     // since QA framing appends question-like suffixes AFTER the answer).
@@ -1870,21 +1870,21 @@ export function matchQuestionAnswer(
  * the flow re-emits already-filled date/time/address cards (the redundant-card loop seen
  * in ChatQA_Log_142210062601). Hence "correct" only triggers as a VERB acting on a field
  * ("correct the address"), never as the confirmation adjective; "incorrect" / "not
- * correct" / "bad <field>" still trigger. This is the single source of edit-intent — the
+ * correct" / "bad <field>" still trigger. This is the single source of edit-intent - the
  * collecting re-extract gate, the confirmed-card dedup, and the single-field edit path
  * all call it, so they can never disagree.
  */
 export function wantsFieldEdit(message: string): boolean {
   const FIELD = "address|date|day|time|slot|budget|price|cost|name|number|phone";
   // Unambiguous edit verbs. Bare "correct" is deliberately excluded (it is far more often
-  // a confirmation) — its verb sense is caught by the field-directed pattern below.
+  // a confirmation) - its verb sense is caught by the field-directed pattern below.
   if (
     /\b(change|edit|update|fix|wrong|incorrect|different|instead|amend|re-?do|re-?enter|re-?fill|refill|modify|mistake|typo)\b/i.test(
       message,
     )
   )
     return true;
-  // "correct / redo / re-enter the address", "change my date" — a verb acting on a field.
+  // "correct / redo / re-enter the address", "change my date" - a verb acting on a field.
   if (
     new RegExp(
       `\\b(correct|redo|re-?enter|re-?fill|refill|change|fix|edit)\\s+(the|my|this|that|it|${FIELD})\\b`,
@@ -1900,7 +1900,7 @@ export function wantsFieldEdit(message: string): boolean {
 
 /**
  * Once a category is confirmed, the quote flow must keep advancing. The model
- * frequently stalls — it re-emits a quote_options card (which we strip) or just
+ * frequently stalls - it re-emits a quote_options card (which we strip) or just
  * says "let me check..." with no action block, leaving the user stuck with no
  * next control. Given the fields already collected (sent by the client), return
  * the action block(s) for the next step so the flow never dead-ends.
@@ -1921,7 +1921,7 @@ export function nextStepBlocks(collected: string[]): ActionBlock[] {
       addrBlocks.push({ type: "quote_field", data: { key: "propertyType" } });
     return addrBlocks;
   }
-  // Budget BEFORE contact — it reads more naturally (know the budget, then take
+  // Budget BEFORE contact - it reads more naturally (know the budget, then take
   // contact details last) and matches the order the model narrates, so the card
   // shown lines up with the question the assistant asks.
   if (!has("budgetMax"))
@@ -1941,7 +1941,7 @@ export function nextStepBlocks(collected: string[]): ActionBlock[] {
 
 // ─── Deterministic card-confirm turns (LLM skipped) ──────────────────────────────────
 // When the user CONFIRMS a card (taps a date/time/budget/address/contact/question card,
-// or picks a service) the next card is fully determined by what's been collected — the
+// or picks a service) the next card is fully determined by what's been collected - the
 // LLM adds nothing but prose that can hallucinate, mistranslate, re-ask, or stall. So on
 // those turns we skip the LLM entirely: zero tokens, zero latency, zero 429, zero
 // hallucination. The LLM still handles every FREE-FORM turn (questions, disambiguation,
@@ -2017,10 +2017,10 @@ async function loadCategoryQuestions(categoryId: string): Promise<FlowQuestion[]
 }
 
 /**
- * Deterministic next card(s) for a card-confirm turn — NO LLM. Given what the client has
+ * Deterministic next card(s) for a card-confirm turn - NO LLM. Given what the client has
  * collected/answered, return the next quote_field(s), the next unanswered quote_question,
  * or the quote_prefill review. Already-collected fields are dropped so a confirmed card is
- * never re-shown. Pure (DB-free) — unit-tested in backend/tests/unit/chat-flow.test.ts.
+ * never re-shown. Pure (DB-free) - unit-tested in backend/tests/unit/chat-flow.test.ts.
  */
 export function computeNextCards(
   collected: string[],
@@ -2057,7 +2057,7 @@ export function computeNextCards(
         out.push(nb);
       }
     } else if (nb.type === "quote_field") {
-      // Drop a field the client already confirmed — never re-show a collected card.
+      // Drop a field the client already confirmed - never re-show a collected card.
       const k = nb.data.key as string;
       if (collected.includes(k)) continue;
       out.push(nb);
@@ -2095,7 +2095,7 @@ export async function sendToAi(
     /** Client-detected conversation language to pin replies to (see chat-widget). */
     lang?: "en" | "ms" | "zh" | "ta" | "rojak";
     /** Exact confirmed field values (key -> value) so the model recaps real data,
-     *  never invented. From the client's prefill — see chat-widget collectedValues(). */
+     *  never invented. From the client's prefill - see chat-widget collectedValues(). */
     collectedData?: Record<string, string>;
     /** True when this turn is a CARD CONFIRM (user tapped a card / picked a service),
      *  not free-form text. Lets the backend skip the LLM and emit the next card
@@ -2112,7 +2112,7 @@ export async function sendToAi(
   },
 ): Promise<AiReply> {
   // Drop automated "Admin notice:" diagnostics from the history fed to the LLM. They
-  // are persisted in the thread (so the admin sees them) but are NOT conversation — if
+  // are persisted in the thread (so the admin sees them) but are NOT conversation - if
   // left in, the model copies them verbatim on the next turn even after the key is set.
   history = history.filter(
     (h) => !(h.role === "assistant" && h.content.startsWith("Admin notice:")),
@@ -2137,7 +2137,7 @@ export async function sendToAi(
 
   // Deterministic card-confirm turn: the user just confirmed a card (date/time/budget/
   // address/contact/question) or picked a service. The next card is fully determined by
-  // what's collected, so SKIP the LLM entirely — no prose to hallucinate, mistranslate,
+  // what's collected, so SKIP the LLM entirely - no prose to hallucinate, mistranslate,
   // re-ask, or stall, and zero tokens/429. The LLM still drives every free-form turn.
   // Requires a locked category (categoryId): card confirms only happen once a service is
   // chosen, and the service pick itself sets categoryId before sending.
@@ -2180,7 +2180,7 @@ export async function sendToAi(
       description: null,
     }));
   } catch {
-    // Categories are non-critical — fall back to basic prompt
+    // Categories are non-critical - fall back to basic prompt
   }
 
   // Dynamic Category catalog: inject all published children with questionSchema,
@@ -2209,7 +2209,7 @@ export async function sendToAi(
     });
     if (children.length > 0) {
       // PROMPT TRIM: once a service is locked, the bot is collecting fields / asking the
-      // locked category's (deterministically-injected) questions — it does NOT need every
+      // locked category's (deterministically-injected) questions - it does NOT need every
       // category's description, question-schema and procedure. Send a COMPACT catalog
       // (names + ids only, so a service switch is still possible) and skip the heavy
       // per-category detail. This roughly halves the prompt on the common in-flow path,
@@ -2232,7 +2232,7 @@ export async function sendToAi(
         for (const c of subs) {
           categoryCatalog += `\n- **${c.name}** (id: \`${c.id}\`, slug: \`${c.slug}\`)`;
           if (catLocked) continue; // compact: skip description/price/Asks/Steps once locked
-          if (c.description) categoryCatalog += ` — ${c.description}`;
+          if (c.description) categoryCatalog += ` - ${c.description}`;
           if (c.defaultPriceSuggestion) {
             const price = Number(c.defaultPriceSuggestion);
             if (!isNaN(price)) categoryCatalog += ` | from ~RM ${price}`;
@@ -2277,7 +2277,7 @@ export async function sendToAi(
       }
     }
   } catch {
-    /* non-critical — fall back to basic prompt */
+    /* non-critical - fall back to basic prompt */
   }
 
   let systemPrompt =
@@ -2298,9 +2298,9 @@ export async function sendToAi(
     };
     const name = LANG_NAME[opts.lang] ?? "English";
     systemPrompt +=
-      `\n\n## REPLY LANGUAGE (STRICT — overrides all other language guidance)` +
+      `\n\n## REPLY LANGUAGE (STRICT - overrides all other language guidance)` +
       `\nThe customer is conversing in ${name}. Reply ONLY in ${name} for this and every following turn.` +
-      `\nForm-style confirmations like "My budget is RM150", "My preferred date is 2026-06-20", or "Yes, let's proceed with X" are UI BUTTON CLICKS, not a language switch — keep replying in ${name} regardless of their wording.` +
+      `\nForm-style confirmations like "My budget is RM150", "My preferred date is 2026-06-20", or "Yes, let's proceed with X" are UI BUTTON CLICKS, not a language switch - keep replying in ${name} regardless of their wording.` +
       (opts.lang === "rojak" ? ` Mirror the English-Malay rojak mix.` : ``) +
       `\nService names from the catalog stay in their original form.`;
   }
@@ -2317,7 +2317,7 @@ export async function sendToAi(
       `\nAlready filled: ${c.filled.length ? c.filled.join(", ") : "nothing"}. Still needed this step: ${c.missing.length ? c.missing.join(", ") : "nothing"}.` +
       `\nHelp them with THIS step in 1-3 short sentences. To fill a field for them, emit [action:form_fill]key: <key>\nvalue: <value>[/action].` +
       `\nValid keys: categoryId (a UUID from the catalog), preferredDate (YYYY-MM-DD), timeSlot (morning|noon|afternoon|evening|night), contactName, contactNumber, address, addressNo, propertyType, streetDetails, postcode, notes.` +
-      `\nOnly fill a field when the user gave the value. NEVER emit quote_options, quote_field, or quote_prefill in this mode — the on-screen form already has those controls.`;
+      `\nOnly fill a field when the user gave the value. NEVER emit quote_options, quote_field, or quote_prefill in this mode - the on-screen form already has those controls.`;
   } else if (opts?.collected && opts.collected.length > 0) {
     // In-chat quote flow: tell the model which fields the user has ALREADY given
     // (the client tracks these). Without this the model has no memory of the
@@ -2351,12 +2351,12 @@ export async function sendToAi(
 
     if (valueLines.length > 0) {
       systemPrompt +=
-        `\n\n## CONFIRMED DETAILS — exact values, never alter or invent` +
+        `\n\n## CONFIRMED DETAILS - exact values, never alter or invent` +
         `\n${valueLines.join("\n")}` +
-        `\nThese are ALREADY COLLECTED and LOCKED on screen. Asking for ANY of them again will trap the user in an infinite loop — the booking WILL fail.` +
+        `\nThese are ALREADY COLLECTED and LOCKED on screen. Asking for ANY of them again will trap the user in an infinite loop - the booking WILL fail.` +
         `\nSTRICT RULE: If you see a field in this list, you MUST NOT ask for it, MUST NOT mention you need it, and MUST NOT say "let me capture" it. It is DONE. Move on.` +
         `\nThe ONLY exception: if the user EXPLICITLY asks to change a value (says "change", "fix", "wrong", "re-enter"), then and only then may you re-open that one field.` +
-        `\nWhen you acknowledge a detail the user JUST gave, echo back only THAT one value in a short phrase. NEVER re-list all the collected fields in prose — the review card shows the full summary.`;
+        `\nWhen you acknowledge a detail the user JUST gave, echo back only THAT one value in a short phrase. NEVER re-list all the collected fields in prose - the review card shows the full summary.`;
     } else {
       const friendly: Record<string, string> = {
         preferredDate: "date",
@@ -2375,18 +2375,18 @@ export async function sendToAi(
       ];
       if (done.length > 0) {
         systemPrompt +=
-          `\n\n## ALREADY COLLECTED — do not ask again` +
-          `\nThe user has already provided: ${done.join(", ")}. These are LOCKED on screen. Asking for them again will loop the user forever — the booking will fail.` +
+          `\n\n## ALREADY COLLECTED - do not ask again` +
+          `\nThe user has already provided: ${done.join(", ")}. These are LOCKED on screen. Asking for them again will loop the user forever - the booking will fail.` +
           `\nMUST NOT ask for, mention needing, or say "let me capture" any of these. They are DONE. Only re-open if the user explicitly asks to change one.`;
       }
     }
 
-    // When a category is locked, reinforce it explicitly — the absence of the
+    // When a category is locked, reinforce it explicitly - the absence of the
     // catalog alone is a weak signal, and LLMs (especially in non-English output)
     // occasionally regress to "what service do you want?" even after Step 2 is done.
     if (opts?.suppressCategorySuggest) {
       systemPrompt +=
-        `\n\n## SERVICE LOCKED — DO NOT MENTION` +
+        `\n\n## SERVICE LOCKED - DO NOT MENTION` +
         `\nThe service category has already been confirmed and LOCKED. The user saw the card, tapped "Yes, that's it", and the booking is now in the field-collection phase (Steps 3–10).` +
         `\nUNDER NO CIRCUMSTANCES ask "what service do you want", "which service would you like", "what would you like to book", or any similar question.` +
         `\nUNDER NO CIRCUMSTANCES mention choosing, changing, switching, browsing, or registering for a service. The category step is COMPLETE.` +
@@ -2395,7 +2395,7 @@ export async function sendToAi(
       // Name the EXACT pending step so the model's prose can never run ahead of the
       // deterministic card pipeline. Without this, the model said "RM302 noted, now
       // your name" while the state machine was still pinned on budget (its extractor
-      // had rejected the value) — text guided one way, the card another, and the QA
+      // had rejected the value) - text guided one way, the card another, and the QA
       // run looped (ChatQA_Log_005312062601).
       const collSet = new Set(opts.collected ?? []);
       const stepOrder: Array<[string, string]> = [
@@ -2408,13 +2408,13 @@ export async function sendToAi(
       ];
       const pendingStep = stepOrder.find(([k]) => !collSet.has(k));
       systemPrompt += pendingStep
-        ? `\nNEXT REQUIRED STEP: the ${pendingStep[1]}. If the user's message contains its value, EMIT its [action:quote_field] card WITH a value: line THIS turn. If you cannot read a clean value from their message, ask them to clarify it — do NOT pretend it was captured. NEVER say "noted"/"got it" or move to a later step without emitting the filled card: the booking state only advances through the card, never through your words.`
+        ? `\nNEXT REQUIRED STEP: the ${pendingStep[1]}. If the user's message contains its value, EMIT its [action:quote_field] card WITH a value: line THIS turn. If you cannot read a clean value from their message, ask them to clarify it - do NOT pretend it was captured. NEVER say "noted"/"got it" or move to a later step without emitting the filled card: the booking state only advances through the card, never through your words.`
         : `\nAll base fields are collected. Continue with the category's service questions, then the review.`;
     }
   }
 
   // Published child categories (id + name) used to linkify service mentions in
-  // the reply text — see linkifyServices.
+  // the reply text - see linkifyServices.
   let linkServices: Array<{ id: string; name: string }> = [];
   try {
     linkServices = await prisma.category.findMany({
@@ -2426,7 +2426,7 @@ export async function sendToAi(
       select: { id: true, name: true },
     });
   } catch {
-    /* non-critical — replies just won't be linkified */
+    /* non-critical - replies just won't be linkified */
   }
 
   // Load the confirmed category's questionSchema so the in-chat flow can collect
@@ -2486,12 +2486,12 @@ export async function sendToAi(
           }));
       }
     } catch {
-      /* non-critical — questions just won't be asked in chat */
+      /* non-critical - questions just won't be asked in chat */
     }
   }
 
   // Inject the current unanswered question(s) into the prompt so the LLM knows
-  // EXACTLY what the user is being asked right now — without this, the LLM sees
+  // EXACTLY what the user is being asked right now - without this, the LLM sees
   // a bare "about 1" or "just walls" with zero context and defaults to treating
   // it as noise (hallucinating about dogs, asking for phone again, etc.).
   if (opts?.categoryId && categoryQuestions.length > 0) {
@@ -2501,7 +2501,7 @@ export async function sendToAi(
       const q = unanswered[0];
       const label = pickI18n(q.label, q.labelI18n, opts?.lang);
       systemPrompt +=
-        `\n\n## CURRENT QUESTION — focus your reply on THIS` +
+        `\n\n## CURRENT QUESTION - focus your reply on THIS` +
         `\nQuestion: "${label}" (key: \`${q.key}\`, type: \`${q.type}\`)` +
         (q.description
           ? `\nDescription: ${pickI18n(q.description, q.descriptionI18n, opts?.lang)}`
@@ -2512,10 +2512,10 @@ export async function sendToAi(
       }
       systemPrompt +=
         `\nThe user's NEXT message is likely their answer to THIS question. Interpret their words against the question context.` +
-        `\nIf the user gives a valid answer, acknowledge with ONE word from the ACKNOWLEDGMENT POOL (matching customer tone and language). NEVER state the answer value. Move on — the app shows the next card.` +
+        `\nIf the user gives a valid answer, acknowledge with ONE word from the ACKNOWLEDGMENT POOL (matching customer tone and language). NEVER state the answer value. Move on - the app shows the next card.` +
         `\nNEVER re-show a question card for a question the user already answered in THIS turn.` +
         (unanswered.length > 1
-          ? `\nRemaining after this: ${unanswered.slice(1).map((qq) => `"${pickI18n(qq.label, qq.labelI18n, opts?.lang)}"`).join(", ")}. Do NOT ask these yet — ONE at a time.`
+          ? `\nRemaining after this: ${unanswered.slice(1).map((qq) => `"${pickI18n(qq.label, qq.labelI18n, opts?.lang)}"`).join(", ")}. Do NOT ask these yet - ONE at a time.`
           : ``);
     }
   }
@@ -2534,7 +2534,7 @@ export async function sendToAi(
     raw = { answer: await localFallback(message, role), tokensUsed: null };
   }
 
-  // Per-message token usage — visible in the server console for cost tracking.
+  // Per-message token usage - visible in the server console for cost tracking.
   logger.info(
     `[chat] tokens used this message: ${raw.tokensUsed ?? "n/a (local fallback)"} (role=${role})`,
   );
@@ -2543,12 +2543,12 @@ export async function sendToAi(
   raw.answer = replacer(raw.answer);
 
   // Out-of-tokens: the provider cut the reply off mid-stream (finish_reason=length).
-  // A truncated reply is unreliable — it can drop the [/action] close, leave a half
+  // A truncated reply is unreliable - it can drop the [/action] close, leave a half
   // sentence, or strand the user. Replace it with a clear out-of-service message and
   // a one-tap button to the quote form so they can still request a service.
   // Only fall back to "out of service" when truncation left NO usable answer (e.g. a
   // reasoning model spent its whole budget thinking and emitted no content). If there IS
-  // a real answer, use it — a complete-enough reply beats a dead-end, and the
+  // a real answer, use it - a complete-enough reply beats a dead-end, and the
   // deterministic next-card logic still drives the flow.
   if (raw.truncated && (raw.answer ?? "").trim().length < 2) {
     const quoteHref =
@@ -2580,7 +2580,7 @@ export async function sendToAi(
   // (e.g. Interior Design's when the user confirmed Event Planner). Validate the
   // UUID resolves to a category whose name appears in the assistant's reply text.
   // If not, drop the lock AND any quote_question blocks the model emitted for the
-  // wrong category in the same reply — better no lock+questions than wrong ones.
+  // wrong category in the same reply - better no lock+questions than wrong ones.
   const lockBlock = outBlocks.find((b) => b.type === "category_lock");
   if (lockBlock) {
     const cid =
@@ -2596,7 +2596,7 @@ export async function sendToAi(
         const text = processed.text.toLowerCase();
         if (!cat || !text.includes(cat.name.toLowerCase())) {
           logger.warn(
-            "category_lock UUID does not match assistant reply text — dropping",
+            "category_lock UUID does not match assistant reply text - dropping",
             {
               cid,
               name: cat?.name ?? "(not found)",
@@ -2604,7 +2604,7 @@ export async function sendToAi(
           );
           outBlocks = outBlocks.filter((b) => b !== lockBlock);
           // Also strip any quote_question blocks the model hallucinated for the
-          // wrong category — they arrived in the same reply as the bogus lock.
+          // wrong category - they arrived in the same reply as the bogus lock.
           const validKeys = new Set(categoryQuestions.map((q) => q.key));
           outBlocks = outBlocks.filter(
             (b) =>
@@ -2612,10 +2612,10 @@ export async function sendToAi(
               validKeys.has(b.data.key as string),
           );
         } else {
-          // Lock is valid — keep everything; no special filtering needed.
+          // Lock is valid - keep everything; no special filtering needed.
         }
       } catch {
-        /* DB hiccup — leave the lock alone */
+        /* DB hiccup - leave the lock alone */
       }
     }
   }
@@ -2636,14 +2636,14 @@ export async function sendToAi(
     }
     // Strip any quote_question whose key is NOT in the category's real questionSchema.
     // The model frequently invents key variants (what_do_you_need vs whatDoYouNeed vs
-    // serviceType), and those cards carry no options — so they break answered-tracking
+    // serviceType), and those cards carry no options - so they break answered-tracking
     // (the real key never gets marked answered) and the bot re-asks the same question
     // forever. Only the deterministic injection below (real key + options) should drive
     // question cards.
     const catLocked =
       !!opts?.categoryId || outBlocks.some((b) => b.type === "category_lock");
     if (!catLocked) {
-      // No service is locked yet — a service-specific question card is nonsensical here
+      // No service is locked yet - a service-specific question card is nonsensical here
       // (the model hallucinated it, e.g. a stray "Halal or Non-Halal?" on a resumed chat
       // before any category exists). Drop them all; the flow must pick a category first.
       outBlocks = outBlocks.filter((b) => b.type !== "quote_question");
@@ -2655,17 +2655,17 @@ export async function sendToAi(
       );
     }
     // Field-collection safety net. Runs whenever the conversation is collecting
-    // quote fields — the client reports collected fields OR this reply emits a
+    // quote fields - the client reports collected fields OR this reply emits a
     // field/prefill card. This must NOT be gated on the client `categoryLocked`
     // flag: the user may confirm the category by TYPING ("yep") instead of tapping
     // the card, in which case categoryLocked stays false but the flow is very much
     // underway. Without this the next missing card (e.g. address) is never injected
     // and the flow dead-ends.
     // While the assistant is still offering category cards, we are at the service-
-    // SELECTION step, not field collection — never pre-fill date/time or inject the
+    // SELECTION step, not field collection - never pre-fill date/time or inject the
     // next field card here (it would dump date/time/address before a service is even
     // picked). Field collection only begins once a category is settled.
-    // Field collection requires a real category context — NOT merely stale
+    // Field collection requires a real category context - NOT merely stale
     // `collected` fields. A guest who finished/abandoned a prior request still
     // carries its date/name/phone in prefillData; without this guard those stale
     // fields would dump as cards in the middle of a brand-new service selection.
@@ -2691,7 +2691,7 @@ export async function sendToAi(
       !!opts?.categoryId;
     const collectingFields = !stillChoosingCategory && hasCategoryContext;
     if (!collectingFields && !hasCategoryContext) {
-      // No service chosen yet — drop any premature field/prefill cards the model
+      // No service chosen yet - drop any premature field/prefill cards the model
       // emitted so the flow can't dump details or a review before a service is picked.
       outBlocks = outBlocks.filter(
         (b) => b.type !== "quote_field" && b.type !== "quote_prefill",
@@ -2701,7 +2701,7 @@ export async function sendToAi(
       // Deterministic date/time pre-fill: the model often states a resolved date in
       // its text but emits an empty picker. Parse it ourselves so it never relies on
       // the model (or which LLM answered) emitting the value. ONLY when the USER's
-      // own message expresses date/time intent — otherwise an incidental word in the
+      // own message expresses date/time intent - otherwise an incidental word in the
       // assistant's prose ("how can I help you today?") would wrongly fill a date.
       // Scan ALL the USER's messages (not just this turn) so a date/time given
       // earlier in a one-line dump still triggers the fill even when the current
@@ -2744,7 +2744,7 @@ export async function sendToAi(
       // returns undefined when its field isn't present, so partial input still flows
       // normally (only the fields actually given get pre-filled).
       // A field the CLIENT already confirmed must NOT be re-extracted/re-emitted just
-      // because the user re-mentions it ("this friday" again) — that re-shows a card the
+      // because the user re-mentions it ("this friday" again) - that re-shows a card the
       // user already filled (the "confirmed card comes out again" bug). Re-extract only if
       // not yet collected, OR the user is explicitly asking to change it.
       const clientHas = new Set<string>([
@@ -2777,14 +2777,14 @@ export async function sendToAi(
       // Budget + phone are extracted from the USER's own words only (userConvo), never
       // the assistant's prose. extractBudget on the full transcript grabbed a number
       // from the assistant narrating a bracket ("RM500–1000") and pre-filled budgetMax
-      // the user never stated — same false-positive class as the old name extraction.
+      // the user never stated - same false-positive class as the old name extraction.
       const budgetN = extractBudget(userConvo);
       if (budgetN && wantField("budgetMax")) fillField("budgetMax", String(budgetN));
       // Name: capture from the user's own message while it's still being collected, so a
       // typed name ("name's Lina", "I'm Hafiz", or a bare "Hafiz" at the name step)
-      // registers instead of looping the contactName card forever. Strictly gated — an
+      // registers instead of looping the contactName card forever. Strictly gated - an
       // explicit lead-in always, a bare token ONLY once every other base field is in (the
-      // bot has asked for the name) — so a stray word can't become a junk name.
+      // bot has asked for the name) - so a stray word can't become a junk name.
       if (!new Set(opts?.collected ?? []).has("contactName")) {
         const coll = new Set(opts?.collected ?? []);
         const atNameStep =
@@ -2802,7 +2802,7 @@ export async function sendToAi(
       // LLM extraction fallback for the SINGLE pending base field when every regex
       // above missed it. Without this, the reply LLM acknowledges the value in prose
       // ("RM302 noted, now your name") while the state machine stays pinned on the
-      // field — text and cards diverge and the flow loops. Hard-validated, so a wrong
+      // field - text and cards diverge and the flow loops. Hard-validated, so a wrong
       // LLM read can never enter the state; a null leaves the card pinned as before.
       // Address is excluded (structured card only by design).
       if (opts?.categoryId) {
@@ -2831,7 +2831,7 @@ export async function sendToAi(
             const v = await llmExtractFieldValue(pendingKey, message);
             if (v) fillField(pendingKey, v);
           } catch {
-            /* extraction is best-effort — the card simply stays pinned */
+            /* extraction is best-effort - the card simply stays pinned */
           }
         }
       }
@@ -2844,7 +2844,7 @@ export async function sendToAi(
           const v = b.data.value;
           const k = b.data.key;
           // Address is the exception: a free-text/pre-filled address VALUE never counts as
-          // collected — only the client's structured confirm does (it sends `address` in
+          // collected - only the client's structured confirm does (it sends `address` in
           // `collected`). So the address card keeps showing (and the composer stays locked)
           // until the user fills No./Postcode/Type via the card. See the address-lock rule.
           if (k === "address") continue;
@@ -2879,7 +2879,7 @@ export async function sendToAi(
       if (unansweredQ.length > 0) {
         const q = unansweredQ[0];
         let ans = matchQuestionAnswer(q, message);
-        // Literal matching missed — let the LLM map a paraphrased/cross-language
+        // Literal matching missed - let the LLM map a paraphrased/cross-language
         // answer onto the schema's option values (whitelisted, so it can only pick
         // from the admin-defined options). Same prose-vs-state guard as the field
         // fallback above: the reply LLM understood the answer, the state must too.
@@ -2887,11 +2887,11 @@ export async function sendToAi(
           try {
             ans = await llmExtractQuestionAnswer(q, message);
           } catch {
-            /* best-effort — question stays pending */
+            /* best-effort - question stays pending */
           }
         }
         if (ans) {
-          // Fill the model's existing (empty) card, else push a new filled one — so
+          // Fill the model's existing (empty) card, else push a new filled one - so
           // the answer shows once as confirmed and the question is never re-asked.
           const existing = outBlocks.find(
             (b) => b.type === "quote_question" && b.data.key === q.key,
@@ -2986,18 +2986,18 @@ export async function sendToAi(
     }
   }
 
-  // Never REPEAT a card the user already confirmed in a PRIOR turn — show each once.
+  // Never REPEAT a card the user already confirmed in a PRIOR turn - show each once.
   // Fields/questions captured THIS turn aren't in collected/answered yet, so they
   // still appear once; from the next turn on they're suppressed. Exception: if the
   // user asks to change something, keep the cards so they can edit.
   {
     // Fields already confirmed by the client (card taps / prefillData values
-    // sent in previous turns). Drop ALL cards for these — valued or not.
+    // sent in previous turns). Drop ALL cards for these - valued or not.
     const clientConfirmed = new Set<string>([
       ...(opts?.collected ?? []),
       ...Object.keys(opts?.collectedData ?? {}),
     ]);
-    // Fields deterministically pre-filled THIS turn only — show them ONCE with
+    // Fields deterministically pre-filled THIS turn only - show them ONCE with
     // their value (so the client can store them), then suppress next turn when
     // they appear in clientConfirmed.
     const justExtracted = new Set<string>();
@@ -3014,7 +3014,7 @@ export async function sendToAi(
       outBlocks = outBlocks.filter((b) => {
         const k = typeof b.data.key === "string" ? b.data.key : "";
         if (b.type === "quote_field") {
-          // Drop ALL cards for fields the CLIENT already confirmed — no re-show.
+          // Drop ALL cards for fields the CLIENT already confirmed - no re-show.
           if (clientConfirmed.has(k)) return false;
           // First-time pre-fill: keep the valued card once; drop empty duplicates.
           if (justExtracted.has(k)) {
@@ -3047,7 +3047,7 @@ export async function sendToAi(
     });
     // The model sometimes adds the non-bookable PARENT alongside a child (e.g.
     // "Events" + "Catering Service"). Only when at least one real published child
-    // card is present do we drop the non-child (parent) cards — never strip the
+    // card is present do we drop the non-child (parent) cards - never strip the
     // ONLY card just because its id doesn't match, or the flow dead-ends.
     const childIds = new Set(linkServices.map((s) => s.id));
     if (childIds.size > 0) {
@@ -3067,8 +3067,8 @@ export async function sendToAi(
     outBlocks = kept;
   }
 
-  // EDIT a specific collected field: when the user asks to change one — even softly
-  // ("the address isn't right", "can I refill my address", "change my date") — re-open
+  // EDIT a specific collected field: when the user asks to change one - even softly
+  // ("the address isn't right", "can I refill my address", "change my date") - re-open
   // ONLY that field this turn: show its card alone and strip the service question +
   // review, so the edit isn't buried under the next deterministically-injected question
   // (a resumed/locked category was otherwise force-injecting its question over the edit).
@@ -3106,7 +3106,7 @@ export async function sendToAi(
   }
 
   // Stall recovery: the bot NAMED a catalog service in its text but emitted NO card (the
-  // classic "describes a card it didn't emit" loop — common after a rejection and in
+  // classic "describes a card it didn't emit" loop - common after a rejection and in
   // non-English replies, where the prompt rule is ignored). In a pure service-SELECTION
   // turn, inject that service's quote_options so the user can tap it instead of looping in
   // text. Guarded to selection only (no category locked, no field/question/option/lock
@@ -3150,7 +3150,7 @@ export async function sendToAi(
 
   // Post-process text: the LLM sometimes re-asks for already-confirmed fields
   // (especially phone/budget) even though the card dedup already strips those
-  // cards — the text still says "I need your phone number" when Phone is in the
+  // cards - the text still says "I need your phone number" when Phone is in the
   // CONFIRMED DETAILS. This is a deterministic safety net that strips those
   // re-ask sentences from the text so the text never contradicts the cards.
   answer = stripReaskSentences(answer, {
@@ -3159,7 +3159,7 @@ export async function sendToAi(
   });
 
   // Empty reply = the AI chain failed/timed out (and no FAQ matched) or the model
-  // returned only a stripped block. Don't show the bare "How can I help you?" —
+  // returned only a stripped block. Don't show the bare "How can I help you?" -
   // tell the user clearly and give them a one-tap path to the quote form.
   if (answer.length === 0 && outBlocks.length === 0) {
     return {
@@ -3314,7 +3314,7 @@ async function localFallback(
 
       if (best) return best.answer;
     } catch {
-      // Silently ignore scoring errors — empty answer is returned below
+      // Silently ignore scoring errors - empty answer is returned below
     }
   }
 

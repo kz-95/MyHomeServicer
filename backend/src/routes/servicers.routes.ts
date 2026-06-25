@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { body } from 'express-validator';
 import { prisma } from '../lib/prisma';
 import { asyncHandler } from '../lib/async-handler';
@@ -7,10 +7,10 @@ import { registerLimiter } from '../middleware/rate-limit';
 import { notFound } from '../lib/errors';
 import { registerServicer } from '../services/auth.service';
 
-/** Public servicer endpoints — profile, services, and registration. */
+/** Public servicer endpoints - profile, services, and registration. */
 export const servicersRouter = Router();
 
-/** POST /servicers/register — register a new servicer account. */
+/** POST /servicers/register - register a new servicer account. */
 servicersRouter.post(
   '/register',
   registerLimiter,
@@ -32,7 +32,7 @@ servicersRouter.post(
   }),
 );
 
-/** GET /servicers/:id — public servicer profile. */
+/** GET /servicers/:id - public servicer profile. */
 servicersRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -65,7 +65,7 @@ servicersRouter.get(
   }),
 );
 
-/** GET /servicers/:id/services — the servicer's active services. */
+/** GET /servicers/:id/services - the servicer's active services. */
 servicersRouter.get(
   '/:id/services',
   asyncHandler(async (req, res) => {

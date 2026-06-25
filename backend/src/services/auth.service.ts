@@ -1,4 +1,4 @@
-﻿import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
@@ -34,7 +34,7 @@ function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-/** Server-side password strength check — bypassed for demo accounts. */
+/** Server-side password strength check - bypassed for demo accounts. */
 export function assertPasswordStrength(password: string): void {
   if (password.length < 8 || !/[0-9]/.test(password)) {
     throw badRequest('Password must be at least 8 characters and contain a number');
@@ -262,7 +262,7 @@ export async function registerServicer(input: {
  * the servicer can operate the platform as a customer ("customer mode").
  *
  * The paired user gets a synthetic, non-deliverable email so it never shadows
- * the servicer in `findAccountByEmail` — a normal login with the servicer's
+ * the servicer in `findAccountByEmail` - a normal login with the servicer's
  * real email therefore still resolves to the servicer account. Customer mode
  * is only ever reached through the in-app toggle, never a direct login.
  */
@@ -310,18 +310,18 @@ export async function login(
   }
   const record = account.record;
 
-  // Google-only account — no password set.
+  // Google-only account - no password set.
   if (!record.passwordHash) {
     throw unauthorized('This account uses Google sign-in. Please sign in with Google.');
   }
 
   // Account lockout check.
   if (record.lockedUntil && record.lockedUntil > new Date()) {
-    throw new ApiError('ACCOUNT_LOCKED', 'Account locked — too many failed attempts. Try again later.');
+    throw new ApiError('ACCOUNT_LOCKED', 'Account locked - too many failed attempts. Try again later.');
   }
 
   // Demo accounts are blocked in production unless the demo surface is opted in
-  // (DEMO_LOGIN_ENABLED) — e.g. on a dedicated demo deployment.
+  // (DEMO_LOGIN_ENABLED) - e.g. on a dedicated demo deployment.
   if (record.isDemo && !allowDemo) {
     throw new ApiError('FORBIDDEN', 'Demo accounts are disabled in production');
   }
@@ -343,7 +343,7 @@ export async function login(
     throw unauthorized('Invalid email or password');
   }
 
-  // Successful login — reset the failure counter.
+  // Successful login - reset the failure counter.
   if (record.failedLoginCount > 0 || record.lockedUntil) {
     await resetLoginCounter(account.kind, record.id);
   }

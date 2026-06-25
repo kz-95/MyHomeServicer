@@ -1,8 +1,8 @@
-# SP-3 Seeding Coverage Plan
+﻿# SP-3 Seeding Coverage Plan
 
-> **Status:** DESIGN — 2026-06-25
+> **Status:** DESIGN - 2026-06-25
 > **Parent spec:** `docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md` §17.5
-> **Goal:** Every priced question option across all 32 categories is covered by at least 1-3 auto-accept listings. When any customer orders any service, an auto-proposal fires. Exception: M1 (Ahmad Plumber) — manual only.
+> **Goal:** Every priced question option across all 32 categories is covered by at least 1-3 auto-accept listings. When any customer orders any service, an auto-proposal fires. Exception: M1 (Ahmad Plumber) - manual only.
 
 ---
 
@@ -10,7 +10,7 @@
 
 - Each listing gets `autoAccept: true` + `proposalPreset` text
 - Listing has 1+ modules, each: `{ questionKey, optionValue, price, durationMin, sku? }`
-- Priced questions only (other questions like `pets`, `supplies`, `material` are informational — not priced)
+- Priced questions only (other questions like `pets`, `supplies`, `material` are informational - not priced)
 - Combos (e.g. `action × area`): split across 2-3 servicers, not all on one
 - M1 (Ahmad Plumber, `plumber` category): **no auto-accept**. Covered by M37 + M67.
 
@@ -30,7 +30,7 @@ Priced: `cleaning_option` (4 options)
 ✅ All 4 options covered. 1 listing.
 
 #### Sofa/Mattress (`sofa-mattress-cleaning`)
-Priced: `clean_for` (5 options), `sofa_size` (6 options — conditional)
+Priced: `clean_for` (5 options), `sofa_size` (6 options - conditional)
 
 | Servicer | Listing | Modules |
 |----------|---------|---------|
@@ -62,13 +62,13 @@ Priced: `curtain_sizes` (6 options), `cleaning_type` (2 options)
 
 #### Plumber (`plumber`)
 Priced: `action` (4 options), `area` (7 options)
-**M1 excluded — manual only.** Split across M37 + M67.
+**M1 excluded - manual only.** Split across M37 + M67.
 
 | Servicer | Listing | Modules |
 |----------|---------|---------|
 | M1 Ahmad | PLB-001, PLB-002 | ❌ No auto-accept |
-| **M37 Plumber B** | PLB-AUTO-A | `action`=repair(RM80,45min)×`area`=kitchen(RM20,10min), `action`=repair×`area`=bathroom(RM20,10min), `action`=replace(RM100,60min)×`area`=kitchen, `action`=replace×`area`=bathroom — 4 modules |
-| **M67 Plumber C** | PLB-AUTO-B | `action`=dismantle(RM60,30min)×`area`=outdoor(RM30,15min), `action`=dismantle×`area`=roof(RM50,20min), `action`=install(RM80,60min)×`area`=outdoor, `action`=install×`area`=roof — 4 modules |
+| **M37 Plumber B** | PLB-AUTO-A | `action`=repair(RM80,45min)×`area`=kitchen(RM20,10min), `action`=repair×`area`=bathroom(RM20,10min), `action`=replace(RM100,60min)×`area`=kitchen, `action`=replace×`area`=bathroom - 4 modules |
+| **M67 Plumber C** | PLB-AUTO-B | `action`=dismantle(RM60,30min)×`area`=outdoor(RM30,15min), `action`=dismantle×`area`=roof(RM50,20min), `action`=install(RM80,60min)×`area`=outdoor, `action`=install×`area`=roof - 4 modules |
 
 ✅ action × area core combos covered (8 of 28). Remaining combos (pipe, sink, toilet areas) handled by the existing broadcast → manual accept path per §17.4.
 
@@ -86,7 +86,7 @@ Priced: `action` (4 options), `item` (8 options)
 
 | Servicer | Listing | Modules |
 |----------|---------|---------|
-| **M3 Ravi** (Volt Masters) | VM-AUTO | `item`=socket(RM40,20min), `item`=switch(RM40,15min), `item`=light(RM50,25min), `item`=fan(RM60,30min), `item`=db_box(RM80,45min), `item`=wiring(RM100,60min), `item`=water_heater(RM80,40min), `item`=doorbell(RM30,15min) — all with `action`=repair/default pricing |
+| **M3 Ravi** (Volt Masters) | VM-AUTO | `item`=socket(RM40,20min), `item`=switch(RM40,15min), `item`=light(RM50,25min), `item`=fan(RM60,30min), `item`=db_box(RM80,45min), `item`=wiring(RM100,60min), `item`=water_heater(RM80,40min), `item`=doorbell(RM30,15min) - all with `action`=repair/default pricing |
 
 ✅ All 8 items covered. 1 listing (action pricing tiers can be stacked as add-on via manual propose).
 
@@ -104,7 +104,7 @@ Priced: `planning_services` (6 options)
 ✅ All 6 options covered. 1 listing.
 
 #### Catering (`catering`)
-Priced: `pax` (quantity — per-person pricing)
+Priced: `pax` (quantity - per-person pricing)
 
 | Servicer | Listing | Modules |
 |----------|---------|---------|
@@ -135,12 +135,12 @@ Priced: `units` (11 options)
 ✅ 8 core options. dismantle_only handled manually. 1 listing.
 
 #### Carpenter (`carpenter`)
-Priced: `action` (4), `item` (10) — split across 2 servicers
+Priced: `action` (4), `item` (10) - split across 2 servicers
 
 | Servicer | Listing | Modules |
 |----------|---------|---------|
-| **M12 Lim** (Precision) | PW-AUTO-A | `item`=cabinet(RM200,120min), shelf(RM80,45min), table(RM150,90min), chair(RM60,30min), bed_frame(RM250,150min) — all with `action`=build pricing |
-| **M39 Carpenter B** | CP-AUTO-B | `item`=door(RM120,60min), window(RM100,45min), flooring(RM300,180min), staircase(RM350,200min), deck(RM400,240min) — all with `action`=install/repair pricing |
+| **M12 Lim** (Precision) | PW-AUTO-A | `item`=cabinet(RM200,120min), shelf(RM80,45min), table(RM150,90min), chair(RM60,30min), bed_frame(RM250,150min) - all with `action`=build pricing |
+| **M39 Carpenter B** | CP-AUTO-B | `item`=door(RM120,60min), window(RM100,45min), flooring(RM300,180min), staircase(RM350,200min), deck(RM400,240min) - all with `action`=install/repair pricing |
 
 ✅ All 10 items covered. 2 listings.
 
@@ -158,7 +158,7 @@ Priced: `action` (4), `gate_type` (7)
 
 | Servicer | Listing | Modules |
 |----------|---------|---------|
-| **M15 Ah Chong** (AutoGate) | AG-AUTO | `gate_type`=sliding(RM200,120min), swing_single(RM150,90min), swing_double(RM250,120min), folding(RM300,150min) — all with `action`=install pricing |
+| **M15 Ah Chong** (AutoGate) | AG-AUTO | `gate_type`=sliding(RM200,120min), swing_single(RM150,90min), swing_double(RM250,120min), folding(RM300,150min) - all with `action`=install pricing |
 
 ✅ 4 core types × 1 action. Remaining types + actions handled by M40. 2 listings total.
 
@@ -177,13 +177,13 @@ Each has 1 priced question (appliance-type radio, 4-6 options) + 1 informational
 
 | Cat | Servicer | Modules |
 |-----|----------|---------|
-| Washing Machine | **M17** | 5 modules: type=top_load(RM60), front_load(RM70), washer_dryer(RM80), dryer(RM50), portable(RM40) — each 45-60min |
-| Refrigerator | **M18** | 4 modules: type=single_door(RM50), double_door(RM70), side_by_side(RM90), mini(RM40) — each 30-45min |
-| TV | **M19** | 5 modules: type=led(RM40), lcd(RM40), oled(RM60), smart(RM50), projector(RM80) — each 30-45min |
-| Oven | **M20** | 4 modules: type=built_in(RM80), countertop(RM50), microwave(RM40), gas_cooker(RM60) — each 45-60min |
-| Water Heater | **M21** | 4 modules: type=instant(RM60), storage(RM80), solar(RM120), heat_pump(RM150) — each 45-60min |
-| Ceiling Fan | **M22** | 4 modules: type=standard(RM50), remote(RM60), decorative(RM70), industrial(RM100) — each 30min |
-| Aircond Repair | **M23** | 5 modules: type=wall(RM60), cassette(RM80), portable(RM50), inverter(RM70), central(RM120) — each 45-60min |
+| Washing Machine | **M17** | 5 modules: type=top_load(RM60), front_load(RM70), washer_dryer(RM80), dryer(RM50), portable(RM40) - each 45-60min |
+| Refrigerator | **M18** | 4 modules: type=single_door(RM50), double_door(RM70), side_by_side(RM90), mini(RM40) - each 30-45min |
+| TV | **M19** | 5 modules: type=led(RM40), lcd(RM40), oled(RM60), smart(RM50), projector(RM80) - each 30-45min |
+| Oven | **M20** | 4 modules: type=built_in(RM80), countertop(RM50), microwave(RM40), gas_cooker(RM60) - each 45-60min |
+| Water Heater | **M21** | 4 modules: type=instant(RM60), storage(RM80), solar(RM120), heat_pump(RM150) - each 45-60min |
+| Ceiling Fan | **M22** | 4 modules: type=standard(RM50), remote(RM60), decorative(RM70), industrial(RM100) - each 30min |
+| Aircond Repair | **M23** | 5 modules: type=wall(RM60), cassette(RM80), portable(RM50), inverter(RM70), central(RM120) - each 45-60min |
 
 ✅ All 7 cats covered. 1 listing each.
 
@@ -209,7 +209,7 @@ Priced: `action` (5), `system_type` (6)
 
 | Servicer | Listing | Modules |
 |----------|---------|---------|
-| **M36 Ahmed** (SecureView) | SV-AUTO | `system_type`=alarm(RM200,120min), cctv_4ch(RM400,180min), cctv_8ch(RM600,240min), cctv_16ch(RM800,300min), door_access(RM300,120min), intercom(RM150,90min) — all with `action`=install pricing |
+| **M36 Ahmed** (SecureView) | SV-AUTO | `system_type`=alarm(RM200,120min), cctv_4ch(RM400,180min), cctv_8ch(RM600,240min), cctv_16ch(RM800,300min), door_access(RM300,120min), intercom(RM150,90min) - all with `action`=install pricing |
 
 ✅ 6 core types covered. 1 listing.
 

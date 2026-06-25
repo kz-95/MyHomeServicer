@@ -1,0 +1,14 @@
+{
+  // Type-checks the seed scripts, which the main tsconfig excludes and which run
+  // under ts-node --transpile-only (NO type checking). Without this, an undefined
+  // identifier like `accounts` (TS2304) ships silently and aborts the seed at
+  // runtime, leaving the DB partially seeded. `npm run typecheck:seed` gates seeding.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "noUnusedLocals": false
+  },
+  "include": ["prisma/seed/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

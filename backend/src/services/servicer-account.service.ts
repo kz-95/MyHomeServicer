@@ -1,4 +1,4 @@
-﻿import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { prisma } from '../lib/prisma';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors';
 import { recordTransaction } from './ledger.service';
@@ -75,7 +75,7 @@ export async function getEarningsToday(servicerId: string) {
       where: { servicerId, type: 'escrow_release', createdAt: { gte: start } },
       _sum: { amount: true },
     }),
-    // Cash jobs have no escrow_release — count separately
+    // Cash jobs have no escrow_release - count separately
     prisma.booking.findMany({
       where: { servicerId, status: 'completed', paymentMode: 'cash', cashConfirmed: true, cashConfirmedAt: { gte: start } },
       select: { id: true, price: true },
@@ -104,7 +104,7 @@ export async function getEarningsToday(servicerId: string) {
 /** Daily earnings breakdown over the last N days. */
 export async function getEarningsDaily(servicerId: string, days: number) {
   const since = new Date(Date.now() - days * 86_400_000);
-  // pay_later settled via credit creates escrow_release — counting it separately double-counts.
+  // pay_later settled via credit creates escrow_release - counting it separately double-counts.
   // Cash has no escrow_release; query bookings + actual recorded platform_fee for accurate net.
   const [txns, bookings, cashBookings, cashFees] = await Promise.all([
     prisma.transaction.findMany({
@@ -168,7 +168,7 @@ export async function getEarningsDaily(servicerId: string, days: number) {
 // ── Servicer promotions ──────────────────────────────────────────────────────
 
 export async function listServicerPromotions(_servicerId: string) {
-  // Servicer-owned promo codes removed — promotions are now platform-level engine rules
+  // Servicer-owned promo codes removed - promotions are now platform-level engine rules
   return [];
 }
 
@@ -228,7 +228,7 @@ export async function requestWithdrawal(
     throw badRequest(`Minimum withdrawal is RM ${minimum.amount ?? 50}`);
   }
 
-  // Reserve check — subtract in-flight (pending or approved) withdrawals so a
+  // Reserve check - subtract in-flight (pending or approved) withdrawals so a
   // servicer cannot submit multiple requests that together exceed their balance.
   // creditBalance is only decremented by markWithdrawalPaid, so we must account
   // for any amounts already earmarked here (BE-001 double-spend fix).
@@ -350,7 +350,7 @@ export async function exportEarningsPdf(
     y -= 20;
   } else {
     for (const b of bookings) {
-      const dateStr = b.doneAt ? b.doneAt.toISOString().slice(0, 10) : '—';
+      const dateStr = b.doneAt ? b.doneAt.toISOString().slice(0, 10) : '-';
       const invNum = b.invoice?.invoiceNumber ?? '(pending)';
       const amount = b.invoice ? Number(b.invoice.total) : Number(b.price);
       const shortId = b.id.slice(0, 8) + '…';
@@ -362,8 +362,8 @@ export async function exportEarningsPdf(
       y -= 18;
 
       if (y < 80) {
-        // Overflow guard — truncate with note rather than multi-page for V1.
-        text('(report truncated — too many rows)', { size: 9, color: light });
+        // Overflow guard - truncate with note rather than multi-page for V1.
+        text('(report truncated - too many rows)', { size: 9, color: light });
         break;
       }
     }
@@ -580,7 +580,7 @@ export async function listCategoryRequests(servicerId: string) {
 }
 
 /**
- * Records a deposit top-up request. V1 is a manual flow — a pending `deposit`
+ * Records a deposit top-up request. V1 is a manual flow - a pending `deposit`
  * TRANSACTION is created; an admin credits it after verifying the transfer
  * (schema-notes.md §Servicer deposit top-up).
  */

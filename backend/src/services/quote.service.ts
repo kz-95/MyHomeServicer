@@ -1,4 +1,4 @@
-﻿import { Servicer, ServicerService, Prisma, QuoteStatus, QuoteRequest } from '@prisma/client';
+import { Servicer, ServicerService, Prisma, QuoteStatus, QuoteRequest } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { badRequest, conflict, notFound } from '../lib/errors';
@@ -52,7 +52,7 @@ export interface CreateQuoteInput {
   images?: string[];
   /**
    * Rebook / direct-quote target. When set, the quote is NOT broadcast to all
-   * matching servicers — it goes only to this one servicer (locked rebook).
+   * matching servicers - it goes only to this one servicer (locked rebook).
    */
   targetServicerId?: string;
 }
@@ -111,7 +111,7 @@ export async function findMatchingServicers(
         });
       }
 
-      // No coordinate-based areas — substring matching against a free-text
+      // No coordinate-based areas - substring matching against a free-text
       // address. The servicer must have at least one service area that
       // matches the address text to be included.
       const haystack = addressText.toLowerCase();
@@ -120,7 +120,7 @@ export async function findMatchingServicers(
   }
 
   // Fallback: without lat/lng we cannot do reliable geographic matching.
-  // Substring matching against a free-text address is too brittle — the
+  // Substring matching against a free-text address is too brittle - the
   // address may not happen to contain the servicer's area name. Serve all
   // category-matched servicers so quotes are always visible.
   return servicers.map((m) => ({ servicer: m, services: m.services }));
@@ -129,7 +129,7 @@ export async function findMatchingServicers(
 /**
  * Resolves a single target servicer for a locked rebook / direct quote.
  * Unlike findMatchingServicers this ignores online status and service-area
- * matching — a rebook reaches the chosen servicer regardless (they can respond
+ * matching - a rebook reaches the chosen servicer regardless (they can respond
  * when next online). The servicer must still exist, not be banned, and offer
  * the quote's category. Returns [] (caller treats as "unavailable") otherwise.
  */
@@ -188,7 +188,7 @@ export async function resolvePromo(code: string | undefined, budgetMax?: number)
     }
 
     if (discountType === 'waiver') {
-      // Waiver: zero out the booking total (service estimate) — return the estimated budget
+      // Waiver: zero out the booking total (service estimate) - return the estimated budget
       return budgetMax ?? 0;
     }
 
@@ -214,7 +214,7 @@ export async function createQuote(
   const preferred = new Date(input.preferredDate);
   if (Number.isNaN(preferred.getTime())) throw badRequest('preferredDate must be a valid date');
   const jobAt = jobDatetime(preferred, input.timeSlot);
-  if (isPastJob(jobAt)) throw badRequest('Cannot request a job in the past — pick a current or future time.');
+  if (isPastJob(jobAt)) throw badRequest('Cannot request a job in the past - pick a current or future time.');
 
   // Servicers must respond before the job starts (buffer-trimmed); proposal
   // deadline == job start. Reuse the existing 15-min buffer constant.
@@ -261,7 +261,7 @@ export async function createQuote(
   // regardless of payment mode or due date (BE-1).
   await requireNoUnpaidInvoice(userId);
 
-  // Budget must be one of the admin-configured ranges — category-aware.
+  // Budget must be one of the admin-configured ranges - category-aware.
   if (input.budgetMin !== undefined && input.budgetMin !== null) {
     const cfg = await getSetting<{ ranges: { min: number; max: number | null }[] | Record<string, { min: number; max: number | null }[]> }>(
       'budget_ranges',
@@ -288,11 +288,11 @@ export async function createQuote(
 
   // Pay-now: deduct budgetMax (or budgetMin if open-ended) + tip from customer
   // credit up-front and hold it until a proposal is selected or the quote
-  // is cancelled/expired. Only applies when a bounded budget max is given —
+  // is cancelled/expired. Only applies when a bounded budget max is given -
   // open-ended ranges (budgetMax = null) are held at proposal selection time.
-  // Gateway (Stripe card) payments do NOT need a credit hold — the customer
+  // Gateway (Stripe card) payments do NOT need a credit hold - the customer
   // pays via card, not from their wallet balance.
-  // Hold amount is the canonical computeHoldAmount() — the SAME function that
+  // Hold amount is the canonical computeHoldAmount() - the SAME function that
   // GET /quotes/estimate uses to compute the holdAmount shown on the Bill step,
   // so the amount held here can never drift from the figure the customer saw
   // (BUG-4). Gateway (Stripe card) payments are paid via card, not the wallet,
@@ -358,7 +358,7 @@ export async function createQuote(
   // ── PAYMENT GATE (must pass BEFORE any broadcast / dispatch / notify) ────────
   // Deduct the pay-now credit hold up-front. If this throws, the quote row
   // exists but NO broadcast rows, socket events, servicer notifications, or
-  // dispatch rotation have been created — nothing reaches a servicer until the
+  // dispatch rotation have been created - nothing reaches a servicer until the
   // money is held (BE: payment gate before broadcast). pay_later / cash were
   // already gated by requireNoUnpaidInvoice() above. Guest pay_now (gateway)
   // funds an empty wallet via Stripe, so its hold + broadcast are deferred to
@@ -377,7 +377,7 @@ export async function createQuote(
   // NOT broadcast. The Stripe webhook settles payment, takes the hold, flips the
   // quote to open, and broadcasts it.
   if (defer) {
-    logger.info('Quote created pending payment — broadcast deferred to Stripe webhook', {
+    logger.info('Quote created pending payment - broadcast deferred to Stripe webhook', {
       quoteId: quote.id,
     });
     return {
@@ -391,7 +391,7 @@ export async function createQuote(
     };
   }
 
-  // Gate passed — broadcast the quote (match → broadcast rows → socket → notify
+  // Gate passed - broadcast the quote (match → broadcast rows → socket → notify
   // → auto-accept → dispatch rotation → background jobs). A targetServicerId
   // (locked rebook) sends to that one servicer only, never broadcasts.
   const { servicersNotified } = await broadcastQuote(quote.id, {
@@ -438,7 +438,7 @@ export async function broadcastQuote(
   if (!quote.address) throw badRequest('Quote has no address to broadcast against');
   if (!quote.servicerDeadline) throw badRequest('Quote has no servicer deadline');
 
-  // Idempotency — never double-broadcast (e.g. webhook redelivery).
+  // Idempotency - never double-broadcast (e.g. webhook redelivery).
   const alreadyBroadcast = await prisma.quoteBroadcast.count({ where: { quoteRequestId: quoteId } });
   if (alreadyBroadcast > 0) {
     return { servicersNotified: alreadyBroadcast };
@@ -456,7 +456,7 @@ export async function broadcastQuote(
   let matches = await findMatchingServicers(quote.categoryId, fullAddressText || address.address, address.lat, address.lng);
 
   // BE-044: a servicer must not be broadcast a quote created by their own
-  // paired customer account ("customer mode" — it is the same person). Drop
+  // paired customer account ("customer mode" - it is the same person). Drop
   // that servicer from the match set so the self-quote never reaches their
   // QuoteBroadcast row, the quote.new socket event, the in-app notification,
   // or auto-accept proposal submission.
@@ -485,7 +485,7 @@ async function dispatchMatches(
 ): Promise<{ servicersNotified: number }> {
   if (!quote.servicerDeadline) throw badRequest('Quote has no servicer deadline');
 
-  // Broadcast rows + sanitised socket event (no customer PII — security-notes §5).
+  // Broadcast rows + sanitised socket event (no customer PII - security-notes §5).
   if (matches.length > 0) {
     await prisma.quoteBroadcast.createMany({
       data: matches.map((m) => ({ quoteRequestId: quote.id, servicerId: m.servicer.id })),
@@ -506,7 +506,7 @@ async function dispatchMatches(
         generalArea: deriveGeneralArea(address.address),
       },
     );
-    // In-app notification per matched servicer (respects their settings —
+    // In-app notification per matched servicer (respects their settings -
     // category-tagged so the "followed categories" filter applies).
     for (const m of matches) {
       await notify({
@@ -622,7 +622,7 @@ async function dispatchMatches(
     }
   }
 
-  // Auto-proposals never told the customer — notify once so a proposal that
+  // Auto-proposals never told the customer - notify once so a proposal that
   // arrives instantly (saved-rule auto-accept) still surfaces a notification +
   // refreshes the open proposals list, same as a manual proposal.
   if (autoCount > 0) {
@@ -672,7 +672,7 @@ async function dispatchMatches(
 }
 
 /**
- * Guest pay_now (gateway) settlement — called by the Stripe webhook once the
+ * Guest pay_now (gateway) settlement - called by the Stripe webhook once the
  * guest has funded their wallet via checkout.session.completed. Takes the budget
  * hold (escrow), broadcasts the quote, then flips it pending_payment → open.
  * This is the broadcast half of "payment gate before broadcast" for the guest
@@ -685,7 +685,7 @@ export async function settleAndBroadcastGuestQuote(quoteId: string): Promise<voi
   const quote = await prisma.quoteRequest.findUnique({ where: { id: quoteId } });
   if (!quote) throw notFound('Quote not found');
   if (quote.status !== 'pending_payment') {
-    logger.info('Guest quote already settled — skipping broadcast', { quoteId, status: quote.status });
+    logger.info('Guest quote already settled - skipping broadcast', { quoteId, status: quote.status });
     return;
   }
 
@@ -718,7 +718,7 @@ function deriveGeneralArea(address: string): string {
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 /**
- * Demo utility — generates one realistic open quote request from a random
+ * Demo utility - generates one realistic open quote request from a random
  * demo customer, so a presenter can make the servicer incoming-quotes feed
  * light up on demand. Runs the real createQuote path (broadcast + jobs).
  * Development only.
@@ -731,7 +731,7 @@ export async function seedDemoQuote() {
     include: { addresses: true },
   });
   if (customers.length === 0) {
-    throw badRequest('No demo customer with a saved address — reseed first');
+    throw badRequest('No demo customer with a saved address - reseed first');
   }
   const customer = pick(customers);
   const address = customer.addresses.find((a) => a.isDefault) ?? customer.addresses[0];
@@ -739,7 +739,7 @@ export async function seedDemoQuote() {
   const categories = await prisma.category.findMany({
     where: { deletedAt: null, parentCategoryId: null },
   });
-  if (categories.length === 0) throw badRequest('No categories — reseed first');
+  if (categories.length === 0) throw badRequest('No categories - reseed first');
   const category = pick(categories);
 
   const cfg = await getSetting<{ ranges: { min: number; max: number | null }[] | Record<string, { min: number; max: number | null }[]> }>(
@@ -772,7 +772,7 @@ export async function seedDemoQuote() {
 }
 
 /**
- * Demo helper — generates one servicer proposal for an open quote request so
+ * Demo helper - generates one servicer proposal for an open quote request so
  * the customer's proposals feed can be shown filling up live. Picks the most
  * recent open quote still accepting proposals (the caller's own quote when the
  * caller is a customer) and a servicer the quote was broadcast to that has not
@@ -809,7 +809,7 @@ export async function seedDemoProposal(opts?: {
 
     await submitProposal(candidate.servicerId, quote.id, {
       proposedPrice: price,
-      message: `Demo proposal from ${candidate.servicer.businessName} — happy to take on your ${quote.category.name.toLowerCase()} job.`,
+      message: `Demo proposal from ${candidate.servicer.businessName} - happy to take on your ${quote.category.name.toLowerCase()} job.`,
       etaMinutes: pick([45, 60, 90, 120]),
     });
 
@@ -823,8 +823,8 @@ export async function seedDemoProposal(opts?: {
 
   throw badRequest(
     opts?.ownQuotesOnly
-      ? 'None of your open quotes are awaiting proposals — create a quote first'
-      : 'No open quote is awaiting proposals — create a demo quote first',
+      ? 'None of your open quotes are awaiting proposals - create a quote first'
+      : 'No open quote is awaiting proposals - create a demo quote first',
   );
 }
 
@@ -861,7 +861,7 @@ export async function getQuote(userId: string, quoteId: string) {
   return quote;
 }
 
-/** Bundled proposals for a quote — only visible to the owning customer. */
+/** Bundled proposals for a quote - only visible to the owning customer. */
 export async function getQuoteProposals(userId: string, quoteId: string) {
   const quote = await prisma.quoteRequest.findFirst({
     where: { id: quoteId, userId },
@@ -916,7 +916,7 @@ export async function cancelQuote(userId: string, quoteId: string, reason?: stri
       type: 'refund',
       amount: refundAmount,
       userId,
-      reference: `Refund — quote ${quoteId} cancelled by customer`,
+      reference: `Refund - quote ${quoteId} cancelled by customer`,
     });
   }
 
@@ -1036,7 +1036,7 @@ export async function repostQuote(userId: string, quoteId: string) {
   return result;
 }
 
-/** Guest quote — creates a guest user + address, then submits the quote via the normal flow. */
+/** Guest quote - creates a guest user + address, then submits the quote via the normal flow. */
 export async function createGuestQuote(input: {
   categoryId: string;
   contactName: string;
@@ -1105,7 +1105,7 @@ export async function createGuestQuote(input: {
     serviceDetails: input.serviceDetails,
   }, {
     skipCreditCheck: true,
-    // Guest pay_now funds an empty wallet via Stripe — hold the broadcast until
+    // Guest pay_now funds an empty wallet via Stripe - hold the broadcast until
     // the checkout.session.completed webhook settles payment (payment gate
     // before broadcast). pay_later / cash guests broadcast immediately.
     deferBroadcastUntilPayment: input.paymentMode === 'pay_now',

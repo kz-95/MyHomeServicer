@@ -351,7 +351,7 @@ export class ChildrenBrowseComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Land at the top so the service cards are visible immediately — without this, a
+    // Land at the top so the service cards are visible immediately - without this, a
     // navigation from a scrolled page keeps the old scroll offset and the cards start
     // off-screen below the fold.
     window.scrollTo({ top: 0, left: 0 });

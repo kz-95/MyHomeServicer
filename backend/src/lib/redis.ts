@@ -16,7 +16,7 @@ redis.on('connect', () => logger.info('Redis connected'));
 redis.on('error', (err) => logger.error('Redis error', { error: err.message }));
 
 /** Separate duplicated connections for the Socket.io pub/sub adapter.
- *  `redis.duplicate()` returns a fresh client — event listeners do NOT inherit,
+ *  `redis.duplicate()` returns a fresh client - event listeners do NOT inherit,
  *  so each duplicate needs its own `error` handler or ioredis warns and an
  *  unhandled error event would crash the process. */
 export function createRedisAdapterPair(): { pubClient: IORedis; subClient: IORedis } {

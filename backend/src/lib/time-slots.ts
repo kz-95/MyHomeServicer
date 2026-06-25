@@ -1,5 +1,5 @@
 /**
- * Canonical service time-slot values — the single source of truth for the
+ * Canonical service time-slot values - the single source of truth for the
  * backend. Must stay in lock-step with the frontend list in
  * `frontend/src/app/shared/constants/time-slots.ts`.
  *

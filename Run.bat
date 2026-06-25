@@ -201,6 +201,16 @@ if exist "node_modules\.prisma\client" (
     rmdir /s /q "node_modules\.prisma\client" 2>nul
 )
 
+REM --- Guard: fail fast if any tracked JSON/TS has a UTF-8 BOM (crashes Node JSON.parse) ---
+echo [CHECK] Scanning tracked json/ts files for UTF-8 BOM...
+call node "%~dp0scripts\check-no-bom.mjs"
+if errorlevel 1 (
+    echo.
+    echo [ERROR] A tracked file has a UTF-8 BOM and will crash the backend. Strip it (see message above) then re-run.
+    pause
+    exit /b 1
+)
+
 REM --- Apply database schema + seed ---
 echo.
 echo ============================================

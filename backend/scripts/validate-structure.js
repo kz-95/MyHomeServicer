@@ -1,6 +1,6 @@
-/* eslint-disable */
+﻿/* eslint-disable */
 /**
- * Structural validator. Runs without installed dependencies — useful in
+ * Structural validator. Runs without installed dependencies - useful in
  * environments where the npm registry is unavailable. Checks:
  *  1. Prisma schema: brace balance, every field type resolves to a known
  *     scalar / model / enum, every @relation `fields:` references a real

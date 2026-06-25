@@ -119,7 +119,7 @@ export async function deleteContact(servicerId: string, contactId: string) {
 
   const count = await prisma.servicerContact.count({ where: { servicerId } });
   if (count <= 1) {
-    throw badRequest('Cannot delete the only contact — at least one contact is required');
+    throw badRequest('Cannot delete the only contact - at least one contact is required');
   }
 
   if (contact.isPrimary) {

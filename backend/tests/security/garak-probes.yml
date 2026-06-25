@@ -1,4 +1,4 @@
-# Garak probe config for MyServicer chat endpoint
+﻿# Garak probe config for MyServicer chat endpoint
 # Only probes relevant to a customer-facing service chatbot.
 # Full list: garak --list_probes
 
@@ -7,7 +7,7 @@ plugins:
   model_name: MyServicer Chat API
   report_prefix: myservicer_security
 
-  # REST generator — bridges Garak → your actual chat endpoint
+  # REST generator - bridges Garak → your actual chat endpoint
   rest:
     RestGenerator:
       uri: http://localhost:3000/api/v1/chat
@@ -20,12 +20,12 @@ plugins:
       timeout: 15
 
   probes:
-    # Prompt leaking — tries to extract system instructions
+    # Prompt leaking - tries to extract system instructions
     - leakreplay.True
     - lmrc.Anthropomorphisation
     - encoding.InjectBase64
 
-    # Jailbreaks — tries to override rules
+    # Jailbreaks - tries to override rules
     - dan.Ablation_Dan_11_0
     - dan.ChatGPT_Developer_Mode_v2
     - dan.STAN

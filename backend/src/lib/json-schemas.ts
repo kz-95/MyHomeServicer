@@ -20,12 +20,12 @@ export const autoAcceptConditionsSchema = z.object({
 });
 export type AutoAcceptConditions = z.infer<typeof autoAcceptConditionsSchema>;
 
-/** SERVICER_SERVICE.field_requirements — address/time/date/contact are locked. */
+/** SERVICER_SERVICE.field_requirements - address/time/date/contact are locked. */
 export const fieldRequirementsSchema = z.record(z.string(), fieldRule);
 export type FieldRequirements = z.infer<typeof fieldRequirementsSchema>;
 
 /**
- * SERVICER_SERVICE.modifiers — option-price map (Phase 6 shape, extended with durationMin).
+ * SERVICER_SERVICE.modifiers - option-price map (Phase 6 shape, extended with durationMin).
  *
  * Shape: Record<questionKey, Record<optionValue, { price: number|null, durationMin?: number, notOffered: boolean }>>
  *
@@ -53,13 +53,13 @@ export type OptionPriceEntry = z.infer<typeof optionPriceEntrySchema>;
 export type OptionPriceMap = z.infer<typeof optionPriceMapSchema>;
 
 /**
- * @deprecated Use optionPriceMapSchema — retained only to avoid breaking
+ * @deprecated Use optionPriceMapSchema - retained only to avoid breaking
  * any existing callers while the migration is in progress.
  */
 export const serviceModifiersSchema = optionPriceMapSchema;
 export type ServiceModifiers = OptionPriceMap;
 
-/** QuoteProposal line item — per money-listing-epic-spec.md §2.4 */
+/** QuoteProposal line item - per money-listing-epic-spec.md §2.4 */
 export const lineItemSchema = z.object({
   label: z.string().min(1).max(200),
   amount: z.number().nonnegative(),
@@ -71,7 +71,7 @@ export type LineItem = z.infer<typeof lineItemSchema>;
 export const lineItemsSchema = z.array(lineItemSchema);
 
 /**
- * Module reference — used both by a listing (ServicerService.moduleRefs) and by
+ * Module reference - used both by a listing (ServicerService.moduleRefs) and by
  * a QuoteProposal. `kind` distinguishes always-included modules from tickable
  * add-ons (SP-3 §8); `durationDeltaMin` is the module's contribution to the
  * estimated job time (SP-3 §9). Both default so pre-SP-3 refs parse unchanged.
@@ -86,7 +86,7 @@ export type ModuleRef = z.infer<typeof moduleRefSchema>;
 
 export const moduleRefsSchema = z.array(moduleRefSchema);
 
-/** PLATFORM_SETTINGS.value — one schema per known key. */
+/** PLATFORM_SETTINGS.value - one schema per known key. */
 export const platformFeeRateSchema = z.object({
   current_rate: z.number().min(0).max(1),
   scheduled_changes: z
@@ -101,7 +101,7 @@ export const platformFeeRateSchema = z.object({
     .default([]),
 });
 
-/** PLATFORM_SETTINGS.budget_ranges — admin-defined budget brackets a customer
+/** PLATFORM_SETTINGS.budget_ranges - admin-defined budget brackets a customer
  *  picks from on the quote form (they cannot type an arbitrary min/max).
  *
  *  Supports both:
@@ -178,7 +178,7 @@ export const settingsSchemas: Record<string, z.ZodTypeAny> = {
 
 /**
  * Validate a JSONB value against its registered schema. Throws a ZodError on
- * failure — callers convert it into a VALIDATION_ERROR response.
+ * failure - callers convert it into a VALIDATION_ERROR response.
  */
 export function validateSettingValue(key: string, value: unknown): unknown {
   const schema = settingsSchemas[key];
@@ -198,7 +198,7 @@ export const RESERVED_QUESTION_KEYS = ['property_type'] as const;
  * Per-language label translations. `en` mirrors the canonical label and is set by the
  * auto-translator so a later save can tell whether the source text changed (and the
  * other languages need refreshing). ms/zh/ta are filled on save; any value an admin
- * supplies is preserved (manual override). All optional — absent = fall back to the
+ * supplies is preserved (manual override). All optional - absent = fall back to the
  * canonical `label`.
  */
 export const localizedSchema = z
@@ -239,11 +239,11 @@ export const questionItemSchema = z.object({
   labelI18n: localizedSchema.optional(),
   /**
    * Input types:
-   *  - checkbox  — multi-select from a fixed option list (answer: string[])
-   *  - radio     — single-select from a fixed option list (answer: string)
-   *  - text      — free-text field (answer: string)
-   *  - quantity  — per-option count stepper (answer: Record<optionValue, number>)
-   *  - number    — single numeric input, informational (answer: number)
+   *  - checkbox  - multi-select from a fixed option list (answer: string[])
+   *  - radio     - single-select from a fixed option list (answer: string)
+   *  - text      - free-text field (answer: string)
+   *  - quantity  - per-option count stepper (answer: Record<optionValue, number>)
+   *  - number    - single numeric input, informational (answer: number)
    */
   type: z.enum(['checkbox', 'radio', 'text', 'quantity', 'number']),
   required: z.boolean().optional(),
@@ -282,12 +282,12 @@ export function checkQuestionSchemaImmutability(
   for (const existingQ of existing) {
     const incomingQ = incoming.find((q) => q.key === existingQ.key);
     if (!incomingQ) {
-      return `Question key "${existingQ.key}" cannot be removed — set active: false to deactivate it.`;
+      return `Question key "${existingQ.key}" cannot be removed - set active: false to deactivate it.`;
     }
     for (const existingOpt of existingQ.options ?? []) {
       const found = (incomingQ.options ?? []).find((o) => o.value === existingOpt.value);
       if (!found) {
-        return `Option value "${existingOpt.value}" in question "${existingQ.key}" cannot be removed — set active: false to deactivate it.`;
+        return `Option value "${existingOpt.value}" in question "${existingQ.key}" cannot be removed - set active: false to deactivate it.`;
       }
     }
   }

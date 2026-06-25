@@ -1,5 +1,5 @@
 /**
- * Unit tests — SP-3 listing pricing (§8), duration scaling (§9), and the
+ * Unit tests - SP-3 listing pricing (§8), duration scaling (§9), and the
  * auto-accept 4-gate engine (§11). All pure functions, no DB / no LLM.
  */
 import {

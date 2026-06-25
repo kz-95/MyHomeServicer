@@ -1,5 +1,5 @@
 /**
- * Fintech unit tests — P1-P4 wallet, fee engine, saved payments, disputes.
+ * Fintech unit tests - P1-P4 wallet, fee engine, saved payments, disputes.
  *
  * All Prisma calls are mocked so these tests run without a database.
  */
@@ -78,9 +78,9 @@ function dec(n: number) {
   return { toNumber: () => n, valueOf: () => n, toString: () => String(n), toFixed: (d: number) => n.toFixed(d) } as any;
 }
 
-// ── P1 — Wallet ──────────────────────────────────────────────────────────────
+// ── P1 - Wallet ──────────────────────────────────────────────────────────────
 
-describe('P1 — Wallet service', () => {
+describe('P1 - Wallet service', () => {
   const walletFixture = {
     id: 'wallet-1',
     balance: dec(0),
@@ -136,9 +136,9 @@ describe('P1 — Wallet service', () => {
   });
 });
 
-// ── P2 — Fee Engine ──────────────────────────────────────────────────────────
+// ── P2 - Fee Engine ──────────────────────────────────────────────────────────
 
-describe('P2 — Fee Engine', () => {
+describe('P2 - Fee Engine', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -191,9 +191,9 @@ describe('P2 — Fee Engine', () => {
   });
 });
 
-// ── P3 — Saved Payment Methods ───────────────────────────────────────────────
+// ── P3 - Saved Payment Methods ───────────────────────────────────────────────
 
-describe('P3 — Saved Payment Methods', () => {
+describe('P3 - Saved Payment Methods', () => {
   const userId = 'u-pm';
   const pmFixture = {
     id: 'pm-1',
@@ -258,9 +258,9 @@ describe('P3 — Saved Payment Methods', () => {
   });
 });
 
-// ── P4 — Disputes ────────────────────────────────────────────────────────────
+// ── P4 - Disputes ────────────────────────────────────────────────────────────
 
-describe('P4 — Disputes', () => {
+describe('P4 - Disputes', () => {
   const disputeFixture = {
     id: 'd-1',
     bookingId: 'b-1',

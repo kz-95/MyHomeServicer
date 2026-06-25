@@ -1,4 +1,4 @@
-# Servicer Calendar System — F-B
+﻿# Servicer Calendar System - F-B
 
 > 2026-05-28 · Brainstorming session · Ready for execution
 
@@ -8,7 +8,7 @@ A new Calendar tab in the servicer portal (`/servicer/calendar`) showing a visua
 
 ## Current state
 
-### Data model — already exists
+### Data model - already exists
 
 | Model | Fields | Status |
 |-------|--------|--------|
@@ -79,11 +79,11 @@ PUT    /servicer/schedule          → bulk update: [{ weekday, timeSlot, isAvai
 
 **File:** `backend/src/routes/servicer.routes.ts`
 
-`PUT /servicer/schedule` replaces all schedule rows for this servicer (delete old, insert new, single transaction). Accepts up to 35 entries (7 days × 5 slots — but current TimeSlot enum has 4, so 28 max).
+`PUT /servicer/schedule` replaces all schedule rows for this servicer (delete old, insert new, single transaction). Accepts up to 35 entries (7 days × 5 slots - but current TimeSlot enum has 4, so 28 max).
 
 **No new models, no schema changes.** The `ServicerSchedule` model already exists at `schema.prisma:527-538`.
 
-### 2. Frontend — Calendar page
+### 2. Frontend - Calendar page
 
 **New file:** `frontend/src/app/servicer/pages/calendar.component.ts`
 
@@ -109,7 +109,7 @@ PUT    /servicer/schedule          → bulk update: [{ weekday, timeSlot, isAvai
 │  └───────┴───────┴───────┴───────┴───────┴───────┘ │
 │                                                │
 │  ┌────────────────────────────────────┐         │
-│  │  June 3 — Job #123                 │         │
+│  │  June 3 - Job #123                 │         │
 │  │  Plumber: Ahmad's Kitchen Sink     │         │
 │  │  Morning (9am–12pm) · RM 150       │         │
 │  │  Confirmed · [View] [Reschedule]   │         │
@@ -119,7 +119,7 @@ PUT    /servicer/schedule          → bulk update: [{ weekday, timeSlot, isAvai
 
 #### Components
 
-**Calendar grid:** Pure CSS grid — 6 columns (Mon–Sat), no calendar library needed for MVP. Sunday shown optionally.
+**Calendar grid:** Pure CSS grid - 6 columns (Mon–Sat), no calendar library needed for MVP. Sunday shown optionally.
 
 **Day cell:** Small card showing:
 - Day number with today highlight
@@ -127,7 +127,7 @@ PUT    /servicer/schedule          → bulk update: [{ weekday, timeSlot, isAvai
 - Dot color by status (confirmed=blue, in_progress=green)
 - Click → show day detail sidebar
 
-**Month navigation:** ← June 2026 → — prev/next buttons at top.
+**Month navigation:** ← June 2026 → - prev/next buttons at top.
 
 **Day detail panel:** Below or to the side (responsive: below on mobile). Shows all bookings for the selected day with full details.
 
@@ -237,12 +237,12 @@ export class CalendarComponent implements OnInit {
 
 ### 3. Working hours management
 
-**Location:** Servicer account page (`servicer/pages/account.component.ts`) — add a "Working Hours" section.
+**Location:** Servicer account page (`servicer/pages/account.component.ts`) - add a "Working Hours" section.
 
 **UI:** A 7×(N) grid of toggle buttons:
 - Rows: Mon, Tue, Wed, Thu, Fri, Sat, Sun
 - Columns: Morning, Lunch, Evening, Night
-- Each cell: toggle button — green/on = available, gray/off = unavailable
+- Each cell: toggle button - green/on = available, gray/off = unavailable
 - [Save] button → `PUT /servicer/schedule` with all 28 cells
 
 ```html
@@ -273,17 +273,17 @@ export class CalendarComponent implements OnInit {
 
 ### 4. Route registration
 
-**File:** `backend/src/routes/servicer.routes.ts` — add:
+**File:** `backend/src/routes/servicer.routes.ts` - add:
 - `GET /servicer/calendar`
 - `GET /servicer/schedule`
 - `PUT /servicer/schedule`
 
-**File:** `frontend/src/app/servicer/servicer.routes.ts` — add:
+**File:** `frontend/src/app/servicer/servicer.routes.ts` - add:
 ```typescript
 { path: 'calendar', loadComponent: () => import('./pages/calendar.component').then(m => m.CalendarComponent) },
 ```
 
-**File:** `frontend/src/app/servicer/servicer-shell.component.ts` — add nav item:
+**File:** `frontend/src/app/servicer/servicer-shell.component.ts` - add nav item:
 ```typescript
 { label: 'Calendar', path: '/servicer/calendar', icon: 'calendar' },
 ```
@@ -340,7 +340,7 @@ for (const servicer of allServicers) {
 
 ## Cross-reference: dispatch overlay
 
-When a servicer clicks a booking on the calendar, open the **dispatch overlay** (see `2026-05-28-dispatch-overlay.md`) with that booking's job ID. The overlay provides the full customer info, instructions, map, and actions — no need to navigate away from the calendar.
+When a servicer clicks a booking on the calendar, open the **dispatch overlay** (see `2026-05-28-dispatch-overlay.md`) with that booking's job ID. The overlay provides the full customer info, instructions, map, and actions - no need to navigate away from the calendar.
 
 ```typescript
 selectDay(day: DayData): void {
@@ -353,10 +353,10 @@ selectDay(day: DayData): void {
 
 ## Future enhancements (MVP+)
 
-1. **Week/day view** — toggle between month/week/day granularity
-2. **Drag-and-drop** — move bookings between time slots
-3. **Block-out days** — mark specific dates as unavailable (not just weekday templates)
-4. **Notification** — 24h-before-job reminder
-5. **Buffer time** — configurable gap between appointments
-6. **Holiday calendar** — Malaysian public holidays overlay
-7. **Integration with proposal form** — servicer sees calendar availability when proposing
+1. **Week/day view** - toggle between month/week/day granularity
+2. **Drag-and-drop** - move bookings between time slots
+3. **Block-out days** - mark specific dates as unavailable (not just weekday templates)
+4. **Notification** - 24h-before-job reminder
+5. **Buffer time** - configurable gap between appointments
+6. **Holiday calendar** - Malaysian public holidays overlay
+7. **Integration with proposal form** - servicer sees calendar availability when proposing

@@ -1,4 +1,4 @@
-# Quote Form — Preset Picker Integration — F-C (remaining work)
+﻿# Quote Form - Preset Picker Integration - F-C (remaining work)
 
 > 2026-05-28 · Brainstorming session · Ready for execution
 
@@ -6,26 +6,26 @@
 
 Complete the quote-form preset integration. The backend CRUD infrastructure and account-page preset management already exist. The quote form already has a preset picker dropdown that auto-fills contact fields. The remaining piece is a **"Save as preset" button** inside the quote form so customers can create a preset from their current Contact step values without leaving the quote flow.
 
-## Current state — what already works
+## Current state - what already works
 
 ### Backend (✅ Complete)
 - `QuotePreset` model with fields: `id`, `userId`, `label`, `contactName`, `contactNumber`, `addressId`, `instruction`, `preferredTimeSlot`, `isDefault`
 - CRUD endpoints: `GET/POST /user/me/quote-presets`, `PATCH/DELETE /user/me/quote-presets/:id`
 - All routes Zod-validated
 
-### Account page UI (`account.component.ts`) — ✅ Complete
+### Account page UI (`account.component.ts`) - ✅ Complete
 - "Contact & Address Settings" section with saved presets list
 - Add/Edit/Delete preset modals
 - 10-entry limit enforced
 - Default-preset tagging
 
-### Quote form picker (`quote-form.component.ts`) — ✅ Complete
+### Quote form picker (`quote-form.component.ts`) - ✅ Complete
 - `presets` signal loaded from `GET /user/me/quote-presets` on init (line 713)
 - Dropdown at top of Contact step: "Use a saved quote preset" (lines 177-185)
-- `applyPresetObject()` fills: `contactName`, `contactNumber`, `addressId`, `notes` (from `instruction`), `timeSlot` (from `preferredTimeSlot`) — lines 1006-1012
-- Clear "— Enter details manually —" default option
+- `applyPresetObject()` fills: `contactName`, `contactNumber`, `addressId`, `notes` (from `instruction`), `timeSlot` (from `preferredTimeSlot`) - lines 1006-1012
+- Clear "- Enter details manually -" default option
 
-### Guest quote form (`guest-quote.component.ts`) — ✅ No change needed
+### Guest quote form (`guest-quote.component.ts`) - ✅ No change needed
 - Guests have no account, so presets are irrelevant for them
 - Guest→logged-in conversion already handled
 
@@ -60,7 +60,7 @@ saveAsPreset(): void {
     return;
   }
   this.savingPreset.set(true);
-  const label = `${this.f.contactName} — ${this.categoryName() || 'service'}`;
+  const label = `${this.f.contactName} - ${this.categoryName() || 'service'}`;
   this.api.post('/user/me/quote-presets', {
     label,
     contactName: this.f.contactName,
@@ -85,18 +85,18 @@ saveAsPreset(): void {
 }
 ```
 
-**UI placement:** Between the "extra details" textarea and the `stepError()` + actions row. Same visual style as the "+ New address" button — ghost button with `small-btn` class.
+**UI placement:** Between the "extra details" textarea and the `stepError()` + actions row. Same visual style as the "+ New address" button - ghost button with `small-btn` class.
 
 **Constraints:**
 - Button disabled if `contactName` or `contactNumber` is empty (required fields)
 - 10-preset limit enforced client-side before POST (server also enforces)
 - After save: reload presets list, show success toast, preset appears in dropdown immediately
-- Does NOT navigate away from the quote form — user stays on Contact step
-- Does NOT change the preset dropdown selection (stays on "— Enter details manually —")
+- Does NOT navigate away from the quote form - user stays on Contact step
+- Does NOT change the preset dropdown selection (stays on "- Enter details manually -")
 
 ### ToastService import
 
-The `ToastService` needs to be injected in `QuoteFormComponent`. Check if it already exists — if not:
+The `ToastService` needs to be injected in `QuoteFormComponent`. Check if it already exists - if not:
 
 ```typescript
 private toast = inject(ToastService);

@@ -5,7 +5,7 @@ import { isProd } from '../config/env';
 /**
  * Per-endpoint rate limiters. In production the limits mirror security-notes.md
  * §6 and the api-doc.md rate-limit table exactly. In development they are
- * skipped — repeated logins while testing/demoing would otherwise trip the
+ * skipped - repeated logins while testing/demoing would otherwise trip the
  * 10-per-15-min auth limit and return 429s.
  */
 function makeLimiter(opts: Partial<Options>, keyByUser = false) {
@@ -28,7 +28,7 @@ function makeLimiter(opts: Partial<Options>, keyByUser = false) {
   });
 }
 
-/** 100 requests / min / IP — applied globally as the default. */
+/** 100 requests / min / IP - applied globally as the default. */
 export const globalLimiter = makeLimiter({ windowMs: 60_000, limit: 100 });
 
 /** 10 / 15min / IP. */
@@ -49,8 +49,8 @@ export const quoteLimiter = makeLimiter({ windowMs: 60 * 60_000, limit: 20 }, tr
 /** 10 proposals / hour / servicer. */
 export const proposalLimiter = makeLimiter({ windowMs: 60 * 60_000, limit: 10 }, true);
 
-/** 20 / 10min / user — AI chat short-window cap. */
+/** 20 / 10min / user - AI chat short-window cap. */
 export const chatLimiter = makeLimiter({ windowMs: 10 * 60_000, limit: 20 }, true);
 
-/** 100 / day / user — AI chat daily cap. */
+/** 100 / day / user - AI chat daily cap. */
 export const chatDailyLimiter = makeLimiter({ windowMs: 24 * 60 * 60_000, limit: 100 }, true);

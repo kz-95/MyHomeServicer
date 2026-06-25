@@ -1,4 +1,4 @@
-# API documentation
+﻿# API documentation
 
 > REST API for the My Home Servicer platform. All requests use JSON. All responses use JSON. Versioned under `/api/v1`. All timestamps ISO 8601 UTC.
 
@@ -15,7 +15,7 @@ JWT in `Authorization: Bearer <access_token>` header.
 
 | Role required | Header |
 |---|---|
-| Public (no auth) | — |
+| Public (no auth) | - |
 | `auth` (any logged-in user) | Bearer access token |
 | `servicer` (logged in as servicer) | Bearer access token + role=servicer |
 | `admin` (logged in as admin) | Bearer access token + role=admin |
@@ -150,8 +150,8 @@ at registration.
 **Response 201:** Same envelope as `/auth/register`, with `role: "servicer"`.
 
 **Errors:**
-- 409 `CONFLICT` — an account with that email already exists
-- 400 `BAD_REQUEST` — `categoryId` is not a valid top-level platform category
+- 409 `CONFLICT` - an account with that email already exists
+- 400 `BAD_REQUEST` - `categoryId` is not a valid top-level platform category
 
 ### `POST /auth/login`
 **Request:**
@@ -162,8 +162,8 @@ at registration.
 **Response 200:** Same shape as register.
 
 **Errors:**
-- 401 `UNAUTHORIZED` — wrong credentials
-- 403 `ACCOUNT_LOCKED` — too many failed attempts (15 min lockout)
+- 401 `UNAUTHORIZED` - wrong credentials
+- 403 `ACCOUNT_LOCKED` - too many failed attempts (15 min lockout)
 
 ### `POST /auth/logout`
 **Auth:** Bearer token
@@ -182,20 +182,20 @@ token-refresh on expiry.
 Validates the caller's access token and returns the current principal rebuilt
 fresh from the database. The SPA calls this once at startup (blocking
 `APP_INITIALIZER`) so logged-in UI is never shown on the strength of a cached
-`localStorage` principal alone — a stale/forged token returns 401 and the
+`localStorage` principal alone - a stale/forged token returns 401 and the
 client logs out.
 
 **Response 200:** `{ "user": { "id", "email", "role", "creditBalance", "isDemo", "depositBalance"?, "isOnline"?, "setupRequired"? } }`
 
 **Errors:**
-- 401 `UNAUTHORIZED` — no/invalid token, or the account no longer exists
-- 401 `TOKEN_EXPIRED` — access token expired (interceptor refreshes + retries)
+- 401 `UNAUTHORIZED` - no/invalid token, or the account no longer exists
+- 401 `TOKEN_EXPIRED` - access token expired (interceptor refreshes + retries)
 
 ### `POST /auth/forgot-password`
 **Rate limited:** 5/hour per IP
 **Request:** `{ "email": "..." }`
 **Response 200:** `{ "message": "If the email exists, a reset link has been sent." }`
-Always returns 200 — does not reveal whether the email is registered. Sends a reset link (valid 1 hour) to the email if it belongs to a User or Servicer account.
+Always returns 200 - does not reveal whether the email is registered. Sends a reset link (valid 1 hour) to the email if it belongs to a User or Servicer account.
 
 ### `POST /auth/reset-password`
 **Request:** `{ "token": "...", "newPassword": "..." }`
@@ -234,7 +234,7 @@ create or link a user account, issue JWT tokens, then redirect the browser to
 - Existing accounts are linked by email (googleId added silently)
 
 ### `POST /config/demo-gate`
-Verify the **demo login-gate PIN** — the fixed shared speedbump (`DEMO_GATE_PIN`, default `5201314`) shown by the route guards when a demo account enters a portal. Distinct from the per-account action PIN. Auth required; demo accounts only (`isDemo`).
+Verify the **demo login-gate PIN** - the fixed shared speedbump (`DEMO_GATE_PIN`, default `5201314`) shown by the route guards when a demo account enters a portal. Distinct from the per-account action PIN. Auth required; demo accounts only (`isDemo`).
 
 **Auth:** Bearer (demo account)
 **Request:** `{ "pin": "5201314" }`
@@ -250,7 +250,7 @@ Verify the **action PIN** (`1234`) for the current principal. Used by the shared
 **Errors:** 400 `Incorrect PIN`
 
 ### `POST /admin/verify-pin`
-Verify the admin action PIN before performing a sensitive operation. Frontend should call this before revealing PIN-gated UI flows. Rate limited to 5 attempts per 15 min per admin — too many failures locks the admin out of PIN-gated actions until the window resets.
+Verify the admin action PIN before performing a sensitive operation. Frontend should call this before revealing PIN-gated UI flows. Rate limited to 5 attempts per 15 min per admin - too many failures locks the admin out of PIN-gated actions until the window resets.
 
 > Note: PIN can also be passed inline via `X-Action-Pin` header on individual endpoints. This endpoint exists for pre-validation UX (e.g. "enter PIN to unlock settings panel").
 
@@ -262,8 +262,8 @@ Verify the admin action PIN before performing a sensitive operation. Frontend sh
 **Response 200:** `{ "valid": true }`
 
 **Errors:**
-- 403 `PIN_INVALID` — wrong PIN
-- 429 `RATE_LIMITED` — too many failed attempts
+- 403 `PIN_INVALID` - wrong PIN
+- 429 `RATE_LIMITED` - too many failed attempts
 
 ---
 
@@ -380,9 +380,9 @@ URL; in dev without Stripe, credits instantly (blocked in production).
 
 ### `GET /categories`
 Public/customer endpoint (published, not soft-deleted). Scope depends on query:
-- **default** (no query): top-level **parents** only (`parentCategoryId: null`) — the browse groupings.
+- **default** (no query): top-level **parents** only (`parentCategoryId: null`) - the browse groupings.
 - **`?parent=<slug>`**: the published **children** of that parent (the quotable leaf services, which carry `questionSchema` + budget).
-- **`?scope=all`**: **every** published category — parents AND children — in one call. Used by the quote-form Category/Type-of-service dropdowns (parent → child) and the home/browse search over child services.
+- **`?scope=all`**: **every** published category - parents AND children - in one call. Used by the quote-form Category/Type-of-service dropdowns (parent → child) and the home/browse search over child services.
 
 Each row includes `parentCategoryId` (null for parents) so the client can group children under their parent.
 **Response:**
@@ -406,7 +406,7 @@ Each row includes `parentCategoryId` (null for parents) so the client can group 
           "priced": true,
           "description": "You can select more than one type of cleaning.",
           "options": [
-            { "value": "wall_chemical", "label": "Wall Unit — Chemical Cleaning", "active": true }
+            { "value": "wall_chemical", "label": "Wall Unit - Chemical Cleaning", "active": true }
           ]
         }
       ],
@@ -418,7 +418,7 @@ Each row includes `parentCategoryId` (null for parents) so the client can group 
 ```
 `questionSchema` is `null` for categories with no custom questions. Each
 question `type` is `checkbox`, `radio` or `text`; `options` is omitted for
-`text`. A question or option with `active: false` is soft-deactivated — hidden
+`text`. A question or option with `active: false` is soft-deactivated - hidden
 from new quote/listing forms but kept for existing data; consumers filter
 `active !== false`. `activeListingCount` is the count of non-deleted servicer
 listings in the category. SP2b adds `imageUrl`, `bannerUrl`, `cardColor`,
@@ -482,12 +482,12 @@ Submit a new quote request.
   "targetServicerId": "uuid"
 }
 ```
-`settlementMethod` (optional, `pay_later` only — `credit` or `cash`) records how the
+`settlementMethod` (optional, `pay_later` only - `credit` or `cash`) records how the
 customer intends to settle after completion. **Persisted on the quote** (added
 2026-06-22) so proposal-select reuses it instead of re-asking. Ignored for `pay_now`.
 
 `targetServicerId` (optional) is the **locked-rebook / direct-quote** target. When
-present the quote is **not** broadcast to all matching servicers — it goes only to
+present the quote is **not** broadcast to all matching servicers - it goes only to
 this one servicer (sent via the "Rebook same servicer" action on order history,
 which also locks the category). The target must exist, not be banned, and offer the
 quote's category; online status and service-area matching are ignored so the chosen
@@ -495,7 +495,7 @@ servicer is always reached. Threaded in-memory through `broadcastQuote` (not
 persisted), so it is unaffected by the deferred guest-gateway path.
 
 `serviceDetails` (optional) carries the customer's answers to the category's
-custom questions — keyed by question `key`, value is a string (radio/text) or
+custom questions - keyed by question `key`, value is a string (radio/text) or
 string array (checkbox). The 3-step quote wizard sends this; budget is picked
 from an admin-defined range and the servicer proposal window defaults to 24h.
 The reserved key `_extraNotes` (string) holds the optional Step-1 "Extra Notes"
@@ -514,11 +514,11 @@ free text; it is not a question key, so `computePrefill` ignores it for pricing.
 
 **Payment gate before broadcast.** No quote reaches servicers until its payment
 is settled. Ordering inside `createQuote`:
-1. `pay_later` / `cash` — `requireNoUnpaidInvoice` is enforced first.
-2. `pay_now` (credit) — the budget hold is deducted **before** any broadcast,
+1. `pay_later` / `cash` - `requireNoUnpaidInvoice` is enforced first.
+2. `pay_now` (credit) - the budget hold is deducted **before** any broadcast,
    socket emit, servicer notification, or dispatch rotation fires. If the
    deduction fails the quote is created but never broadcast.
-3. `pay_now` (guest / gateway) — the quote is created with `status:
+3. `pay_now` (guest / gateway) - the quote is created with `status:
    "pending_payment"`, `servicersNotified: 0`, and is **not** broadcast. The
    public `POST /quotes/guest` endpoint then opens a Stripe Checkout session;
    the `checkout.session.completed` webhook funds the wallet, takes the hold,
@@ -565,12 +565,12 @@ Pick a proposal.
   "settlementMethod": "gateway | credit | cash"
 }
 ```
-For `pay_later` quotes the settlement method is **no longer required here** — it was captured at quote-request time and stored on `QuoteRequest.settlementMethod`, and the select handler reuses it (legacy quotes with no stored choice fall back to `cash`). An explicit `settlementMethod` in the body still overrides the stored value. For `pay_now` + card, send `settlementMethod: "gateway"` (plus `paymentIntentId`). Changed 2026-06-22 to remove the duplicate settlement prompt in the select-servicer modal.
+For `pay_later` quotes the settlement method is **no longer required here** - it was captured at quote-request time and stored on `QuoteRequest.settlementMethod`, and the select handler reuses it (legacy quotes with no stored choice fall back to `cash`). An explicit `settlementMethod` in the body still overrides the stored value. For `pay_now` + card, send `settlementMethod: "gateway"` (plus `paymentIntentId`). Changed 2026-06-22 to remove the duplicate settlement prompt in the select-servicer modal.
 **Response 201:** `{ "bookingId": "uuid" }`
 
 > **No servicer re-confirm (SP-3 dispatch wave).** Selecting a proposal now creates the
 > booking directly in `confirmed` (was `pending_confirm`) and schedules no-show detection
-> immediately — the customer's selection IS the confirmation, so there is no separate
+> immediately - the customer's selection IS the confirmation, so there is no separate
 > servicer "Confirm job" step. `POST /servicer/jobs/:id/confirm` is retained but no longer
 > part of the normal flow (no booking reaches `pending_confirm`).
 
@@ -581,7 +581,7 @@ Cancel an open quote before a proposal is selected. Only allowed when `status = 
 **Response 204:** Empty
 
 **Errors:**
-- 409 `CONFLICT` — quote is already matched, expired, or reposted
+- 409 `CONFLICT` - quote is already matched, expired, or reposted
 
 ### `POST /quotes/:id/repost`
 Repost an expired quote with same data.
@@ -598,7 +598,7 @@ Public servicer profile. Includes `contacts` array with only `visibleToCustomer`
 Active services offered.
 
 ### `POST /servicers/register`
-Servicer registration is implemented as **`POST /auth/register-servicer`** —
+Servicer registration is implemented as **`POST /auth/register-servicer`** -
 see the Auth endpoints section. (`/servicers/register` was the originally
 planned path; the implemented route lives under `/auth`.)
 
@@ -613,7 +613,7 @@ Servicer profile with all settings.
 
 ### `POST /servicer/customer-session`
 Issues a customer-scoped token pair for the customer account paired with this
-servicer — powers the "customer mode" topbar toggle. Lazily provisions the
+servicer - powers the "customer mode" topbar toggle. Lazily provisions the
 paired `USER` on first call.
 
 **Response 200:**
@@ -664,7 +664,7 @@ Servicer-owned reusable pricing library (§2.2). Each module has a label, defaul
 
 ### `GET /servicer/pricing-modules`
 List the authenticated servicer's pricing modules.
-**Query:** `?active=true` — filter to active only (optional, default shows all)
+**Query:** `?active=true` - filter to active only (optional, default shows all)
 **Auth:** Bearer (servicer)
 **Response:**
 ```json
@@ -713,11 +713,11 @@ Soft-delete a pricing module (sets `active=false`). The module is preserved for 
 
 ### Servicer modules (SP-3)
 
-First-class reusable priced-item library (`ServicerModule` / `business_modules`) — the SP-3 replacement for the ad-hoc `PricingModule`/`moduleRefs` UX. **No per-item tax flags** (tax is applied flat from the business profile). `PricingModule` is kept until the Phase-2 migration. Surfaced in the servicer Services → **Modules** tab.
+First-class reusable priced-item library (`ServicerModule` / `business_modules`) - the SP-3 replacement for the ad-hoc `PricingModule`/`moduleRefs` UX. **No per-item tax flags** (tax is applied flat from the business profile). `PricingModule` is kept until the Phase-2 migration. Surfaced in the servicer Services → **Modules** tab.
 
 #### `GET /servicer/modules`
 List the authenticated servicer's modules. Each row includes `usedInListings` (count of the servicer's listings whose `moduleRefs` reference it).
-**Query:** `?active=true` — active only (optional, default shows all)
+**Query:** `?active=true` - active only (optional, default shows all)
 **Auth:** Bearer (servicer)
 **Response:**
 ```json
@@ -748,7 +748,7 @@ Create a module. `name` and `price` required; `sku` optional (3–30 alphanumeri
 **Response 201:** The created module.
 
 #### `PATCH /servicer/modules/:id`
-Update a module (`name`, `price`, `sku`, `active` — all optional).
+Update a module (`name`, `price`, `sku`, `active` - all optional).
 **Auth:** Bearer (servicer)
 **Response 200:** Updated module.
 
@@ -763,7 +763,7 @@ Reusable WhatsApp message templates (`ServicerWaPreset` / `servicer_wa_presets`)
 
 #### `GET /servicer/wa-presets`
 List the authenticated servicer's presets, active first then newest.
-**Query:** `?active=true` — active only (optional, default shows all)
+**Query:** `?active=true` - active only (optional, default shows all)
 **Auth:** Bearer (servicer)
 **Response:**
 ```json
@@ -792,7 +792,7 @@ Create a preset. `label` (≤80 chars) and `body` (≤2000 chars) required; `act
 **Response 201:** The created preset.
 
 #### `PATCH /servicer/wa-presets/:id`
-Update a preset (`label`, `body`, `active` — all optional). 404 if not owned by the caller.
+Update a preset (`label`, `body`, `active` - all optional). 404 if not owned by the caller.
 **Auth:** Bearer (servicer)
 **Response 200:** Updated preset.
 
@@ -810,7 +810,7 @@ V1: always-on, but endpoint exists for post-V1.
 ### `GET /servicer/calendar?month=2026-05`
 Returns all bookings for the servicer in the given month, grouped by date.
 **Auth:** Bearer (servicer)
-**Query:** `month` — YYYY-MM format (defaults to current month)
+**Query:** `month` - YYYY-MM format (defaults to current month)
 **Response 200:**
 ```json
 {
@@ -855,7 +855,7 @@ Change the servicer PIN. Requires the current PIN.
 **Response 200:** `{ "message": "PIN updated" }`
 
 **Errors:**
-- 400 `VALIDATION_ERROR` — current PIN is incorrect
+- 400 `VALIDATION_ERROR` - current PIN is incorrect
 
 ### `POST /servicer/account/verify-pin`
 Verify a PIN without changing it. Returns `{ ok: boolean }`.
@@ -910,7 +910,7 @@ Create a new business contact. Max 10 per servicer.
 ```
 **Response 201:** The created contact object.
 **Errors:**
-- 400 — `contactPerson` required, at least one of `number`/`email` required, ≥10 contacts limit hit
+- 400 - `contactPerson` required, at least one of `number`/`email` required, ≥10 contacts limit hit
 
 ### `PATCH /servicer/contacts/:id`
 Update an existing contact.
@@ -918,8 +918,8 @@ Update an existing contact.
 **Auth:** Bearer (servicer)
 **Request:** Any subset of fields above.
 **Errors:**
-- 400 — Cannot make the only remaining contact-name/number/email empty
-- 404 — Contact not found
+- 400 - Cannot make the only remaining contact-name/number/email empty
+- 404 - Contact not found
 
 ### `DELETE /servicer/contacts/:id`
 Delete a contact.
@@ -927,8 +927,8 @@ Delete a contact.
 **Auth:** Bearer (servicer)
 **Response 204:** No content.
 **Errors:**
-- 400 — Cannot delete the only contact or the primary contact
-- 404 — Contact not found
+- 400 - Cannot delete the only contact or the primary contact
+- 404 - Contact not found
 
 ---
 
@@ -948,7 +948,7 @@ Delete a contact.
 ### `POST /servicer/me/deposit`
 Top up servicer deposit balance. Used when balance drops below `minimumRequired` due to penalties, or when servicer voluntarily increases their buffer.
 
-> V1: This is a manual flow — admin verifies the bank transfer and credits the deposit via admin panel. This endpoint records the top-up request. Post-V1, this will integrate with the payment gateway for automated top-ups.
+> V1: This is a manual flow - admin verifies the bank transfer and credits the deposit via admin panel. This endpoint records the top-up request. Post-V1, this will integrate with the payment gateway for automated top-ups.
 
 **Idempotency:** Yes
 ```json
@@ -974,7 +974,7 @@ List all services with SKUs. Each row also carries SP-3 fields `imageUrl` (optio
 
 ### `POST /servicer/me/services`
 **SP-3 fields (optional):** `imageUrl` (S3 file URL from the `listing_photo` presign flow) and `published` (defaults `true`). The Simple-listing flow sends `modifiers` with `price: null` per option to record offered/N-A job preferences (no per-option pricing), `taxMode: "none"`, `autoAccept: false`, and no modules.
-**SP-3 Advanced-wizard fields (optional):** `listingMode` (`"simple"` | `"advanced"`, defaults `"simple"`), `moduleRefs` (array of `{ moduleId, kind: "included"|"addon", overridePrice?, durationDeltaMin? }` — validated by `moduleRefsSchema`), `autoAccept` (bool), and `autoAcceptMessage` (≤200 chars, shown to the customer on auto-accept). Advanced listings also send `modifiers` with per-option `price`/`durationMin`. All accepted on `PATCH` too.
+**SP-3 Advanced-wizard fields (optional):** `listingMode` (`"simple"` | `"advanced"`, defaults `"simple"`), `moduleRefs` (array of `{ moduleId, kind: "included"|"addon", overridePrice?, durationDeltaMin? }` - validated by `moduleRefsSchema`), `autoAccept` (bool), and `autoAcceptMessage` (≤200 chars, shown to the customer on auto-accept). Advanced listings also send `modifiers` with per-option `price`/`durationMin`. All accepted on `PATCH` too.
 ```json
 {
   "subcategoryId": "uuid",
@@ -1007,12 +1007,12 @@ List all services with SKUs. Each row also carries SP-3 fields `imageUrl` (optio
   }
 }
 ```
-**Phase 6 — `modifiers` is now an `OptionPriceMap` object** (was an array of
+**Phase 6 - `modifiers` is now an `OptionPriceMap` object** (was an array of
 modifier groups). Shape: `Record<questionKey, Record<optionValue, { price: number|null, notOffered: boolean }>>`.
 - `questionKey` matches a priced question's `key` in the category's `questionSchema`
 - `optionValue` matches one of that question's option `value` strings
-- `price` — the servicer's per-option price; `null` means "defer to base price"
-- `notOffered: true` — servicer doesn't offer this option (shown greyed out in the listing form)
+- `price` - the servicer's per-option price; `null` means "defer to base price"
+- `notOffered: true` - servicer doesn't offer this option (shown greyed out in the listing form)
 
 Only questions with `priced: true` in the category's question schema have entries here.
 Informational questions (`property_type`, free text) are never stored in `modifiers`.
@@ -1139,7 +1139,7 @@ Submit a proposal.
 
 ### `POST /servicer/quotes/:id/accept-listing`
 **One-tap accept (SP-3 dispatch wave).** Submits a proposal at the servicer's
-listing-computed `{ proposedPrice, etaMinutes, message }` — no manual form. Price
+listing-computed `{ proposedPrice, etaMinutes, message }` - no manual form. Price
 + duration are derived from the servicer's best-fit listing for the quote's
 category (option-priced total via `computePrefill`), falling back to the listing's
 `basePrice` + `estimatedDurationMinutes` when no priced options match. The customer
@@ -1154,7 +1154,7 @@ Servicer accepts a live dispatch prompt → creates a `confirmed` booking direct
 Price/duration/message are listing-computed (same engine as `accept-listing`).
 **Taken guard (SP-3 dispatch wave):** the quote is claimed with an atomic
 conditional update (`updateMany WHERE status='open'`) inside the booking
-transaction — if another servicer already matched it, the update affects 0 rows
+transaction - if another servicer already matched it, the update affects 0 rows
 and the call returns `409 Conflict` with `"Sorry, this job was taken by another
 servicer."` (closes the prior findFirst-then-create race). On success, emits
 `quote.matched` to every other broadcast servicer and `booking.confirmed` to the
@@ -1163,7 +1163,7 @@ customer. **Response 200:** `{ "bookingId": "uuid" }`.
 ### `POST /servicer/quotes/:id/open`
 Mark a broadcast quote as opened and return a proposal price pre-fill.
 Sets `openedAt` on the `QuoteBroadcast` record. Call this when the servicer taps into the quote detail view.
-Used for no-show tracking — servicers who opened but never responded are flagged differently from those who never saw it.
+Used for no-show tracking - servicers who opened but never responded are flagged differently from those who never saw it.
 
 **Auth:** Bearer (servicer)
 
@@ -1177,13 +1177,13 @@ Used for no-show tracking — servicers who opened but never responded are flagg
       {
         "questionKey": "aircon_service",
         "optionValue": "wall_chemical",
-        "label": "Wall Unit — Chemical Cleaning (Recommended)",
+        "label": "Wall Unit - Chemical Cleaning (Recommended)",
         "price": 110
       },
       {
         "questionKey": "aircon_service",
         "optionValue": "wall_general",
-        "label": "Wall Unit — General Cleaning",
+        "label": "Wall Unit - General Cleaning",
         "price": 80
       }
     ]
@@ -1200,7 +1200,7 @@ The frontend should pre-fill the proposal price box with `defaultTotal` and show
 accepting, enabling trust-building. When `customerAvatarUrl` is null, the frontend should display
 initials fallback.
 
-**(Previously returned 204 No Content — changed in Phase 6 T6.)**
+**(Previously returned 204 No Content - changed in Phase 6 T6.)**
 
 ### Jobs (bookings)
 
@@ -1224,7 +1224,7 @@ Mark arrived with photo.
 
 ### `POST /servicer/jobs/:id/done`
 Mark done with photo. The invoice is generated as part of this call
-(idempotent — re-calling for the same booking returns the existing invoice).
+(idempotent - re-calling for the same booking returns the existing invoice).
 ```json
 { "photoUrl": "..." }
 ```
@@ -1233,7 +1233,7 @@ Mark done with photo. The invoice is generated as part of this call
 Returns a preview of what the invoice WILL look like for a booking, for
 servicer review before marking the job as done. Calls `computeTotal()` with
 the actual line items, promo discount, tax config, and tip. No database row
-is created — this is read-only.
+is created - this is read-only.
 
 **Auth:** Bearer (servicer)
 **Response:**
@@ -1348,9 +1348,9 @@ Single invoice with full breakdown (same shape as `GET /bookings/:id/invoice`).
 ### Earnings export
 
 ### `GET /servicer/me/earnings/export`
-Download a PDF earnings summary for the specified week. Streams `application/pdf` bytes directly — no S3 involved.
+Download a PDF earnings summary for the specified week. Streams `application/pdf` bytes directly - no S3 involved.
 **Auth:** Bearer (servicer)
-**Query:** `?week=2026-05-18` — ISO date of the Monday to start from (defaults to the current week's Monday).
+**Query:** `?week=2026-05-18` - ISO date of the Monday to start from (defaults to the current week's Monday).
 **Response:** PDF file download (`Content-Disposition: attachment; filename="earnings-<date>.pdf"`). Contains a table of completed jobs, invoice numbers, and amounts for the week, plus a total row.
 
 ### Deposit & credit
@@ -1521,12 +1521,12 @@ line items, tax config, service charge, and platform fee.
 > the full invoice object (same shape) when the booking has an invoice.
 >
 > **Field notes:**
-> - `lineItems` — snapshot of `[{ label, amount, taxable, serviceChargeable }]`
-> - `paymentMethod` — resolved from `Booking.settlementMethod` (`gateway` / `credit` / `cash`)
-> - `dueDate` — 14 days from issue date (standard Malaysian invoice terms)
-> - `paymentReference` — Stripe PaymentIntent ID or transaction ID (post-Gateway)
-> - `paidAt` — null means unpaid; set means the receipt portion is valid
-> - `platformFee` — the fee deducted by the platform (base: `afterPromo` only)
+> - `lineItems` - snapshot of `[{ label, amount, taxable, serviceChargeable }]`
+> - `paymentMethod` - resolved from `Booking.settlementMethod` (`gateway` / `credit` / `cash`)
+> - `dueDate` - 14 days from issue date (standard Malaysian invoice terms)
+> - `paymentReference` - Stripe PaymentIntent ID or transaction ID (post-Gateway)
+> - `paidAt` - null means unpaid; set means the receipt portion is valid
+> - `platformFee` - the fee deducted by the platform (base: `afterPromo` only)
 
 ### `POST /bookings/:id/settle`
 Settle a `pay_later` booking's invoice. Only available for completed
@@ -1558,7 +1558,7 @@ bookings with an unpaid invoice. Accepts `Idempotency-Key`.
 ```
 
 > Cash settlement requires `settlementMethod = 'cash'` on the booking
-> (set at acceptance). Gateway settlement is a placeholder — the invoice
+> (set at acceptance). Gateway settlement is a placeholder - the invoice
 > stays unpaid until Stripe confirms.
 
 ### `GET /bookings/unpaid-invoices`
@@ -1817,17 +1817,17 @@ Single user details including booking count, report history, and linked servicer
 ```
 
 ### `GET /admin/categories`
-Admin list — returns **all** non-deleted categories (published **and**
+Admin list - returns **all** non-deleted categories (published **and**
 unpublished, top-level **and** sub) for the Category Settings master-detail page.
 Each row includes `published` and `activeListingCount` (non-deleted listings in
 the category), plus `parentCategoryId`, `imageUrl`, `allowedTimeSlots`,
 `questionSchema`, `defaultPriceSuggestion`, `defaultEstimatedDurationMinutes`.
 
 **Added 2026-06-01:** read-only average-price analytics fields:
-- `averagePrice` (number | null) — mean `basePrice` of active (`deletedAt` null)
+- `averagePrice` (number | null) - mean `basePrice` of active (`deletedAt` null)
   `ServicerService` rows, rounded 2dp. For parent (top-level) categories, the
   average is the weighted aggregate of all children's listings.
-- `priceStatListingCount` (number) — count of listings in the same scope (own
+- `priceStatListingCount` (number) - count of listings in the same scope (own
   services for sub-categories; aggregated children for parents).
 
 ### `PATCH /admin/categories/:id`
@@ -1853,7 +1853,7 @@ blurb. Nullable fields (`icon`, `imageUrl`, `defaultPriceSuggestion`,
 accept `null` to clear. `questionSchema` is
 Zod-validated against `questionSchemaSchema` and **immutability-checked** against
 the stored value: an existing question `key` or option `value` may not be renamed
-or removed — set `active: false` to deactivate instead (returns 400 on
+or removed - set `active: false` to deactivate instead (returns 400 on
 violation). Audited. The `imageUrl` field is also returned on all category
 sub-objects in listing responses (servicer services, quotes, servicer profile).
 On save, question/option labels are **auto-translated**: missing/stale `labelI18n`
@@ -1865,7 +1865,7 @@ If no LLM is reachable the schema saves untranslated (no failure).
 ### `POST /admin/categories/backfill-translations`
 **PIN required.** One-pass migration that fills `labelI18n`/`descriptionI18n` across
 EVERY category's `questionSchema` (for categories saved before auto-translate-on-save
-landed). Idempotent — only missing/stale languages regenerate, safe to re-run. Makes LLM
+landed). Idempotent - only missing/stale languages regenerate, safe to re-run. Makes LLM
 calls per category (a one-off admin op, not a hot path).
 **Response:** `{ "ok": true, "scanned": <n>, "updated": <n> }`
 
@@ -1884,7 +1884,7 @@ calls per category (a one-off admin op, not a hot path).
 }
 ```
 `name` is required; `slug` is optional (auto-generated from `name`, uniqueness
-enforced — 400 if taken). Also accepts `bannerUrl`, `cardColor`, `description`
+enforced - 400 if taken). Also accepts `bannerUrl`, `cardColor`, `description`
 (SP2b). Pass `parentCategoryId` to create a sub-category (the admin Sub-categories
 tab uses this). Created with empty `questionSchema`, all 5 default time slots, and
 `published` defaulting to `false`. Returns 201 with the new category. Audited.
@@ -1896,7 +1896,7 @@ active `ServicerService` (`deletedAt IS NULL`) or an open `QuoteRequest`
 `{ "ok": true }` on success. Audited.
 
 ### `GET /admin/categories/:id/question-impact?key=<questionKey>`
-Returns `{ "key": "...", "count": <n> }` — number of non-deleted
+Returns `{ "key": "...", "count": <n> }` - number of non-deleted
 `ServicerService` rows whose `modifiers` JSONB references the given question key
 (via the Postgres `?` hasKey operator). Powers the editor's warning before
 deactivating a question or flipping its `priced` flag.
@@ -1991,7 +1991,7 @@ All platform settings as key-value pairs.
 Both platform and servicer promos with filter.
 
 ### `POST /admin/promotions`
-**PIN required** — create platform promo.
+**PIN required** - create platform promo.
 ```json
 {
   "code": "WELCOME20",
@@ -2034,7 +2034,7 @@ Returns all FAQ entries. Response: `{ data: FaqEntry[] }`.
 #### `POST /admin/faq`
 Create a new FAQ entry. Requires action PIN header `x-action-pin`.
 Body: `{ question, answer, category?, isPublished?, tier? }`
-`tier` is a single-value hierarchical string — `String @default("guest")`. Allowed values: `guest | customer | servicer | admin`. The system uses `TIER_ORDER` to include all tiers at or below the user's role (e.g. a `servicer` sees entries with tier `guest`, `customer`, and `servicer`).
+`tier` is a single-value hierarchical string - `String @default("guest")`. Allowed values: `guest | customer | servicer | admin`. The system uses `TIER_ORDER` to include all tiers at or below the user's role (e.g. a `servicer` sees entries with tier `guest`, `customer`, and `servicer`).
 
 #### `PATCH /admin/faq/:id`
 Update an FAQ entry. Requires `x-action-pin`. Same body fields as POST (all optional).
@@ -2048,10 +2048,10 @@ Export / import CSV. Import matches by question text.
 
 ---
 
-## Payment (Stripe) — MVP
+## Payment (Stripe) - MVP
 
 All Stripe endpoints require auth (Bearer token). Webhook endpoint is
-unauthenticated — signature verification via `STRIPE_WEBHOOK_SECRET` HMAC-SHA256.
+unauthenticated - signature verification via `STRIPE_WEBHOOK_SECRET` HMAC-SHA256.
 
 ### Wallet top-up
 
@@ -2084,7 +2084,7 @@ Both accept the same body and return the same response.
 > The voucher is marked used on submission.
 
 #### `POST /stripe/create-topup-session`
-Identical to above — explicit Stripe path for clarity.
+Identical to above - explicit Stripe path for clarity.
 
 ### Voucher validation
 
@@ -2183,7 +2183,7 @@ Creates a Stripe PaymentIntent for a pay-now booking. Customer must own the book
 > The frontend uses the `clientSecret` to call `stripe.confirmCardPayment()` or
 > similar. On success, the `payment_intent.succeeded` webhook records the
 > transaction, marks the invoice paid.
-> NOTE: no frontend currently calls `confirmCardPayment` — the live pay-by-card
+> NOTE: no frontend currently calls `confirmCardPayment` - the live pay-by-card
 > flow uses the Checkout-session endpoints below (Stripe-hosted page, no
 > publishable key needed). This PaymentIntent endpoint is retained for a future
 > inline-Elements option.
@@ -2200,7 +2200,7 @@ Only valid for a **completed `pay_later`** booking (mirrors `settleBooking`'s co
 > `checkout.session.completed` webhook (booking branch) runs the **full pay_later
 > gateway settlement** via `completeGatewaySettlement`: records the `gateway_payment`
 > inflow, deducts the platform fee from the servicer, pays out the remainder to the
-> servicer, marks the invoice paid, and sets `settlementMethod='gateway'` — identical
+> servicer, marks the invoice paid, and sets `settlementMethod='gateway'` - identical
 > money outcome to a `credit` settlement, just funded by card instead of wallet.
 > Errors: `404` booking not yours / no invoice; `400` not pay_later / not completed /
 > invoice already paid / no positive total.
@@ -2218,7 +2218,7 @@ unique check with the webhook).
 
 #### `POST /stripe/webhook`
 Receives Stripe events. Verified via `STRIPE_WEBHOOK_SECRET` HMAC-SHA256
-signature. Requires the raw body (not JSON-parsed) — the server mounts
+signature. Requires the raw body (not JSON-parsed) - the server mounts
 `express.raw({type:'application/json'})` specifically on this path.
 
 **Processed events:**
@@ -2246,16 +2246,16 @@ const socket = io('wss://api.domain', { auth: { token: accessToken } })
 | Event | Payload | When |
 |---|---|---|
 | `quote.new` | `{ quoteId, category, timeSlot, budgetRange, propertyType, generalArea }` | New quote broadcast (servicer rooms only) |
-| `proposal.submitted` | `{ quoteId, proposalId? }` | A servicer submitted a proposal (manual or auto) — sent to the customer room so the open proposals list refreshes live |
-| `quote.matched` | `{ quoteId }` | Customer accepted a proposal — sent to every *other* broadcast servicer so their pending list drops the now-unwinnable quote |
-| `job.new` | `{ bookingId, quoteId }` | Customer accepted this servicer's proposal — sent to the winning servicer room (new active job) |
+| `proposal.submitted` | `{ quoteId, proposalId? }` | A servicer submitted a proposal (manual or auto) - sent to the customer room so the open proposals list refreshes live |
+| `quote.matched` | `{ quoteId }` | Customer accepted a proposal - sent to every *other* broadcast servicer so their pending list drops the now-unwinnable quote |
+| `job.new` | `{ bookingId, quoteId }` | Customer accepted this servicer's proposal - sent to the winning servicer room (new active job) |
 | `quote.proposals_ready` | `{ quoteId, proposalCount }` | Customer's quote deadline reached |
-| `quote.expired_no_response` | `{ quoteId, discountCode, discountValue }` | Quote expired with zero proposals — discount code auto-generated for customer |
+| `quote.expired_no_response` | `{ quoteId, discountCode, discountValue }` | Quote expired with zero proposals - discount code auto-generated for customer |
 | `booking.confirmed` | `{ bookingId, servicerName }` | Servicer confirmed customer's booking |
 | `booking.arrived` | `{ bookingId, photoUrl }` | Servicer marked arrived |
 | `booking.done` | `{ bookingId, photoUrl, invoiceUrl }` | Servicer marked done |
 | `booking.cancelled` | `{ bookingId, cancelledBy, reason }` | Either party cancelled |
-| `booking.mutual_cancel_requested` | `{ bookingId, servicerName, reason }` | Servicer requested mutual cancel — sent to customer room so they can respond via `POST /bookings/:id/mutual-cancel/respond` |
+| `booking.mutual_cancel_requested` | `{ bookingId, servicerName, reason }` | Servicer requested mutual cancel - sent to customer room so they can respond via `POST /bookings/:id/mutual-cancel/respond` |
 
 ### Rooms
 
@@ -2268,7 +2268,7 @@ Each user/servicer auto-joins on connect:
 
 ## Notification endpoints
 
-Role-agnostic — the recipient is resolved from the Bearer token, so the same
+Role-agnostic - the recipient is resolved from the Bearer token, so the same
 routes serve customers, admins (USER rows) and servicers. All require auth.
 
 ### `GET /notifications`
@@ -2317,7 +2317,7 @@ proposals. When a customer triggers it, it targets one of their own open
 quotes. Powers the topbar "+ Demo proposal" button.
 
 ### `POST /dev/topup`
-Instantly credits the signed-in account's balance — `User.creditBalance` for
+Instantly credits the signed-in account's balance - `User.creditBalance` for
 a customer, `Servicer.creditBalance` for a servicer. Not available to admins.
 **Request:** `{ "amount": 100 }` · **Response:** `{ "balance": 220.00 }`
 
@@ -2328,7 +2328,7 @@ a customer, `Servicer.creditBalance` for a servicer. Not available to admins.
 
 | Command | Description |
 |---|---|
-| `npm run seed:test` | Run test seed standalone — lean data set with 4 demo servicers |
+| `npm run seed:test` | Run test seed standalone - lean data set with 4 demo servicers |
 | `npm run db:reset-test` | Force-reset database + test seed (`db push --force-reset` then seed) |
 | `npm run reseed:test` | Unseed then test seed (clears test data first) |
 
@@ -2353,9 +2353,9 @@ a customer, `Servicer.creditBalance` for a servicer. Not available to admins.
 
 Current version: `v1`. Future breaking changes will introduce `v2` while `v1` remains supported during a transition period.
 
-## Update 2026-05-31 — Category endpoints
-- `GET /categories` — published top-level parents (with `activeListingCount`, `published`, `bannerUrl`, `cardColor`, `description`).
-- `GET /categories?parent=<slug>` — that parent's published children (quotable services). NEW (drill-down).
-- `GET /categories/:slug`, `GET /categories/:slug/servicers` — unchanged.
+## Update 2026-05-31 - Category endpoints
+- `GET /categories` - published top-level parents (with `activeListingCount`, `published`, `bannerUrl`, `cardColor`, `description`).
+- `GET /categories?parent=<slug>` - that parent's published children (quotable services). NEW (drill-down).
+- `GET /categories/:slug`, `GET /categories/:slug/servicers` - unchanged.
 - Admin (PIN-gated, audited): `POST /admin/categories` (create), `PATCH /admin/categories/:id` (name/icon/defaults/published/questionSchema, immutability-checked), `DELETE /admin/categories/:id` (soft-delete, guarded), `GET /admin/categories/:id/question-impact?key=`.
 - Frontend: new public route `GET /services/:parentSlug` → `ChildrenBrowseComponent`. Home parent cards drill down here; child cards route to `/customer/quote/new` or `/guest/quote/new` with `categoryId`.

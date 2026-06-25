@@ -4,12 +4,12 @@
  * Simulates real customers booking a quote end-to-end against the LIVE chatbot, to
  * catch flow regressions (skipped service selection, jump-to-review, loops, stalls,
  * hallucinated/missing fields, broken question schema). Each run is a CUSTOMER defined
- * on five axes — {Typing} {Tone} {Behavior} {Sorting} {Language} — plus concrete data
+ * on five axes - {Typing} {Tone} {Behavior} {Sorting} {Language} - plus concrete data
  * (service, date, time, address, budget, name, phone, question answers).
  *
  * The engine does NOT just type: it inspects whichever card the bot shows and calls
- * the real handler (via the QaHost adapter) — picking a category, confirming date/
- * time/address/budget/contact, answering the service questions — until the quote_prefill
+ * the real handler (via the QaHost adapter) - picking a category, confirming date/
+ * time/address/budget/contact, answering the service questions - until the quote_prefill
  * REVIEW card appears (= success) or it stalls/loops/times out. A per-run checker logs
  * exactly which part failed.
  *
@@ -43,7 +43,7 @@ export interface QaAddress {
  */
 export interface QaHost {
   clear(): void;
-  /** Reload state from storage WITHOUT wiping it — simulates a page refresh, so the
+  /** Reload state from storage WITHOUT wiping it - simulates a page refresh, so the
    *  returning-guest "is this {name}?" restore flow can be tested (vs clear()). */
   refresh(): void;
   /** Press "Review & submit", walk the live quote form to the Summary (no submit), and
@@ -91,7 +91,7 @@ export interface QaHost {
   restLog?(): QaRestEntry[];
 }
 
-/** One /chat REST exchange as the harness logs it — what the frontend SENT and what the
+/** One /chat REST exchange as the harness logs it - what the frontend SENT and what the
  *  backend RETURNED, for diagnosing where data (budget, lang, fields) diverges. */
 export interface QaRestEntry {
   ts: string;
@@ -174,7 +174,7 @@ const QA_ADDRESSES: QaAddress[] = [
 const QA_NAMES = ["Brian", "Sarah", "Daniel", "Aaron", "Mei", "Aisha", "Kumar", "Wei Jie", "Farah", "Hafiz", "Nadia", "Chong", "Priya", "Zack", "Lina"];
 
 /**
- * Customer presets — the 6th axis, used only in customer (logged-in) mode. Each is a
+ * Customer presets - the 6th axis, used only in customer (logged-in) mode. Each is a
  * named test customer bundling fixed contact + address + a preference, so QA cycles
  * through realistic returning-customer identities instead of fully random data.
  */
@@ -248,7 +248,7 @@ export interface QaScenario {
   label: string;
 }
 
-/** Apply the typing style to a sentence (kept gentle — substance must survive). */
+/** Apply the typing style to a sentence (kept gentle - substance must survive). */
 function applyTyping(text: string, typing: QaTyping): string {
   switch (typing) {
     case "lowercase":
@@ -284,7 +284,7 @@ function applyTyping(text: string, typing: QaTyping): string {
 }
 
 /**
- * Malaysian SMS-style Malay shortcuts — how Malays actually type ("saya tak perlu
+ * Malaysian SMS-style Malay shortcuts - how Malays actually type ("saya tak perlu
  * ambil" → "i x prlu ambik", "boleh lah kan" → "blh la kn"). Applied to Malay text for
  * the slang/abbrev/terse typing styles so QA exercises real-world compressed Malay.
  */
@@ -304,7 +304,7 @@ function malayShortcut(text: string): string {
 }
 
 const MANGLISH = ["lah", "lor", "mah", "sia", "leh", "liao"];
-/** Turn an English need into Manglish/rojak — mixed English with Malay particles. */
+/** Turn an English need into Manglish/rojak - mixed English with Malay particles. */
 function rojakify(text: string): string {
   return `eh boss, ${text} ${pick(MANGLISH)}, can help anot?`;
 }
@@ -313,7 +313,7 @@ function rojakify(text: string): string {
 function applyTone(text: string, tone: QaTone): string {
   switch (tone) {
     case "polite":
-      return `Hi, could you help me — ${text}? Thank you.`;
+      return `Hi, could you help me - ${text}? Thank you.`;
     case "impatient":
       return `${text}. need this asap please`;
     case "friendly":
@@ -321,7 +321,7 @@ function applyTone(text: string, tone: QaTone): string {
     case "anxious":
       return `sorry to bother you, ${text}, is that something you can do?`;
     case "chatty":
-      return `oh hello! been meaning to ask, ${text} — what do you reckon?`;
+      return `oh hello! been meaning to ask, ${text} - what do you reckon?`;
     case "blunt":
     default:
       return text;
@@ -369,7 +369,7 @@ function styleLine(p: QaPersona, text: string): string {
 /**
  * How many distinct info pieces the customer volunteers in the opening message. Real
  * people usually lead with one thing (the problem) and only sometimes dump several at
- * once — and occasionally open with nothing actionable ("hi, can you help?"). Weighted:
+ * once - and occasionally open with nothing actionable ("hi, can you help?"). Weighted:
  *   0:10%  1:60%  2:10%  3:10%  4:4%  5:3%  6:2%  7(all):1%
  */
 function pickInfoCount(): number {
@@ -386,8 +386,8 @@ function pickInfoCount(): number {
 
 /**
  * Compose the opening turn from a target info count. The service need (the anchor the
- * bot turns into a category) leads when present; up to six extra details — date, time,
- * address, budget, name, phone — are mixed in to reach the count. count 0 = a vague
+ * bot turns into a category) leads when present; up to six extra details - date, time,
+ * address, budget, name, phone - are mixed in to reach the count. count 0 = a vague
  * greeting with nothing actionable, so the bot must ask and the engine supplies the
  * need on its next turn (see driveScenario's needSent recovery).
  */
@@ -423,7 +423,7 @@ function composeOpening(
 /**
  * A plain-text answer for a field card, the way a customer who ignores the picker would
  * type it (e.g. "budget around rm500", "this saturday", the address). Returns null for
- * fields the backend does NOT extract from free text (name, property type, etc.) — those
+ * fields the backend does NOT extract from free text (name, property type, etc.) - those
  * must use the card, so we never free-text them.
  */
 function freeTextForField(key: string, scn: QaScenario): string | null {
@@ -450,7 +450,7 @@ function freeTextForField(key: string, scn: QaScenario): string | null {
 }
 
 /** A natural re-statement of info the customer already gave, for the idempotency test.
- *  Only re-states fields that are ALREADY confirmed — re-stating a not-yet-given field
+ *  Only re-states fields that are ALREADY confirmed - re-stating a not-yet-given field
  *  (e.g. timeSlot before its card was answered) would secretly PROVIDE that value, the
  *  bot would capture it, and the run would then false-fail "unconfirmed: timeSlot is in
  *  the review but was never collected via a card" (ChatQA_Log_032212062601). The service
@@ -505,10 +505,10 @@ export function makeScenario(customerMode = false): QaScenario {
     infoCount,
     needIncluded: opening.needIncluded,
     needPhrase: styleLine(persona, service.needs[persona.language] ?? service.needs.en),
-    // ~30% of customers re-state info they already gave — exercises the bot's
+    // ~30% of customers re-state info they already gave - exercises the bot's
     // dedup/idempotency (does it duplicate a card, re-ask, or absorb it cleanly?).
     repeats: Math.random() < 0.3,
-    label: `${persona.typing}/${persona.tone}/${persona.behavior}/${persona.sorting}/${persona.language}${preset ? `/preset:${preset.name}` : ""} — ${service.needs.en} [infos:${infoCount}]`,
+    label: `${persona.typing}/${persona.tone}/${persona.behavior}/${persona.sorting}/${persona.language}${preset ? `/preset:${preset.name}` : ""} - ${service.needs.en} [infos:${infoCount}]`,
   };
 }
 
@@ -518,7 +518,7 @@ export function generateScenarios(count: number, customerMode = false): QaScenar
   return out;
 }
 
-/** A fixed future date (today + `days`), YYYY-MM-DD. Deterministic — for the demo. */
+/** A fixed future date (today + `days`), YYYY-MM-DD. Deterministic - for the demo. */
 function fixedFutureDate(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -527,7 +527,7 @@ function fixedFutureDate(days: number): string {
 }
 
 /**
- * Four hand-picked, guaranteed-pass demo bookings — one per supported language (NO rojak),
+ * Four hand-picked, guaranteed-pass demo bookings - one per supported language (NO rojak),
  * each a different customer name. Cooperative + service_first + clean ("proper") typing is
  * the happy path: state the need, tap every card, reach the review. Fixed (not random), so
  * the Demo button shows the same clean 0 → review booking each time, in each language.
@@ -577,14 +577,14 @@ export function makeDemoScenarios(only?: QaLang): QaScenario[] {
       needPhrase: styleLine(persona, service.needs[l.language] ?? service.needs.en),
       repeats: false,
       demo: true,
-      label: `DEMO/${l.language}/${l.name} — ${service.needs.en}`,
+      label: `DEMO/${l.language}/${l.name} - ${service.needs.en}`,
     };
   });
 }
 
 // ─── Engine ──────────────────────────────────────────────────────────────────────
 const ACTIONABLE = new Set(["quote_options", "quote_field", "quote_question", "quote_prefill", "identity_confirm"]);
-/** Budget index by band — picked from the loaded bracket count at runtime. */
+/** Budget index by band - picked from the loaded bracket count at runtime. */
 function budgetIndexFor(band: "low" | "mid" | "high", count: number): number {
   if (count <= 0) return 0;
   if (band === "low") return 0;
@@ -596,7 +596,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Human-like pause (0.3–0.8s) before the customer responds — replying instantly raced
+/** Human-like pause (0.3–0.8s) before the customer responds - replying instantly raced
  *  the UI/backend and caused flaky stalls. Varied per turn so it isn't robotic. */
 function replyDelay(): Promise<void> {
   return sleep(randInt(300, 800));
@@ -605,7 +605,7 @@ function replyDelay(): Promise<void> {
 /**
  * All action blocks from the trailing run of assistant messages (since the last user
  * turn). The bot reveals cards one-per-message, so a single reply can be several
- * assistant messages — aggregate them so no card in the batch is missed.
+ * assistant messages - aggregate them so no card in the batch is missed.
  */
 function latestBlocks(host: QaHost): QaBlock[] {
   const msgs = host.messages();
@@ -646,7 +646,7 @@ function labelMatchesLang(label: string, lang: QaLang): boolean {
   return true;
 }
 
-/** Compact tag for a transcript card: "quote_field:contactNumber" — surfaces WHICH
+/** Compact tag for a transcript card: "quote_field:contactNumber" - surfaces WHICH
  *  card so stuck/duplicated cards are visible in the log, not just the type. */
 function blockTag(b: QaBlock): string {
   const id =
@@ -656,7 +656,7 @@ function blockTag(b: QaBlock): string {
   return id ? `${b.type}:${id}` : b.type;
 }
 
-/** Human-readable reasoning for every parameter a scenario chose — so the log tells
+/** Human-readable reasoning for every parameter a scenario chose - so the log tells
  *  you WHAT is being tested and WHY, not just raw JSON. */
 function intentLabel(scn: QaScenario): string {
   const p = scn.persona;
@@ -664,11 +664,11 @@ function intentLabel(scn: QaScenario): string {
 
   // ── Language intent ──
   const langWhy: Record<string, string> = {
-    en: "English — baseline",
-    ms: "Malay — tests SMS shortcuts (saya→i, tak→x) and local phrasing",
-    zh: "Chinese — tests CJK character handling, i18n labels",
-    ta: "Tamil — tests non-Latin script, i18n labels, btoa edge case",
-    rojak: "Manglish/rojak — tests mixed Malay+English (lah, lor, mah)",
+    en: "English - baseline",
+    ms: "Malay - tests SMS shortcuts (saya→i, tak→x) and local phrasing",
+    zh: "Chinese - tests CJK character handling, i18n labels",
+    ta: "Tamil - tests non-Latin script, i18n labels, btoa edge case",
+    rojak: "Manglish/rojak - tests mixed Malay+English (lah, lor, mah)",
   };
   parts.push(langWhy[p.language] ?? p.language);
 
@@ -703,14 +703,14 @@ function intentLabel(scn: QaScenario): string {
     self_correct: "sends then corrects → tests edit path",
     rambler: "drifts between options → tests contradiction handling",
     minimal: "short/minimal answers → tests prompting",
-    typing_shortcut: "NEVER taps a card — types every answer in terse SMS shortcuts → tests pure free-text extraction",
-    typing_adhd: "NEVER taps a card — types erratic, kid/ADHD answers (off-topic then the real value) → tests recovery from chaotic input",
+    typing_shortcut: "NEVER taps a card - types every answer in terse SMS shortcuts → tests pure free-text extraction",
+    typing_adhd: "NEVER taps a card - types erratic, kid/ADHD answers (off-topic then the real value) → tests recovery from chaotic input",
   };
   parts.push(behaveWhy[p.behavior] ?? p.behavior);
 
   // ── Sorting intent ──
   const sortWhy: Record<string, string> = {
-    service_first: "service first — normal flow",
+    service_first: "service first - normal flow",
     dump_all: "dumps all info in opener → tests multi-field extraction",
     address_first: "address before service → tests out-of-order",
     budget_first: "budget leads → tests budget-first parsing",
@@ -753,7 +753,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
   const MAX_STEPS = 40;
   let steps = 0;
   let rejectedOnce = false;
-  // Per-card "one off-topic detour already used" set for the typing_adhd persona — must
+  // Per-card "one off-topic detour already used" set for the typing_adhd persona - must
   // persist across turns, so it lives here and is passed by reference to actOnCard.
   const chaosUsed = new Set<string>();
   let lastSig = "";
@@ -762,13 +762,13 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
   let redundantNudges = 0;
   let success = false;
   let sawAnyCard = false;
-  // Set when the run ends in a terminal/unsupported state — suppresses the redundant
+  // Set when the run ends in a terminal/unsupported state - suppresses the redundant
   // "incomplete prefill: missing …" dump that would otherwise bury the real reason.
   let terminal = false;
-  // False when the opening withheld the service need (0-info case) — the engine states
+  // False when the opening withheld the service need (0-info case) - the engine states
   // it the first time the bot stalls, instead of a meaningless affirmation.
   let needSent = scn.needIncluded;
-  // Field keys actually confirmed on a card this run — lets the final checker catch a
+  // Field keys actually confirmed on a card this run - lets the final checker catch a
   // field that reached the review WITHOUT ever being collected on screen.
   const confirmedKeys = new Set<string>();
   // Card labels already flagged for wrong language (report each at most once).
@@ -781,7 +781,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
   // How many times this customer will re-state already-given info (0 = never).
   let repeatsLeft = scn.repeats ? randInt(1, 2) : 0;
 
-  // waitIdle — block until the in-flight reply lands. Some confirms (address geocode)
+  // waitIdle - block until the in-flight reply lands. Some confirms (address geocode)
   // start their request a beat later, so also give a short window for sending to rise.
   const waitIdle = async () => {
     const startRise = Date.now();
@@ -799,7 +799,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
   let logged = host.messages().length;
   let restLogged = 0;
   const NO_CARD_RE = /\b(card|button|tap|press|click|kad|butang|tekan|klik)\b/i;
-  // HH:MM:SS wall-clock for each logged line (diagnostic only — not determinism-critical).
+  // HH:MM:SS wall-clock for each logged line (diagnostic only - not determinism-critical).
   const ts = () => new Date().toISOString().slice(11, 19);
   const flush = () => {
     const msgs = host.messages();
@@ -881,7 +881,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
         issues.push("refresh: saved contact not restored after identity confirm");
       }
       if (!sameGuest && host.prefill()["categoryId"]) {
-        issues.push("refresh: declined identity but prior category still locked — state leaked across guests");
+        issues.push("refresh: declined identity but prior category still locked - state leaked across guests");
       }
     }
   }
@@ -909,7 +909,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
   while (steps < MAX_STEPS) {
     if (h.cancelled()) { issues.push("cancelled"); break; }
     steps++;
-    // Pause like a human before reading the bot's reply and responding — replying
+    // Pause like a human before reading the bot's reply and responding - replying
     // instantly raced the UI/backend and produced flaky stalls.
     await replyDelay();
     await pace();
@@ -945,8 +945,8 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     }
 
     // Flow-order check: before a service is locked, only the service card (quote_options)
-    // belongs on screen. A detail field/question with no category yet — and no service
-    // card offered — means the bot jumped ahead ("Hi I'm Josh" → "give me your address"),
+    // belongs on screen. A detail field/question with no category yet - and no service
+    // card offered - means the bot jumped ahead ("Hi I'm Josh" → "give me your address"),
     // i.e. broken conversational guidance.
     if (!flowFlagged && !host.prefill()["categoryId"]) {
       const hasServiceCard = blocks.some((b) => b.type === "quote_options");
@@ -961,10 +961,10 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
       // The review card can be DELIVERED in the RECV payload even when its transcript
       // bubble hasn't been appended yet: cards drip in ~300-800ms after the text parts,
       // so a fast flush logs the turn (text-only, ⚠ NO CARD) before the quote_prefill
-      // bubble lands. Consult the latest REST exchange — if the bot already returned
+      // bubble lands. Consult the latest REST exchange - if the bot already returned
       // quote_prefill, the booking reached the review and that's SUCCESS, not a stall.
       // Without this, a delivered review was miscounted as "stalled: bot stayed on text"
-      // (ChatQA_Log_024512062601 — the bot's RECV cards=[quote_prefill] on every one of
+      // (ChatQA_Log_024512062601 - the bot's RECV cards=[quote_prefill] on every one of
       // the 3 "stalled" turns, yet the run was failed).
       const latestCards = (host.restLog?.() ?? []).at(-1)?.recv?.cards ?? [];
       if (latestCards.some((c) => String(c).split(":")[0] === "quote_prefill")) {
@@ -982,7 +982,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
       }
       if (!needSent) {
         // 0-info opening: nothing for the bot to act on yet. State the real need now,
-        // the way a customer answers "what do you need?" — not a blank affirmation.
+        // the way a customer answers "what do you need?" - not a blank affirmation.
         needSent = true;
         emptyTurns = 0;
         host.sendText(scn.needPhrase);
@@ -991,7 +991,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
         continue;
       }
       emptyTurns++;
-      // A clarifying TEXT question is NOT a failure — real users don't expect a card for
+      // A clarifying TEXT question is NOT a failure - real users don't expect a card for
       // every question, and the engine answers in text below. Only fail after several
       // unproductive turns where the bot never advances the booking to the next card.
       if (emptyTurns >= 3) {
@@ -1004,7 +1004,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
         break;
       }
       // Vary the nudge so the conversation does NOT look like a stuck user copy-pasting
-      // the same line — a real person re-words after being ignored. Each nudge escalates:
+      // the same line - a real person re-words after being ignored. Each nudge escalates:
       // first repeats the need, then asks what service fits, then directly asks for a card.
       const needCore = scn.service.needs[scn.persona.language] ?? scn.service.needs.en;
       const nudges = [
@@ -1020,7 +1020,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     }
     emptyTurns = 0;
 
-    // Reached the review — success.
+    // Reached the review - success.
     if (blocks.some((b) => b.type === "quote_prefill")) {
       success = true;
       break;
@@ -1029,7 +1029,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     // A real customer never repeats info they already gave. Skip any quote_field card
     // whose value is already in the prefill (front-loaded in the opening, or confirmed
     // earlier) and act on a still-missing field instead. If the bot is ONLY re-asking
-    // for already-known fields, that's a bot UX flaw — log it and nudge forward once
+    // for already-known fields, that's a bot UX flaw - log it and nudge forward once
     // rather than parroting the same details back.
     const pf = host.prefill();
     const satisfied = (bk: QaBlock) =>
@@ -1056,10 +1056,10 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     if (sig === lastSig) {
       sameSigCount++;
       if (sameSigCount >= 4) {
-        issues.push(`looping: same card "${sig}" ${sameSigCount}x — flow not advancing`);
+        issues.push(`looping: same card "${sig}" ${sameSigCount}x - flow not advancing`);
         break;
       }
-      // Card repeated — answer the bot's prose question in text with varied wording
+      // Card repeated - answer the bot's prose question in text with varied wording
       // instead of re-tapping the card verbatim (which looks like a broken record).
       let retryText: string;
       if (b.type === "quote_question") {
@@ -1083,7 +1083,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
       lastSig = sig;
     }
 
-    // ~35% of the time, answer a field in PLAIN TEXT instead of using the card — tests
+    // ~35% of the time, answer a field in PLAIN TEXT instead of using the card - tests
     // the bot's free-text extraction (budget/date/time/address/phone). Counts as
     // collected (the customer DID provide it, just by typing) so it isn't mis-flagged
     // unconfirmed. Fields with no text extractor (name, property type) always use the card.
@@ -1126,7 +1126,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
 
   if (!success && steps >= MAX_STEPS) issues.push(`timeout: review card not reached in ${MAX_STEPS} steps`);
 
-  // ─── Checker — what landed in the final prefill vs what was expected. ───
+  // ─── Checker - what landed in the final prefill vs what was expected. ───
   // Skip when the run ended terminal (out-of-service / unsupported service): listing
   // every missing field there is noise that buries the actual cause.
   const pf = host.prefill();
@@ -1140,8 +1140,8 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
     if (missing.length) issues.push(`incomplete prefill: missing ${missing.join(", ")}`);
 
     // "Not picking up info": the user PROVIDED a field (tapped its card or typed the
-    // value — so it's in confirmedKeys) but it never landed in the prefill. This is the
-    // bot ignoring input the customer clearly gave — e.g. a typed address that never
+    // value - so it's in confirmedKeys) but it never landed in the prefill. This is the
+    // bot ignoring input the customer clearly gave - e.g. a typed address that never
     // registered, so the address card kept re-appearing. Distinct from "incomplete"
     // (a field never asked/given) and from "unconfirmed" (in the review yet never on a
     // card). This is the precise signal for the address-loop / 鬼打墙 class of bug.
@@ -1170,7 +1170,7 @@ async function driveScenario(host: QaHost, scn: QaScenario, h: RunHandle, refres
   }
 
   // Quality defects (wrong language, duplicate/redundant re-asks, fabricated fields,
-  // loops) must FAIL the run — a structural prefill alone is not "good".
+  // loops) must FAIL the run - a structural prefill alone is not "good".
   const qualityFail = issues.some(
     (i) =>
       i.startsWith("language:") ||
@@ -1231,7 +1231,7 @@ function humanAnswerText(scn: QaScenario): string {
 /**
  * Pick a human-like answer for a service-question card from its qtype + options.
  * Non-rambler behaviors pick the FIRST plausible option (most common/default).
- * Ramblers pick RANDOMLY among plausible options — they drift and contradict.
+ * Ramblers pick RANDOMLY among plausible options - they drift and contradict.
  */
 /** The most SENSIBLE option for a question, matched to the service-need keywords (so
  *  "kitchen sink leaking" → a "sink/tap" area + a "leak/repair" problem), with a guard
@@ -1254,7 +1254,7 @@ function sensibleOption(
   const words = new Set(need.split(/\W+/).filter((w) => w.length > 2));
   for (const list of SYN) if (list.some((w) => need.includes(w))) for (const w of list) words.add(w);
   // Repair-intent guard: a leaking/broken/not-working need must NEVER auto-pick an
-  // "Install / new" action option just because it's first — that manufactures a
+  // "Install / new" action option just because it's first - that manufactures a
   // symptom-vs-service contradiction the judge then flags (ChatQA_Log_032812062601:
   // "leaking sink" → picked "Install"). When the need is clearly a repair, penalise
   // install-ish options and boost repair/service/fix-ish ones.
@@ -1322,7 +1322,7 @@ const QUESTION_FREETEXT_RATE = 0.4;
 
 /**
  * Turn the option the harness would have picked into a believable free-text sentence in
- * the customer's language/style — so the bot has to map natural words back to the right
+ * the customer's language/style - so the bot has to map natural words back to the right
  * option. Falls back to a generic human phrase when there are no options.
  */
 function naturalQuestionReply(b: QaBlock, scn: QaScenario): string {
@@ -1346,14 +1346,14 @@ function naturalQuestionReply(b: QaBlock, scn: QaScenario): string {
         .join(", ");
       break;
     default:
-      // Free-text question — already a styled human sentence.
+      // Free-text question - already a styled human sentence.
       return humanAnswerText(scn);
   }
   if (!core) return humanAnswerText(scn);
   return styleLine(scn.persona, core);
 }
 
-/** The two typing-only personas never tap a card — they type every answer as free text. */
+/** The two typing-only personas never tap a card - they type every answer as free text. */
 function isTypingOnly(b: QaBehavior): boolean {
   return b === "typing_shortcut" || b === "typing_adhd";
 }
@@ -1374,7 +1374,7 @@ function shortcutText(text: string): string {
     .trim();
 }
 
-/** Kid-with-ADHD off-topic non-answer — jumpy, distracted; forces the bot to re-ask once. */
+/** Kid-with-ADHD off-topic non-answer - jumpy, distracted; forces the bot to re-ask once. */
 function kidChatter(): string {
   return pick([
     "wait what",
@@ -1392,9 +1392,9 @@ function kidChatter(): string {
 }
 
 /** Free-text a customer would type for ANY field card. Extends freeTextForField to the
- *  fields it deliberately skips (address, name, property type) — used only by the
+ *  fields it deliberately skips (address, name, property type) - used only by the
  *  typing-only personas, which never tap a card even at the cost of the structured-address
- *  gap (typed addresses leave No/Postcode/Type empty — a real, worth-surfacing finding). */
+ *  gap (typed addresses leave No/Postcode/Type empty - a real, worth-surfacing finding). */
 function typingFieldText(key: string, scn: QaScenario): string {
   const ft = freeTextForField(key, scn);
   if (ft) return ft;
@@ -1420,8 +1420,8 @@ async function actOnCard(
   scn: QaScenario,
   st: { rejectedOnce: boolean; chaosUsed: Set<string> },
 ): Promise<void> {
-  // Typing-only personas: never tap a card — type the answer as free text so the LLM has
-  // to extract it. (identity_confirm is a yes/no gate, not a data card — still tapped.)
+  // Typing-only personas: never tap a card - type the answer as free text so the LLM has
+  // to extract it. (identity_confirm is a yes/no gate, not a data card - still tapped.)
   if (isTypingOnly(scn.persona.behavior) && b.type !== "identity_confirm") {
     const sig = `${b.type}:${(b.data["key"] as string) ?? (b.data["categoryId"] as string) ?? (b.data["qtype"] as string) ?? ""}`;
     // ADHD: one off-topic non-answer per card before the real value (forces a single
@@ -1435,7 +1435,7 @@ async function actOnCard(
       host.sendText(kidChatter());
       return;
     }
-    // Address is structured-only now — the composer is LOCKED until the address card is
+    // Address is structured-only now - the composer is LOCKED until the address card is
     // filled, so even a type-only persona must use the card (No./Street/Postcode/Type +
     // geocode). Typing a free-text address can no longer satisfy it.
     if (b.type === "quote_field" && (b.data["key"] as string) === "address") {
@@ -1458,7 +1458,7 @@ async function actOnCard(
     } else if (b.type === "quote_field") {
       text = typingFieldText((b.data["key"] as string) ?? "", scn);
     } else {
-      return; // quote_prefill / other — nothing to type
+      return; // quote_prefill / other - nothing to type
     }
     if (scn.persona.behavior === "typing_shortcut") text = shortcutText(text);
     host.sendText(text);
@@ -1500,7 +1500,7 @@ async function actOnCard(
         return;
       case "budgetMax":
       case "budgetMin": {
-        // Budget brackets load after the category locks — wait briefly for them.
+        // Budget brackets load after the category locks - wait briefly for them.
         let waited = 0;
         while (host.budgetRangeCount() === 0 && waited < 3000) {
           await sleep(200);
@@ -1542,11 +1542,11 @@ export interface QaHarnessOptions {
   /** Demo mode: run the fixed guaranteed-pass scenario(s) instead of random ones, never
    *  refresh between them. One clean booking per language, 0 → review. */
   demo?: boolean;
-  /** Restrict the demo to ONE language (en/ms/zh/ta) — the per-language Demo buttons. */
+  /** Restrict the demo to ONE language (en/ms/zh/ta) - the per-language Demo buttons. */
   demoLang?: QaLang;
   onProgress?: (done: number, total: number, label: string) => void;
   cancelled?: () => boolean;
-  /** Incremental writer — called with each new chunk (header, per scenario, summary)
+  /** Incremental writer - called with each new chunk (header, per scenario, summary)
    *  so the log is persisted to disk as the run goes, surviving a stop or crash. */
   onChunk?: (text: string) => Promise<void> | void;
 }
@@ -1576,8 +1576,8 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
   push(`# ${opts.logName}`);
   push(
     opts.demo
-      ? `Demo flow — guaranteed-pass booking${scenarios.length > 1 ? "s" : ""} (${scenarios.map((s) => s.persona.language).join("/")}), Malaysian slang, 0 → review → slow form walk`
-      : `Automated chat QA — ${scenarios.length} simulated customers, each booking a full quote`,
+      ? `Demo flow - guaranteed-pass booking${scenarios.length > 1 ? "s" : ""} (${scenarios.map((s) => s.persona.language).join("/")}), Malaysian slang, 0 → review → slow form walk`
+      : `Automated chat QA - ${scenarios.length} simulated customers, each booking a full quote`,
   );
   push(`Mode: ${opts.demo ? "demo" : opts.customerMode ? "customer (with presets)" : "guest"}`);
   push(`Generated: ${new Date().toISOString()}`);
@@ -1600,13 +1600,13 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     push(`intent | ${intentLabel(scn)}`);
     const startLen = log.length;
     // ~30% of guest runs (after the first, which seeds saved state) REFRESH instead of
-    // clearing — reloading from storage to exercise the returning-guest "is this {name}?"
+    // clearing - reloading from storage to exercise the returning-guest "is this {name}?"
     // restore flow and confirm the booking continues after a reload.
     const doRefresh =
       !opts.demo && i > 0 && opts.customerMode !== true && Math.random() < 0.3;
     if (doRefresh) {
       host.refresh();
-      push("(refresh: reloaded from storage instead of clearing — testing returning-guest restore)");
+      push("(refresh: reloaded from storage instead of clearing - testing returning-guest restore)");
     } else {
       host.clear();
     }
@@ -1616,13 +1616,13 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
       res = await driveScenario(host, scn, { log: push, cancelled }, doRefresh);
     } catch (e) {
       // One scenario crashing must NOT abort the whole suite (and skip the final
-      // summary) — record it as a failed run and carry on so the log still completes.
+      // summary) - record it as a failed run and carry on so the log still completes.
       const msg = (e as Error)?.message ?? String(e);
       push(`SCENARIO ERROR: ${msg}`);
       res = { label: scn.label, ok: false, steps: 0, issues: [`error: ${msg}`], reachedReview: false };
     }
     results.push(res);
-    push(`RESULT: ${res.ok ? "PASS" : "FAIL"} (${res.steps} steps)${res.issues.length ? " — " + res.issues.join("; ") : ""}`);
+    push(`RESULT: ${res.ok ? "PASS" : "FAIL"} (${res.steps} steps)${res.issues.length ? " - " + res.issues.join("; ") : ""}`);
 
     // Reached the review → press "Review & submit" and walk the real quote form to the
     // Summary (no submit), logging each page, then the host returns home for the next run.
@@ -1639,20 +1639,20 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
       await flushChunk();
     }
 
-    // LLM judge — catch logical/conversational issues the heuristic checker can't see
+    // LLM judge - catch logical/conversational issues the heuristic checker can't see
     // (wrong reply language, assumed data, contradictions, ignored input, bad flow).
     if (host.judge && !judgeUnavailable) {
       const transcriptLines = log.slice(startLen);
       // Transcript lines are timestamped ("[HH:MM:SS] USER: ..."), so the marker is
-      // after the clock prefix — match it there, not at column 0. (A bare /^(USER|BOT)/
+      // after the clock prefix - match it there, not at column 0. (A bare /^(USER|BOT)/
       // matched nothing once timestamps were added, flagging every run "no-transcript".)
       const hasConversation = transcriptLines.some((l) =>
         /^\[\d{2}:\d{2}:\d{2}\]\s+(USER|BOT)\b/.test(l),
       );
       if (!hasConversation) {
-        // No real exchange was captured — don't let the judge fabricate findings from
+        // No real exchange was captured - don't let the judge fabricate findings from
         // the RESULT line alone. Flag the run for investigation instead.
-        push("JUDGE: (no transcript captured — review skipped; conversation did not run)");
+        push("JUDGE: (no transcript captured - review skipped; conversation did not run)");
         if (!res.issues.includes("no-transcript")) res.issues.push("no-transcript: conversation produced no messages");
         await flushChunk();
         await sleep(600);
@@ -1663,11 +1663,11 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
         const verdict = (await host.judge(transcript, "run")).trim();
         if (verdict.startsWith("JUDGE_UNAVAILABLE")) {
           judgeUnavailable = true;
-          push("JUDGE: (no LLM key configured — logical review skipped)");
+          push("JUDGE: (no LLM key configured - logical review skipped)");
         } else if (verdict.startsWith("JUDGE_ERROR")) {
-          // Judge LLM returned nothing (empty/failed) — a review gap, not a bot finding.
+          // Judge LLM returned nothing (empty/failed) - a review gap, not a bot finding.
           judgeErrorRuns++;
-          push("JUDGE: (no reply from judge LLM — review skipped this run)");
+          push("JUDGE: (no reply from judge LLM - review skipped this run)");
         } else if (verdict && verdict.toUpperCase() !== "OK") {
           judgeIssueRuns++;
           push("JUDGE:");
@@ -1684,7 +1684,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     await sleep(600);
   }
 
-  // ─── Structural tally — computed BEFORE the conclusion so the judge sees the real
+  // ─── Structural tally - computed BEFORE the conclusion so the judge sees the real
   //      pass/fail, not just findings. Without this it called a 0-pass run "excellent"
   //      whenever the judge happened to return no findings (e.g. it was offline). ───
   const pass = results.filter((r) => r.ok).length;
@@ -1698,7 +1698,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
   }
   const reviewedRuns = Math.max(0, results.length - judgeErrorRuns);
 
-  // ─── Final conclusion — one LLM pass over the structural facts + findings. ───
+  // ─── Final conclusion - one LLM pass over the structural facts + findings. ───
   let conclusion = "";
   if (host.judge && !judgeUnavailable && results.length) {
     const structural =
@@ -1707,7 +1707,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
       `The LLM judge reviewed ${reviewedRuns}/${results.length} runs (${judgeErrorRuns} returned no judge reply).`;
     const findingsText = judgeFindings.length
       ? `${structural}\n\nPer-conversation findings:\n${judgeFindings.join("\n\n")}`
-      : `${structural}\n\nThe judge surfaced no logical findings${judgeErrorRuns ? " on the runs it could review" : ""}. Base the conclusion on the STRUCTURAL results above — do NOT call the system healthy if runs failed.`;
+      : `${structural}\n\nThe judge surfaced no logical findings${judgeErrorRuns ? " on the runs it could review" : ""}. Base the conclusion on the STRUCTURAL results above - do NOT call the system healthy if runs failed.`;
     try {
       const c = (await host.judge(findingsText, "conclude")).trim();
       if (c && !c.startsWith("JUDGE_UNAVAILABLE") && !c.startsWith("JUDGE_ERROR")) conclusion = c;
@@ -1723,7 +1723,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     "## CONCLUSION",
     conclusion ||
       (judgeUnavailable || judgeErrorRuns === results.length
-        ? `(LLM judge unavailable — structural checks only: ${pass}/${results.length} completed, ${fail} failed.)`
+        ? `(LLM judge unavailable - structural checks only: ${pass}/${results.length} completed, ${fail} failed.)`
         : "(no conclusion)"),
     "",
     "## SUMMARY",
@@ -1734,7 +1734,7 @@ export async function runQaHarness(host: QaHost, opts: QaHarnessOptions): Promis
     ...[...issueTally.entries()].map(([k, n]) => `  - ${k}: ${n}`),
     "",
     "Incomplete runs:",
-    ...results.filter((r) => !r.ok).map((r, i) => `  ${i + 1}. ${r.label} — ${r.issues.join("; ") || "incomplete"}`),
+    ...results.filter((r) => !r.ok).map((r, i) => `  ${i + 1}. ${r.label} - ${r.issues.join("; ") || "incomplete"}`),
   ];
   // Stream the conclusion + summary as the final chunk so it lands on disk too.
   for (const line of summary) push(line);

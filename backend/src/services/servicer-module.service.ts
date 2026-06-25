@@ -17,7 +17,7 @@ export interface ServicerModuleInput {
 /**
  * Counts how many of the servicer's listings reference each module id via the
  * ServicerService.moduleRefs JSON array. Phase 1 listings carry no module refs
- * yet, so this is typically 0 — it stays correct once Advanced (Phase 2) wires
+ * yet, so this is typically 0 - it stays correct once Advanced (Phase 2) wires
  * modules into listings.
  */
 async function usageByModuleId(servicerId: string): Promise<Record<string, number>> {

@@ -1,4 +1,4 @@
-services:
+﻿services:
   postgres:
     image: postgres:16
     container_name: hs_postgres
@@ -33,11 +33,11 @@ services:
       retries: 10
       start_period: 5s
 
-  # ── Backend API (optional — only started with the 'full' profile) ─────────────
+  # ── Backend API (optional - only started with the 'full' profile) ─────────────
   # Used for fully-containerised runs and as the canonical source of truth for
   # the backend's runtime environment (env vars, timezone, etc.).
   #
-  # Normal dev workflow (npm run dev) is faster — use this profile for:
+  # Normal dev workflow (npm run dev) is faster - use this profile for:
   #   • CI integration tests that need the full stack in one compose invocation
   #   • Verifying timezone-sensitive behaviour before deploying to a UTC server
   #
@@ -45,7 +45,7 @@ services:
   #   docker compose --profile full up -d
   #   docker compose --profile full logs -f backend
   #
-  # Note: the image is built from the repo root — a Dockerfile is needed.
+  # Note: the image is built from the repo root - a Dockerfile is needed.
   # Until one is added, this service definition serves as the authoritative
   # record of the required environment for the backend process.
   backend:

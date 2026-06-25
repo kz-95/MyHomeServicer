@@ -16,10 +16,10 @@ import { allowDemo } from '../config/env';
 export const llmKeysRouter = Router();
 llmKeysRouter.use(requireAuth, requireAdmin);
 
-/** Hardcoded demo PIN — gates the one-click demo-seed feature. */
+/** Hardcoded demo PIN - gates the one-click demo-seed feature. */
 const DEMO_PIN = '145431';
 
-/** Mask a secret for display — never send the plaintext key to the browser. */
+/** Mask a secret for display - never send the plaintext key to the browser. */
 function maskKey(v: string): string {
   if (!v) return '';
   if (v.length <= 8) return '••••••••';
@@ -314,11 +314,11 @@ llmKeysRouter.post(
       }
     }
 
-    // DeepSeek models, below the Gemini ones — when Gemini hits its quota (429) the
+    // DeepSeek models, below the Gemini ones - when Gemini hits its quota (429) the
     // chain falls through to these: v4-flash, then v4-pro as the final fallback. These
     // are the only ids the live api.deepseek.com /v1/models lists (the older
     // deepseek-chat/deepseek-reasoner are no longer served). Both are reasoning models
-    // that stream reasoning_content before the answer — see streamLlm's reasoning hook.
+    // that stream reasoning_content before the answer - see streamLlm's reasoning hook.
     if (deepseekKey) {
       const deepseekModels = [
         { label: 'Demo DS V4 Flash', model: 'deepseek-v4-flash', isFallback: false },
@@ -343,7 +343,7 @@ llmKeysRouter.post(
     }
 
     if (created.length === 0) {
-      messages.push('No API keys found in .env — set G_LLM_API_Token and/or DS_LLM_API_Token');
+      messages.push('No API keys found in .env - set G_LLM_API_Token and/or DS_LLM_API_Token');
     } else {
       if (!geminiKey) messages.push('Gemini key not set (G_LLM_API_Token), skipped 4 models');
       if (!deepseekKey) messages.push('DeepSeek key not set (DS_LLM_API_Token), skipped fallback');
@@ -393,7 +393,7 @@ async function fetchProviderModels(provider: string, apiKey: string): Promise<st
       return (data.data ?? []).map((m) => m.id).sort().slice(0, 20);
     }
     case 'gemini': {
-      // Google ListModels — returns the models available to THIS key.
+      // Google ListModels - returns the models available to THIS key.
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
       if (!res.ok) throw new Error(`Gemini ${res.status}`);
       const data = (await res.json()) as {
@@ -408,7 +408,7 @@ async function fetchProviderModels(provider: string, apiKey: string): Promise<st
       return models.length ? models : PROVIDER_DEFAULT_MODELS.gemini;
     }
     default: {
-      // Unknown/custom provider — try OpenAI-compatible API
+      // Unknown/custom provider - try OpenAI-compatible API
       try {
         const res = await fetch('https://api.openai.com/v1/models', {
           headers: { Authorization: `Bearer ${apiKey}` },

@@ -1,4 +1,4 @@
-# scripts/lan-dev.ps1
+﻿# scripts/lan-dev.ps1
 # ─────────────────────────────────────────────────────────────────────────────
 # Start the app in LAN-accessible dev mode so you can open it on a phone or
 # any device on the same Wi-Fi network.
@@ -43,7 +43,7 @@ $BackendUrl  = "http://${LanIP}:3000"
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║           MyServicer — LAN Dev Mode              ║" -ForegroundColor Cyan
+Write-Host "║           MyServicer - LAN Dev Mode              ║" -ForegroundColor Cyan
 Write-Host "╠══════════════════════════════════════════════════╣" -ForegroundColor Cyan
 Write-Host "║  LAN IP   : $LanIP" -ForegroundColor Cyan
 Write-Host "║  Frontend : $FrontendUrl" -ForegroundColor Green

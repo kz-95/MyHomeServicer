@@ -19,7 +19,7 @@ import { deactivateUser } from '../services/deactivate.service';
 export const userRouter = Router();
 
 /**
- * POST /user/me/pin — set/change the admin action PIN. Declared before the
+ * POST /user/me/pin - set/change the admin action PIN. Declared before the
  * customer-only guard so it can apply its own admin guard.
  */
 userRouter.post(
@@ -37,7 +37,7 @@ userRouter.use(requireAuth, requireCustomer);
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
-/** GET /user/me — own profile (full detail, ownership proven). */
+/** GET /user/me - own profile (full detail, ownership proven). */
 userRouter.get(
   '/me',
   asyncHandler(async (req, res) => {
@@ -57,7 +57,7 @@ userRouter.get(
   }),
 );
 
-/** PATCH /user/me — update profile fields (all optional). */
+/** PATCH /user/me - update profile fields (all optional). */
 userRouter.patch(
   '/me',
   validate([
@@ -90,7 +90,7 @@ userRouter.patch(
 
 // ── Credit wallet ────────────────────────────────────────────────────────────
 
-/** GET /user/me/credit — prepaid credit balance. */
+/** GET /user/me/credit - prepaid credit balance. */
 userRouter.get(
   '/me/credit',
   asyncHandler(async (req, res) => {
@@ -100,11 +100,11 @@ userRouter.get(
   }),
 );
 
-/** POST /user/me/topup — wallet top-up.
+/** POST /user/me/topup - wallet top-up.
  *
  * When Stripe is configured (STRIPE_SECRET_KEY set) this returns a Checkout
  * URL to the Stripe-hosted payment page. Otherwise it falls back to an
- * instant +RM100 credit (demo mode only — blocked in production). */
+ * instant +RM100 credit (demo mode only - blocked in production). */
 userRouter.post(
   '/me/topup',
   requireAuth,
@@ -345,7 +345,7 @@ async function assertOwnAddress(userId: string, addressId: string): Promise<void
   if (!addr) throw notFound('Address not found');
 }
 
-/** GET /user/me/quote-presets — the customer's saved quote presets. */
+/** GET /user/me/quote-presets - the customer's saved quote presets. */
 userRouter.get(
   '/me/quote-presets',
   asyncHandler(async (req, res) => {
@@ -358,7 +358,7 @@ userRouter.get(
   }),
 );
 
-/** POST /user/me/quote-presets — add a quote preset (max 10). */
+/** POST /user/me/quote-presets - add a quote preset (max 10). */
 userRouter.post(
   '/me/quote-presets',
   validate(presetValidators),
@@ -453,7 +453,7 @@ userRouter.delete(
 
 // ── Order history ────────────────────────────────────────────────────────────
 
-/** GET /user/me/history — completed + cancelled bookings for the Order History page. */
+/** GET /user/me/history - completed + cancelled bookings for the Order History page. */
 userRouter.get(
   '/me/history',
   asyncHandler(async (req, res) => {
@@ -484,7 +484,7 @@ userRouter.get(
 
 // ── Transactions / payment history ───────────────────────────────────────────
 
-/** GET /user/me/transactions — paginated, filterable, sortable transaction log. */
+/** GET /user/me/transactions - paginated, filterable, sortable transaction log. */
 userRouter.get(
   '/me/transactions',
   asyncHandler(async (req, res) => {
@@ -573,7 +573,7 @@ userRouter.patch(
   }),
 );
 
-/** POST /user/me/device — register a push notification device. */
+/** POST /user/me/device - register a push notification device. */
 userRouter.post(
   '/me/device',
   validate([
@@ -599,7 +599,7 @@ userRouter.post(
 
 // ── Saved payment methods ─────────────────────────────────────────────────────
 
-/** GET /user/me/payment-methods — list saved payment methods. */
+/** GET /user/me/payment-methods - list saved payment methods. */
 userRouter.get(
   '/me/payment-methods',
   requireAuth,
@@ -611,7 +611,7 @@ userRouter.get(
   }),
 );
 
-/** POST /user/me/payment-methods — save a payment method. */
+/** POST /user/me/payment-methods - save a payment method. */
 userRouter.post(
   '/me/payment-methods',
   requireAuth,
@@ -631,7 +631,7 @@ userRouter.post(
   }),
 );
 
-/** PUT /user/me/payment-methods/:id — update a saved payment method. */
+/** PUT /user/me/payment-methods/:id - update a saved payment method. */
 userRouter.put(
   '/me/payment-methods/:id',
   requireAuth,
@@ -643,7 +643,7 @@ userRouter.put(
   }),
 );
 
-/** DELETE /user/me/payment-methods/:id — delete a saved payment method. */
+/** DELETE /user/me/payment-methods/:id - delete a saved payment method. */
 userRouter.delete(
   '/me/payment-methods/:id',
   requireAuth,
@@ -657,7 +657,7 @@ userRouter.delete(
 
 // ── Deactivate account ───────────────────────────────────────────────────────
 
-/** POST /user/me/deactivate — permanently deactivate account. */
+/** POST /user/me/deactivate - permanently deactivate account. */
 userRouter.post(
   '/me/deactivate',
   requireAuth,
