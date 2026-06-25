@@ -124,24 +124,28 @@ interface ServiceOption {
         <p class="err">{{ formError() }}</p>
       }
       <label>
-        <span>Name<span class="req"> *</span></span>
-        <input type="text" [(ngModel)]="f.name" name="mname" maxlength="200" placeholder="e.g. Chemical Wash" />
-      </label>
-
-      <label>
-        <span>Service option</span>
+        <span>Services what you do (optional)</span>
         @if (questionsLoading()) {
-          <select disabled><option>Loading options…</option></select>
+          <select disabled><option>Loading…</option></select>
         } @else if (serviceOptions().length === 0) {
-          <select disabled><option>No priced options for your category</option></select>
+          <input type="text" [(ngModel)]="f.customVal" name="mcustom" placeholder="e.g. Chemical wash" />
         } @else {
           <select [ngModel]="selectedOptionKey()" (ngModelChange)="onOptionChange($event)" name="msvcopt">
-            <option value="">— Generic (no matching) —</option>
+            <option value="">— None —</option>
             @for (o of serviceOptions(); track o.questionKey + '::' + o.optionValue) {
               <option [value]="o.questionKey + '::' + o.optionValue">{{ o.label }}</option>
             }
+            <option value="__custom__">+ Custom item</option>
           </select>
         }
+        @if (selectedOptionKey() === '__custom__') {
+          <input type="text" [(ngModel)]="f.customVal" name="mcustom" placeholder="What you do…" style="margin-top:0.4rem" />
+        }
+      </label>
+
+      <label>
+        <span>Name<span class="req"> *</span></span>
+        <input type="text" [(ngModel)]="f.name" name="mname" maxlength="200" placeholder="e.g. Chemical Wash" />
       </label>
 
       <div class="row">
@@ -158,6 +162,7 @@ interface ServiceOption {
         <span>SKU (optional)</span>
         <input type="text" [(ngModel)]="f.sku" name="msku" placeholder="3–30 chars" />
       </label>
+
       <div class="modal-actions">
         <button class="btn-ghost" (click)="closeModal()">Cancel</button>
         <button class="btn-primary" (click)="save()" [disabled]="saving()">
@@ -227,8 +232,8 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
   saving = signal(false);
   formError = signal('');
 
-  f = { name: '', price: null as number | null, durationMin: null as number | null, sku: '' };
-  selectedOptionKey = signal('');  // "questionKey::optionValue" or "" for generic
+  f = { name: '', price: null as number | null, durationMin: null as number | null, sku: '', customVal: '' };
+  selectedOptionKey = signal('');
 
   // ── Category service options (flat list) ──────────────────────────
   questionsLoading = signal(false);
@@ -258,6 +263,7 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
   onOptionChange(value: string): void {
     this.formError.set('');
     this.selectedOptionKey.set(value);
+    this.f.customVal = '';
   }
 
   filtered = computed(() => {
@@ -329,7 +335,7 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
 
   openCreate(): void {
     this.editId.set(null);
-    this.f = { name: '', price: null, durationMin: null, sku: '' };
+    this.f = { name: '', price: null, durationMin: null, sku: '', customVal: '' };
     this.selectedOptionKey.set('');
     this.formError.set('');
     this.modalOpen.set(true);
@@ -339,13 +345,15 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
     this.editId.set(m.id);
     const qKey = m.questionKey ?? '';
     const oVal = m.optionValue ?? '';
+    // Check if this module's questionKey+optionValue exists in our service options
     const match = this.serviceOptions().find((o) => o.questionKey === qKey && o.optionValue === oVal);
-    const key = match ? `${qKey}::${oVal}` : '';
+    const key = match ? `${qKey}::${oVal}` : (qKey && oVal ? '__custom__' : '');
     this.f = {
       name: m.name,
       price: m.price,
       durationMin: m.durationMin ?? null,
       sku: m.sku ?? '',
+      customVal: '',
     };
     this.selectedOptionKey.set(key);
     this.formError.set('');
@@ -360,23 +368,25 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
     if (this.f.price == null || this.f.price < 0) { this.formError.set('A valid price is required.'); return; }
 
     const sel = this.selectedOptionKey();
-    let qKey: string | null = null;
-    let optVal: string | null = null;
+    let questionKey: string | null = null;
+    let optionValue: string | null = null;
 
-    if (sel) {
+    if (sel === '__custom__') {
+      optionValue = this.f.customVal.trim() || null;
+    } else if (sel) {
       const [k, v] = sel.split('::');
-      qKey = k || null;
-      optVal = v || null;
+      questionKey = k || null;
+      optionValue = v || null;
       const svcOpt = this.serviceOptions().find((o) => o.questionKey === k && o.optionValue === v);
-      if (svcOpt?.isQuantity) optVal = '1';
+      if (svcOpt?.isQuantity) optionValue = '1';
     }
 
     this.saving.set(true);
     this.formError.set('');
     const body: Record<string, unknown> = {
       name,
-      questionKey: qKey,
-      optionValue: optVal,
+      questionKey,
+      optionValue,
       price: Number(this.f.price),
       durationMin: this.f.durationMin != null ? Number(this.f.durationMin) : null,
       sku: this.f.sku.trim() || null,
