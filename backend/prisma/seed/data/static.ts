@@ -2405,12 +2405,12 @@ export const platformSettings: { key: string; value: unknown }[] = [
   {
     key: "platform_fee_rate",
     value: {
-      current_rate: 0.2,
+      current_rate: 0.05,
       scheduled_changes: [
         {
           starts_at: "2026-12-01T00:00:00Z",
           ends_at: "2027-12-31T23:59:59Z",
-          new_rate: 0.2,
+          new_rate: 0.07,
           advertised_discount: "8% off normal rate",
         },
       ],

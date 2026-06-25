@@ -179,9 +179,9 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
                   <button class="btn-ghost" (click)="openActivity(u)">Activity log</button>
                   <button class="btn-ghost" (click)="openEdit(u)">Edit</button>
                   @if (u.active === false || u.deactivatedAt) {
-                    <button class="btn-ghost btn-success" (click)="reactivate(u)">Reactivate</button>
+                    <button class="btn-ghost btn-ghost-sm btn-success" (click)="reactivate(u)">Reactivate</button>
                   } @else {
-                    <button class="btn-ghost btn-danger" (click)="deactivate(u)">Deactivate</button>
+                    <button class="btn-ghost btn-ghost-sm btn-danger" (click)="deactivate(u)">Deactivate</button>
                   }
                 </td>
               </tr>
@@ -498,8 +498,16 @@ type ServicerKyc = '' | 'approved' | 'pending' | 'rejected' | 'unsubmitted';
         margin-left: 0.3rem;
       }
       .banned { color: var(--color-danger); font-weight: 600; }
-      .btn-danger, .btn-ghost.btn-danger { color: var(--color-danger); }
-      .btn-success, .btn-ghost.btn-success { color: var(--color-success); }
+      .btn-ghost.btn-danger {
+        color: var(--color-danger);
+        background: var(--color-danger-bg);
+        border-color: var(--color-danger);
+      }
+      .btn-ghost.btn-success {
+        color: var(--color-success);
+        background: var(--color-success-bg);
+        border-color: var(--color-success);
+      }
       .btn-ghost.btn-danger:hover { background: var(--color-danger); color: #fff; }
       .btn-ghost.btn-success:hover { background: var(--color-success); color: #fff; }
       .cat-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }

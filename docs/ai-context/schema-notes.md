@@ -489,6 +489,24 @@ The `escrow.release` BullMQ job now checks for open `Dispute` rows (status `open
 
 ---
 
+## TransactionType enum — full listing + upcoming additions (2026-06-26 forensic audit)
+
+**Existing types** (enum defined in `schema.prisma` line 143):
+`escrow_hold`, `escrow_release`, `refund`, `tip`, `penalty`, `deposit`, `discount` (unused — defined but never written), `platform_fee`, `urgent_fee`, `promo_payback`, `withdrawal`, `gateway_payment`, `deposit_topup`.
+
+Four new transaction types approved for the financial correctness epic (spec: `docs/superpowers/specs/2026-06-26-profit-simulator-financial.md`):
+
+| Type | Purpose | Recorded at |
+|------|---------|-------------|
+| `gateway_fee` | Stripe/gateway processing cost (3.4% + RM1) | Settlement (booking.service.ts) |
+| `registered_customer_discount` | Platform-funded 15% discount for registered customers | Quote time (quote.service.ts:280) |
+| `promo_cost` | Platform promo payback cost (replaces `servicerCreditLog` routing) | Promo payback (admin.jobs.ts:67) |
+| `points_liability` | Points issuance liability (points × 1/redemption_rate) | 3 award sites (points.service.ts) |
+
+These are additive — existing transaction types unchanged.
+
+---
+
 ## Update 2026-05-31 - Category taxonomy + fields
 - **Category is now 2-level** via `parentCategoryId` self-relation: 7 parents (grouping) + 34 children (quotable services). Children carry `questionSchema`, `defaultPriceSuggestion`, `defaultEstimatedDurationMinutes`. Slugs/list in `category-taxonomy.md`.
 - New `Category` fields in use: `published Boolean @default(false)`, `bannerUrl`, `cardColor`, `description`. Public `GET /categories` returns published only.

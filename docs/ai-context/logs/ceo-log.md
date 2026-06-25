@@ -3,6 +3,203 @@
 > Single-writer log - only the **CEO/Orchestrator** agent writes here.
 > This agent is READ-ONLY on code. It tracks, dispatches, and coordinates.
 
+## Session 2026-06-26 01:02 — Plan Eng Review: Financial Correctness Spec
+
+### Review target: `docs/superpowers/specs/2026-06-26-profit-simulator-financial.md`
+
+Full engineering review completed. All code-level claims verified by reading real source.
+
+### Verified claims (all confirmed)
+
+| Spec claim | Code evidence | Verdict |
+|---|---|---|
+| Tip double-counted on pay-now escrow release | `booking.jobs.ts:243`: `amount - fee + tip` where `amount` already includes tip | ✅ Confirmed bug |
+| Pay-later/gateway path clean | `booking.service.ts:1200`: `payout = total - platformFee` (no extra +tip) | ✅ Confirmed clean |
+| 2 of 5 fee sites already on `computeFees` | `booking.jobs.ts:226` + `credit.service.ts:25` both use FeeRule engine | ✅ Confirmed |
+| 3 files with 4 flat `computePlatformFee` sites remain | `booking.service.ts:976`, `dispatch.service.ts:278`, `invoice.service.ts:97+225` | ✅ Confirmed, all async-awaitable |
+| `evaluatePromotions()` has zero callers | Grep across `backend/src/` — only the declaration at `promotion.service.ts:31` | ✅ Confirmed dead code |
+| `resolveProposalPromo` / `resolvePromoDiscount` always return 0 | Both stub files return `0` | ✅ Confirmed stubbed |
+| Promo payback writes to `servicerCreditLog` not `transactions` | `admin.jobs.ts:67` — only `servicerCreditLog.create`, no `recordTransaction` | ✅ Confirmed invisible |
+| `registered_customer_discount` untracked | `quote.service.ts:280` applies ~15% discount, never records txn | ✅ Confirmed gap |
+
+### Review findings
+
+**Architecture (4 findings):**
+- **A1:** Fee unification safe — all 4 flat sites in async contexts. `dispatch.service.ts` site runs inside `$transaction` (adds ~2ms DB query inside txn, acceptable).
+- **A2:** Tip fix is a one-character deletion: drop `+ tip` from `booking.jobs.ts:243`. Zero regression risk on pay-later/gateway.
+- **A3:** Promo payback routing broken — `admin.jobs.ts:67` needs `recordTransaction` added.
+- **A4:** Gateway fee gap larger than spec states — needs new Prisma enum value + settings keys + settlement logic.
+- **A5:** `registered_customer_discount` is live platform spend with zero tracking.
+
+**Code Quality (3 findings):**
+- **CQ1:** `computePlatformFee` stays importable after unification — should be `@deprecated`.
+- **CQ2:** `evaluatePromotions` has 0 test coverage — P2 must test before wiring.
+- **CQ3:** Points liability accounting correct in spec but hand-waved on implementation.
+
+**Tests (2 findings):**
+- **T1:** Reconciliation harness (P3) is underspecified — needs concrete test case table (8 cases recommended).
+- **T2:** `computeFees` has zero dedicated unit tests — add before 3-site migration.
+
+**Performance/Risk (1 finding):**
+- **P1:** Reconciliation harness built AFTER live-payout changes (P3 after P1+P2). Recommend one regression test in P1.
+
+**Docs (2 findings):**
+- **D1:** `docs/superpowers/specs/2026-06-23-financial-system-consolidated.md` is stale — superseded by the June 26 spec. **Flagged for deletion.**
+- **D2:** Financial correctness epic not in TODO.md.
+
+### Dispatch — P1 Financial Foundation (dispatched 2026-06-26 01:18)
+
+| # | Task | Agent | Priority | Files |
+|---|------|-------|----------|-------|
+| 1 | Delete stale spec `2026-06-23-financial-system-consolidated.md` | Backend | High | 1 delete |
+| 2 | Fix tip double-count: `booking.jobs.ts:243` drop `+ tip` | Backend | CRITICAL | 1 line |
+| 3 | Add `gateway_fee` transaction type to Prisma enum + migration | Backend | High | schema.prisma |
+| 4 | Seed `gateway_fee_pct` (3.4%) + `gateway_fee_fixed` (RM1.00) platform settings | Backend | High | seed.ts |
+| 5 | Record `gateway_fee` transaction at gateway settlement (booking.service.ts ~1173) | Backend | High | booking.service.ts |
+| 6 | Add `registered_customer_discount` to Prisma enum + record txn at quote.service.ts:280 | Backend | High | schema + quote.service.ts |
+| 7 | Migrate 4 flat fee sites to `computeFees`: booking.service.ts:976, dispatch.service.ts:278, invoice.service.ts:97+225 | Backend | High | 3 files |
+| 8 | Remove redundant `getPlatformFeeRate()` calls at migrated sites | Backend | Medium | 3 files |
+| 9 | Add `@deprecated` JSDoc to `computePlatformFee` in money.ts | Backend | Low | money.ts |
+
+**Gates:** `npx tsc --noEmit` zero errors. Per-file commits.
+
+### Review verdict
+
+Spec is sound and executable. All code-level claims verified.
+
+### All 10 decisions locked (plan-eng-review complete)
+
+| # | Section | Finding | Decision |
+|---|---------|---------|----------|
+| A1 | Architecture | Tip double-count `booking.jobs.ts:243` | Fix now — drop `+ tip` |
+| A2 | Architecture | 4 flat fee sites → `computeFees` | Unify all 5 |
+| A3 | Architecture | Gateway fee untracked | Enum + settings (3.4%+RM1) + txn |
+| A4 | Architecture | Promo payback writes `servicerCreditLog` | Add `recordTransaction` now |
+| A5 | Architecture | Registered discount untracked | New enum + txn at `quote.service.ts:280` |
+| CQ1 | Code Quality | `computePlatformFee` stays importable | `@deprecated` + ESLint rule |
+| CQ2 | Code Quality | `evaluatePromotions` 0 tests | 6-8 unit tests in P1 |
+| CQ3 | Code Quality | Points liability unspecified | Full: enum + 3 award sites |
+| T1 | Tests | `computeFees` 0 dedicated tests | `fee-engine.test.ts` before migration |
+| T2 | Tests | Reconciliation harness unspecified | 8 cases, incremental (P1: 1-4,7,8) |
+
+### P1 Revised Execution Plan (post-review)
+
+| Step | Task | Time |
+|------|------|------|
+| 1 | Delete stale spec `2026-06-23-financial-system-consolidated.md` | 1 min |
+| 2 | Fix tip double-count: `booking.jobs.ts:243` drop `+ tip` | 5 min |
+| 3 | Add `fee-engine.test.ts` (5-6 cases: fallback, single rule, category, cap, priority) | 30 min |
+| 4 | Unify 4 flat fee sites → `computeFees` (booking.service.ts:976, dispatch.service.ts:278, invoice.service.ts:97+225) | 30 min |
+| 5 | Remove redundant `getPlatformFeeRate()` calls + deprecate `computePlatformFee` (JSDoc + ESLint) | 15 min |
+| 6 | Add `gateway_fee` + `registered_customer_discount` + `promo_cost` + `points_liability` to TransactionType enum | 10 min |
+| 7 | Seed `gateway_fee_pct` (0.034) + `gateway_fee_fixed` (1.00) settings | 10 min |
+| 8 | Record `gateway_fee` txn at settlement (`booking.service.ts`) | 15 min |
+| 9 | Record `registered_customer_discount` txn at `quote.service.ts:280` | 10 min |
+| 10 | Record `points_liability` txn in 3 award functions (`points.service.ts`) | 20 min |
+| 11 | Fix promo payback: add `recordTransaction` at `admin.jobs.ts:67` | 10 min |
+| 12 | Add `evaluatePromotions` unit tests (6-8 cases) | 45 min |
+| 13 | Reconciliation harness: cases 1-4,7,8 (~5 integration tests) | 1h |
+| | **P1 total** | ~5h |
+
+### Gates
+- `npx tsc --noEmit` backend: 0 errors each step
+- `npx jest tests/unit` all pass
+- Commit per logical unit group
+
+### Docs updated 2026-06-26 01:23
+| File | Action |
+|------|--------|
+| `docs/superpowers/specs/2026-06-23-financial-system-consolidated.md` | **Deleted** (stale, superseded) |
+| `docs/superpowers/specs/2026-06-26-profit-simulator-financial.md` | Updated: P1 scope expanded, decisions registered |
+| `TODO.md` | P1 Financial Foundation task added |
+| `docs/ai-context/schema-notes.md` | TransactionType additions documented |
+| `docs/ai-context/logs/ceo-log.md` | Full review + dispatch logged (this entry) |
+
+### Adversarial code verification (2026-06-26 01:28)
+
+All 5 spec claims independently verified by adversarial review agents tasked with DISPROVING each claim:
+
+| # | Claim | Verdict |
+|---|-------|---------|
+| 1 | Tip double-count at `booking.jobs.ts:243` | CONFIRMED BUG |
+| 2 | `evaluatePromotions()` dead code | CONFIRMED |
+| 3 | Promo payback writes `servicerCreditLog` not `transactions` | CONFIRMED |
+| 4 | `registered_customer_discount` untracked (live 15% spend) | CONFIRMED |
+| 5 | `gateway_fee` never computed/recorded at settlement | CONFIRMED |
+
+All 5 gaps survived adversarial scrutiny.
+
+### Round 2 — Forensic Deep-Dive (2026-06-26 01:30)
+
+7 additional gaps found beyond the spec:
+
+| # | Severity | Finding |
+|---|----------|---------|
+| R2.1 | CRITICAL | Urgent fee double-dip: platform_fee on afterPromo (includes urgent) + splitUrgentFee 20% = platform takes (X%+20%) |
+| R2.2 | CRITICAL | platform_fee_rate seed=0.20 vs code-default=0.05 — 4x drift, tests run at 5%, prod at 20% |
+| R2.3 | HIGH | Dashboard urgentFeeRevenue vs urgentFeePlatformShare use different time anchors (booking.createdAt vs txn.created_at) |
+| R2.4 | MEDIUM | 4 dashboard cost lines (promoCost, gatewayFee, pointsCost, registeredDiscount) missing from return object |
+| R2.5 | MEDIUM | Points awarded fire-and-forget outside $transaction — permanently lost on DB write failure |
+| R2.6 | MEDIUM | Points config cache (getPointsConfig) never invalidates — admin changes require server restart |
+| R2.7 | MEDIUM | computeFees ignores FeeRule.activeFrom/activeTo — future-dated rules activate immediately |
+
+### Round 3 — Payout Paths + Race Conditions + Edge Cases (2026-06-26 01:36)
+
+11 additional gaps found:
+
+| # | Severity | Finding |
+|---|----------|---------|
+| R3.1 | CRITICAL | Tip double-count ALSO in refund paths: booking.service.ts:1362 + booking.jobs.ts:71. Customer double-refunded on cancel/no-show. |
+| R3.2 | CRITICAL | Root cause: selectProposal embeds tip in escrow.amount AND stores in escrow.tipAmount (overlap). dispatchAccept does neither (tip=0). Asymmetric = all downstream paths break on selectProposal escrows. |
+| R3.3 | HIGH | resolveDispute is cosmetic only — admin sets resolution='refund_customer' but no money moves. Dispute never touches escrow. |
+| R3.4 | HIGH | Double platform_fee on cash bookings: cashConfirm + settleBooking('cash') both record fee, no mutual exclusion guard. |
+| R3.5 | HIGH | registered_customer_discount never appears on invoices — computed at quote time then discarded. |
+| R3.6 | HIGH | Promo discounts always 0 on invoices — resolvePromoDiscount() hardcoded return 0. |
+| R3.7 | MEDIUM | 3 TOCTOU race conditions: refundEscrowIfHeld (double-refund), handleEscrowRelease (status overwrite), markWithdrawalPaid (double-deduct). |
+| R3.8 | MEDIUM | Negative servicer payout: no Math.max(0, ...) floor when urgentPlatformShare > amount - platformFee. |
+| R3.9 | MEDIUM | Tips on pay_later cash: addTip creates txn but never pays servicer via adjustCredit. |
+| R3.10 | MEDIUM | No urgent fee 20/80 split on pay_later paths — platform gets different revenue depending on payment timing. |
+| R3.11 | LOW | computeFees no graceful fallback on DB error — query failure becomes transaction failure (no try/catch). |
+
+### Combined gap register: 23 confirmed issues across 3 rounds (5 + 7 + 11)
+
+### Sync check (2026-06-26 01:45) — what's fixed vs still open
+
+**FIXED (5 of 23):**
+| # | Issue | Fix |
+|---|-------|-----|
+| R2.6 | Points config cache never invalidates | `invalidatePointsConfigCache()` exists in points.service.ts |
+| R2.3 | Dashboard urgentFee time-anchor mismatch | Two separate queries: booking-based + ledger-based with fallback |
+| R1.2 | evaluatePromotions dead code | New trigger-based engine in place (queries by triggerType/active/targetRole) |
+| R3.1 | Cancel refund nonRefundable not deducted | `computeNonRefundableAmount()` IS applied at booking.service.ts:1359-1362 |
+| — | refundEscrowIfHeld nonRefundable | Deducted at line 1359 (same as above) |
+
+**STILL OPEN (18 of 23):**
+| # | Severity | Issue |
+|---|----------|-------|
+| R1.1 | CRITICAL | Tip double-count payout: `booking.jobs.ts:243` `+ tip` |
+| R1.3 | HIGH | Promo payback writes servicerCreditLog, no recordTransaction |
+| R1.4 | HIGH | registered_customer_discount untracked (no txn) |
+| R1.5 | HIGH | gateway_fee untracked (no txn, no enum value) |
+| R2.1 | CRITICAL | Urgent fee double-dip: platform gets (X%+20%) not 20% |
+| R2.2 | CRITICAL | platform_fee_rate seed=0.20 vs code-default=0.05 |
+| R2.4 | MEDIUM | 4 dashboard cost lines missing |
+| R2.5 | MEDIUM | Points fire-and-forget outside $transaction |
+| R2.7 | MEDIUM | computeFees ignores activeFrom/activeTo |
+| R3.2 | CRITICAL | selectProposal embeds tip in escrow.amount AND tipAmount (overlap root cause) |
+| R3.3 | HIGH | resolveDispute cosmetic only — no money movement |
+| R3.4 | HIGH | Double platform_fee on cash bookings (no cashConfirmed guard) |
+| R3.5 | HIGH | registered_customer_discount never on invoices |
+| R3.6 | HIGH | Promo discounts always 0 on invoices |
+| R3.7 | MEDIUM | 3 TOCTOU race conditions (refundEscrowIfHeld, escrowRelease, markWithdrawalPaid) |
+| R3.8 | MEDIUM | No Math.max(0, ...) guard on servicerPayout |
+| R3.10 | MEDIUM | No urgent fee 20/80 split on pay_later paths |
+| R3.11 | LOW | computeFees no try/catch on DB error fallback |
+
+### Session status: ✅ Sync complete. 5 fixed, 18 open. P1 ready for dispatch.
+
+---
+
 ## Session 2026-06-25 20:53 — D1-D6 Dashboard Seed Wiring Dispatch
 
 ### Status: Dispatched to Backend — 6 tasks

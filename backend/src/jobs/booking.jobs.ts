@@ -68,7 +68,8 @@ async function handleNoshowDetect(job: Job): Promise<void> {
     });
     const escrow = await tx.escrow.findUnique({ where: { bookingId } });
     if (escrow && escrow.status === 'held') {
-      const refundAmount = Number(escrow.amount) + Number(escrow.tipAmount);
+      // T2: escrow.amount already includes tip (from computeTotal at escrow creation).
+      const refundAmount = Number(escrow.amount);
       await tx.escrow.update({
         where: { id: escrow.id },
         data: { status: 'refunded', refundedAt: new Date() },
@@ -214,11 +215,15 @@ async function handleEscrowRelease(job: Job): Promise<void> {
   if (!booking) return;
 
   const amount = Number(escrow.amount);
-  const tip = Number(escrow.tipAmount);
 
   // Platform fee on afterPromo only (stored in escrow.platformFeeBase).
   // Fall back to compute on amount for legacy rows where platformFeeBase is null.
-  const feeBase = escrow.platformFeeBase != null ? Number(escrow.platformFeeBase) : amount;
+  // T4: subtract urgent fee from feeBase — it's a line item in afterPromo that
+  // computeFees already charges X% on, and splitUrgentFee() takes an additional
+  // 20% separately. Without this subtraction, the platform double-dips on the
+  // urgent fee.
+  const urgentFeeAmount = booking.isUrgent && booking.urgentFee ? Number(booking.urgentFee) : 0;
+  const feeBase = Math.max(0, (escrow.platformFeeBase != null ? Number(escrow.platformFeeBase) : amount) - urgentFeeAmount);
 
   // Use FeeRule engine (P2) with category scope, fall back to legacy rate
   const { computeFees } = await import('../services/fee-engine.service');
@@ -240,7 +245,9 @@ async function handleEscrowRelease(job: Job): Promise<void> {
     }
   }
 
-  const servicerPayout = amount - platformFee + tip - urgentPlatformShare;
+  // T1: amount already includes tip (from computeTotal at escrow creation).
+  // T5: guard against negative payout (platform fee + urgent share > amount).
+  const servicerPayout = Math.max(0, amount - platformFee - urgentPlatformShare);
 
   await prisma.$transaction(async (tx) => {
     await tx.escrow.update({

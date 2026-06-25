@@ -2,6 +2,19 @@
 
 > Single-writer log - only the **Backend** agent writes here.
 
+## Session 2026-06-26 01:36 - Docs update: forensic audit findings round 2
+
+**Task:** Update financial correctness spec, TODO.md, and schema-notes.md with round 2 forensic audit findings.
+
+### Changes
+- **`docs/superpowers/specs/2026-06-26-profit-simulator-financial.md`**: Gap table expanded from 7 rows to 12 rows with Severity column (3 CRITICAL: urgent fee double-dip, platform_fee_rate drift, tip double-count). P1 section expanded from ~5 to ~18 tasks (added: urgent fee fix, platform_fee_rate alignment, NaN guards, activeFrom/activeTo fix, try/catch fallback, points fire-and-forget fix, points cache invalidation, dashboard urgentFee time-anchor fix, 4 cost-line fields). Effort updated 5h→8h. Forensic audit findings section added at bottom.
+- **`TODO.md`**: P1 task line expanded from 12 tasks to 18 tasks, added forensic audit session references.
+- **`docs/ai-context/schema-notes.md`**: TransactionType section expanded to list all 13 existing enum values + the 4 upcoming types. Noted `discount` type defined but unused.
+
+**Files changed:** 3 docs files (no backend/src/ edits).
+
+**Gates:** No backend/src/ edits — tsc gate not required.
+
 ## Session 2026-06-25 22:34 - Admin Dashboard Financial: Add dailyEscrow, dailyPayouts, Leaderboards
 
 **Task:** Extend `getDashboardFinancial()` in `admin.service.ts` with 4 new data arrays per dashboard redesign spec.
@@ -604,7 +617,8 @@ Gates: backend tsc 0 (source) / jest 298 pass, 0 fail / frontend tsc 0
 ## Quick Index
 | Section | Line |
 |---------|------|
-| Session 2026-06-25 22:34 - Admin Dashboard: dailyEscrow/dailyPayouts/leaderboards | 5 |
+| Session 2026-06-26 01:36 - Docs update: forensic audit findings round 2 | 5 |
+| Session 2026-06-25 22:34 - Admin Dashboard: dailyEscrow/dailyPayouts/leaderboards | 20 |
 | Session 2026-06-24 20:38 - QA-004 Fix (urgent fee 20/80 split) | 5 |
 | Session 2026-06-24 20:30 - QA-003 Fix (platform fee double-record) | 31 |
 | Session 2026-06-24 20:20 - BE-019 Fix (chat PIN token leak) | 50 |

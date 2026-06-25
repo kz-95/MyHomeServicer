@@ -2,6 +2,36 @@
 
 > Single-writer log - only the **Frontend** agent writes here.
 
+## Session 2026-06-26 - Pending Quote Card: Inline Proposal Action Row Redesign
+
+### Scope
+`frontend/src/app/servicer/pages/jobs.component.ts` - Replace expand/collapse proposal form with inline action row on pending quote cards.
+
+### Changes
+
+1. **Template** - Replaced old `@if (q.myProposalId && !q.myProposalIsAuto)` + `@else` + `@if (expanded() ...)` three-block structure with two-block:
+   - `@if (q.myProposalId && !q.myProposalIsAuto)` → accepted summary (unchanged)
+   - `@else if (!q.myProposalId)` → new inline proposal row: Message input, RM Price input, Duration input, Accept button, Decline button, Countdown timer
+   - Removed expand/collapse click handler from pq-head (no longer interactive)
+
+2. **`declineQuote()` method** - New async method with DialogService confirmation prompt guard. On confirm, POSTs `/quotes/{id}/decline`, removes quote from list on success, shows toast error on failure.
+
+3. **`propose()` method** - Removed `this.expanded.set(null)` from success handler (expanded signal deleted).
+
+4. **Removed dead code:**
+   - `expanded` signal, `expandedCustomerAvatar`, `expandedCustomerName`, `quoteLat`, `quoteLng` signals
+   - `prefillMap` signal, `getPrefill()` method
+   - `ProposalPrefill` interface
+   - `expand()` method (the expand/collapse toggle)
+   - `acceptListing()` method (replaced by inline Accept)
+   - Pricing module UI from template (modules section removed; `moduleRefs` still in propose payload for future use)
+
+5. **CSS** - Added `.pq-actions`, `.pq-propose-inline`, `.prop-input*` styles. Removed unused: `.propose`, `.modules-*`, `.propose-label`, `.prefill-hint`, `.customer-row`, `.customer-name`, `.section-label`. Kept `@keyframes slide-down` (still used by `.job-detail`). Removed `cursor: pointer` from `.pq-head`.
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx ng build --configuration development` → exit 0 (green)
+
 ## Session 2026-06-25 - UX Polish: Job Cards + Payment Flow + Dispatch Overlay
 
 **Branch:** `feat/ux-polish`
@@ -805,6 +835,40 @@ Gradient formula: start at base primary, shift +5° warmer hue, +4–5% lighter.
 **Compile gate:** `npx tsc --noEmit` → zero errors (frontend + backend).
 **Build gate:** `npx ng build --configuration development` → exit 0 (pre-existing NG8107 warnings only).
 **Test gate:** 235 pass, 1 pre-existing failure (booking-lifecycle mock drift).
+
+---
+
+### Session 2026-06-25 - Redesign pending quote card: map links + always-visible mini map
+
+**Scope:** `frontend/src/app/servicer/pages/jobs.component.ts` - pending quotes section only.
+
+**Work done:**
+
+1. **Row 2 (address row) redesign:**
+   - Replaced "Show map"/"Hide map" toggle button with two external link buttons:
+     - "Google Maps" link with SVG icon (viewBox 0 0 24 24, fill #4285F4)
+     - "Waze" link with SVG icon (viewBox 0 0 24 24, fill #33CCFF)
+   - Both open in new tab via `target="_blank"` + `rel="noopener"`.
+   - SVGs copied from existing `dispatch-overlay.component.ts` brand icons.
+
+2. **Mini map always visible:**
+   - Removed `@if (mapQuoteId() === q.quoteId ...)` conditional wrapper.
+   - `<app-map-view>` now rendered whenever `q.lat != null && q.lng != null` (no toggle).
+
+3. **Removed dead code:**
+   - Removed `mapQuoteId` signal (`signal<string | null>(null)`).
+   - Removed `toggleMap()` method (10 lines).
+
+4. **Added methods:**
+   - `gmapsUrl(lat, lng)`: returns `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+   - `wazeUrl(lat, lng)`: returns `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+
+5. **CSS:**
+   - Added `.pq-map-links` styling: flex row, 0.5rem gap, 0.75rem font, inline-flex with 0.25rem gap, 14px SVGs.
+
+**Gates:**
+- `npx tsc --noEmit` → 0 errors ✅
+- `npx ng build --configuration development` → exit 0 ✅
 
 ### Session 2026-05-28 - F-C: "Save as preset" button in quote form
 
@@ -2301,3 +2365,32 @@ Three insertion points, all gated behind `if (!environment.production)`:
 | File | Action |
 |---|---|
 | `frontend/src/app/admin/pages/dashboard.component.ts` | Rewritten (1167 → ~945 lines) |
+
+## Session 2026-06-26 - Servicer Contact in Customer Booking Cards
+
+**Branch:** `frontend`
+
+### Booking interface extended
+- Added `servicerEmail`, `servicerPhone`, `showEmailPublic`, `showPhonePublic` fields to the `Booking` interface in `my-bookings.component.ts`
+
+### Contact section in booking cards
+- New `.svc-contact` block inserted inside each booking card's left column (after invoice number, before right-side actions)
+- Guarded: only renders when `status !== 'pending_confirm'` AND at least one visibility flag is true
+- Phone renders as `tel:` link, email as `mailto:` link
+
+### CSS
+- `.svc-contact`: `margin: 0.75rem 0; padding: 0.5rem; background: var(--color-surface); border-radius: var(--radius)`
+- `.contact-items`: flex row with gap and wrap
+- `.contact-link`: primary color, underline on hover
+
+**Verification:**
+
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | 0 errors |
+
+**Files changed:**
+
+| File | Action |
+|---|---|
+| `frontend/src/app/customer/pages/my-bookings.component.ts` | Interface + template + CSS (6 lines added) |

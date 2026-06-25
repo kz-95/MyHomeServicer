@@ -1357,9 +1357,10 @@ async function refundEscrowIfHeld(
   // Deduct any non-refundable fees (travel fee once arrived, inspection fee
   // once an inspection booking is done) from the refunded amount.
   const nonRefundable = booking ? computeNonRefundableAmount(booking) : 0;
+  // T3: escrow.amount already includes tip (from computeTotal at escrow creation).
   const refundAmount = Math.max(
     0,
-    Number(escrow.amount) + Number(escrow.tipAmount) - nonRefundable,
+    Number(escrow.amount) - nonRefundable,
   );
   await prisma.$transaction(async (tx) => {
     await tx.escrow.update({

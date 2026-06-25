@@ -147,6 +147,7 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   ✅ P2-P4 service logic + routes completed 2026-06-24: fee-engine.service.ts with FeeRule CRUD + computeFees()
   (wired into credit.service.ts + booking.jobs.ts escrow release), saved-payment.service.ts CRUD,
   dispute.service.ts CRUD + status machine, admin dispute routes, open dispute route for customers.
+- [ ] **P1 Financial Foundation (plan-eng-review + forensic audit approved)** — 18 tasks over ~8h: tip fix (payout + refund paths), urgent fee double-dip fix, platform_fee_rate default alignment, fee-engine.test.ts, unify 5 fee sites, computeFees activeFrom/activeTo fix, 4 new TransactionType enum values, gateway fee settings + txn, registered discount txn, points liability txn + fix fire-and-forget, promo payback routing fix, points config cache invalidation, evaluatePromotions tests (6-8 cases), reconciliation harness (cases 1-4,7,8), dashboard urgentFee time-anchor fix, dashboard 4 cost-line fields. Spec: `docs/superpowers/specs/2026-06-26-profit-simulator-financial.md`. Full review + audit in `docs/ai-context/logs/ceo-log.md` (Session 2026-06-26 01:02 + 01:28).
 
 ---
 
