@@ -604,7 +604,11 @@ model ServicerService {
   servicerId               String    @map("servicer_id") @db.Uuid
   categoryId               String    @map("category_id") @db.Uuid
   title                    String
+  // SP-3 REDESIGN 2026-06-25: internal servicer reference label (not customer-facing).
+  label                    String?   @map("label")
   description              String?
+  // SP-3 REDESIGN: proposal text template. Auto-accept fires this; manual can load + edit.
+  proposalPreset           String?   @map("proposal_preset")
   // Optional listing photo (S3 file URL). Falls back to the category image on cards.
   imageUrl                 String?   @map("image_url")
   // SP-3: listing visibility. true = Active (customer-visible), false = Draft.

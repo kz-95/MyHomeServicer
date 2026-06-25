@@ -6,7 +6,10 @@ const SKU_PATTERN = /^[A-Za-z0-9_-]{3,30}$/;
 
 export interface ServicerModuleInput {
   name: string;
+  questionKey?: string | null;
+  optionValue?: string | null;
   price: number;
+  durationMin?: number | null;
   sku?: string | null;
   active?: boolean;
 }
@@ -56,7 +59,10 @@ export async function createServicerModule(servicerId: string, input: ServicerMo
     data: {
       servicerId,
       name: input.name,
+      questionKey: input.questionKey?.trim() || null,
+      optionValue: input.optionValue?.trim() || null,
       price: input.price,
+      durationMin: input.durationMin ?? null,
       sku: input.sku?.trim() || null,
       active: input.active ?? true,
     },
@@ -77,7 +83,10 @@ export async function updateServicerModule(
   await ownedModule(servicerId, moduleId);
   const data: Prisma.ServicerModuleUpdateInput = {};
   if (input.name !== undefined) data.name = input.name;
+  if (input.questionKey !== undefined) data.questionKey = input.questionKey?.trim() || null;
+  if (input.optionValue !== undefined) data.optionValue = input.optionValue?.trim() || null;
   if (input.price !== undefined) data.price = input.price;
+  if (input.durationMin !== undefined) data.durationMin = input.durationMin ?? null;
   if (input.sku !== undefined) {
     checkSku(input.sku);
     data.sku = input.sku?.trim() || null;

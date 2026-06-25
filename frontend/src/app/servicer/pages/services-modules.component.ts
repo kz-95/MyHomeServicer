@@ -17,7 +17,10 @@ import { ToastService } from '../../core/services/toast.service';
 interface ServicerModule {
   id: string;
   name: string;
+  questionKey?: string | null;
+  optionValue?: string | null;
   price: number;
+  durationMin?: number | null;
   sku?: string | null;
   active: boolean;
   usedInListings: number;
@@ -87,6 +90,14 @@ interface ServicerModule {
                 }
               </div>
               <div class="mc-meta">
+                @if (m.questionKey) {
+                  <span class="mc-q">{{ m.questionKey }} → {{ m.optionValue || '—' }}</span>
+                  <span class="mdot">·</span>
+                }
+                @if (m.durationMin) {
+                  <span>~{{ m.durationMin }} min</span>
+                  <span class="mdot">·</span>
+                }
                 <span class="mc-sku">SKU {{ m.sku || '—' }}</span>
                 <span class="mdot">·</span>
                 <span>used in {{ m.usedInListings }} listing{{ m.usedInListings === 1 ? '' : 's' }}</span>
@@ -120,14 +131,28 @@ interface ServicerModule {
       </label>
       <div class="row">
         <label>
+          <span>Question Key</span>
+          <input type="text" [(ngModel)]="f.questionKey" name="mqkey" placeholder="e.g. aircon_service" />
+        </label>
+        <label>
+          <span>Option Value</span>
+          <input type="text" [(ngModel)]="f.optionValue" name="moval" placeholder="e.g. chemical_wash" />
+        </label>
+      </div>
+      <div class="row">
+        <label>
           <span>Price (RM)<span class="req"> *</span></span>
           <input type="number" [(ngModel)]="f.price" name="mprice" min="0" step="0.01" />
         </label>
         <label>
-          <span>SKU (optional)</span>
-          <input type="text" [(ngModel)]="f.sku" name="msku" placeholder="3–30 chars" />
+          <span>Duration (min)</span>
+          <input type="number" [(ngModel)]="f.durationMin" name="mdur" min="0" step="5" placeholder="e.g. 30" />
         </label>
       </div>
+      <label>
+        <span>SKU (optional)</span>
+        <input type="text" [(ngModel)]="f.sku" name="msku" placeholder="3–30 chars" />
+      </label>
       <div class="modal-actions">
         <button class="btn-ghost" (click)="closeModal()">Cancel</button>
         <button class="btn-primary" (click)="save()" [disabled]="saving()">
@@ -255,6 +280,14 @@ interface ServicerModule {
       .mdot {
         color: var(--color-border);
       }
+      .mc-q {
+        font-family: monospace;
+        font-size: 0.74rem;
+        background: var(--color-bg);
+        padding: 0.05rem 0.4rem;
+        border-radius: 4px;
+        color: var(--color-muted);
+      }
       .mc-right {
         display: flex;
         flex-direction: column;
@@ -376,7 +409,7 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
   });
 
   private blankForm() {
-    return { name: '', price: null as number | null, sku: '' };
+    return { name: '', questionKey: '', optionValue: '', price: null as number | null, durationMin: null as number | null, sku: '' };
   }
 
   ngOnInit(): void {
@@ -415,7 +448,14 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
 
   openEdit(m: ServicerModule): void {
     this.editId.set(m.id);
-    this.f = { name: m.name, price: m.price, sku: m.sku ?? '' };
+    this.f = {
+      name: m.name,
+      questionKey: m.questionKey ?? '',
+      optionValue: m.optionValue ?? '',
+      price: m.price,
+      durationMin: m.durationMin ?? null,
+      sku: m.sku ?? '',
+    };
     this.formError.set('');
     this.modalOpen.set(true);
   }
@@ -438,7 +478,10 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
     this.formError.set('');
     const body: Record<string, unknown> = {
       name,
+      questionKey: this.f.questionKey.trim() || null,
+      optionValue: this.f.optionValue.trim() || null,
       price: Number(this.f.price),
+      durationMin: this.f.durationMin != null ? Number(this.f.durationMin) : null,
       sku: this.f.sku.trim() || null,
     };
     const id = this.editId();

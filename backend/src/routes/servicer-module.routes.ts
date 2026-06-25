@@ -24,14 +24,20 @@ servicerModuleRouter.get(
 
 const moduleCreateValidators = [
   body('name').isString().trim().notEmpty().isLength({ max: 200 }),
+  body('questionKey').optional({ values: 'null' }).isString().trim(),
+  body('optionValue').optional({ values: 'null' }).isString().trim(),
   body('price').isFloat({ min: 0 }),
+  body('durationMin').optional({ values: 'null' }).isInt({ min: 0 }),
   body('sku').optional({ values: 'null' }).isString().trim(),
   body('active').optional().isBoolean(),
 ];
 
 const modulePatchValidators = [
   body('name').optional().isString().trim().notEmpty().isLength({ max: 200 }),
+  body('questionKey').optional({ values: 'null' }).isString().trim(),
+  body('optionValue').optional({ values: 'null' }).isString().trim(),
   body('price').optional().isFloat({ min: 0 }),
+  body('durationMin').optional({ values: 'null' }).isInt({ min: 0 }),
   body('sku').optional({ values: 'null' }).isString().trim(),
   body('active').optional().isBoolean(),
 ];
@@ -44,7 +50,10 @@ servicerModuleRouter.post(
     res.status(201).json(
       await createServicerModule(req.user!.id, {
         name: req.body.name,
+        questionKey: req.body.questionKey ?? null,
+        optionValue: req.body.optionValue ?? null,
         price: req.body.price,
+        durationMin: req.body.durationMin ?? null,
         sku: req.body.sku ?? null,
         active: req.body.active,
       }),
@@ -60,7 +69,10 @@ servicerModuleRouter.patch(
     res.json(
       await updateServicerModule(req.user!.id, req.params.id, {
         name: req.body.name,
+        questionKey: req.body.questionKey,
+        optionValue: req.body.optionValue,
         price: req.body.price,
+        durationMin: req.body.durationMin,
         sku: req.body.sku,
         active: req.body.active,
       }),
