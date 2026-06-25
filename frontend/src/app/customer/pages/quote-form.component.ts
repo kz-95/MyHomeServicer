@@ -2173,9 +2173,8 @@ export class QuoteFormComponent implements OnInit, OnDestroy {
       payload['addressId'] = this.f.addressId;
     }
 
-    if (this.f.paymentTiming === 'pay_later' || this.f.settlementMethod === 'gateway') {
-      payload['settlementMethod'] = this.f.settlementMethod;
-    }
+    // Always send settlementMethod — backend must know the explicit intent.
+    payload['settlementMethod'] = this.f.settlementMethod;
 
     if (!this.f.addressId && this.f.streetDetails.trim()) {
       const fullAddress = [this.f.addressNo, this.f.streetDetails].filter(Boolean).join(', ');

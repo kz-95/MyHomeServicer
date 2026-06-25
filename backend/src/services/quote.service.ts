@@ -275,9 +275,19 @@ export async function createQuote(
 
   const promoDiscount = await resolvePromo(input.promoCode, input.budgetMax);
 
+  // Normalise settlement: pay_now defaults to credit, pay_later stays as-is.
+  const settlement = input.paymentMode === 'pay_now'
+    ? (input.settlementMethod || 'credit')
+    : input.settlementMethod;
+  if (input.paymentMode === 'pay_now' && settlement === 'gateway') {
+    // Gateway (Stripe) - no credit hold, payment processed externally
+  } else if (input.paymentMode === 'pay_now' && settlement !== 'credit') {
+    throw badRequest('pay_now requires settlementMethod "credit" or "gateway"');
+  }
+
   // Registered customer discount: only for non-gateway (registered) users
   let registeredDiscount = 0;
-  if (input.settlementMethod !== 'gateway' && input.budgetMax != null) {
+  if (settlement !== 'gateway' && input.budgetMax != null) {
     const discountCfg = await getSetting<{ rate: number }>('registered_customer_discount').catch(() => null);
     if (discountCfg?.rate) {
       registeredDiscount = Math.round(input.budgetMax * discountCfg.rate * 100) / 100;
@@ -296,6 +306,8 @@ export async function createQuote(
   const discountApplied = promoDiscount + registeredDiscount;
 
   // Pay-now: deduct budgetMax (or budgetMin if open-ended) + tip from customer
+  // wallet (credit). Gateway (Stripe card) payments skip the wallet hold —
+  // the payment is captured via Stripe checkout, not from the wallet.
   // credit up-front and hold it until a proposal is selected or the quote
   // is cancelled/expired. Only applies when a bounded budget max is given -
   // open-ended ranges (budgetMax = null) are held at proposal selection time.
@@ -307,7 +319,7 @@ export async function createQuote(
   // (BUG-4). Gateway (Stripe card) payments are paid via card, not the wallet,
   // so no credit hold applies.
   const baseHold =
-    input.paymentMode === 'pay_now' && input.settlementMethod !== 'gateway'
+    input.paymentMode === 'pay_now' && settlement !== 'gateway'
       ? computeHoldAmount(input.budgetMax ?? null, input.tipAmount ?? 0)
       : 0;
   const creditHold = baseHold > 0 && urgentFee ? Math.round((baseHold + urgentFee) * 100) / 100 : baseHold;

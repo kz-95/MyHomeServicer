@@ -182,10 +182,6 @@ const TAB_ROUTES: Record<TabKey, string> = {
           </div>
           <div class="right">
             <span class="status" [class]="b.status">{{ statusLabel(b.status) }}</span>
-            @if (b.lat != null && b.lng != null && ['confirmed', 'in_progress', 'completed'].includes(b.status)) {
-              <button class="map-link" (click)="openJobMap(b, 'google')">Maps</button>
-              <button class="map-link" (click)="openJobMap(b, 'waze')">Waze</button>
-            }
             @if (b.status === 'completed' && b.paymentMode === 'pay_later' && b.tipStatus !== 'paid') {
               <button class="btn-ghost" (click)="addTip(b)">Add tip</button>
             }
