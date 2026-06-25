@@ -538,11 +538,15 @@ async function dispatchMatches(
   const moduleRows = uniqueModuleIds.length > 0
     ? await prisma.servicerModule.findMany({
         where: { id: { in: uniqueModuleIds } },
-        select: { id: true, name: true, price: true },
+        select: { id: true, name: true, price: true, questionKey: true, optionValue: true, durationMin: true },
       })
     : [];
   const modulesById = new Map<string, ModuleLite>(
-    moduleRows.map((m) => [m.id, { id: m.id, name: m.name, price: Number(m.price) }]),
+    moduleRows.map((m) => [m.id, {
+      id: m.id, name: m.name, price: Number(m.price),
+      questionKey: m.questionKey, optionValue: m.optionValue,
+      durationMin: m.durationMin,
+    }]),
   );
 
   // Pre-fetch schedules for all matched servicers.

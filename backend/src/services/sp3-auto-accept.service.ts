@@ -15,7 +15,6 @@
  * Replaces `quoteMatchesAutoAccept` + the `ServicerProposalPreset` price-offset flow.
  */
 import { ServicerTaxConfig, LineItem } from '../lib/money';
-import { OptionPriceMap } from '../lib/json-schemas';
 import { haversineKm } from '../lib/distance';
 import {
   Answers,
@@ -95,15 +94,46 @@ function availabilityOk(quote: QuoteLite, servicer: ServicerLite, schedules: Sch
   return slot ? slot.isAvailable : false;
 }
 
-/** Q-match gate — every selected option the listing prices/offers must be offered. */
-function qMatchOk(modifiers: OptionPriceMap | null | undefined, answers: Answers): boolean {
-  if (!modifiers) return true;
-  for (const [qKey, optMap] of Object.entries(modifiers)) {
+/**
+ * Resolve the listing's moduleRefs (array of { moduleId }) to full module data.
+ */
+function resolveModules(
+  moduleRefs: { moduleId: string }[] | null | undefined,
+  modulesById: Map<string, ModuleLite>,
+): ModuleLite[] {
+  if (!moduleRefs || !Array.isArray(moduleRefs)) return [];
+  return moduleRefs
+    .map((r) => modulesById.get(r.moduleId))
+    .filter((m): m is ModuleLite => m !== undefined);
+}
+
+/**
+ * Q-match gate — every selected customer answer must have at least one
+ * matching module (questionKey + optionValue). Modules with no questionKey
+ * are informational (not used for matching).
+ *
+ * 2026-06-25: switched from modifiers JSON to ServicerModule rows.
+ */
+function qMatchOk(modules: ModuleLite[], answers: Answers): boolean {
+  if (modules.length === 0) return false;
+  const matching = modules.filter((m) => m.questionKey && m.optionValue);
+  if (matching.length === 0) return false;
+
+  // Build lookup: questionKey → Set<optionValue>
+  const lookup = new Map<string, Set<string>>();
+  for (const m of matching) {
+    const key = m.questionKey!;
+    const val = m.optionValue!;
+    if (!lookup.has(key)) lookup.set(key, new Set());
+    lookup.get(key)!.add(val);
+  }
+
+  // Every selected answer value must have a matching module
+  for (const [qKey, offered] of lookup.entries()) {
     const answer = answers[qKey];
     const selected = selectedValues(answer);
     for (const value of selected) {
-      const entry = optMap[value];
-      if (!entry || entry.notOffered) return false;
+      if (!offered.has(value)) return false;
     }
   }
   return true;
@@ -142,7 +172,7 @@ export function evaluateAutoAcceptGates(
     taxInclusive: servicer.taxInclusive,
   };
   const breakdown = computeListingPrice(listing, modulesById, quote.answers, taxConfig, []);
-  const durationMin = computeListingDurationMin(listing, quote.answers, []);
+  const durationMin = computeListingDurationMin(listing, modulesById, quote.answers, []);
 
   if (!listing.autoAccept) reasons.push('auto-accept off');
   if (listing.priceType === 'hourly' || listing.priceType === 'quote') {
@@ -156,8 +186,9 @@ export function evaluateAutoAcceptGates(
   if (!availabilityOk(quote, servicer, schedules)) reasons.push('not available at requested time');
   // Coverage gate.
   if (!coverageOk(quote, servicer)) reasons.push('outside coverage radius');
-  // Q-match gate.
-  if (!qMatchOk(listing.modifiers, quote.answers)) reasons.push('requested option not offered');
+  // Q-match gate: use modules instead of modifiers.
+  const attachedModules = resolveModules(listing.moduleRefs ?? [], modulesById);
+  if (!qMatchOk(attachedModules, quote.answers)) reasons.push('requested option not offered');
 
   return {
     pass: reasons.length === 0,

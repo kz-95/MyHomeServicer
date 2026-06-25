@@ -13,6 +13,9 @@ export interface ModuleLite {
   id: string;
   name: string;
   price: number;
+  questionKey?: string | null;
+  optionValue?: string | null;
+  durationMin?: number | null;
 }
 
 export interface ListingForPricing {
@@ -88,19 +91,20 @@ export function buildListingLineItems(
     });
   }
 
-  // Matched question-option upcharges.
-  const mods = listing.modifiers ?? {};
-  for (const [qKey, optMap] of Object.entries(mods)) {
-    for (const sel of selectedOptions(answers[qKey])) {
-      const entry = optMap[sel.value];
-      if (!entry || entry.notOffered || entry.price == null) continue;
-      items.push({
-        label: `${qKey}: ${sel.value}${sel.count > 1 ? ` ×${sel.count}` : ''}`,
-        amount: round2(entry.price * sel.count),
-        taxable: true,
-        serviceChargeable: true,
-      });
-    }
+  // Matched module pricing (2026-06-25: replaces modifiers JSON approach).
+  for (const ref of refs) {
+    const mod = modulesById.get(ref.moduleId);
+    if (!mod || !mod.questionKey || !mod.optionValue) continue;
+    const selected = selectedOptions(answers[mod.questionKey]);
+    const matched = selected.find((s) => s.value === mod.optionValue);
+    if (!matched) continue;
+    const count = matched.count ?? 1;
+    items.push({
+      label: `${mod.name}${count > 1 ? ` ×${count}` : ''}`,
+      amount: round2(mod.price * count),
+      taxable: true,
+      serviceChargeable: true,
+    });
   }
 
   // Ticked add-on modules.
@@ -125,6 +129,7 @@ export function buildListingLineItems(
  */
 export function computeListingDurationMin(
   listing: ListingForPricing,
+  modulesById: Map<string, ModuleLite>,
   answers: Answers,
   selectedAddonIds: string[] = [],
 ): number {
@@ -137,13 +142,14 @@ export function computeListingDurationMin(
     total += ref.durationDeltaMin ?? 0;
   }
 
-  const mods = listing.modifiers ?? {};
-  for (const [qKey, optMap] of Object.entries(mods)) {
-    for (const sel of selectedOptions(answers[qKey])) {
-      const entry = optMap[sel.value];
-      if (!entry || entry.notOffered) continue;
-      total += (entry.durationMin ?? 0) * sel.count;
-    }
+  // Module-based duration (2026-06-25: replaces modifiers JSON).
+  for (const ref of refs) {
+    const mod = modulesById.get(ref.moduleId);
+    if (!mod || !mod.questionKey || !mod.optionValue) continue;
+    const selected = selectedOptions(answers[mod.questionKey]);
+    const matched = selected.find((s) => s.value === mod.optionValue);
+    if (!matched) continue;
+    total += (mod.durationMin ?? 0) * (matched.count ?? 1);
   }
 
   return Math.max(0, Math.round(total));

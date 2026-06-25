@@ -133,6 +133,6 @@ export function recomputeProposalPrice(
   const selected = addonIds.filter((id) => validAddonIds.has(id));
   const pl = pricingListing(listing);
   const breakdown = computeListingPrice(pl, modulesById, answers, taxConfigOf(servicer, sstRate), selected);
-  const durationMin = computeListingDurationMin(pl, answers, selected);
+  const durationMin = computeListingDurationMin(pl, modulesById, answers, selected);
   return { total: breakdown.total, breakdown: breakdown.lineItems, durationMin, addonIds: selected };
 }

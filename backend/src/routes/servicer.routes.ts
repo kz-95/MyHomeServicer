@@ -666,7 +666,7 @@ servicerRouter.get(
     };
 
     const breakdown = computeListingPrice(listing, modulesById, answersRaw as Answers, taxConfig, []);
-    const durationMin = computeListingDurationMin(listing, answersRaw as Answers, []);
+    const durationMin = computeListingDurationMin(listing, modulesById, answersRaw as Answers, []);
 
     // Auto-accept eligibility summary (without quote context — just structural check).
     const autoAcceptEligible = service.autoAccept && service.priceType === 'fixed';

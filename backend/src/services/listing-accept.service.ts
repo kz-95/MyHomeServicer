@@ -110,7 +110,7 @@ export async function resolveListingAccept(
 
   const answers = (quote.serviceDetails ?? {}) as Answers;
   const breakdown = computeListingPrice(listing, modulesById, answers, taxConfig, []);
-  const durationMin = computeListingDurationMin(listing, answers, []);
+  const durationMin = computeListingDurationMin(listing, modulesById, answers, []);
 
   return {
     price: breakdown.total,
