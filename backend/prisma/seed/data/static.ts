@@ -126,7 +126,7 @@ export const categories: SeedParentCategory[] = [
   { slug: "tech-it", name: "Tech & IT", icon: "monitor" },
 ];
 
-/** The 29 leaf-level service children (what servicers list under + customers quote). */
+/** The 34 leaf-level service children (what servicers list under + customers quote). */
 export const children: SeedChildCategory[] = [
   // ── Cleaning Service ──
   {
@@ -738,7 +738,7 @@ export const children: SeedChildCategory[] = [
         label: "Renovation type?",
         type: "radio",
         required: true,
-        priced: false,
+        priced: true,
         options: [
           { value: "full_home", label: "Full home" },
           { value: "single_room", label: "Single room" },
@@ -973,7 +973,7 @@ export const children: SeedChildCategory[] = [
         label: "What do you need?",
         type: "radio",
         required: true,
-        priced: false,
+        priced: true,
         options: [
           { value: "leak_repair", label: "Leak repair" },
           { value: "tile_sheet_replacement", label: "Tile/Sheet replacement" },

@@ -672,8 +672,8 @@ function areaCoords(area: string): { lat: number | null; lng: number | null } {
   const a = area.toLowerCase();
   // PJ / Damansara Utama / SS2
   if (/damansara\s*utama|ss2|petaling\s*jaya/.test(a)) return { lat: 3.08, lng: 101.65 };
-  // Cyberjaya / Putrajaya
-  if (/cyberjaya|putrajaya/.test(a)) return { lat: 2.99, lng: 101.65 };
+  // Cyberjaya / Putrajaya (Tamarind Suites ~2.924, 101.657)
+  if (/cyberjaya|putrajaya/.test(a)) return { lat: 2.924, lng: 101.657 };
   // KLCC / Bukit Bintang
   if (/klcc|bukit\s*bintang/.test(a)) return { lat: 3.15, lng: 101.71 };
   // Cheras
@@ -870,6 +870,7 @@ async function main(): Promise<void> {
   // ── Customers ──
   const customerByRef: Record<string, string> = {};
   const addressByRef: Record<string, string> = {};
+  const addrCoordsByRef: Record<string, { lat: number; lng: number }> = {};
   for (const c of customers) {
     const user = await prisma.user.create({
       data: {
@@ -890,6 +891,10 @@ async function main(): Promise<void> {
     customerByRef[c.ref] = user.id;
     let idx = 0;
     for (const a of c.addresses) {
+      const district = a.district ?? a.address;
+      const coords = areaCoords(district);
+      const addrLat = coords.lat ?? 3.1390;
+      const addrLng = coords.lng ?? 101.6869;
       const addr = await prisma.userAddress.create({
         data: {
           userId: user.id,
@@ -900,11 +905,13 @@ async function main(): Promise<void> {
           postcode: a.postcode ?? null,
           district: a.district ?? null,
           state: a.state ?? null,
-          lat: 3.1390 + (idx * 0.002),
-          lng: 101.6869 + (idx * 0.002),
+          lat: addrLat,
+          lng: addrLng,
         },
       });
-      addressByRef[`${c.ref}:${idx++}`] = addr.id;
+      const key = `${c.ref}:${idx++}`;
+      addressByRef[key] = addr.id;
+      addrCoordsByRef[key] = { lat: addrLat, lng: addrLng };
     }
   }
   // Quote presets for the demo customers (the quote form picks from these).
@@ -1412,8 +1419,8 @@ async function main(): Promise<void> {
           ? (opts.serviceDetails as Prisma.InputJsonValue)
           : Prisma.JsonNull,
         notes: opts.notes ?? null,
-        lat: 3.1390,
-        lng: 101.6869,
+        lat: addrCoordsByRef[addressKey]?.lat ?? 3.1390,
+        lng: addrCoordsByRef[addressKey]?.lng ?? 101.6869,
       },
     });
   }
@@ -1439,6 +1446,7 @@ async function main(): Promise<void> {
       servicerDeadline: minutes(offset - 15),
       status: 'open',
       serviceDetails: { aircon_service: ['wall_chemical', 'wall_general'], property_type: 'condo' },
+      lat: addrCoordsByRef['C_ACTIVE:0']?.lat ?? 3.15, lng: addrCoordsByRef['C_ACTIVE:0']?.lng ?? 101.71,
     },
   });
   await prisma.quoteBroadcast.create({ data: { quoteRequestId: activeQuote.id, servicerId: servicerByRef['M2'] } });
@@ -1458,6 +1466,7 @@ async function main(): Promise<void> {
       paymentMode: 'pay_later', deadlineMode: 'fixed_time',
       proposalDeadline: minutes(offset), servicerDeadline: minutes(offset - 15),
       status: 'open',
+      lat: addrCoordsByRef['C_FRESH:0']?.lat ?? 2.924, lng: addrCoordsByRef['C_FRESH:0']?.lng ?? 101.657,
     },
   });
   await prisma.quoteBroadcast.create({ data: { quoteRequestId: plumbingOpenQuote.id, servicerId: servicerByRef['M1'] } });
@@ -1477,6 +1486,7 @@ async function main(): Promise<void> {
       paymentMode: 'pay_later', deadlineMode: 'fixed_time',
       proposalDeadline: minutes(offset + 60), servicerDeadline: minutes(offset + 45),
       status: 'open',
+      lat: addrCoordsByRef['C_LOYAL:0']?.lat ?? 3.13, lng: addrCoordsByRef['C_LOYAL:0']?.lng ?? 101.63,
     },
   });
   await prisma.quoteBroadcast.create({ data: { quoteRequestId: cateringOpenQuote.id, servicerId: servicerByRef['M9'] } });

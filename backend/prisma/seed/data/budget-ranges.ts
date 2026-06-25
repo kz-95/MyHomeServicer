@@ -1,7 +1,7 @@
 /**
  * Per-category budget brackets a customer picks from on the quote form / chat.
  * Keyed by category slug; the seed maps these onto category ids. Shared by the
- * full seed (seed.ts) and the non-destructive settings updater (seed-settings.ts)
+ * full seed (seed.ts) which now handles both initial create and non-destructive upsert
  * so the two never drift.
  */
 export type BudgetRange = { min: number; max: number | null };

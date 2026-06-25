@@ -291,6 +291,21 @@ On first boot, Set A servicers see populated charts so the demo never shows empt
 
 Platform revenue is calculated from the `platformFee` field on actual `Invoice` records (8% of each completed booking total, including promotion-discounted amounts). Every completed booking contributes to the admin revenue chart. The chart shows daily totals for the selected 7 or 30 day range.
 
+### Admin financial dashboard seeding (D1-D6)
+
+The `GET /admin/dashboard/financial` endpoint powers 6 stat cards, a revenue chart, and a category breakdown table. Six seed gaps block these from showing data:
+
+| Card/Element | Query source | Seed gap |
+|---|---|---|
+| Escrow Held | `escrow_hold` txs JOIN bookings | txs lack `bookingId` → INNER JOIN returns 0 |
+| Pending Payouts | `prisma.escrow.aggregate` | Zero Escrow rows seeded |
+| Urgent Fee Revenue | `booking.urgentFee` (isUrgent=true) | Zero urgent bookings |
+| Urgent Platform Share | `urgent_fee` txs | Zero urgent_fee transactions |
+| Chart Revenue line | `SUM(booking.urgent_fee)` | All bookings have null urgentFee |
+| Category Breakdown Fees | `platform_fee` txs per category | All txs link to single plumber booking |
+
+All six are fixed in the consolidated seed flow. Additionally, the "Revenue" column in the chart and category breakdown was changed from `SUM(urgent_fee)` to `SUM(booking.price)` to reflect actual booking value, not just urgent surcharges.
+
 ---
 
 ## Invoices
@@ -330,18 +345,20 @@ Use `Run-Test.bat` from the repo root for a one-click Windows launcher (starts D
 
 ---
 
-## Geographic spread
+## Geographic spread (with coordinates resolved by areaCoords)
 
-| Area | Used for |
-|---|---|
-| Bukit Bintang, KL | Customer.fresh primary address |
-| KLCC, KL | Customer.active address |
-| Damansara Heights, KL | Customer.loyal saved address |
-| SS2, Petaling Jaya | M1, M6 base + customer secondary |
-| Damansara Utama, PJ | M3, M11 base |
-| Cheras, KL | M2, M7, M12 base + customer secondary |
-| Cyberjaya (near MMU) | M5, M9, M10 base |
-| Bukit Bintang/KLCC | M4, M8 base |
+| Area | coords | Used for |
+|---|---|---|
+| Cyberjaya (Tamarind Suites) | 2.924, 101.657 | Customer.fresh primary + quotes |
+| KLCC, KL | 3.15, 101.71 | Customer.active address + quotes |
+| Damansara Heights, KL | 3.13, 101.63 | Customer.loyal primary + quotes |
+| SS2, Petaling Jaya | 3.08, 101.65 | Customer.loyal secondary + M1, M6 base |
+| Cheras, KL | 3.10, 101.72 | M2, M7, M12 base |
+| Bukit Bintang, KL | 3.15, 101.71 | M4, M8 base |
+| Damansara Utama, PJ | 3.08, 101.65 | M3, M11 base |
+| Cyberjaya (near MMU) | 2.924, 101.657 | M5, M9, M10 base |
+
+Customer addresses resolve coordinates from `areaCoords(district)`. Quotes inherit coordinates from the linked address via `addrCoordsByRef` map — no more hardcoded KL coordinates for every quote.
 
 ---
 

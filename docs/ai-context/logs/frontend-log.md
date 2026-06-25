@@ -399,6 +399,7 @@
 | **Category Thumbnails POST-MVP (§15)** | **701** |
 | **Plan 2 Dispatch Card Visual Redesign** | **1712** |
 | **Task RFG - routeFor() typed path helper** | **2020** |
+| **Admin Dashboard Complete Rewrite** | **2261** |
 
 ---
 
@@ -2257,3 +2258,46 @@ Three insertion points, all gated behind `if (!environment.production)`:
 |---|---|
 | `tests/e2e/helpers/socket-watcher.ts` | Created |
 | `frontend/src/app/core/services/socket.service.ts` | Modified (+11 lines) |
+
+---
+
+### Session 2026-06-25 - Admin Dashboard Complete Rewrite
+
+**Goal:** Full rewrite of `frontend/src/app/admin/pages/dashboard.component.ts` per CEO spec.
+
+**Work done:**
+
+1. **Section reordering** - Pending Queues moved to section 1 (before financial cards). Final order: Queues → Financial Cards → Toolbar → Chart → Categories → Customers → Servicers.
+
+2. **Collapsible system refactor** - Replaced `collapsedSections: Set<string>` with `showSections: Record<string, boolean>` initialized all `true`. New `toggleSection(key)` method. Section headers simplified: `<button class="section-header">` with inline `Title (?) ▲/▼` pattern, `title` attribute for native browser tooltip on each header.
+
+3. **Financial cards (5 cards, 1 row, no collapse)**:
+   - Renamed: Revenue → **Total Revenue**, Fees → **Platform Fees**, Escrow → **Escrow Held**, Pending → **Pending Payouts**, Urgent → **Urgent Fee**
+   - "Today" sub-line merged into Total Revenue card (removed from Urgent card)
+   - Urgent card: solid border (`var(--color-border)`), subtle tint `rgba(196,144,58,0.04)` instead of warning-colored border
+   - All tooltips via `title` attribute on label spans (`Total Revenue (?)`, etc.)
+
+4. **Toolbar** - Search input wrapped with magnifying glass SVG icon prefix (`.search-wrap` + `.search-icon`). Category chips preserved.
+
+5. **Chart pills refactor** - Replaced `activeChartLines: Set<ChartLineKey>` with `chartPills: Record<ChartLineKey, boolean>` default `{revenue:true, fees:true, escrow:false, payouts:false}`. New `toggleChartPill(key)` method calls `rebuildChart()`. Inactive pills show empty circle (`.pill-dot.off { background:transparent; border:1px solid var(--color-border); }`).
+
+6. **Chart lines** - Escrow: solid green (`var(--color-success)`, no dasharray). Payouts: dashed green (`var(--color-success)`, `stroke-dasharray: 6 3`). Legend dots, summary item colors updated for both to `--color-success`.
+
+7. **Named interfaces** - Added `DailyValue`, `CustomerLeader`, `ServicerLeader` interfaces. `FinancialDashboard` updated to reference them (`DailyValue[]`, `CustomerLeader[]`, `ServicerLeader[]`).
+
+8. **Removed** - Unused `effect` import. Old `.urgent-card` warning-border styling. `.section-collapse` wrappers (now border-bottom on `.section-header` provides separation). `.chevron` element (chevron now inline in header text).
+
+9. **Chart header tooltip** updated to: "Daily platform revenue and financial metrics. Toggle lines with the pills below."
+
+**Verification:**
+
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | ✅ 0 errors |
+| `npx ng build --configuration development` | ✅ Exit 0, AOT green |
+
+**Files changed:**
+
+| File | Action |
+|---|---|
+| `frontend/src/app/admin/pages/dashboard.component.ts` | Rewritten (1167 → ~945 lines) |

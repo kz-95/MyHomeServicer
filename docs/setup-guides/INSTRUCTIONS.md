@@ -105,13 +105,26 @@ migration folder, applies it, and regenerates the client. Commit the new folder.
 npm run seed
 ```
 
-This populates the database with all demo accounts, servicers, quotes,
-bookings and platform settings. The seed is idempotent - it wipes any existing
-data first, so it is safe to re-run.
+This populates everything in one pass — categories, servicers, modules, advanced
+listings, bookings, invoices, escrow, platform settings, admin queues, chat
+sessions, and 30-day revenue data. The seed wipes existing data first, so it is
+safe to re-run.
 
-> Shortcut: **`npm run db:reset`** does steps 4 + 5 in one go - force-push the
-> schema, regenerate the client, and reseed. This is the usual "fix the
-> database" command after a schema change.
+**What gets seeded:**
+- 34 child categories with i18n'd question schemas
+- 105 servicers (3 per category + 9 for painting/moving/gardening)
+- ServicerModule records — questionKey+optionValue matched to each category's priced questions
+- Advanced listings with moduleRefs + auto-accept for all 34 categories
+- ~1000+ completed bookings with lineItems
+- Invoices with lineItems, service charges, promo discounts
+- Escrow rows (20 total, 3 held for demo)
+- 30-day platform_fee transactions distributed across all 28 categories
+- 3 urgent bookings (isUrgent=true, RM 150 surcharge)
+- Admin queues: 6 withdrawals, 4 appeals, 6 category requests, 1 report
+- Admin dashboard: all 12 financial metrics show non-zero data on first boot
+
+> Shortcut: **`npm run db:reset`** does steps 4 + 5 in one go — drops DB, reapplies
+> all migrations, regenerates the client, and runs the consolidated seed.
 
 ---
 
@@ -205,23 +218,25 @@ npx prisma studio             # GUI to browse the database (opens in browser)
 ### Seed
 
 ```bash
-npm run seed                  # Seed demo data (wipes + recreates all)
-npm run unseed                # Remove all seeded data
-npm run reseed                # Reset everything (unseed + seed)
-npm run db:reset              # Force-push schema + regenerate client + seed
-npm run seed:settings         # Upsert platform settings ONLY (budget ranges, chat
-                              #   config, greeting tiers) - NON-destructive, no data
-                              #   wipe. Run after a settings default changes instead
-                              #   of a full reset, then restart the backend.
+npm run seed                  # Full demo seed (wipes + recreates ALL data in one pass)
+npm run db:reset              # Drop DB → migrate → regenerate client → seed (nuclear reset)
+npm run reseed                # Unseed → seed (wipe all data, then recreate)
 
-npm run seed:test             # Lightweight test seed (4 servicers, 32 bookings)
-npm run db:reset-test         # Force-push schema + regenerate client + test seed
+npm run seed:test             # Lightweight test seed (8 servicers, 32 bookings)
+npm run db:reset-test         # Drop DB → migrate → test seed
 npm run reseed:test           # Wipe + recreate test seed
-
-cat prisma/seed/seeded-ids.json   # Check what UUIDs are currently seeded
 ```
 
-> `seeded-ids.json` is auto-generated and gitignored - do not commit it.
+**Railway (production demo reset):**
+```bash
+# Full reset (drops DB, reapplies migrations, runs consolidated seed)
+railway run npx prisma migrate reset --force
+
+# Seed only (wipes + recreates data, no migration reset)
+railway run -s <service-id> -- bash -c "cd backend && npx ts-node --transpile-only prisma/seed/seed.ts"
+```
+
+> `npx prisma studio` opens a GUI to browse the database. `prisma/seed/seeded-ids.json` is auto-generated and gitignored.
 
 ### Backend
 
@@ -256,9 +271,15 @@ Then verify:
 - [ ] All demo accounts work (log in via login page quick-fill or navbar dropdown)
 - [ ] `customer.active@demo.local` - quote countdown is still ticking
 - [ ] `customer.loyal@demo.local` - chat session shows seed messages, order history has 4 completed bookings with invoices
-- [ ] Any servicer dashboard (e.g. M3 Daikin Pro) - 7-day earnings chart shows bars with data
+- [ ] Any servicer dashboard (e.g. M3 Volt Masters) - 7-day earnings chart shows bars with data
 - [ ] Any servicer history page - 30-day earnings summary shows populated chart and stats
-- [ ] Admin dashboard - 30-day platform revenue chart shows data
+- [ ] **Admin dashboard** (`admin@demo.local`, PIN `1234`):
+  - [ ] 5 financial cards show non-zero: Revenue, Fees, Escrow, Pending, Urgent Fee
+  - [ ] Pending queues: Withdrawals (6), Appeals (4), Category requests (6), Open reports (1)
+  - [ ] Chart pills: toggle Revenue, Fees, Escrow, Payouts lines independently
+  - [ ] Category breakdown: all columns populated across multiple categories
+  - [ ] Customer leaderboard: top 20 by spend, non-empty
+  - [ ] Servicer leaderboard: top 20 by revenue, non-empty
 - [ ] Send one test message to AI chatbot - verify it responds
 - [ ] Backend logs are clean (no errors during seed)
 

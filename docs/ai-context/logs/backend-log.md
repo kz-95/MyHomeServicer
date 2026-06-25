@@ -2,6 +2,39 @@
 
 > Single-writer log - only the **Backend** agent writes here.
 
+## Session 2026-06-25 22:34 - Admin Dashboard Financial: Add dailyEscrow, dailyPayouts, Leaderboards
+
+**Task:** Extend `getDashboardFinancial()` in `admin.service.ts` with 4 new data arrays per dashboard redesign spec.
+
+### Task 1 - dailyEscrow + dailyPayouts time-series
+- Added `DailyValueRow` interface for raw query row shape
+- Added `dailyEscrow`: `$queryRawUnsafe` summing `escrow_hold` transactions per day (JOIN bookings → quote_requests), zero-padded across the full `days` range
+- Added `dailyPayouts`: same pattern for `escrow_release` transactions
+- Both use the same INNER JOIN + categoryId filter pattern as existing `dailyRevenue`
+
+### Task 2 - customerLeaderboard
+- Added `CustomerLeaderboardRow` interface
+- Top 20 customers by total spent (`SUM(b.price)` from completed bookings), with `booking_count` and `last_booking`
+- `INNER JOIN bookings` + `INNER JOIN quote_requests` (when categoryId filter active)
+- Returns: `{ userId, name, email, bookingCount, totalSpent, lastBooking }[]`
+
+### Task 3 - servicerLeaderboard
+- Added `ServicerLeaderboardRow` interface
+- Top 20 servicers by revenue (`SUM(b.price)` from completed bookings), with `job_count`, `report_count` (open reports linked to servicer's bookings)
+- `LEFT JOIN bookings` (to include zero-booking servicers when unfiltered) + `LEFT JOIN reports`
+- Post-filter removes zero-booking servicers when categoryId is set
+- Returns: `{ servicerId, name, businessName, rating, jobCount, revenue, reportCount }[]`
+
+### Task 4 - Return type
+- Updated return object with 4 new keys: `dailyEscrow`, `dailyPayouts`, `customerLeaderboard`, `servicerLeaderboard`
+- All Decimal → Number conversion at query boundary via `Number()`
+
+**Files changed:** `backend/src/services/admin.service.ts` (4 interfaces + ~130 lines of queries + return object)
+
+**Gates:** `npx tsc --noEmit` - zero errors.
+
+---
+
 ## Session 2026-06-25 20:25 - SP-3 Seed Consolidation & Field-Gap Fix
 
 **Task:** 8-section comprehensive seed consolidation (price/duration mismatches, field gaps, docs, scripts).
@@ -571,6 +604,7 @@ Gates: backend tsc 0 (source) / jest 298 pass, 0 fail / frontend tsc 0
 ## Quick Index
 | Section | Line |
 |---------|------|
+| Session 2026-06-25 22:34 - Admin Dashboard: dailyEscrow/dailyPayouts/leaderboards | 5 |
 | Session 2026-06-24 20:38 - QA-004 Fix (urgent fee 20/80 split) | 5 |
 | Session 2026-06-24 20:30 - QA-003 Fix (platform fee double-record) | 31 |
 | Session 2026-06-24 20:20 - BE-019 Fix (chat PIN token leak) | 50 |

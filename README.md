@@ -115,7 +115,7 @@ Quick version:
 # Start infrastructure (required first)
 docker compose up -d
 
-# Build the DB schema + seed demo data
+# Build the DB schema + seed demo data (now includes modules + settings in one pass)
 cd backend && npm run db:reset
 ```
 
@@ -151,13 +151,14 @@ All share password `Demo@2026`.
 ## Key commands
 
 ```bash
-npm run seed       # Seed demo data
-npm run unseed     # Remove all seeded data
-npm run reseed     # Reset everything (unseed + seed)
-npm run db:reset   # Force-push schema + regenerate client + reseed
-npm run db:sync    # Push schema changes (keeps data) + regenerate client
+npm run seed       # Full demo seed (categories, servicers, modules, bookings, invoices, escrow, admin queues)
+npm run seed:test  # Lean test seed (8 servicers, 32 bookings)
+npm run reseed     # Wipe + full seed
+npm run db:reset   # Nuclear reset (drops DB, re-applies all 25 migrations, runs consolidated seed)
+npm run db:sync    # Deploy pending migrations (keeps data) + regenerate client
 
-npx prisma studio  # Browse the database in browser
+# Railway (demo environment)
+railway run npx prisma migrate reset --force   # Full nuclear reset on Railway
 ```
 
 ---

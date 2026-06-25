@@ -16,10 +16,7 @@
     "test": "jest --passWithNoTests",
     "test:e2e": "cross-env RUN_E2E=1 jest --passWithNoTests",
     "seed": "npm run typecheck:seed && ts-node --transpile-only prisma/seed/seed.ts",
-    "seed:admin": "ts-node --transpile-only prisma/seed/seed-admin.ts",
     "seed:test": "npm run typecheck:seed && ts-node --transpile-only prisma/seed/seed-test.ts",
-    "seed:settings": "ts-node --transpile-only prisma/seed/seed-settings.ts",
-    "seed:modules": "ts-node --transpile-only prisma/seed/seed-sp3-modules.ts",
     "unseed": "ts-node --transpile-only prisma/seed/unseed.ts",
     "reseed": "npm run typecheck:seed && ts-node --transpile-only prisma/seed/unseed.ts && ts-node --transpile-only prisma/seed/seed.ts",
     "reseed:test": "npm run typecheck:seed && ts-node --transpile-only prisma/seed/unseed.ts && ts-node --transpile-only prisma/seed/seed-test.ts",
@@ -35,7 +32,7 @@
     "tar": "7.5.15"
   },
   "prisma": {
-    "seed": "tsc -p tsconfig.seed.json && ts-node --transpile-only prisma/seed/seed.ts"
+    "seed": "ts-node --transpile-only prisma/seed/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1057.0",

@@ -155,7 +155,41 @@ railway run npx prisma migrate reset --force
 
 ### 4.2 Demo data / PINs on prod
 
-`migrate deploy` does NOT seed. To load demo accounts (and the demo PINs - action PIN `1234`, demo login gate `5201314`), run a one-off in the Railway shell: `railway run npm run seed` (additive) or `railway run npm run db:reset` (DESTRUCTIVE - `migrate reset --force`, wipes + re-applies + reseeds; demo environments only).
+`migrate deploy` does NOT seed. To load demo accounts and PINs (action PIN `1234`, demo login gate `5201314`), run a one-off in the Railway shell:
+
+```bash
+# Option A - Full reset + reseed (WIPES all data, reapplies migrations, runs seed)
+railway run npx prisma migrate reset --force
+# This runs the prisma.seed command defined in backend/package.json,
+# which now runs seed.ts (consolidated: categories, servicers, modules,
+# bookings, invoices, settings - everything in one pass).
+
+# Option B - Seed only (no migration reset, seed.ts wipes + recreates data)
+railway run -s <service-id> -- bash -c "cd backend && npx ts-node --transpile-only prisma/seed/seed.ts"
+```
+
+**What the consolidated seed creates (single pass):**
+- 7 parent + 34 child categories with i18n'd question schemas
+- Platform settings, penalty rules, feature flags, budget ranges, FAQs
+- 1 admin + 9 customers + 105 servicers with deposits + proposal presets
+- ServicerModule records (questionKey+optionValue matched to question schemas)
+- Advanced listings with moduleRefs + auto-accept for all 34 categories
+- ~1000+ completed bookings spread across all 28 categories
+- Invoices with lineItems, service charges, promo discounts
+- Escrow rows for pay_now bookings
+- 30-day platform_fee transactions distributed across categories
+- 3 urgent bookings with urgent_fee transactions
+- Admin queue: 6 withdrawals, 4 appeals, 6 category requests, 1 report
+- Chat session + platform revenue chart data
+
+**One-command seed on Railway (demo reset):**
+```bash
+railway run npx prisma migrate reset --force
+# ↓ internally runs:
+#   prisma seed = ts-node --transpile-only prisma/seed/seed.ts
+```
+
+> ⚠️ `migrate reset --force` DROPS the database and recreates it. Use only in demo/staging. For production data-preserving operations, use `prisma migrate deploy` (schema only, no seed).
 
 ---
 

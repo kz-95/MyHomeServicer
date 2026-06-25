@@ -19,6 +19,30 @@ interface RawSumRow {
   total: string | number | bigint;
 }
 
+interface DailyValueRow {
+  day: string;
+  amount: string;
+}
+
+interface CustomerLeaderboardRow {
+  id: string;
+  name: string;
+  email: string;
+  booking_count: bigint;
+  total_spent: string;
+  last_booking: string | Date;
+}
+
+interface ServicerLeaderboardRow {
+  id: string;
+  name: string;
+  business_name: string;
+  rating: number | string;
+  job_count: bigint;
+  revenue: string;
+  report_count: bigint;
+}
+
 /**
  * Admin financial dashboard - top-ups, fees, escrow, urgent revenue,
  * category breakdown, and daily revenue series.
@@ -205,6 +229,116 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     });
   }
 
+  // ── dailyEscrow - escrow_hold transactions per day ──
+  const escrowDailyRows = await prisma.$queryRawUnsafe<DailyValueRow[]>(
+    `SELECT t.created_at::date::text AS day,
+            COALESCE(SUM(t.amount), 0)::numeric AS amount
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'escrow_hold' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}
+     GROUP BY t.created_at::date ORDER BY day`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+
+  const escrowMap = new Map<string, number>();
+  for (const r of escrowDailyRows) {
+    escrowMap.set(r.day, Number(r.amount));
+  }
+
+  const dailyEscrow: { day: string; amount: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    dailyEscrow.push({ day: key, amount: escrowMap.get(key) ?? 0 });
+  }
+
+  // ── dailyPayouts - escrow_release transactions per day ──
+  const payoutsDailyRows = await prisma.$queryRawUnsafe<DailyValueRow[]>(
+    `SELECT t.created_at::date::text AS day,
+            COALESCE(SUM(t.amount), 0)::numeric AS amount
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'escrow_release' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}
+     GROUP BY t.created_at::date ORDER BY day`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+
+  const payoutsMap = new Map<string, number>();
+  for (const r of payoutsDailyRows) {
+    payoutsMap.set(r.day, Number(r.amount));
+  }
+
+  const dailyPayouts: { day: string; amount: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    dailyPayouts.push({ day: key, amount: payoutsMap.get(key) ?? 0 });
+  }
+
+  // ── customerLeaderboard - top 20 customers by total spent ──
+  const customerRows = await prisma.$queryRawUnsafe<CustomerLeaderboardRow[]>(
+    `SELECT u.id, u.name, u.email,
+            COUNT(DISTINCT b.id)::bigint AS booking_count,
+            COALESCE(SUM(COALESCE(b.price, 0)), 0)::numeric AS total_spent,
+            MAX(b.created_at) AS last_booking
+     FROM users u
+     INNER JOIN bookings b ON b.user_id = u.id AND b.status = 'completed'
+     ${categoryId ? 'INNER JOIN quote_requests qr ON b.quote_request_id = qr.id' : ''}
+     WHERE u.role = 'customer' AND b.created_at >= $1
+       ${categoryId ? 'AND qr.category_id = $2::uuid' : ''}
+     GROUP BY u.id, u.name, u.email
+     ORDER BY total_spent DESC
+     LIMIT 20`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const customerLeaderboard = customerRows.map((r) => ({
+    userId: r.id,
+    name: r.name,
+    email: r.email,
+    bookingCount: Number(r.booking_count),
+    totalSpent: Number(r.total_spent),
+    lastBooking: r.last_booking instanceof Date ? r.last_booking.toISOString() : String(r.last_booking),
+  }));
+
+  // ── servicerLeaderboard - top 20 servicers by revenue ──
+  const servicerRows = await prisma.$queryRawUnsafe<ServicerLeaderboardRow[]>(
+    `SELECT s.id, s.name, s.business_name, s.rating,
+            COUNT(DISTINCT b.id)::bigint AS job_count,
+            COALESCE(SUM(COALESCE(b.price, 0)), 0)::numeric AS revenue,
+            COUNT(DISTINCT r.id)::bigint AS report_count
+     FROM servicers s
+     LEFT JOIN bookings b ON b.servicer_id = s.id AND b.status = 'completed' AND b.created_at >= $1
+     ${categoryId ? 'INNER JOIN quote_requests qr ON b.quote_request_id = qr.id' : ''}
+     LEFT JOIN reports r ON r.booking_id = b.id AND r.status = 'open'
+     ${categoryId ? "WHERE qr.category_id = $2::uuid OR b.id IS NULL" : ''}
+     GROUP BY s.id, s.name, s.business_name, s.rating
+     ORDER BY revenue DESC
+     LIMIT 20`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+
+  const servicerLeaderboard = servicerRows
+    .filter((r) => {
+      // When filtering by category, exclude servicers with zero matching bookings
+      if (categoryId) return Number(r.job_count) > 0;
+      return true;
+    })
+    .map((r) => ({
+      servicerId: r.id,
+      name: r.name,
+      businessName: r.business_name,
+      rating: Number(r.rating),
+      jobCount: Number(r.job_count),
+      revenue: Number(r.revenue),
+      reportCount: Number(r.report_count),
+    }));
+
   return {
     totalTopUps,
     totalFees,
@@ -216,6 +350,10 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     urgentFeePlatformShare,
     categoryBreakdown,
     dailyRevenue,
+    dailyEscrow,
+    dailyPayouts,
+    customerLeaderboard,
+    servicerLeaderboard,
   };
 }
 

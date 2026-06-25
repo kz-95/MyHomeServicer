@@ -1,18 +1,32 @@
 ﻿# TODO - Current Project State
 
-> **State: DEMO-FOCUSED - SP-3 REDESIGN + UX POLISH** - 2026-06-25
+> **State: DEMO-FOCUSED - SP-3 REDESIGN + UX POLISH + ADMIN DASHBOARD** - 2026-06-25
 > Branch: feat/ux-polish
 > Demo script + slides: `ignorethis/demo-presentation-flow.md` (7-beat single-thread story)
 >
 > Rule this phase: only work items on the demo thread. Everything else is deferred.
 >
-> ### Active UX Polish (2026-06-25)
-> - [x] Active job card: two-column layout, session-first hierarchy, status pill, distance km
-> - [x] Pending card: distance km tag, map button
-> - [x] Dispatch overlay: reordered panels, map links, question answers, emoji→SVGs
-> - [x] Payment flow: guest card-only, registered pay_now/later card removed
-> - [x] Map button fix: lat/lng surfaced in listServicerJobs
-> - [x] Unseed fix: ServicerModule deleted before Servicer (FK constraint)
+> ### ✅ DONE — Seed Consolidation + Dashboard Wiring
+> - [x] SP-3 modules merged into seed.ts (single `npm run seed`, all 34 categories)
+> - [x] OptionValue mismatches fixed (modules match static.ts question schemas)
+> - [x] Missing priced-question ModuleDefs added (14 questions)
+> - [x] Field gaps: lineItems, operatingHours, avatars, coords, labels, descriptions, notes, radius, settlementMethod, paymentTiming
+> - [x] Escrow rows seeded (20 total, 3 held)
+> - [x] escrow_hold bookingId fix + platform_fee distributed across 28 categories
+> - [x] 3 urgent bookings + urgent_fee transactions
+> - [x] Revenue query: SUM(urgent_fee) → SUM(booking.price)
+> - [x] Customer address coords via areaCoords(district), quotes inherit from address
+> - [x] Tamarind Square → Tamarind Suites, Cyberjaya coords fixed
+> - [x] Google Maps + Waze official brand SVGs (simple-icons), emoji→app-icon
+> - [x] Dashboard section reorder (queues→today+urgent→chips→financial→chart→breakdown)
+> - [x] Docs: README, seed-plan, schema-notes, INSTRUCTIONS, PRODUCTION-GO-LIVE, spec ✅
+> - [x] Git: 25 commits squashed - 1, pushed to feat/ux-polish ✅
+> - [x] Dashboard full rewrite: 7 collapsible sections, 5-card row, chart pills, leaderboards, tooltips ✅
+> - [x] Backend APIs: dailyEscrow, dailyPayouts, customerLeaderboard, servicerLeaderboard ✅
+>
+> ### PENDING - Seed Polish
+> - [ ] sampleAnswers: update values to match new question schema optionValues (28 categories)
+> - [ ] sampleAnswers: add 2-3 variant answers per category for variety (not just 1 per category)
 > - [x] Em-dash replaced with hyphen project-wide
 > - [x] All docs updated (frontend-log, TODO, spec)
 > - [ ] History tab polish

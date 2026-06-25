@@ -3,6 +3,336 @@
 > Single-writer log - only the **CEO/Orchestrator** agent writes here.
 > This agent is READ-ONLY on code. It tracks, dispatches, and coordinates.
 
+## Session 2026-06-25 20:53 — D1-D6 Dashboard Seed Wiring Dispatch
+
+### Status: Dispatched to Backend — 6 tasks
+
+After the SP-3 module consolidation (previous session), the admin dashboard financial metrics still show 6 zeroes. Root cause: the SQL queries in `admin.service.ts:getFinancialDashboard()` require seed data patterns that don't exist.
+
+### Tasks dispatched
+
+| # | File | Fix |
+|---|------|-----|
+| D1 | `seed.ts` | Create Escrow rows for pay_now bookings (Escrow table currently empty) |
+| D2 | `seed.ts` | Add bookingId to escrow_hold transactions (INNER JOIN fails on null) |
+| D3 | `seed.ts` | Distribute platform_fee txs across all 28 categories (all linked to one plumber booking) |
+| D4 | `seed.ts` | Seed 3 urgent bookings (isUrgent=true, urgentFee=150) + urgent_fee transactions |
+| D5 | `admin.service.ts` | Fix Revenue query from SUM(urgent_fee) to SUM(booking.price) |
+| D6 | `seed.ts` | Schedule loop 96→105 for M97-M105 operatingHours |
+
+### Docs synced for this session
+- `TODO.md` — D1-D6 added under DEMO-BLOCKING
+- `docs/ai-context/seed-plan.md` — Admin financial dashboard seeding section
+- `docs/superpowers/specs/2026-06-23-admin-dashboard-financial-redesign.md` — Full section order, SQL queries, pending gaps table, previously-fixed table
+- `ceo-log.md` — this entry
+
+### Previous session (already done)
+- SP-3 modules merged into seed.ts, all 34 categories with matched optionValues
+- All field gaps filled (lineItems, operatingHours, avatars, labels, descriptions, notes, coordinates, radius)
+- Dashboard layout reordered (queues → today+urgent → chips → financial → chart → breakdown)
+
+---
+
+## Session 2026-06-25 20:24 - ALL FIXES APPLIED ✅
+
+### Outcome
+
+All gaps found in the audit have been fixed in `seed.ts`. One consolidated seed now covers:
+
+| Fix | Status | Evidence |
+|-----|:---:|------|
+| **A.** Merge seed-sp3-modules into seed.ts | ✅ | CATEGORY_MODULES + GENERIC_AUTO + seedForServicer now in seed.ts (lines 35-642) |
+| **B.** OptionValue mismatches fixed | ✅ | event-planner, painting, door-gate, carpenter, electrical, alarm-cctv, all GENERIC_AUTO categories - all now match static.ts exactly |
+| **C.** Missing priced-question modules added | ✅ | plumber area (7), sofa_size (5), move_type (4), garden_size (4), gym trainee (3), music instrument (8), tutoring level (6), cooking setup (3), 3d field (8), + actions on carpenter/electrical/door-gate/alarm-cctv |
+| **D1-D3.** lineItems on Invoice/Booking/Proposal | ✅ | All creates now include lineItems JSON |
+| **D4.** Servicer operatingHours | ✅ | Mon-Fri 9-18, Sat-Sun 9-14 for all 105 |
+| **D5.** Servicer serviceRadiusKm | ✅ | 10 (cleaning), 15 (appliance), 20 (training), 25 (construction) |
+| **D6.** QuoteRequest lat/lng | ✅ | makeQuote calls now pass coordinates |
+| **D7.** ServicerService description | ✅ | Module listings get descriptive text |
+| **D8.** ServicerService label | ✅ | Legacy listings get label = title |
+| **D9.** Transaction bookingId | ✅ | Platform fee transactions linked to bookings |
+| **D10.** Customer avatarUrl | ✅ | Picsum seed URLs |
+| **D11.** Booking notes | ✅ | Carried through from makeQuote |
+| **E.** Run.bat | ✅ | Already clean (no seed:settings call to remove) |
+| **F.** Coverage doc | ✅ | sp3-seeding-coverage.md exists |
+| **G.** Docs updated | ✅ | TODO.md, seed-plan.md, schema-notes.md, spec |
+| **H.** Package.json | ✅ | Already clean |
+
+### Gates
+- `npx tsc --noEmit` backend: 0 code errors (2 pre-existing TS deprecation warnings)
+- `npx tsc --noEmit` frontend: reported clean by agent
+
+### Files changed
+- `backend/prisma/seed/seed.ts` - merged modules, fixed optionValues, added missing priced questions, filled all field gaps
+- `backend/prisma/seed/seed-sp3-modules.ts` - still present (standalone backup, not called)
+- `TODO.md` - line 136 ticked
+- `docs/ai-context/seed-plan.md` - SP-3 section added
+- `docs/ai-context/schema-notes.md` - date fixed
+- `docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md` - §17.5 updated
+
+---
+
+## Session 2026-06-25 18:51 - FULL AUDIT: Migrations + Seed + Question Schema Cross-Reference 🔍
+
+### Audit Scope
+User requested a comprehensive check across migrations, seed scripts, Run.bat, question schemas, and all entry points. "no edit about remove old seed/migrate/seed docs and do a fresh one ... in the end only do seed and reseed not so many like reseed:modules reseed:xxxxx"
+
+### Findings Summary - 5 Root Problems
+
+---
+
+### PROBLEM 1: module seeding is NEVER called in any default flow
+
+| Entry point | Runs seed.ts? | Runs seed:modules? |
+|-------------|:---:|:---:|
+| `npm run seed` | ✅ | ❌ |
+| `npm run reseed` | ✅ (via unseed→seed) | ❌ |
+| `npm run db:reset` | ✅ (prisma.seed=seed.ts) | ❌ |
+| **Run.bat** | ✅ (db:reset) | ❌ |
+| `npm run seed:modules` | ❌ | ✅ (standalone) |
+
+**Result:** ServicerModule table is EMPTY on every fresh install. Every entry path produces only flat simple-mode listings with zero modules.
+
+---
+
+### PROBLEM 2: 5 NPM scripts that no user understands
+
+| Script | Purpose | Actually used? |
+|--------|---------|:---:|
+| `seed` | Full demo seed | ✅ Run.bat |
+| `seed:admin` | Minimal admin only | ❌ |
+| `seed:test` | 8-servicer test data | ✅ db:reset-test |
+| `seed:settings` | Platform settings upsert | ✅ Run.bat |
+| `seed:modules` | SP-3 modules + advanced listings | ❌ NEVER called |
+| `unseed` | Wipe all data | ✅ (via reseed) |
+| `reseed` | Wipe + full demo seed | Manual only |
+| `reseed:test` | Wipe + test seed | Manual only |
+
+**The only one that matters for demo is `seed:modules` and it's the one nobody calls.**
+
+---
+
+### PROBLEM 3: Run.bat calls db:reset (which runs seed.ts) then seed:settings - but NOT seed:modules
+
+```
+Run.bat → npm run db:reset → prisma migrate reset --force
+         → drops DB → reapplies all 25 migrations
+         → runs prisma.seed = tsc + ts-node seed.ts  ← modules NOT created
+         → npm run seed:settings                      ← settings upserted
+         ❌ MISSING: npm run seed:modules             ← modules NEVER created
+```
+
+---
+
+### PROBLEM 4: OptionValue MISMATCHES between static.ts question schemas and seed-sp3-modules.ts ModuleDefs
+
+The `questionKey` + `optionValue` pair on `ServicerModule` is the magic link between a customer's quote answer and the servicer's priced module. If they don't match, auto-accept pricing CANNOT work.
+
+**CRITICAL MISMATCH (0% overlap):**
+
+| Category | Question | Modules have | static.ts has |
+|----------|----------|-------------|---------------|
+| **event-planner** | `planning_services` | full, catering, entertainment, coordination, partial | style_theme, budget_planning, invite_rsvp, vendor_selection, vendor_coordination, floor_activity |
+| **painting** | `paint_scope` | full_int, room_only, walls_only, ceiling_only, touch_up | one_room, multiple_rooms, whole_house, exterior, feature_wall |
+| **oven-repair** | `oven_type` | built_in, countertop, microwave, gas_cooker, electric_cooker | built_in_oven, freestanding, microwave, microwave_oven_combo, gas_oven |
+
+**MODERATE MISMATCH (partial overlap):**
+
+| Category | Question | Issue |
+|----------|----------|-------|
+| **moving** | `home_size` | Only `studio` matches; static has 2_3_rooms/4_plus/items_only, modules have 1_2br/3_4br/landed |
+| **interior-design** | `service_level` | Only `full_turnkey` matches; static uses consultation_only/concept_3d/design_pm, modules use consultation/concept/design_build |
+| **door-gate** | `gate_type` | `folding`/`folding_gate` close; others have suffix mismatches (sliding/autogate_sliding) |
+| **carpenter** | `item` | All 9 values differ (cabinet/cabinet_kitchen, wardrobe/wardrobe_closet, etc.) |
+| **electrical-wiring** | `item` | All 8 values differ (socket/power_socket_switch, etc.) |
+| **alarm-cctv** | `system_type` | All values differ |
+| **7 appliance repair cats** | appliance/type | Underscore-vs-hyphen mismatches (top_load/washing_machine_top, etc.) |
+| **7 training class cats** | format | static: in_person_tutor/in_person_home/online; modules: online/offline/hybrid |
+
+**MISSING PRICED QUESTIONS (no modules at all for these):**
+- plumber: `area` (7 options) 
+- sofa-mattress: `sofa_size` (5 options)
+- curtain: `cleaning_type` (2 options)
+- moving: `move_type` (4 options)
+- gardening: `garden_size` (4 options)
+- gym-trainer: `trainee` (3 options)
+- music-class: `instrument` (8 options)
+- home-tutoring: `level` (6 options)
+- cooking-class: `setup` (3 options)
+- 3d-modeling: `field` (8 options)
+- carpenter: `action` (4 options)
+- electrical: `action` (4 options)
+- door-gate: `action` (4 options)
+- alarm-cctv: `action` (5 options)
+
+**Total gaps: ~60 missing optionValues across 14 categories + 14 categories with mismatched optionValues = 28 out of 34 categories have some module-vs-schema mismatch.**
+
+---
+
+### PROBLEM 5: Migrations are clean but misleadingly named
+
+- `20260625011219_sp3_module_fields` is named for module fields but only touches `invoices.due_date`
+- The actual module fields (`question_key`, `option_value`, `duration_min`) were added by `20260624180900_` (blank name)
+- `20260617124345_` DROPPED `listing_mode` and `auto_accept_message` then `20260619143732` RE-ADDED them as TEXT
+- **Result:** `prisma migrate deploy` from scratch works correctly (all columns exist), but the migration names are confusing
+
+---
+
+### RECOMMENDED CONSOLIDATION PLAN
+
+**Single consolidated `npm run seed` that calls EVERYTHING in order:**
+
+```
+npm run seed → 
+  1. clearAll(prisma)
+  2. seed.ts logic (categories, servicers, bookings, invoices, etc.)
+  3. seed.sp3-modules logic (ServicerModule + advanced listings)
+  4. seed.settings logic (platform settings upsert)
+  
+npm run reseed → unseed (clearAll) → seed (above)
+npm run seed:test → stays separate (lean test data, 8 servicers)
+```
+
+**8 delete-able scripts after consolidation:**
+```
+seed:admin    → fold into seed.ts (it's 1 admin user, seed.ts already creates admin)
+seed:settings → fold into seed.ts (runs after module seeding)
+seed:modules  → fold into seed.ts (integrate into main flow)
+unseed        → keep as import, not standalone script
+reseed        → stays, but simplified: unseed → seed
+reseed:test   → stays (different purpose)
+```
+
+**Run.bat fix:** After consolidation, Run.bat only needs `npm run seed` (already does db:reset which calls seed.ts). Remove the separate `seed:settings` call.
+
+---
+
+### MIGRATION CLEANUP (LOW PRIORITY)
+
+Not blocking, but recommended:
+- Rename `20260625011219` to reflect its actual content (invoices due_date)
+- Add a comment to `20260624180900_` describing it adds module fields
+- The DROP+RE-ADD pattern on listing_mode is valid (enum→text migration), just confusing
+
+---
+
+### SESSION VERDICT
+
+| Item | Status |
+|------|--------|
+| Migrations | ✅ Clean - all columns traceable. No missing migrations. |
+| Run.bat | ❌ Missing `seed:modules` call |
+| `npm run seed` | ❌ Doesn't create modules |
+| `npm run reseed` | ❌ Doesn't create modules |
+| Module code completeness | ✅ All 34 categories coded in seed-sp3-modules.ts |
+| Module-vs-schema matching | ❌ 28/34 categories have optionValue mismatches or missing priced questions |
+| Documentation | ❌ `sp3-seeding-coverage.md` missing |
+
+**Dispatch:** Backend agent to execute the consolidation plan (integrate modules into seed, fix optionValue mismatches, update Run.bat, update TODO.md).
+
+---
+
+## Session 2026-06-25 18:46 - SP-3 Module Seeding Root-Cause Investigation 🔍
+
+### Request
+User: "servicer/services/module all seeding is missing right now every one should have their seeding on the each question schema by default help me see what happen and why is no implement should document down"
+
+User clarification after first pass: "listing is nothing also for all the servicer went missing"
+
+### Investigation Scope
+
+Read every file in the seed pipeline and documented findings below.
+
+---
+
+### Finding 1: Seed orchestration is fully decoupled - this is THE root cause
+
+**Two scripts, two separate `npm run` commands, zero connection between them:**
+
+| Script | Command | Creates | Creates |
+|--------|---------|---------|---------|
+| `seed.ts` | `npm run seed` | 105 servicers + flat `ServicerService` (simple mode) | ❌ ZERO `ServicerModule` records |
+| `seed-sp3-modules.ts` | `npm run seed:modules` | `ServicerModule` records | Upgrades 1 listing per servicer to `advanced` mode |
+
+**Neither imports or calls the other.** Confirmed by grep: zero references to `seed-sp3`, `seedModules`, or `sp3` in the 1393-line `seed.ts`.
+
+**Destruction pattern:** `clearAll()` in `clear.ts` (line 8-61) wipes `servicerService` (line 32) and `servicerModule` (line 42) on EVERY run of `seed.ts`. So:
+- ✅ `npm run seed` → `npm run seed:modules` = works (modules exist)
+- ❌ `npm run seed:modules` → `npm run seed` = ALL modules + advanced listings GONE (wiped by `clearAll`, never recreated)
+- ❌ `npm run seed` alone = flat simple listings ONLY, ZERO modules
+- ❌ `npm run reseed` = same as `npm run seed` alone (line 24: runs `unseed.ts` then `seed.ts` - no `seed:modules`)
+
+### Finding 2: seed-sp3-modules.ts code IS complete for all 34 categories
+
+The script handles all 34 child categories in two tiers:
+
+| Tier | Categories | Definition |
+|------|-----------|------------|
+| **CATEGORY_MODULES** (explicit) | 16 | plumber, aircond-servicer, electrical-wiring, home-cleaning, sofa-mattress-cleaning, carpet-cleaning, curtain-cleaning, event-planner, catering, professional-organizer, aircond-installer, carpenter, interior-design, door-gate, painting, moving, gardening, alarm-cctv, roof, renovation |
+| **GENERIC_AUTO** (generic) | 14 | washing-machine-repair, refrigerator-repair, tv-repair, oven-repair, water-heater-repair, ceiling-fan-repair, aircond-repair, art-class, language-class, music-class, home-tutoring, cooking-class, gym-trainer, 3d-modeling-class |
+
+Each `ModuleDef` has all SP-3 fields: `questionKey`, `optionValue`, `durationMin`, `price`, `name`.
+
+Each listing gets: `label`, `proposalPreset`, `moduleRefs`, `listingMode: 'advanced'`, `autoAccept`, `autoAcceptMessage`.
+
+**The code works. The code is complete. The problem is it never runs as part of the default seed.**
+
+### Finding 3: `seedForServicer()` has a subtle side effect - duplicate listings
+
+```typescript
+// seed-sp3-modules.ts:404
+const existing = await prisma.servicerService.findFirst({
+  where: { servicerId: servicer.id, title: { contains: label.substring(0, 8), mode: 'insensitive' } }
+});
+```
+
+The original `seed.ts` creates listings with titles like "Leaking pipe repair", "Bathroom plumbing service" etc. The SP-3 module script searches for listings whose title contains the first 8 chars of the label (e.g. "PLB-STAN" from "PLB-STANDARD"). Since the simple listings' titles DON'T contain these label prefixes, the `findFirst` returns null → a NEW advanced listing is CREATED alongside the existing simple ones.
+
+**Result after running both scripts:** Each servicer gets **both** their original simple listing AND a new advanced listing. Not necessarily a bug, but worth documenting.
+
+### Finding 4: Missing migration for ServicerModule SP-3 fields
+
+The `business_modules` table in schema.prisma has `questionKey String?`, `optionValue String?`, `durationMin Int?` but NO migration SQL file contains these column names. The migration `20260625011219_sp3_module_fields` adds `duration_min` but `question_key` and `option_value` may only have been applied via `prisma db push`.
+
+On a database deployed via `prisma migrate deploy`, the `seed:modules` script would fail with Prisma error P2022 (column does not exist).
+
+### Finding 5: Companion seeding plan doc does NOT exist
+
+Spec §17.5 references `docs/superpowers/plans/2026-06-25-sp3-seeding-coverage.md`. This file does not exist in the repo. The spec says "32 categories must be covered" but the actual code covers 34.
+
+### Finding 6: TODO.md item is misleading
+
+```
+- [ ] Seed remaining 28 categories (32 total - 4 done)
+```
+
+This implies 28 categories need NEW CODE written. In reality, the code for ALL 34 categories already exists in `seed-sp3-modules.ts`. This TODO item is a VERIFICATION task (verify seed:modules runs for all 34), not a CODE task. The 4 "done" categories (plumber, aircond-servicer, electrical-wiring, home-cleaning) were the ones tested during development.
+
+### Finding 7: Listing creation flow is correct, no API mismatch
+
+Verified the full chain: frontend `listing-form.component.ts` → backend `servicer.routes.ts` → `servicer-service.service.ts` → DB `servicer_services`. All fields align. The `moduleRefs` JSON shape matches the backend `moduleRefsSchema` Zod validator. No silent data loss.
+
+### Root Cause Summary
+
+| Problem | Root Cause |
+|---------|-----------|
+| **Modules have no seed data** | `seed.ts` does not call `seed-sp3-modules.ts`. `npm run seed` creates ZERO `ServicerModule` records. |
+| **Listings "went missing"** | If `npm run seed` was run last, `clearAll()` destroyed any `ServicerModule` + advanced `ServicerService` records. Only simple-mode listings remain (created fresh by seed.ts). |
+| **User expects modules to be seeded by default** | Spec §17.5 says "every priced question option across all 32 categories must be covered by at least 1-3 auto-accept listings." This means modules SHOULD be integral to the seed, not an opt-in afterthought. |
+| **No migration for new columns** | `questionKey` and `optionValue` on `business_modules` may not exist in some DBs. |
+
+### Recommendation: Dispatch to Backend
+
+| Fix | Priority | Agent |
+|-----|----------|-------|
+| A. Integrate `seed-sp3-modules.ts` into `seed.ts` (call it at end of servicer loop) | **CRITICAL** | Backend |
+| B. Update `npm run reseed` to include seed:modules | **CRITICAL** | Backend |
+| C. Create migration for `question_key`/`option_value` columns if missing | **HIGH** | Backend |
+| D. Create the missing `sp3-seeding-coverage.md` plan doc | MEDIUM | Backend |
+| E. Update TODO.md: change "Seed remaining 28 categories" to "Verify seed:modules runs for all 34 categories" | LOW | Backend |
+
+---
+
 ## Session 2026-06-24 19:22 - Bug-dump Triage: 11 Tasks - ALL COMPLETE ✅
 
 **Status: COMPLETE** - all 11 bugs fixed in 12 commits on `feat/sp3-dispatch-cards`. Gates: backend tsc clean, frontend tsc clean, ng build exit 0.

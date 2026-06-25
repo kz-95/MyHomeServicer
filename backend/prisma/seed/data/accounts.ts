@@ -2322,7 +2322,7 @@ export const customers: SeedCustomer[] = [
     name: 'Sarah Lim',
     phone: '+60 12-345 6789',
     addresses: [
-      { label: 'Home', address: 'B-3-5, Tamarind Square, Cyberjaya', propertyType: 'condo', isDefault: true, postcode: '63000', district: 'Cyberjaya', state: 'Selangor' },
+      { label: 'Home', address: 'B-3-5, Tamarind Suites, Cyberjaya', propertyType: 'condo', isDefault: true, postcode: '63000', district: 'Cyberjaya', state: 'Selangor' },
     ],
   },
   {
