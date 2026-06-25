@@ -2,46 +2,65 @@
 
 > Single-writer log — only the **Frontend** agent writes here.
 
-## Session 2026-06-25 — SP-3 Redesign: Module-First Tab Order + Spec Update
+## Session 2026-06-25 — SP-3 Redesign Full Implementation
 
-**Scope:** SP-3 spec redesign — scrapped simple/advanced split, unified listing form, module-first IA.
+**Scope:** Full SP-3 redesign: spec → schema → modules CRUD → listing form → auto-accept engine → seeding.
 
-### Decisions recorded (spec §17)
+### Architecture decisions (recorded in spec §17)
 
-- **Tab order:** Modules now first + default tab (`/servicer/services` → module). Logical flow: create modules → attach to listings.
-- **Scrapped:** Simple/Advanced split, mode chooser (`listing-create`), and all old wizards (`listing-wizard`, `service-wizard`, `listing-simple`, `listing-advanced`).
-- **New unified form:** Label (internal), Title (customer), Description (internal), Proposal Preset (auto/manual), Enable Auto toggle.
-- **Modules extended:** Each module now maps `questionKey + optionValue → price + duration + SKU`. Replaces the old `modifiers` JSON approach.
-- **Three match paths:** Broadcast (category only), Manual accept (category only), Auto-accept (category + Q-match + budget + availability + coverage).
-- **Seeding:** Every priced question option across 32 categories covered by 1-3 auto-accept listings. Exception: M1 Ahmad Plumber.
+- **Scrapped:** Simple/Advanced split, mode chooser, all 5 old wizards
+- **New:** One unified `listing-form.component.ts` — Label (internal), Title (customer), Description (internal), Proposal Preset, Enable Auto, Modules picker (min 1)
+- **Module model:** Each module maps `questionKey + optionValue → price + durationMin + SKU`
+- **Three match paths:** Broadcast (category), Manual accept (category), Auto-accept (modules Q-match + budget + availability + coverage)
+- **Tab order:** Modules first + default tab (logical flow: create modules → attach to listings)
 
-### Code changes
+### Files created
 
-- `frontend/src/app/servicer/pages/services.component.ts` — tabs swapped: [Modules][Listings]
-- `frontend/src/app/servicer/servicer.routes.ts` — redirect `''` → `module`
+| File | Purpose |
+|------|---------|
+| `frontend/src/app/servicer/pages/listing-form.component.ts` | New unified listing form (create + edit) |
+| `docs/superpowers/plans/2026-06-25-sp3-qa-verification.md` | 6-task QA verification plan |
+| `docs/superpowers/plans/2026-06-25-sp3-seeding-coverage.md` | Per-category module seeding coverage map |
+| `backend/prisma/seed/seed-sp3-modules.ts` | SP-3 module seeding (4 categories) |
 
-### Docs created
+### Files modified
 
-- `docs/superpowers/plans/2026-06-25-sp3-qa-verification.md` — 6-task QA verification plan
-- `docs/superpowers/plans/2026-06-25-sp3-seeding-coverage.md` — per-category module seeding map
+| File | Changes |
+|------|---------|
+| `frontend/src/app/servicer/pages/services.component.ts` | Tab order: [Modules][Listings] |
+| `frontend/src/app/servicer/servicer.routes.ts` | Removed old routes, added `/services/new` + `/:id/edit` → ListingFormComponent |
+| `frontend/src/app/core/route-for.ts` | Removed old route keys, added `servicer.services.new` + `servicer.services.edit` |
+| `frontend/src/app/servicer/pages/services-listings.component.ts` | Delete via direct modal, touch targets ≥44px, expanded card polish, add()/edit() wired to new form |
+| `frontend/src/app/servicer/pages/services-modules.component.ts` | Module CRUD modal: questionKey, optionValue, durationMin fields; card display shows question mapping |
+| `docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md` | §6 tab order, NEW §17 redesign, seeding requirement |
+| `TODO.md` | SP-3 REDESIGN phase, state updated to 2026-06-25 |
+| `backend/prisma/schema.prisma` | ServicerModule: +questionKey, +optionValue, +durationMin; ServicerService: +label, +proposalPreset |
+| `backend/src/services/servicer-module.service.ts` | ServicerModuleInput extended; create/update handle new fields |
+| `backend/src/routes/servicer-module.routes.ts` | Validators + handlers for new module fields |
+| `backend/src/routes/servicer.routes.ts` | Service validators: +label, +description, +proposalPreset |
+| `backend/src/services/servicer-service.service.ts` | ServiceInput: +label, +proposalPreset; createService/updateService persist them |
+| `backend/src/services/sp3-auto-accept.service.ts` | Q-match switched from modifiers JSON to ServicerModule rows; resolveModules() helper |
+| `backend/src/services/listing-pricing.service.ts` | ModuleLite extended; pricing + duration compute from modules |
+| `backend/src/services/quote.service.ts` | dispatchMatches loads modules with full fields |
+| `backend/src/services/listing-accept.service.ts` | Updated computeListingDurationMin caller |
+| `backend/src/services/proposal-view.service.ts` | Updated computeListingDurationMin caller |
+| `backend/package.json` | Added `seed:modules` script |
 
-### Docs updated
+### Files deleted (14 total)
 
-- `docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md` — §6 tab order, NEW §17 redesign
+**Old wizards (5):** listing-wizard, service-wizard, listing-create, listing-simple, listing-advanced
 
-### Docs removed (stale/conflicting, 11 total)
+**Stale docs (9):** money-listing-epic-spec, orchestration-plan, ceo-overview, ceo-run-roadmap, PROJECT-STATUS, BUGS-TO-FIX, calculation-audit, application-map, invoice-spec, quote-question-pricing-model-design, bill-step-redesign
 
-- `docs/ai-context/`: money-listing-epic-spec, orchestration-plan, ceo-overview, ceo-run-roadmap, PROJECT-STATUS, BUGS-TO-FIX, calculation-audit, application-map, invoice-spec
-- `docs/superpowers/specs/`: 2026-05-31 quote-question-pricing-model-design, 2026-06-02 bill-step-redesign
+### Commits on feat/sp3-dispatch-cards
 
-### Previous session — Listing Card Polish (2026-06-24)
+1. `66b5950` — spec update: tab order swap + §17 redesign
+2. `cb9bd30` — scrap old wizards, extend schema, record all docs
+3. `fca678a` — modules CRUD: backend + frontend with new fields
+4. `40f7ebf` — new unified listing form component
+5. `1f526ca` — auto-accept engine: Q-match + pricing via module rows
+6. `82486ba` — module seeding script for 4 categories
 
-- Delete dialog: replaced `DialogService.confirm()` with direct `<app-modal>`
-- Touch targets: all card buttons ≥44px (expand, menu, status-toggle, chips, sort-dir)
-- Card padding: 0.75rem → 1rem
-- Expanded card: module names with included/addon tags, question labels, preview modal
-
-## Session 2026-06-24 — SP-3 Service Listings Route Fix + Card Polish
 
 ### Issues addressed
 

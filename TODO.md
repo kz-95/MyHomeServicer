@@ -126,13 +126,14 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [ ] **SP-3 REDESIGN (2026-06-25)** — New listing form replacing simple/advanced/model-chooser.
   Spec: `docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md` §17.
   - [x] Tab order: Modules first + default redirect ✅ `66b5950`
-  - [x] Scrap old components: listing-wizard, service-wizard, listing-create, listing-simple, listing-advanced
-  - [x] Spec update: §6 tab order, NEW §17 redesign, seeding coverage plan
-  - [ ] Schema: add `questionKey`, `optionValue`, `durationMin` to `ServicerModule`
-  - [ ] Backend: add `proposalPreset` to `ServicerService`
-  - [ ] Build new unified listing form component
-  - [ ] Auto-accept engine: Q-match via modules (not modifiers)
-  - [ ] Seed data: per-category auto-accept listings with modules
+  - [x] Scrap old components: listing-wizard, service-wizard, listing-create, listing-simple, listing-advanced ✅ `cb9bd30`
+  - [x] Spec update: §6 tab order, NEW §17 redesign, seeding coverage plan ✅ `66b5950` + `cb9bd30`
+  - [x] Schema: add `questionKey`, `optionValue`, `durationMin` to `ServicerModule` ✅ `fca678a`
+  - [x] Backend: add `label`, `proposalPreset` to `ServicerService` ✅ `fca678a`
+  - [x] Build new unified listing form component ✅ `40f7ebf`
+  - [x] Auto-accept engine: Q-match via modules (not modifiers) ✅ `1f526ca`
+  - [x] Seed data: per-category auto-accept listings with modules (4 categories) ✅ `82486ba`
+  - [ ] Seed remaining 28 categories (32 total — 4 done)
 - [x] **Full SP4 live-dispatch** — real `isOnline` presence wiring; availability gating = online +
   working hours (`ServicerSchedule`); admin-configurable rotation timer; decline → rotate →
   async fallback; Google Map preview in the accept prompt.
