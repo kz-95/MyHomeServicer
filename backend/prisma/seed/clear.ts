@@ -18,6 +18,7 @@ export async function clearAll(prisma: PrismaClient): Promise<void> {
   await prisma.invoice.deleteMany();
   await prisma.escrow.deleteMany();
   await prisma.report.deleteMany();
+  await prisma.dispute.deleteMany();
   await prisma.customerPoints.deleteMany();
   await prisma.pointsTransaction.deleteMany();
   await prisma.redemption.deleteMany();
@@ -34,16 +35,24 @@ export async function clearAll(prisma: PrismaClient): Promise<void> {
   await prisma.servicerDocument.deleteMany();
   await prisma.servicerSchedule.deleteMany();
   await prisma.categoryRequest.deleteMany();
+  await prisma.servicerIdentityChangeRequest.deleteMany();
   await prisma.promotion.deleteMany();
   await prisma.reward.deleteMany();
   await prisma.loyaltyTier.deleteMany();
   await prisma.quotePreset.deleteMany();
   await prisma.servicerWaPreset.deleteMany();
   await prisma.servicerModule.deleteMany();
+  await prisma.pricingModule.deleteMany();
+  await prisma.servicerContact.deleteMany();
   await prisma.servicer.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.otpCode.deleteMany();
   await prisma.userDevice.deleteMany();
+  await prisma.file.deleteMany();
+  await prisma.balanceCheckpoint.deleteMany();
+  await prisma.wallet.deleteMany();
+  await prisma.savedPaymentMethod.deleteMany();
+  await prisma.adminOtp.deleteMany();
   await prisma.userAddress.deleteMany();
   await prisma.user.deleteMany();
   // Sub-categories first (self-relation), then top-level categories.
@@ -58,4 +67,8 @@ export async function clearAll(prisma: PrismaClient): Promise<void> {
   await prisma.platformSettings.deleteMany();
   await prisma.jobQueue.deleteMany();
   await prisma.idempotencyFallback.deleteMany();
+  // Config tables (safe to preserve across reseeds, but cleared for clean slate)
+  await prisma.feeRule.deleteMany();
+  await prisma.llmApiKey.deleteMany();
+  await prisma.bannedEmail.deleteMany();
 }
