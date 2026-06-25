@@ -337,48 +337,43 @@ const GENERIC_AUTO: Record<string, { label: string; proposal: string; questionKe
 async function seedModules() {
   console.log('SP-3 Module seeding (all categories) started…');
 
-  // Seed explicit category modules
+  // Seed explicit category modules — ALL servicers per category
   for (const [slug, cfg] of Object.entries(CATEGORY_MODULES)) {
     const servicers = await prisma.servicer.findMany({
       where: { category: { slug } },
       select: { id: true, businessName: true, categoryId: true },
-      take: 1,
     });
-    if (servicers.length === 0) { console.log(`  SKIP ${slug}: no servicer`); continue; }
-    const s = servicers[0];
-    await seedForServicer(s, cfg.label, cfg.proposal, cfg.auto, cfg.mods);
+    for (const s of servicers) {
+      await seedForServicer(s, cfg.label, cfg.proposal, cfg.auto, cfg.mods);
+    }
   }
 
-  // Seed generic appliance repair + training categories
+  // Seed generic appliance repair + training categories — ALL servicers
   for (const [slug, cfg] of Object.entries(GENERIC_AUTO)) {
     const servicers = await prisma.servicer.findMany({
       where: { category: { slug } },
       select: { id: true, businessName: true, categoryId: true },
-      take: 1,
     });
-    if (servicers.length === 0) { console.log(`  SKIP ${slug}: no servicer`); continue; }
-    const s = servicers[0];
-    const mods: ModuleDef[] = Object.entries(cfg.opts).map(([val, info]) => ({
-      name: info.label, questionKey: cfg.questionKey, optionValue: val, price: info.price, durationMin: info.dur,
-    }));
-    await seedForServicer(s, cfg.label, cfg.proposal, true, mods);
+    for (const s of servicers) {
+      const mods: ModuleDef[] = Object.entries(cfg.opts).map(([val, info]) => ({
+        name: info.label, questionKey: cfg.questionKey, optionValue: val, price: info.price, durationMin: info.dur,
+      }));
+      await seedForServicer(s, cfg.label, cfg.proposal, true, mods);
+    }
   }
 
-  // ── M1 Ahmad — modules but NO auto-accept ────────────────────────
+  // ── M1 Ahmad — modules but NO auto-accept on ANY listing ──────────
   const m1 = await prisma.servicer.findFirst({
     where: { businessName: { contains: 'Ahmad', mode: 'insensitive' }, category: { slug: 'plumber' } },
     select: { id: true, businessName: true, categoryId: true },
   });
   if (m1) {
-    // Create same modules as other plumbers, but autoAccept=false.
-    await seedForServicer(
-      m1,
-      'PLB-MANUAL',
-      'Thank you for your plumbing request! We will provide a manual quote.',
-      false,
-      CATEGORY_MODULES['plumber'].mods,
-    );
-    console.log(`  M1 ${m1.businessName}: modules seeded, auto-accept disabled`);
+    // Disable auto-accept on all of Ahmad's existing listings
+    await prisma.servicerService.updateMany({
+      where: { servicerId: m1.id, deletedAt: null },
+      data: { autoAccept: false, autoAcceptMessage: null },
+    });
+    console.log(`  M1 ${m1.businessName}: all listings set to manual (auto-accept disabled)`);
   }
 
   console.log('SP-3 Module seeding complete.');
