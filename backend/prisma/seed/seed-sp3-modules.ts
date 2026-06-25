@@ -26,9 +26,17 @@ interface ModuleDef {
 
 const CATEGORY_MODULES: Record<string, { label: string; proposal: string; auto: boolean; mods: ModuleDef[] }> = {
 
-  // ── Plumber — M1 (manual only, no auto) ──────────────────────────
+  // ── Plumber ──────────────────────────────────────────────────────
   plumber: {
-    label: 'PLB-MANUAL', proposal: 'Thank you for your plumbing request!', auto: false, mods: [],
+    label: 'PLB-STANDARD',
+    proposal: 'Thank you for your plumbing request! Our plumber will arrive with full equipment.',
+    auto: true,
+    mods: [
+      { name: 'Pipe Repair', questionKey: 'action', optionValue: 'repair', price: 80, durationMin: 45 },
+      { name: 'Pipe Replace', questionKey: 'action', optionValue: 'replace', price: 100, durationMin: 60 },
+      { name: 'Install', questionKey: 'action', optionValue: 'install', price: 80, durationMin: 60 },
+      { name: 'Dismantle', questionKey: 'action', optionValue: 'dismantle', price: 60, durationMin: 30 },
+    ],
   },
 
   // ── Aircond Servicer ──────────────────────────────────────────────
@@ -293,12 +301,16 @@ const CATEGORY_MODULES: Record<string, { label: string; proposal: string; auto: 
     ],
   },
 
-  // ── Renovation (high-ticket, no priced questions in schema) ───────
+  // ── Renovation (high-ticket, requires inspection) ─────────────────
   renovation: {
     label: 'RENO-STANDARD',
-    proposal: 'Thank you for your renovation inquiry! We will contact you for a site visit.',
-    auto: false, // renovation requires inspection — manual only
-    mods: [],
+    proposal: 'Thank you for your renovation inquiry! We will arrange a site inspection.',
+    auto: true,
+    mods: [
+      { name: 'Full Home Renovation', questionKey: 'project_type', optionValue: 'full_home', price: 5000, durationMin: 1440 },
+      { name: 'Kitchen Only', questionKey: 'project_type', optionValue: 'kitchen_only', price: 3000, durationMin: 720 },
+      { name: 'Bathroom Only', questionKey: 'project_type', optionValue: 'bathroom_only', price: 2000, durationMin: 480 },
+    ],
   },
 };
 
@@ -350,6 +362,19 @@ async function seedModules() {
       name: info.label, questionKey: cfg.questionKey, optionValue: val, price: info.price, durationMin: info.dur,
     }));
     await seedForServicer(s, cfg.label, cfg.proposal, true, mods);
+  }
+
+  // ── M1 Ahmad specifically — manual only, no auto-accept ──────────
+  const m1 = await prisma.servicer.findFirst({
+    where: { businessName: { contains: 'Ahmad', mode: 'insensitive' }, category: { slug: 'plumber' } },
+    select: { id: true, businessName: true },
+  });
+  if (m1) {
+    await prisma.servicerService.updateMany({
+      where: { servicerId: m1.id, deletedAt: null },
+      data: { autoAccept: false, autoAcceptMessage: null },
+    });
+    console.log(`  M1 ${m1.businessName}: auto-accept disabled (manual only)`);
   }
 
   console.log('SP-3 Module seeding complete.');
