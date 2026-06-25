@@ -140,21 +140,9 @@ interface ServiceOption {
             @for (o of serviceOptions(); track o.questionKey + '::' + o.optionValue) {
               <option [value]="o.questionKey + '::' + o.optionValue">{{ o.label }}</option>
             }
-            <option value="__custom__">+ Custom option</option>
           </select>
         }
       </label>
-
-      @if (selectedOptionKey() === '__custom__') {
-        <label>
-          <span>Custom question key</span>
-          <input type="text" [(ngModel)]="f.customKey" name="mckey" placeholder="e.g. my_key" />
-        </label>
-        <label>
-          <span>Custom option value</span>
-          <input type="text" [(ngModel)]="f.customVal" name="mcval" placeholder="e.g. standard" />
-        </label>
-      }
 
       <div class="row">
         <label>
@@ -239,8 +227,8 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
   saving = signal(false);
   formError = signal('');
 
-  f = { name: '', optionKey: '', optionVal: '', customKey: '', customVal: '', price: null as number | null, durationMin: null as number | null, sku: '' };
-  selectedOptionKey = signal('');  // flat index: "questionKey::optionValue" or "__custom__"
+  f = { name: '', price: null as number | null, durationMin: null as number | null, sku: '' };
+  selectedOptionKey = signal('');  // "questionKey::optionValue" or "" for generic
 
   // ── Category service options (flat list) ──────────────────────────
   questionsLoading = signal(false);
@@ -266,17 +254,10 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
     return flat;
   });
 
-  /** When user picks a service option from the dropdown, parse questionKey::optionValue. */
+  /** When user picks a service option from the dropdown. */
   onOptionChange(value: string): void {
     this.formError.set('');
     this.selectedOptionKey.set(value);
-    if (value === '__custom__') {
-      this.f.customKey = '';
-      this.f.customVal = '';
-    } else if (value) {
-      this.f.customKey = '';
-      this.f.customVal = '';
-    }
   }
 
   filtered = computed(() => {
@@ -348,7 +329,7 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
 
   openCreate(): void {
     this.editId.set(null);
-    this.f = { name: '', optionKey: '', optionVal: '', customKey: '', customVal: '', price: null, durationMin: null, sku: '' };
+    this.f = { name: '', price: null, durationMin: null, sku: '' };
     this.selectedOptionKey.set('');
     this.formError.set('');
     this.modalOpen.set(true);
@@ -358,15 +339,10 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
     this.editId.set(m.id);
     const qKey = m.questionKey ?? '';
     const oVal = m.optionValue ?? '';
-    // Check if this module's questionKey+optionValue exists in our service options
     const match = this.serviceOptions().find((o) => o.questionKey === qKey && o.optionValue === oVal);
-    const key = match ? `${qKey}::${oVal}` : (qKey && oVal ? '__custom__' : '');
+    const key = match ? `${qKey}::${oVal}` : '';
     this.f = {
       name: m.name,
-      optionKey: match ? qKey : '',
-      optionVal: match ? oVal : '',
-      customKey: !match && qKey ? qKey : '',
-      customVal: !match && oVal ? oVal : '',
       price: m.price,
       durationMin: m.durationMin ?? null,
       sku: m.sku ?? '',
@@ -387,16 +363,12 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
     let qKey: string | null = null;
     let optVal: string | null = null;
 
-    if (sel && sel !== '__custom__') {
+    if (sel) {
       const [k, v] = sel.split('::');
       qKey = k || null;
       optVal = v || null;
-      // Quantity type: optionValue auto "1"
       const svcOpt = this.serviceOptions().find((o) => o.questionKey === k && o.optionValue === v);
       if (svcOpt?.isQuantity) optVal = '1';
-    } else if (sel === '__custom__') {
-      qKey = this.f.customKey.trim() || null;
-      optVal = this.f.customVal.trim() || null;
     }
 
     this.saving.set(true);
