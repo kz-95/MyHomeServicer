@@ -24,6 +24,8 @@ export interface ServiceInput {
   taxName?: string;
   taxRate?: number;
   estimatedDurationMinutes: number;
+  label?: string | null;
+  proposalPreset?: string | null;
   autoAccept?: boolean;
   autoAcceptMessage?: string | null;
   listingMode?: 'simple' | 'advanced';
@@ -136,7 +138,9 @@ export async function createService(servicerId: string, input: ServiceInput) {
       servicerId,
       categoryId,
       title: input.title,
+      label: input.label ?? null,
       description: input.description ?? null,
+      proposalPreset: input.proposalPreset ?? null,
       imageUrl: input.imageUrl ?? null,
       published: input.published ?? true,
       servicerSku: input.servicerSku ?? null,
@@ -185,7 +189,9 @@ export async function updateService(
   const data: Prisma.ServicerServiceUpdateInput = {};
 
   if (input.title !== undefined) data.title = input.title;
+  if (input.label !== undefined) data.label = input.label;
   if (input.description !== undefined) data.description = input.description;
+  if (input.proposalPreset !== undefined) data.proposalPreset = input.proposalPreset;
   if (input.imageUrl !== undefined) data.imageUrl = input.imageUrl;
   if (input.published !== undefined) data.published = input.published;
   if (input.basePrice !== undefined) data.basePrice = input.basePrice;

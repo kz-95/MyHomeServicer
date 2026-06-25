@@ -506,6 +506,9 @@ servicerRouter.get(
 
 const serviceValidators = [
   body('title').isString().trim().notEmpty(),
+  body('label').optional({ values: 'null' }).isString().trim(),
+  body('description').optional({ values: 'null' }).isString().trim(),
+  body('proposalPreset').optional({ values: 'null' }).isString().trim(),
   body('basePrice').isFloat({ min: 0 }),
   body('priceType').isIn(['fixed', 'hourly', 'quote']),
   body('taxMode').isIn(['inclusive', 'exclusive', 'none']),
@@ -532,6 +535,9 @@ const serviceValidators = [
 /** Partial validators for PATCH — same rules but all fields optional. */
 const servicePatchValidators = [
   body('title').optional().isString().trim().notEmpty(),
+  body('label').optional({ values: 'null' }).isString().trim(),
+  body('description').optional({ values: 'null' }).isString().trim(),
+  body('proposalPreset').optional({ values: 'null' }).isString().trim(),
   body('basePrice').optional().isFloat({ min: 0 }),
   body('priceType').optional().isIn(['fixed', 'hourly', 'quote']),
   body('taxMode').optional().isIn(['inclusive', 'exclusive', 'none']),

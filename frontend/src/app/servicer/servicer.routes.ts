@@ -43,9 +43,17 @@ export const servicerRoutes: Routes = [
           },
         ],
       },
-      // SP-3 REDESIGN 2026-06-25: new unified listing form (spec §17).
-      // Scrapped: simple/advanced split, mode chooser, old wizards.
-      // TODO: new route for unified listing create/edit form.
+      // SP-3 REDESIGN 2026-06-25: unified listing form (spec §17).
+      {
+        path: 'services/new',
+        loadComponent: () =>
+          import('./pages/listing-form.component').then((m) => m.ListingFormComponent),
+      },
+      {
+        path: 'services/:id/edit',
+        loadComponent: () =>
+          import('./pages/listing-form.component').then((m) => m.ListingFormComponent),
+      },
       {
         // SP-3: /servicer/services → 2 tabs (modules · listings), modules is default.
         path: 'services',

@@ -45,7 +45,8 @@ export type RouteKey =
   | 'servicer.services'
   | 'servicer.services.listings'
   | 'servicer.services.modules'
-  // SP-3 REDESIGN: old routes scrapped ('servicer.services.new' etc.)
+  | 'servicer.services.new'
+  | 'servicer.services.edit'
   | 'servicer.promotions'
   | 'servicer.invoices'
   | 'servicer.deposit'
@@ -111,8 +112,8 @@ export const ROUTES: Record<RouteKey, string> = {
   'servicer.services':            '/servicer/services',
   'servicer.services.listings':   '/servicer/services/listings',
   'servicer.services.modules':    '/servicer/services/module',
-  // SP-3 REDESIGN 2026-06-25: old create/edit routes scrapped.
-  // TODO: new route for unified listing form.
+  'servicer.services.new':        '/servicer/services/new',
+  'servicer.services.edit':       '/servicer/services/:id/edit',
   'servicer.promotions':          '/servicer/promotions',
   'servicer.invoices':            '/servicer/invoices',
   'servicer.deposit':             '/servicer/deposit',
