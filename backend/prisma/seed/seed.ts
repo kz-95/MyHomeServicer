@@ -273,6 +273,8 @@ async function main(): Promise<void> {
           postcode: a.postcode ?? null,
           district: a.district ?? null,
           state: a.state ?? null,
+          lat: 3.1390 + (idx * 0.002),
+          lng: 101.6869 + (idx * 0.002),
         },
       });
       addressByRef[`${c.ref}:${idx++}`] = addr.id;
@@ -612,20 +614,71 @@ async function main(): Promise<void> {
       if (s.sku) serviceBySku[s.sku] = svc.id;
     }
   }
+  // ── Demo quote helpers ──────────────────────────────────────────────────
+  function sampleAnswers(categorySlug: string): Record<string, unknown> {
+    const map: Record<string, Record<string, unknown>> = {
+      plumber: { action: 'repair', area: 'kitchen', problem: ['leaking_pipe'] },
+      'aircond-servicer': { aircon_service: ['wall_chemical', 'wall_general'] },
+      'electrical-wiring': { action: 'repair', item: 'socket' },
+      'home-cleaning': { cleaning_option: '2h_2c', pets: ['cat'] },
+      'sofa-mattress-cleaning': { clean_for: 'queen_mattress' },
+      'carpet-cleaning': { cleaning_type: 'carpet_medium' },
+      'curtain-cleaning': { curtain_sizes: { full_height_60: 2, half_height_40: 1 }, cleaning_type: 'normal' },
+      'event-planner': { planning_services: ['full', 'catering'], attendees: 100 },
+      catering: { pax: { person: 30 }, cuisine: ['malay', 'western'] },
+      'professional-organizer': { home_size: '2br', space: ['bedroom', 'kitchen'] },
+      'aircond-installer': { units: { wall_1hp: 1 } },
+      carpenter: { action: 'custom_build', item: 'cabinet', material: 'solid_wood' },
+      'interior-design': { service_level: 'concept', rooms: ['living', 'bedroom'] },
+      'door-gate': { action: 'install', gate_type: 'sliding' },
+      roof: { action: 'repair', roof_type: 'pitched' },
+      renovation: { project_type: 'kitchen_only', scope: ['tiling', 'plumbing'] },
+      painting: { paint_scope: 'room_only', room_count: 2 },
+      moving: { move_type: 'house', home_size: '1_2br' },
+      gardening: { garden_work: ['lawn', 'hedge'] },
+      'alarm-cctv': { action: 'install', system_type: 'cctv_4ch', cameras: 2 },
+      'washing-machine-repair': { appliance: 'front_load', problem: ['leaking', 'noisy'] },
+      'refrigerator-repair': { fridge_type: 'double_door', problem: ['not_cooling'] },
+      'tv-repair': { tv_type: 'smart', problem: ['no_power'] },
+      'oven-repair': { oven_type: 'built_in', problem: ['not_heating'] },
+      'water-heater-repair': { heater_type: 'instant', problem: ['no_hot_water'] },
+      'ceiling-fan-repair': { fan_type: 'remote', problem: ['wobbling'] },
+      'aircond-repair': { aircon_type: 'wall', problem: ['not_cooling'] },
+      'art-class': { format: 'offline', level: 'beginner' },
+      'language-class': { format: 'online', language: ['mandarin'] },
+      'music-class': { format: 'offline', instrument: ['piano'] },
+      'home-tutoring': { format: 'online', subjects: ['math', 'science'] },
+      'cooking-class': { format: 'offline', cuisine: ['thai'] },
+      'gym-trainer': { format: 'home', goal: ['weight_loss'] },
+      '3d-modeling-class': { format: 'online', field: ['product_design'] },
+    };
+    return (map as any)[categorySlug] ?? {};
+  }
+
+  function sampleNotes(payment: string): string {
+    const notes: Record<string, string> = {
+      pay_now: 'Park at visitor lot B. Use the side entrance on Jalan Setiabakti. Ring bell #3.',
+      pay_later: 'Please call 15 minutes before arrival. Pets on premises — kindly notify if allergic.',
+      cash: 'Gate access code: #7721. Leave the receipt in the mailbox after service.',
+    };
+    return notes[payment] ?? '';
+  }
+
   // ── In-flight scenario helper ──────────────────────────────────────────────
   async function makeQuote(
     customerRef: string,
     addressKey: string,
     categorySlug: string,
-    opts: { timeSlot?: 'morning' | 'noon' | 'afternoon' | 'evening' | 'night'; status?: 'open' | 'matched'; budget?: [number, number]; payment?: 'pay_now' | 'pay_later' | 'cash'; deadline?: Date } = {},
+    opts: { timeSlot?: 'morning' | 'noon' | 'afternoon' | 'evening' | 'night'; status?: 'open' | 'matched'; budget?: [number, number]; payment?: 'pay_now' | 'pay_later' | 'cash'; deadline?: Date; serviceDetails?: Record<string, unknown>; notes?: string } = {},
   ) {
+    const cust = accounts.find((c) => c.ref === customerRef)!;
     return prisma.quoteRequest.create({
       data: {
         userId: customerByRef[customerRef],
         categoryId: categoryBySlug[categorySlug],
         addressId: addressByRef[addressKey],
-        contactName: 'Demo Customer',
-        contactNumber: '+60 12-000 0000',
+        contactName: cust.name,
+        contactNumber: cust.phone,
         timeSlot: opts.timeSlot ?? 'morning',
         preferredDate: days(1),
         propertyType: 'condo',
@@ -638,6 +691,8 @@ async function main(): Promise<void> {
           ? new Date(opts.deadline.getTime() - 15 * 60_000)
           : minutes(offset - 15),
         status: opts.status ?? 'open',
+        serviceDetails: opts.serviceDetails ?? null,
+        notes: opts.notes ?? null,
       },
     });
   }
@@ -731,12 +786,15 @@ async function main(): Promise<void> {
     status: 'pending_confirm' | 'in_progress' | 'completed' | 'cancelled',
     payment: 'pay_now' | 'pay_later' | 'cash',
     price: number,
-    opts?: { scheduledDate?: Date },
+    opts?: { scheduledDate?: Date; notes?: string },
   ) {
+    const answers = sampleAnswers(categorySlug);
     const q = await makeQuote(customerRef, addressKey, categorySlug, {
       status: 'matched',
       payment,
       deadline: new Date(Date.now() - 60 * 60_000),
+      serviceDetails: answers,
+      notes: opts?.notes ?? sampleNotes(payment),
     });
     const proposal = await prisma.quoteProposal.create({
       data: {

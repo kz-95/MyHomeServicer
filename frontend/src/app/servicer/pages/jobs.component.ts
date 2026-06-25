@@ -333,20 +333,35 @@ const ACTIVE = ['confirmed', 'in_progress'];
           <div class="grid">
             @for (j of filteredActiveJobs(); track j.id) {
               <div class="card item">
-                <strong>{{ j.quoteRequest.category.name }}</strong>
-                <span class="badge">{{ j.status }}</span>
-                <!-- Same detail as the pending card: price · duration · message. -->
-                <div class="pq-accepted-row">
-                  <span class="pq-price">RM {{ j.price | number: '1.2-2' }}</span>
-                  @if (j.etaMinutes != null) {
-                    <span class="pq-dur">{{ j.etaMinutes }} min</span>
-                  }
-                  <span class="muted small">{{ j.paymentMode }}</span>
+                <!-- Session + timer -->
+                <div class="ac-head">
+                  <div>
+                    <strong class="ac-session">{{ sessionLabel(j) }}</strong>
+                    <span class="ac-timer" [class.ac-urgent]="isUrgent(j)">{{ countdown(j) }}</span>
+                  </div>
+                  <span class="badge">{{ j.status }}</span>
                 </div>
-                <div class="muted small">
-                  {{ j.scheduledDate | date: 'mediumDate' }} {{ j.timeSlot }}
+                <div class="ac-date">
+                  {{ j.scheduledDate | date: 'EEE, MMM d' }} · {{ timeSpan(j) }}
                 </div>
+                <!-- Price · duration · payment · distance -->
+                <div class="ac-meta">
+                  <span class="ac-price">RM {{ j.price | number: '1.2-2' }}</span>
+                  <span class="sep">·</span>
+                  <span>{{ j.etaMinutes ?? '—' }} min</span>
+                  <span class="sep">·</span>
+                  <span>{{ formatPaymentMode(j.paymentMode) }}</span>
+                </div>
+                <!-- Customer name -->
+                @if (j.customerName) {
+                  <div class="ac-customer">{{ j.customerName }}</div>
+                }
                 <div class="actions">
+                  <button class="btn-ghost small-btn" (click)="openOverlay(j.id)">
+                    View details
+                  </button>
+                </div>
+                <div class="ac-bar">
                   @if (j.status === 'confirmed') {
                     <button class="btn-primary" (click)="openPhotoModal(j, 'arrive_photo')">
                       Mark arrived
@@ -366,14 +381,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
                     ></app-wa-button>
                   }
                   <button class="btn-ghost" (click)="cancel(j)">Cancel</button>
-                  @if (j.lat != null && j.lng != null) {
-                    <button class="map-link" (click)="openJobMap(j, 'google')">Maps</button>
-                    <button class="map-link" (click)="openJobMap(j, 'waze')">Waze</button>
-                  }
                 </div>
-                <button class="btn-ghost small-btn" (click)="openOverlay(j.id)">
-                  View details
-                </button>
               </div>
             } @empty {
               <p class="muted small empty">No matching active jobs.</p>
@@ -819,6 +827,21 @@ const ACTIVE = ['confirmed', 'in_progress'];
         padding: 0.1rem 0.55rem;
       }
       .pq-msg { margin: 0; font-size: 0.85rem; color: var(--color-text); line-height: 1.35; }
+
+      /* ── Active card layout ──────────────────────────────────────────────── */
+      .ac-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+      .ac-head > div { display: flex; flex-direction: column; gap: 0.15rem; }
+      .ac-session { font-size: 0.92rem; font-weight: 700; }
+      .ac-timer { font-size: 0.78rem; color: var(--color-muted); }
+      .ac-timer.ac-urgent { color: var(--color-warning, #d97706); font-weight: 600; }
+      .ac-date { font-size: 0.82rem; color: var(--color-muted); margin-top: 0.15rem; }
+      .ac-meta { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; font-size: 0.85rem; margin-top: 0.35rem; }
+      .ac-price { font-weight: 700; color: var(--color-primary); font-size: 0.95rem; }
+      .ac-customer { font-size: 0.82rem; color: var(--color-muted); margin-top: 0.25rem; }
+      .ac-bar { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid var(--color-border); }
+      .ac-bar .btn-primary { flex: 1; font-size: 0.85rem; padding: 0.5rem 0.75rem; }
+      .ac-bar .btn-ghost { font-size: 0.82rem; }
+      .sep { color: var(--color-border); }
       .small {
         font-size: 0.8rem;
       }
@@ -1499,6 +1522,52 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   /** Extract first-letter initials from a name for avatar fallback. */
   initials(name?: string | null): string {
     return (name ?? '?').charAt(0).toUpperCase();
+  }
+
+  // ── Active card session/timer helpers ───────────────────────────────────────
+  private readonly TIME_SLOT_HOURS: Record<string, [number, number]> = {
+    morning: [8, 12], noon: [12, 14], afternoon: [14, 17], evening: [17, 20], night: [20, 23],
+  };
+
+  sessionLabel(j: Job): string {
+    const slot = j.timeSlot ?? 'morning';
+    return slot.charAt(0).toUpperCase() + slot.slice(1) + ' session';
+  }
+
+  timeSpan(j: Job): string {
+    const [start, end] = this.TIME_SLOT_HOURS[j.timeSlot] ?? [8, 12];
+    return `${start}:00 – ${end}:00`;
+  }
+
+  countdown(j: Job): string {
+    const d = new Date(j.scheduledDate);
+    const [hour] = this.TIME_SLOT_HOURS[j.timeSlot] ?? [8, 12];
+    d.setHours(hour, 0, 0, 0);
+    const diff = d.getTime() - Date.now();
+    if (j.status === 'in_progress') {
+      if (diff < -3600000) return `Started ${this.fmtDelta(-diff)} ago`;
+      return 'Ongoing';
+    }
+    if (diff <= 0) return 'Overdue';
+    return `Starts in ${this.fmtDelta(diff)}`;
+  }
+
+  isUrgent(j: Job): boolean {
+    const d = new Date(j.scheduledDate);
+    const [hour] = this.TIME_SLOT_HOURS[j.timeSlot] ?? [8, 12];
+    d.setHours(hour, 0, 0, 0);
+    return d.getTime() - Date.now() < 3600000; // < 1 hour
+  }
+
+  private fmtDelta(ms: number): string {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  }
+
+  formatPaymentMode(mode: string): string {
+    return this.PAY_LABELS[mode] ?? mode;
   }
 
   // ── Pending card helpers ───────────────────────────────────────────────────

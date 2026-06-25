@@ -697,6 +697,7 @@ export async function getServicerJob(servicerId: string, bookingId: string) {
       proposal: true,
       escrow: true,
       invoice: true,
+      servicer: { select: { email: true, phone: true, showPhonePublic: true, showEmailPublic: true } },
     },
   });
   if (!booking) throw notFound('Booking not found');
@@ -709,7 +710,39 @@ export async function getServicerJob(servicerId: string, bookingId: string) {
       })
     : null;
 
-  return { ...booking, customer };
+  // ── Flatten response for frontend JobDetail interface ──────
+  const qr = (booking as any).quoteRequest;
+  const addr = qr?.address;
+  const srv = (booking as any).servicer;
+  return {
+    id: booking.id,
+    status: booking.status,
+    price: booking.price,
+    paymentMode: booking.paymentMode,
+    lineItems: booking.lineItems,
+    scheduledDate: booking.scheduledDate,
+    timeSlot: booking.timeSlot,
+    arrivePhotoUrl: booking.arrivePhotoUrl,
+    donePhotoUrl: booking.donePhotoUrl,
+    notes: booking.notes,
+    customerName: customer?.name ?? null,
+    customerPhone: customer?.phone ?? null,
+    customerAvatarUrl: customer?.avatarUrl ?? null,
+    contactName: qr?.contactName ?? null,
+    contactNumber: qr?.contactNumber ?? null,
+    address: addr?.address ?? null,
+    lat: (addr as any)?.lat ?? null,
+    lng: (addr as any)?.lng ?? null,
+    propertyType: qr?.propertyType ?? null,
+    instructions: qr?.notes ?? booking.notes ?? null,
+    serviceDetails: qr?.serviceDetails ?? null,
+    quoteRequest: { category: { name: qr?.category?.name ?? '' } },
+    // Servicer visibility
+    servicerEmail: srv?.email ?? null,
+    servicerPhone: srv?.phone ?? null,
+    showEmailPublic: srv?.showEmailPublic ?? false,
+    showPhonePublic: srv?.showPhonePublic ?? false,
+  };
 }
 
 // ── Customer-side operations ─────────────────────────────────────────────────

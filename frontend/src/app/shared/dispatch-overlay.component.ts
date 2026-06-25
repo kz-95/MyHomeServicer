@@ -17,6 +17,7 @@ interface JobDetail {
   propertyType?: string; contactName?: string; contactNumber?: string;
   instructions?: string; arrivedPhotoUrl?: string; donePhotoUrl?: string;
   arrivePhotoUrl?: string;
+  serviceDetails?: Record<string, unknown> | null;
   quoteRequest: { category: { name: string } };
   servicerEmail?: string;
   servicerPhone?: string;
@@ -76,68 +77,6 @@ interface JobDetail {
                 }
               </section>
 
-              <section class="dispatch-panel visibility-panel">
-                <button class="panel-header" (click)="togglePanel('visibility')">
-                  My Contact Visibility {{ expanded()['visibility'] ? '\u25B2' : '\u25BC' }}
-                </button>
-                @if (expanded()['visibility']) {
-                  <div class="panel-body">
-                    <p class="muted small">Your contact info visible to this customer:</p>
-                    <div class="info-rows">
-                      @if (jd.showEmailPublic && jd.servicerEmail) {
-                        <div class="info-row vis-on">&#x1F4E7; Email visible: {{ jd.servicerEmail }}</div>
-                      } @else {
-                        <div class="info-row vis-off">&#x1F4E7; Email hidden</div>
-                      }
-                      @if (jd.showPhonePublic && jd.servicerPhone) {
-                        <div class="info-row vis-on">&#x1F4DE; Phone visible: {{ jd.servicerPhone }}</div>
-                      } @else {
-                        <div class="info-row vis-off">&#x1F4DE; Phone hidden</div>
-                      }
-                    </div>
-                    <p class="muted small top-gap">Adjust visibility in <a [routerLink]="[routeFor('servicer.account')]">Account Settings</a>.</p>
-                  </div>
-                }
-              </section>
-
-              <section class="dispatch-panel details-panel">
-                <button class="panel-header" (click)="togglePanel('details')">
-                  Job Details {{ expanded()['details'] ? '\u25B2' : '\u25BC' }}
-                </button>
-                @if (expanded()['details']) {
-                  <div class="panel-body">
-                    <div class="info-rows">
-                      <div class="info-row"><span class="label">Service</span><span>{{ jd.quoteRequest.category.name }}</span></div>
-                      <div class="info-row"><span class="label">Date</span><span>{{ jd.scheduledDate | date:'fullDate' }}</span></div>
-                      <div class="info-row"><span class="label">Time</span><span>{{ jd.timeSlot }}</span></div>
-                      <div class="info-row"><span class="label">Price</span><span>RM {{ jd.price | number:'1.2-2' }}</span></div>
-                      <div class="info-row"><span class="label">Payment</span><span>{{ jd.paymentMode }}</span></div>
-                      <div class="info-row"><span class="label">Status</span><span class="status-badge">{{ jd.status }}</span></div>
-                    </div>
-                    @if (jd.lineItems?.length) {
-                      <details class="line-items-details">
-                        <summary>Line items ({{ jd.lineItems!.length }})</summary>
-                        @for (li of jd.lineItems; track $index) {
-                          <div class="line-item"><span>{{ li.label }}</span><span>RM {{ li.amount | number:'1.2-2' }}</span></div>
-                        }
-                      </details>
-                    }
-                    @if (jd.arrivedPhotoUrl || jd.arrivePhotoUrl) {
-                      <div class="photo-row">
-                        <span class="label">Arrival photo</span>
-                        <img [src]="jd.arrivedPhotoUrl || jd.arrivePhotoUrl" class="job-photo" alt="Arrival" />
-                      </div>
-                    }
-                    @if (jd.donePhotoUrl) {
-                      <div class="photo-row">
-                        <span class="label">Completion photo</span>
-                        <img [src]="jd.donePhotoUrl" class="job-photo" alt="Completion" />
-                      </div>
-                    }
-                  </div>
-                }
-              </section>
-
               <section class="dispatch-panel instructions-panel">
                 <button class="panel-header" (click)="togglePanel('instructions')">
                   Instructions {{ expanded()['instructions'] ? '\u25B2' : '\u25BC' }}
@@ -162,20 +101,91 @@ interface JobDetail {
                     @if (jd.lat != null && jd.lng != null) {
                       <app-map-view [lat]="jd.lat" [lng]="jd.lng" class="mini-map" />
                       <div class="map-actions">
-                        <div class="nav-dropdown">
-                          <button class="btn-ghost nav-trigger" (click)="navOpen.set(!navOpen())">&#x1F4CD; Navigate &#x25BC;</button>
-                          @if (navOpen()) {
-                            <div class="nav-menu" (click)="navOpen.set(false)">
-                              <a class="nav-item" [href]="gmapsUrl(jd.lat!, jd.lng!)" target="_blank" rel="noopener">&#x1F5FA; Google Maps</a>
-                              <a class="nav-item" [href]="wazeUrl(jd.lat!, jd.lng!)" target="_blank" rel="noopener">&#x1F6CE; Waze</a>
-                            </div>
-                          }
-                        </div>
-                        <button class="btn-ghost" (click)="showQr.set(true); generateQr(jd.lat!, jd.lng!)">&#x1F4F1; QR</button>
+                        <a class="btn-ghost" [href]="gmapsUrl(jd.lat!, jd.lng!)" target="_blank" rel="noopener">&#x1F5FA; Google Maps</a>
+                        <a class="btn-ghost" [href]="wazeUrl(jd.lat!, jd.lng!)" target="_blank" rel="noopener">&#x1F6CE; Waze</a>
                       </div>
                     } @else {
                       <p class="muted">No location available.</p>
                     }
+                  </div>
+                }
+              </section>
+
+              <section class="dispatch-panel details-panel">
+                <button class="panel-header" (click)="togglePanel('details')">
+                  Job Details {{ expanded()['details'] ? '\u25B2' : '\u25BC' }}
+                </button>
+                @if (expanded()['details']) {
+                  <div class="panel-body">
+                    <div class="info-rows">
+                      <div class="info-row"><span class="label">Service</span><span>{{ jd.quoteRequest.category.name }}</span></div>
+                      <div class="info-row"><span class="label">Date</span><span>{{ jd.scheduledDate | date:'fullDate' }}</span></div>
+                      <div class="info-row"><span class="label">Time</span><span>{{ jd.timeSlot }}</span></div>
+                      <div class="info-row"><span class="label">Price</span><span>RM {{ jd.price | number:'1.2-2' }}</span></div>
+                      <div class="info-row"><span class="label">Payment</span><span>{{ formatPayment(jd.paymentMode) }}</span></div>
+                      <div class="info-row"><span class="label">Status</span><span class="status-badge">{{ jd.status }}</span></div>
+                    </div>
+
+                    @if (jd.serviceDetails; as answers) {
+                      <div class="question-answers">
+                        <div class="qa-head">Answers</div>
+                        @for (key of objectKeys(answers); track key) {
+                          <div class="qa-row">
+                            <span class="qa-key">{{ formatKey(key) }}</span>
+                            <span class="qa-val">{{ formatAnswer(answers[key]) }}</span>
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    @if (jd.lineItems?.length) {
+                      <details class="line-items-details">
+                        <summary>Line items ({{ jd.lineItems!.length }})</summary>
+                        @for (li of jd.lineItems; track $index) {
+                          <div class="line-item"><span>{{ li.label }}</span><span>RM {{ li.amount | number:'1.2-2' }}</span></div>
+                        }
+                      </details>
+                    }
+
+                    <div class="photo-section">
+                      @if (showArrivalPhoto()) {
+                        @if (jd.arrivedPhotoUrl || jd.arrivePhotoUrl) {
+                          <img [src]="jd.arrivedPhotoUrl || jd.arrivePhotoUrl" class="job-photo" alt="Arrival" />
+                        }
+                      } @else {
+                        <button class="btn-ghost photo-btn" (click)="showArrivalPhoto.set(true)">&#x1F4F8; View arrival photo</button>
+                      }
+                    </div>
+                    @if (jd.donePhotoUrl) {
+                      <div class="photo-row">
+                        <span class="label">Completion photo</span>
+                        <img [src]="jd.donePhotoUrl" class="job-photo" alt="Completion" />
+                      </div>
+                    }
+                  </div>
+                }
+              </section>
+
+              <section class="dispatch-panel visibility-panel">
+                <button class="panel-header" (click)="togglePanel('visibility')">
+                  My Contact Visibility {{ expanded()['visibility'] ? '\u25B2' : '\u25BC' }}
+                </button>
+                @if (expanded()['visibility']) {
+                  <div class="panel-body">
+                    <p class="muted small">Your contact info visible to this customer:</p>
+                    <div class="info-rows">
+                      @if (jd.showEmailPublic && jd.servicerEmail) {
+                        <div class="info-row vis-on">&#x1F4E7; Email visible: {{ jd.servicerEmail }}</div>
+                      } @else {
+                        <div class="info-row vis-off">&#x1F4E7; Email hidden</div>
+                      }
+                      @if (jd.showPhonePublic && jd.servicerPhone) {
+                        <div class="info-row vis-on">&#x1F4DE; Phone visible: {{ jd.servicerPhone }}</div>
+                      } @else {
+                        <div class="info-row vis-off">&#x1F4DE; Phone hidden</div>
+                      }
+                    </div>
+                    <p class="muted small top-gap">Adjust visibility in <a [routerLink]="[routeFor('servicer.account')]">Account Settings</a>.</p>
                   </div>
                 }
               </section>
@@ -642,6 +652,15 @@ interface JobDetail {
       .vis-off { color: var(--color-muted); }
       .visibility-panel .panel-body p:first-child { margin: 0 0 0.3rem; }
       .visibility-panel a { color: var(--color-primary); text-decoration: underline; }
+
+      .question-answers { margin-top: 0.5rem; border-top: 1px solid var(--color-border); padding-top: 0.4rem; }
+      .qa-head { font-size: 0.82rem; font-weight: 600; color: var(--color-muted); margin-bottom: 0.3rem; }
+      .qa-row { display: flex; gap: 0.5rem; padding: 0.15rem 0; font-size: 0.85rem; align-items: flex-start; }
+      .qa-key { color: var(--color-muted); min-width: 90px; font-weight: 500; }
+      .qa-val { color: var(--color-text); word-break: break-word; }
+
+      .photo-section { margin-top: 0.5rem; }
+      .photo-btn { width: 100%; text-align: center; font-size: 0.9rem; }
     `,
     ]
 })
@@ -712,6 +731,7 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
   showQr = signal(false);
   qrDataUrl = signal('');
   navOpen = signal(false);
+  showArrivalPhoto = signal(false);
 
   showReportModal = signal(false);
   reportSubject = signal('');
@@ -792,8 +812,26 @@ export class DispatchOverlayComponent implements OnInit, OnDestroy {
       const dataUrl = await QRCode.toDataURL(url, { width: 200, margin: 1 });
       this.qrDataUrl.set(dataUrl);
     } catch {
-      // QR generation failed silently - the template shows no image
+      // QR generation failed silently
     }
+  }
+
+  formatPayment(mode: string): string {
+    const map: Record<string, string> = { pay_now: 'Pay Now', pay_later: 'Pay Later', cash: 'Cash' };
+    return map[mode] ?? mode;
+  }
+
+  objectKeys(obj: Record<string, unknown>): string[] {
+    return Object.keys(obj);
+  }
+
+  formatKey(key: string): string {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  formatAnswer(value: unknown): string {
+    if (Array.isArray(value)) return value.map((v) => String(v)).join(', ');
+    return String(value ?? '');
   }
 
   markArrived(): void {
