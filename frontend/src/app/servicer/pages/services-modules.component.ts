@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { switchMap } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { IconComponent } from '../../shared/icon.component';
 import { ListToolbarComponent } from '../../shared/list-toolbar.component';
@@ -26,6 +27,19 @@ interface ServicerModule {
   usedInListings: number;
 }
 
+interface CategoryQuestion {
+  key: string;
+  label: string;
+  type: string;
+  priced?: boolean;
+  options?: { value: string; label: string; active?: boolean }[];
+}
+
+interface QuestionOption {
+  value: string;
+  label: string;
+}
+
 @Component({
   selector: 'app-servicer-modules',
   standalone: true,
@@ -35,8 +49,8 @@ interface ServicerModule {
       <div>
         <h1>Modules</h1>
         <p class="muted">
-          Reusable priced items you can attach to listings. Tax is applied flat from your
-          business profile.
+          Reusable priced items you can attach to listings. Each module maps a
+          question option to a price, duration, and optional SKU.
         </p>
       </div>
       <button class="btn-primary" (click)="openCreate()">+ Add module</button>
@@ -50,32 +64,17 @@ interface ServicerModule {
       <div class="card">No modules yet. Add one to reuse it across your listings.</div>
     } @else {
       <app-list-toolbar>
-        <input
-          class="search"
-          type="text"
-          placeholder="Search by name or SKU…"
-          [(ngModel)]="search"
-          name="modsearch"
-          toolbar-search
-        />
+        <input class="search" type="text" placeholder="Search by name or SKU…" [(ngModel)]="search" name="modsearch" toolbar-search />
         <select [ngModel]="sortField()" (ngModelChange)="sortField.set($event)" name="modsort" toolbar-sort>
           <option value="name">Name A-Z</option>
           <option value="price">Price low-high</option>
           <option value="used">Most used</option>
         </select>
-        <button class="sort-dir" (click)="toggleDir()" toolbar-sort>
-          {{ sortDir() === 'asc' ? '↑' : '↓' }}
-        </button>
+        <button class="sort-dir" (click)="toggleDir()" toolbar-sort>{{ sortDir() === 'asc' ? '↑' : '↓' }}</button>
         <div class="chips" toolbar-filters>
-          <button class="chip" [class.on]="filter() === 'all'" (click)="filter.set('all')">
-            All <span class="n">{{ modules().length }}</span>
-          </button>
-          <button class="chip" [class.on]="filter() === 'active'" (click)="filter.set('active')">
-            Active <span class="n">{{ activeCount() }}</span>
-          </button>
-          <button class="chip" [class.on]="filter() === 'inactive'" (click)="filter.set('inactive')">
-            Inactive <span class="n">{{ inactiveCount() }}</span>
-          </button>
+          <button class="chip" [class.on]="filter() === 'all'" (click)="filter.set('all')">All <span class="n">{{ modules().length }}</span></button>
+          <button class="chip" [class.on]="filter() === 'active'" (click)="filter.set('active')">Active <span class="n">{{ activeCount() }}</span></button>
+          <button class="chip" [class.on]="filter() === 'inactive'" (click)="filter.set('inactive')">Inactive <span class="n">{{ inactiveCount() }}</span></button>
         </div>
       </app-list-toolbar>
 
@@ -85,9 +84,7 @@ interface ServicerModule {
             <div class="mc-body">
               <div class="mc-title-row">
                 <strong class="mc-name">{{ m.name }}</strong>
-                @if (!m.active) {
-                  <span class="badge badge-manual">Inactive</span>
-                }
+                @if (!m.active) { <span class="badge badge-manual">Inactive</span> }
               </div>
               <div class="mc-meta">
                 @if (m.questionKey) {
@@ -107,9 +104,7 @@ interface ServicerModule {
               <span class="mc-price">RM {{ m.price }}</span>
               <div class="mc-acts">
                 <button class="btn-ghost mc-edit" (click)="openEdit(m)">Edit</button>
-                <button class="mc-del" (click)="remove(m)" aria-label="Deactivate module">
-                  <app-icon name="trash-2" sizeToken="sm" />
-                </button>
+                <button class="mc-del" (click)="remove(m)" aria-label="Deactivate module"><app-icon name="trash-2" sizeToken="sm" /></button>
               </div>
             </div>
           </div>
@@ -129,16 +124,44 @@ interface ServicerModule {
         <span>Name<span class="req"> *</span></span>
         <input type="text" [(ngModel)]="f.name" name="mname" maxlength="200" placeholder="e.g. Chemical Wash" />
       </label>
+
       <div class="row">
         <label>
           <span>Question Key</span>
-          <input type="text" [(ngModel)]="f.questionKey" name="mqkey" placeholder="e.g. aircon_service" />
+          <select [(ngModel)]="f.questionKey" name="mqkey" (ngModelChange)="onQKeyChange($event)">
+            <option value="">— None (generic module) —</option>
+            @for (q of pricedQuestions(); track q.key) {
+              <option [value]="q.key">{{ q.label }} ({{ q.key }})</option>
+            }
+            <option value="__custom__">+ Custom question key</option>
+          </select>
         </label>
         <label>
-          <span>Option Value</span>
-          <input type="text" [(ngModel)]="f.optionValue" name="moval" placeholder="e.g. chemical_wash" />
+          <span>Custom Key</span>
+          <input type="text" [(ngModel)]="f.customKey" name="mckey" placeholder="e.g. my_custom_key"
+            [disabled]="f.questionKey !== '__custom__'" />
         </label>
       </div>
+
+      @if (!isQuantityQuestion()) {
+        <label>
+          <span>Option Value</span>
+          @if (f.questionKey === '__custom__') {
+            <input type="text" [(ngModel)]="f.optionValue" name="moval" placeholder="e.g. standard_package" />
+          } @else if (selectedQuestionOptions().length) {
+            <select [(ngModel)]="f.optionValue" name="moval">
+              <option value="">— Select an option —</option>
+              @for (o of selectedQuestionOptions(); track o.value) {
+                <option [value]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          } @else {
+            <input type="text" [(ngModel)]="f.optionValue" name="moval" placeholder="Option value"
+              [disabled]="!f.questionKey" />
+          }
+        </label>
+      }
+
       <div class="row">
         <label>
           <span>Price (RM)<span class="req"> *</span></span>
@@ -161,206 +184,44 @@ interface ServicerModule {
       </div>
     </app-modal>
   `,
-  styles: [
-    `
-      :host {
-        display: block; max-width: 720px; width: 100%;
-      }
-      .head {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
-        flex-wrap: wrap;
-        margin-bottom: 0.5rem;
-      }
-      .head h1 {
-        margin-bottom: 0.2rem;
-      }
-      .chips {
-        display: flex;
-        gap: 0.35rem;
-        flex-wrap: wrap;
-      }
-      .chip {
-        background: transparent;
-        border: 1px solid var(--color-border);
-        border-radius: 999px;
-        padding: 0.2rem 0.65rem;
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: var(--color-muted);
-        cursor: pointer;
-        font-family: inherit;
-        transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-      }
-      .chip:hover {
-        background: var(--color-bg);
-        color: var(--color-text);
-      }
-      .chip.on {
-        background: var(--color-primary);
-        color: #fff;
-        border-color: var(--color-primary);
-      }
-      .chip .n {
-        font-size: 0.7rem;
-        font-weight: 600;
-        background: var(--color-border);
-        color: var(--color-muted);
-        border-radius: 999px;
-        padding: 0.05rem 0.45rem;
-        margin-left: 0.25rem;
-      }
-      .chip.on .n {
-        background: rgba(255, 255, 255, 0.2);
-        color: #fff;
-      }
-      .sort-dir {
-        background: transparent;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        padding: 0.3rem 0.5rem;
-        cursor: pointer;
-        color: var(--color-muted);
-        font-size: 0.85rem;
-        line-height: 1;
-      }
-      .sort-dir:hover {
-        border-color: var(--color-primary);
-        color: var(--color-primary);
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 360px));
-        gap: 0.8rem;
-        justify-content: center;
-        align-items: start;
-      }
-      .mod-card {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.9rem 1rem;
-        transition: box-shadow var(--transition), transform var(--transition);
-      }
-      .mod-card:hover {
-        box-shadow: var(--shadow-md);
-        transform: translateY(-1px);
-      }
-      .mod-card.inactive {
-        opacity: 0.6;
-      }
-      .mc-body {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-      }
-      .mc-title-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-      }
-      .mc-name {
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--color-text);
-      }
-      .mc-meta {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.78rem;
-        color: var(--color-muted);
-        flex-wrap: wrap;
-      }
-      .mdot {
-        color: var(--color-border);
-      }
-      .mc-q {
-        font-family: monospace;
-        font-size: 0.74rem;
-        background: var(--color-bg);
-        padding: 0.05rem 0.4rem;
-        border-radius: 4px;
-        color: var(--color-muted);
-      }
-      .mc-right {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 0.5rem;
-        flex-shrink: 0;
-      }
-      .mc-price {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: var(--color-text);
-      }
-      .mc-acts {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-      }
-      .mc-edit {
-        font-size: 0.78rem;
-        padding: 0.25rem 0.6rem;
-        border-radius: var(--radius);
-        color: var(--color-primary);
-        border-color: var(--color-primary);
-        background: transparent;
-      }
-      .mc-edit:hover {
-        background: var(--color-primary);
-        color: #fff;
-      }
-      .mc-del {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        padding: 0.25rem;
-        border-radius: var(--radius);
-        color: var(--color-muted);
-        transition: color 0.15s ease, background 0.15s ease;
-        line-height: 1;
-      }
-      .mc-del:hover {
-        color: var(--color-danger);
-        background: var(--color-danger-bg);
-      }
-
-      label {
-        display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
-        font-size: 0.88rem;
-        font-weight: 500;
-      }
-      .row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.7rem;
-      }
-      @media (max-width: 560px) {
-        .row {
-          grid-template-columns: 1fr;
-        }
-      }
-      .req {
-        color: var(--color-danger);
-      }
-      .modal-actions {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-      }
-    `,
-  ],
+  styles: [`
+    :host { display: block; max-width: 720px; width: 100%; }
+    .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .head h1 { margin-bottom: 0.2rem; }
+    .chips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .chip { background: transparent; border: 1px solid var(--color-border); border-radius: 999px; padding: 0.2rem 0.65rem; font-size: 0.8rem; font-weight: 500; color: var(--color-muted); cursor: pointer; font-family: inherit; transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease; }
+    .chip:hover { background: var(--color-bg); color: var(--color-text); }
+    .chip.on { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+    .chip .n { font-size: 0.7rem; font-weight: 600; background: var(--color-border); color: var(--color-muted); border-radius: 999px; padding: 0.05rem 0.45rem; margin-left: 0.25rem; }
+    .chip.on .n { background: rgba(255,255,255,0.2); color: #fff; }
+    .sort-dir { background: transparent; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.45rem 0.6rem; cursor: pointer; color: var(--color-muted); font-size: 0.88rem; line-height: 1; font-family: inherit; min-width: 36px; min-height: 36px; }
+    .sort-dir:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .grid { display: flex; flex-direction: column; gap: 0.6rem; }
+    .mod-card { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; }
+    .mod-card.inactive { opacity: 0.55; }
+    .mc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    .mc-title-row { display: flex; align-items: center; gap: 0.5rem; }
+    .mc-name { font-size: 0.95rem; }
+    .mc-meta { font-size: 0.78rem; color: var(--color-muted); display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
+    .mdot { color: var(--color-border); }
+    .mc-q { font-family: monospace; font-size: 0.74rem; background: var(--color-bg); padding: 0.05rem 0.4rem; border-radius: 4px; color: var(--color-muted); }
+    .mc-sku { font-family: monospace; font-size: 0.76rem; }
+    .mc-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; flex-shrink: 0; }
+    .mc-price { font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+    .mc-acts { display: flex; align-items: center; gap: 0.25rem; }
+    .mc-edit, .mc-del { background: transparent; border: none; cursor: pointer; color: var(--color-muted); padding: 0.2rem 0.4rem; border-radius: var(--radius-sm); }
+    .mc-edit:hover { background: var(--color-bg); color: var(--color-primary); }
+    .mc-del:hover { background: var(--color-bg); color: var(--color-danger); }
+    .badge-manual { background: var(--color-bg); color: var(--color-muted); font-size: 0.68rem; font-weight: 600; padding: 0.1rem 0.45rem; border-radius: 999px; border: 1px solid var(--color-border); }
+    .err { color: var(--color-danger); background: var(--color-danger-bg); border: 1px solid var(--color-danger); border-radius: var(--radius); padding: 0.5rem 0.8rem; margin-bottom: 0.5rem; font-size: 0.85rem; }
+    .row { display: flex; gap: 0.75rem; }
+    .row > label { flex: 1; min-width: 0; }
+    label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.88rem; font-weight: 500; }
+    .req { color: var(--color-danger); }
+    select, input[type="text"], input[type="number"] { width: 100%; box-sizing: border-box; }
+    select:disabled, input:disabled { opacity: 0.5; cursor: not-allowed; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+  `],
 })
 export class ServicerModulesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
@@ -376,81 +237,128 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
   sortField = signal<'name' | 'price' | 'used'>('name');
   sortDir = signal<'asc' | 'desc'>('asc');
 
+  activeCount = computed(() => this.modules().filter((m) => m.active).length);
+  inactiveCount = computed(() => this.modules().filter((m) => !m.active).length);
+
   modalOpen = signal(false);
   editId = signal<string | null>(null);
   saving = signal(false);
   formError = signal('');
-  f = this.blankForm();
 
-  activeCount = computed(() => this.modules().filter((m) => m.active).length);
-  inactiveCount = computed(() => this.modules().filter((m) => !m.active).length);
+  f = { name: '', questionKey: '', customKey: '', optionValue: '', price: null as number | null, durationMin: null as number | null, sku: '' };
+
+  // ── Category questions for schema dropdown ──────────────────────────
+  questionsLoading = signal(false);
+  private allQuestions = signal<CategoryQuestion[]>([]);
+
+  pricedQuestions = computed(() =>
+    this.allQuestions().filter((q) => q.priced && Array.isArray(q.options) && q.options!.length > 0 && q.type !== 'text' && q.type !== 'number'),
+  );
+
+  /** Options for the currently selected schema question. */
+  selectedQuestionOptions = computed<QuestionOption[]>(() => {
+    const qKey = this.f.questionKey;
+    if (!qKey || qKey === '__custom__') return [];
+    const q = this.allQuestions().find((x) => x.key === qKey);
+    return (q?.options ?? []).filter((o) => o.active !== false).map((o) => ({ value: o.value, label: o.label }));
+  });
+
+  isQuantityQuestion = computed(() => {
+    const qKey = this.f.questionKey;
+    if (!qKey || qKey === '__custom__') return false;
+    return this.allQuestions().find((x) => x.key === qKey)?.type === 'quantity';
+  });
+
+  /** When changing question key, clear the option value if switching away from custom. */
+  onQKeyChange(key: string): void {
+    this.formError.set('');
+    if (key === '__custom__') {
+      this.f.customKey = '';
+      this.f.optionValue = '';
+    } else if (key && key !== '__custom__') {
+      this.f.customKey = '';
+      this.f.optionValue = '';
+    }
+  }
 
   filtered = computed(() => {
-    const q = this.search().toLowerCase();
-    const flt = this.filter();
-    const field = this.sortField();
-    const dir = this.sortDir() === 'asc' ? 1 : -1;
-    let list = this.modules().filter((m) => {
-      if (flt === 'active' && !m.active) return false;
-      if (flt === 'inactive' && m.active) return false;
-      if (q && !m.name.toLowerCase().includes(q) && !(m.sku ?? '').toLowerCase().includes(q)) {
-        return false;
+    const s = this.search().toLowerCase();
+    const f = this.filter();
+    const list = [...this.modules()].filter((m) => {
+      if (f === 'active' && !m.active) return false;
+      if (f === 'inactive' && m.active) return false;
+      if (s) {
+        const hay = `${m.name} ${m.sku ?? ''}`.toLowerCase();
+        if (!hay.includes(s)) return false;
       }
       return true;
     });
-    list = [...list].sort((a, b) => {
-      let cmp: number;
-      if (field === 'price') cmp = a.price - b.price;
-      else if (field === 'used') cmp = a.usedInListings - b.usedInListings;
-      else cmp = a.name.localeCompare(b.name);
-      return cmp * dir;
+    const sf = this.sortField();
+    const dir = this.sortDir() === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      if (sf === 'used') return (b.usedInListings - a.usedInListings) * dir;
+      return (a[sf] < b[sf] ? -1 : a[sf] > b[sf] ? 1 : 0) * dir;
     });
     return list;
   });
 
-  private blankForm() {
-    return { name: '', questionKey: '', optionValue: '', price: null as number | null, durationMin: null as number | null, sku: '' };
-  }
-
   ngOnInit(): void {
     this.load();
+    this.loadQuestions();
   }
 
   ngOnDestroy(): void {}
+
+  private loadQuestions(): void {
+    this.questionsLoading.set(true);
+    this.api.get<{ category: { id: string; name: string } }>('/servicer/me/subcategories')
+      .pipe(
+        switchMap((r) => this.api.get<{ data: { id: string; questionSchema?: CategoryQuestion[] | null }[] }>('/categories')),
+      )
+      .subscribe({
+        next: (r) => {
+          this.questionsLoading.set(false);
+          for (const cat of r.data) {
+            const qs = (cat.questionSchema ?? []).filter((q: CategoryQuestion) => Array.isArray(q.options) || q.type === 'number' || q.type === 'text');
+            if (qs.length) {
+              this.allQuestions.set(qs);
+              break;
+            }
+          }
+        },
+        error: () => { this.questionsLoading.set(false); },
+      });
+  }
 
   private load(): void {
     this.loading.set(true);
     this.loadFailed.set(false);
     this.api.get<{ data: ServicerModule[] }>('/servicer/modules').subscribe({
       next: (r) => {
-        // Prices arrive as Decimal-as-string from the API; coerce to number so
-        // sorting (a.price - b.price) and the number-input edit form behave.
         this.modules.set(r.data.map((m) => ({ ...m, price: Number(m.price) })));
         this.loading.set(false);
       },
-      error: () => {
-        this.loading.set(false);
-        this.loadFailed.set(true);
-      },
+      error: () => { this.loading.set(false); this.loadFailed.set(true); },
     });
   }
 
-  toggleDir(): void {
-    this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
-  }
+  toggleDir(): void { this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc'); }
 
   openCreate(): void {
     this.editId.set(null);
-    this.f = this.blankForm();
+    this.f = { name: '', questionKey: '', customKey: '', optionValue: '', price: null, durationMin: null, sku: '' };
     this.formError.set('');
     this.modalOpen.set(true);
   }
 
   openEdit(m: ServicerModule): void {
     this.editId.set(m.id);
+    const qKey = m.questionKey ?? '';
+    const hasSchema = this.pricedQuestions().some((q) => q.key === qKey);
     this.f = {
       name: m.name,
-      questionKey: m.questionKey ?? '',
+      questionKey: (hasSchema && qKey) ? qKey : (qKey ? '__custom__' : ''),
+      customKey: (hasSchema || !qKey) ? '' : qKey,
       optionValue: m.optionValue ?? '',
       price: m.price,
       durationMin: m.durationMin ?? null,
@@ -460,35 +368,34 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
     this.modalOpen.set(true);
   }
 
-  closeModal(): void {
-    this.modalOpen.set(false);
-  }
+  closeModal(): void { this.modalOpen.set(false); }
 
   save(): void {
     const name = this.f.name.trim();
-    if (!name) {
-      this.formError.set('Name is required.');
-      return;
-    }
-    if (this.f.price == null || this.f.price < 0) {
-      this.formError.set('A valid price is required.');
-      return;
-    }
+    if (!name) { this.formError.set('Name is required.'); return; }
+    if (this.f.price == null || this.f.price < 0) { this.formError.set('A valid price is required.'); return; }
+
+    const isCustom = this.f.questionKey === '__custom__';
+    const qKey = isCustom ? this.f.customKey.trim() : (this.f.questionKey || null);
+    let optVal = this.f.optionValue.trim() || null;
+    if (this.isQuantityQuestion()) optVal = '1';
+
     this.saving.set(true);
     this.formError.set('');
     const body: Record<string, unknown> = {
       name,
-      questionKey: this.f.questionKey.trim() || null,
-      optionValue: this.f.optionValue.trim() || null,
+      questionKey: qKey || null,
+      optionValue: optVal,
       price: Number(this.f.price),
       durationMin: this.f.durationMin != null ? Number(this.f.durationMin) : null,
       sku: this.f.sku.trim() || null,
     };
+
     const id = this.editId();
-    const req = id
+    const req$ = id
       ? this.api.patch<ServicerModule>(`/servicer/modules/${id}`, body)
       : this.api.post<ServicerModule>('/servicer/modules', body);
-    req.subscribe({
+    req$.subscribe({
       next: () => {
         this.saving.set(false);
         this.modalOpen.set(false);
@@ -503,15 +410,11 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
   }
 
   remove(m: ServicerModule): void {
-    this.dialog
-      .confirm(`Deactivate the module "${m.name}"?`, { confirmLabel: 'Deactivate' })
+    this.dialog.confirm(`Deactivate the module "${m.name}"?`, { confirmLabel: 'Deactivate' })
       .subscribe((ok) => {
         if (!ok) return;
         this.api.delete(`/servicer/modules/${m.id}`).subscribe({
-          next: () => {
-            this.toast.success('Module deactivated.');
-            this.load();
-          },
+          next: () => { this.toast.success('Module deactivated.'); this.load(); },
           error: (e) => this.toast.error(e.message ?? 'Could not deactivate the module'),
         });
       });
