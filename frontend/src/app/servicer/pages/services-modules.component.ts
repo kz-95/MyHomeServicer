@@ -125,28 +125,28 @@ interface QuestionOption {
         <input type="text" [(ngModel)]="f.name" name="mname" maxlength="200" placeholder="e.g. Chemical Wash" />
       </label>
 
-      <div class="row">
-        <label>
-          <span>Question Key</span>
-          <select [(ngModel)]="f.questionKey" name="mqkey" (ngModelChange)="onQKeyChange($event)">
-            <option value="">— None (generic module) —</option>
-            @for (q of pricedQuestions(); track q.key) {
-              <option [value]="q.key">{{ q.label }} ({{ q.key }})</option>
-            }
-            <option value="__custom__">+ Custom question key</option>
-          </select>
-        </label>
+      <label>
+        <span>Question Key</span>
+        <select [ngModel]="selectedQKey()" (ngModelChange)="onQKeyChange($event)" name="mqkey">
+          <option value="">— None (generic module) —</option>
+          @for (q of pricedQuestions(); track q.key) {
+            <option [value]="q.key">{{ q.label }}</option>
+          }
+          <option value="__custom__">+ Custom question key</option>
+        </select>
+      </label>
+
+      @if (selectedQKey() === '__custom__') {
         <label>
           <span>Custom Key</span>
-          <input type="text" [(ngModel)]="f.customKey" name="mckey" placeholder="e.g. my_custom_key"
-            [disabled]="f.questionKey !== '__custom__'" />
+          <input type="text" [(ngModel)]="f.customKey" name="mckey" placeholder="e.g. my_custom_key" />
         </label>
-      </div>
+      }
 
       @if (!isQuantityQuestion()) {
         <label>
           <span>Option Value</span>
-          @if (f.questionKey === '__custom__') {
+          @if (selectedQKey() === '__custom__') {
             <input type="text" [(ngModel)]="f.optionValue" name="moval" placeholder="e.g. standard_package" />
           } @else if (selectedQuestionOptions().length) {
             <select [(ngModel)]="f.optionValue" name="moval">
@@ -157,7 +157,7 @@ interface QuestionOption {
             </select>
           } @else {
             <input type="text" [(ngModel)]="f.optionValue" name="moval" placeholder="Option value"
-              [disabled]="!f.questionKey" />
+              [disabled]="!selectedQKey()" />
           }
         </label>
       }
@@ -246,6 +246,7 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
   formError = signal('');
 
   f = { name: '', questionKey: '', customKey: '', optionValue: '', price: null as number | null, durationMin: null as number | null, sku: '' };
+  selectedQKey = signal('');
 
   // ── Category questions for schema dropdown ──────────────────────────
   questionsLoading = signal(false);
@@ -257,28 +258,28 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
 
   /** Options for the currently selected schema question. */
   selectedQuestionOptions = computed<QuestionOption[]>(() => {
-    const qKey = this.f.questionKey;
+    const qKey = this.selectedQKey();
     if (!qKey || qKey === '__custom__') return [];
     const q = this.allQuestions().find((x) => x.key === qKey);
     return (q?.options ?? []).filter((o) => o.active !== false).map((o) => ({ value: o.value, label: o.label }));
   });
 
   isQuantityQuestion = computed(() => {
-    const qKey = this.f.questionKey;
+    const qKey = this.selectedQKey();
     if (!qKey || qKey === '__custom__') return false;
     return this.allQuestions().find((x) => x.key === qKey)?.type === 'quantity';
   });
 
-  /** When changing question key, clear the option value if switching away from custom. */
+  /** When changing question key, clear the option value if switching. Syncs with selectedQKey signal. */
   onQKeyChange(key: string): void {
     this.formError.set('');
+    this.selectedQKey.set(key);
     if (key === '__custom__') {
       this.f.customKey = '';
-      this.f.optionValue = '';
     } else if (key && key !== '__custom__') {
       this.f.customKey = '';
-      this.f.optionValue = '';
     }
+    this.f.optionValue = '';
   }
 
   filtered = computed(() => {
@@ -342,21 +343,6 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
       });
   }
 
-  private loadQuestionsWithCategory(): void {
-    this.api.get<{ category: { id: string; name: string } }>('/servicer/me/subcategories')
-      .pipe(
-        switchMap((sub) => {
-          const catId = sub.category.id;
-          return this.api.get<{ data: { id: string; questionSchema?: CategoryQuestion[] | null }[] }>('/categories');
-        }),
-      )
-      .subscribe({
-        next: (r2) => {
-          const sub = /* need catId from closure — rewrite properly */ undefined;
-        },
-      });
-  }
-
   private load(): void {
     this.loading.set(true);
     this.loadFailed.set(false);
@@ -374,6 +360,7 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
   openCreate(): void {
     this.editId.set(null);
     this.f = { name: '', questionKey: '', customKey: '', optionValue: '', price: null, durationMin: null, sku: '' };
+    this.selectedQKey.set('');
     this.formError.set('');
     this.modalOpen.set(true);
   }
@@ -381,16 +368,18 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
   openEdit(m: ServicerModule): void {
     this.editId.set(m.id);
     const qKey = m.questionKey ?? '';
-    const hasSchema = this.pricedQuestions().some((q) => q.key === qKey);
+    const hasSchema = this.allQuestions().some((q) => q.key === qKey);
+    const finalKey = (hasSchema && qKey) ? qKey : (qKey ? '__custom__' : '');
     this.f = {
       name: m.name,
-      questionKey: (hasSchema && qKey) ? qKey : (qKey ? '__custom__' : ''),
+      questionKey: finalKey,
       customKey: (hasSchema || !qKey) ? '' : qKey,
       optionValue: m.optionValue ?? '',
       price: m.price,
       durationMin: m.durationMin ?? null,
       sku: m.sku ?? '',
     };
+    this.selectedQKey.set(finalKey);
     this.formError.set('');
     this.modalOpen.set(true);
   }
@@ -402,8 +391,8 @@ export class ServicerModulesComponent implements OnInit, OnDestroy {
     if (!name) { this.formError.set('Name is required.'); return; }
     if (this.f.price == null || this.f.price < 0) { this.formError.set('A valid price is required.'); return; }
 
-    const isCustom = this.f.questionKey === '__custom__';
-    const qKey = isCustom ? this.f.customKey.trim() : (this.f.questionKey || null);
+    const isCustom = this.selectedQKey() === '__custom__';
+    const qKey = isCustom ? this.f.customKey.trim() : (this.selectedQKey() || null);
     let optVal = this.f.optionValue.trim() || null;
     if (this.isQuantityQuestion()) optVal = '1';
 
