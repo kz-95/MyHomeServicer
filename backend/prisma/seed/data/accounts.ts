@@ -68,7 +68,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M1', email: 'ahmad.bin.ismail@demo.local',
     name: 'Ahmad Bin Ismail', businessName: 'Ahmad Plumbing Services',
-    phone: '+60 12-300 0001',
+    phone: '+60182862739 0001',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -107,7 +107,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M2', email: 'kumar.selvam@demo.local',
     name: 'Kumar Selvam', businessName: 'CoolBreeze AC Service',
-    phone: '+60 12-300 0002',
+    phone: '+60182862739 0002',
     isCompany: true, entityType: 'sdn_bhd',
     taxMode: 'inclusive', taxNumber: 'SST-W10-1808-31000003', brn: '202301000003',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000003',
@@ -140,7 +140,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M3', email: 'ravi.chandran@demo.local',
     name: 'Ravi Chandran', businessName: 'Volt Masters Electrical',
-    phone: '+60 12-300 0003',
+    phone: '+60182862739 0003',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -160,7 +160,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M4', email: 'nurul.aini@demo.local',
     name: 'Nurul Aini', businessName: 'Sparkle Home Cleaning',
-    phone: '+60 12-300 0004',
+    phone: '+60182862739 0004',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -191,7 +191,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M5', email: 'jason.tan@demo.local',
     name: 'Jason Tan', businessName: 'FreshCare Sofa & Mattress',
-    phone: '+60 12-300 0005',
+    phone: '+60182862739 0005',
     isCompany: true, entityType: 'enterprise',
     taxMode: 'inclusive', taxNumber: 'SST-W10-1808-31000004', brn: '202301000004',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000004',
@@ -228,7 +228,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M6', email: 'siti.hajar@demo.local',
     name: 'Siti Hajar', businessName: 'PureClean Carpet Care',
-    phone: '+60 12-300 0006',
+    phone: '+60182862739 0006',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -260,7 +260,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M7', email: 'mei.ling@demo.local',
     name: 'Mei Ling', businessName: 'DrapeFresh Curtain Care',
-    phone: '+60 12-300 0007',
+    phone: '+60182862739 0007',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -295,7 +295,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M8', email: 'grace.wong@demo.local',
     name: 'Grace Wong', businessName: 'Bliss Wedding & Events',
-    phone: '+60 12-300 0008',
+    phone: '+60182862739 0008',
     isCompany: true, entityType: 'sdn_bhd',
     taxMode: 'exclusive', taxNumber: 'SST-W10-1808-31000005', brn: '202301000005',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000005',
@@ -314,7 +314,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M9', email: 'mei.ling2@demo.local',
     name: 'Mei Ling', businessName: 'Auntie Mei Catering',
-    phone: '+60 12-300 0009',
+    phone: '+60182862739 0009',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -338,7 +338,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M10', email: 'priya.devi@demo.local',
     name: 'Priya Devi', businessName: 'Space Harmony Organizer',
-    phone: '+60 12-300 0010',
+    phone: '+60182862739 0010',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -357,7 +357,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M11', email: 'kenny.wong@demo.local',
     name: 'Kenny Wong', businessName: 'AC Pro Installers',
-    phone: '+60 12-300 0011',
+    phone: '+60182862739 0011',
     isCompany: true, entityType: 'enterprise',
     taxMode: 'exclusive', taxNumber: 'SST-W10-1808-31000006', brn: '202301000006',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000006',
@@ -394,7 +394,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M12', email: 'lim.kok.wah@demo.local',
     name: 'Lim Kok Wah', businessName: 'Precision Woodworks',
-    phone: '+60 12-300 0012',
+    phone: '+60182862739 0012',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -413,7 +413,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M13', email: 'buildright.group@demo.local',
     name: 'BuildRight Group', businessName: 'BuildRight Renovation Sdn Bhd',
-    phone: '+60 12-300 0013',
+    phone: '+60182862739 0013',
     isCompany: true, entityType: 'sdn_bhd',
     taxMode: 'exclusive', taxNumber: 'SST-W10-1808-31000007', brn: '202301000007',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000007',
@@ -432,7 +432,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M14', email: 'studio.aria@demo.local',
     name: 'Studio Aria', businessName: 'Studio Aria Interior Design Sdn Bhd',
-    phone: '+60 12-300 0014',
+    phone: '+60182862739 0014',
     isCompany: true, entityType: 'sdn_bhd',
     taxMode: 'exclusive', taxNumber: 'SST-W10-1808-31000008', brn: '202301000008',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000008',
@@ -451,7 +451,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M15', email: 'ah.chong@demo.local',
     name: 'Ah Chong', businessName: 'AutoGate Solutions',
-    phone: '+60 12-300 0015',
+    phone: '+60182862739 0015',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -471,7 +471,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M16', email: 'hassan.abdullah@demo.local',
     name: 'Hassan Abdullah', businessName: 'TopGuard Roofing',
-    phone: '+60 12-300 0016',
+    phone: '+60182862739 0016',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -490,7 +490,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M17', email: 'rajesh.kumar@demo.local',
     name: 'Rajesh Kumar', businessName: 'WasherDoc Repair',
-    phone: '+60 12-300 0017',
+    phone: '+60182862739 0017',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -509,7 +509,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M18', email: 'chen.wei@demo.local',
     name: 'Chen Wei', businessName: 'ChillFix Refrigeration',
-    phone: '+60 12-300 0018',
+    phone: '+60182862739 0018',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -528,7 +528,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M19', email: 'alex.tan@demo.local',
     name: 'Alex Tan', businessName: 'ScreenFix TV Repair',
-    phone: '+60 12-300 0019',
+    phone: '+60182862739 0019',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -547,7 +547,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M20', email: 'fatimah.ismail@demo.local',
     name: 'Fatimah Ismail', businessName: 'HeatWave Oven Repair',
-    phone: '+60 12-300 0020',
+    phone: '+60182862739 0020',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -566,7 +566,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M21', email: 'shankar.nathan@demo.local',
     name: 'Shankar Nathan', businessName: 'HydroHeat Services',
-    phone: '+60 12-300 0021',
+    phone: '+60182862739 0021',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -585,7 +585,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M22', email: 'danny.ooi@demo.local',
     name: 'Danny Ooi', businessName: 'FanFix Services',
-    phone: '+60 12-300 0022',
+    phone: '+60182862739 0022',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -604,7 +604,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M23', email: 'faizal.rahman@demo.local',
     name: 'Faizal Rahman', businessName: 'AC Medic',
-    phone: '+60 12-300 0023',
+    phone: '+60182862739 0023',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -623,7 +623,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M24', email: 'sarah.lim@demo.local',
     name: 'Sarah Lim', businessName: 'Creative Canvas Studio',
-    phone: '+60 12-300 0024',
+    phone: '+60182862739 0024',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -642,7 +642,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M25', email: 'joseph.fernandez@demo.local',
     name: 'Joseph Fernandez', businessName: 'Polyglot Language Academy',
-    phone: '+60 12-300 0025',
+    phone: '+60182862739 0025',
     isCompany: false, entityType: 'partnership',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -661,7 +661,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M26', email: 'michelle.tan@demo.local',
     name: 'Michelle Tan', businessName: 'Melody Music Studio',
-    phone: '+60 12-300 0026',
+    phone: '+60182862739 0026',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -680,7 +680,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M27', email: 'aminah.yusof@demo.local',
     name: 'Aminah Yusof', businessName: 'BrightMinds Tutoring',
-    phone: '+60 12-300 0027',
+    phone: '+60182862739 0027',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -699,7 +699,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M28', email: 'chef.rahman@demo.local',
     name: 'Chef Rahman', businessName: "Chef's Table Cooking Studio",
-    phone: '+60 12-300 0028',
+    phone: '+60182862739 0028',
     isCompany: true, entityType: 'partnership',
     taxMode: 'exclusive', taxNumber: 'SST-W10-1808-31000009', brn: '202301000009',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000009',
@@ -718,7 +718,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M29', email: 'adam.malik@demo.local',
     name: 'Adam Malik', businessName: 'FitForge Personal Training',
-    phone: '+60 12-300 0029',
+    phone: '+60182862739 0029',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -740,7 +740,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M30', email: 'arvind.nair@demo.local',
     name: 'Arvind Nair', businessName: 'FusionCraft Studio (Fusion 360)',
-    phone: '+60 12-300 0030',
+    phone: '+60182862739 0030',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -759,7 +759,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M31', email: 'lee.chen@demo.local',
     name: 'Lee Chen', businessName: 'SketchBuild Studio (SketchUp)',
-    phone: '+60 12-300 0031',
+    phone: '+60182862739 0031',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -777,7 +777,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M32', email: 'maya.putri@demo.local',
     name: 'Maya Putri', businessName: 'BlendForge Studio (Blender)',
-    phone: '+60 12-300 0032',
+    phone: '+60182862739 0032',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -797,7 +797,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M33', email: 'kevin.raj@demo.local',
     name: 'Kevin Raj', businessName: 'MayaMotion Studio (Maya)',
-    phone: '+60 12-300 0033',
+    phone: '+60182862739 0033',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -816,7 +816,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M34', email: 'desmond.ng@demo.local',
     name: 'Desmond Ng', businessName: 'MaxDesign Studio (3ds Max)',
-    phone: '+60 12-300 0034',
+    phone: '+60182862739 0034',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -835,7 +835,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M35', email: 'aina.zahra@demo.local',
     name: 'Aina Zahra', businessName: 'ZBrushArt Studio (ZBrush)',
-    phone: '+60 12-300 0035',
+    phone: '+60182862739 0035',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -856,7 +856,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M36', email: 'ahmed.rahim@demo.local',
     name: 'Ahmed Rahim', businessName: 'SecureView CCTV & Alarm',
-    phone: '+60 12-300 0036',
+    phone: '+60182862739 0036',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -881,7 +881,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M37', email: 'hairul.azmi@demo.local',
     name: 'Hairul Azmi', businessName: 'PipePro Plumbing Solutions',
-    phone: '+60 12-300 0037',
+    phone: '+60182862739 0037',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -902,7 +902,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M38', email: 'lim.boon.kiat@demo.local',
     name: 'Lim Boon Kiat', businessName: 'ArcticAir Services Sdn Bhd',
-    phone: '+60 12-300 0038',
+    phone: '+60182862739 0038',
     isCompany: true, entityType: 'sdn_bhd',
     taxMode: 'exclusive', taxNumber: 'SST-W10-1808-31000038', brn: '202301000038',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000038',
@@ -923,7 +923,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M39', email: 'selvakumar.pillai@demo.local',
     name: 'Selvakumar Pillai', businessName: 'PowerLine Electrical Works',
-    phone: '+60 12-300 0039',
+    phone: '+60182862739 0039',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -944,7 +944,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M40', email: 'rozita.hamid@demo.local',
     name: 'Rozita Hamid', businessName: 'GlowClean Home Services',
-    phone: '+60 12-300 0040',
+    phone: '+60182862739 0040',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -965,7 +965,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M41', email: 'teh.wai.choon@demo.local',
     name: 'Teh Wai Choon', businessName: 'DeepSteam Upholstery Care',
-    phone: '+60 12-300 0041',
+    phone: '+60182862739 0041',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -985,7 +985,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M42', email: 'norzahra.idris@demo.local',
     name: 'Norzahra Idris', businessName: 'FibreFresh Carpet Studio',
-    phone: '+60 12-300 0042',
+    phone: '+60182862739 0042',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1005,7 +1005,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M43', email: 'harish.menon@demo.local',
     name: 'Harish Menon', businessName: 'CleanDrape Curtain Services',
-    phone: '+60 12-300 0043',
+    phone: '+60182862739 0043',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1026,7 +1026,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M44', email: 'sharifah.nadia@demo.local',
     name: 'Sharifah Nadia', businessName: 'Momentous Events Enterprise',
-    phone: '+60 12-300 0044',
+    phone: '+60182862739 0044',
     isCompany: true, entityType: 'enterprise',
     taxMode: 'inclusive', taxNumber: 'SST-W10-1808-31000044', brn: '202301000044',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000044',
@@ -1047,7 +1047,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M45', email: 'puan.rohani.bakar@demo.local',
     name: 'Puan Rohani Bakar', businessName: 'Warisan Kitchen Catering',
-    phone: '+60 12-300 0045',
+    phone: '+60182862739 0045',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1068,7 +1068,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M46', email: 'cindy.yap@demo.local',
     name: 'Cindy Yap', businessName: 'OrderMind Home Organizing',
-    phone: '+60 12-300 0046',
+    phone: '+60182862739 0046',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1089,7 +1089,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M47', email: 'zulkifli.nordin@demo.local',
     name: 'Zulkifli Nordin', businessName: 'CoolTech Installation Services',
-    phone: '+60 12-300 0047',
+    phone: '+60182862739 0047',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1109,7 +1109,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M48', email: 'chong.yen.kee@demo.local',
     name: 'Chong Yen Kee', businessName: 'TimberCraft Furniture Works',
-    phone: '+60 12-300 0048',
+    phone: '+60182862739 0048',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1130,7 +1130,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M49', email: 'nizam.azlan@demo.local',
     name: 'Nizam Azlan', businessName: 'HomeCraft Renovation Works',
-    phone: '+60 12-300 0049',
+    phone: '+60182862739 0049',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1150,7 +1150,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M50', email: 'vivian.leong@demo.local',
     name: 'Vivian Leong', businessName: 'Lux Interiors Design Studio',
-    phone: '+60 12-300 0050',
+    phone: '+60182862739 0050',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1170,7 +1170,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M51', email: 'mohd.fauzi.ariffin@demo.local',
     name: 'Mohd Fauzi Ariffin', businessName: 'GateKing Auto & Security',
-    phone: '+60 12-300 0051',
+    phone: '+60182862739 0051',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1191,7 +1191,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M52', email: 'kasim.wahab@demo.local',
     name: 'Kasim Wahab', businessName: 'RoofShield Waterproofing Works',
-    phone: '+60 12-300 0052',
+    phone: '+60182862739 0052',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1211,7 +1211,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M53', email: 'kumaresan.velu@demo.local',
     name: 'Kumaresan Velu', businessName: 'SpinFix Appliance Repair',
-    phone: '+60 12-300 0053',
+    phone: '+60182862739 0053',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1231,7 +1231,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M54', email: 'tan.ah.kow@demo.local',
     name: 'Tan Ah Kow', businessName: 'IceBreak Fridge Services',
-    phone: '+60 12-300 0054',
+    phone: '+60182862739 0054',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1251,7 +1251,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M55', email: 'indra.babu@demo.local',
     name: 'Indra Babu', businessName: 'PixelPerfect TV Workshop',
-    phone: '+60 12-300 0055',
+    phone: '+60182862739 0055',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1271,7 +1271,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M56', email: 'zakaria.hamdan@demo.local',
     name: 'Zakaria Hamdan', businessName: 'BakeRight Oven & Kitchen Repair',
-    phone: '+60 12-300 0056',
+    phone: '+60182862739 0056',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1291,7 +1291,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M57', email: 'murugaiah.arumugam@demo.local',
     name: 'Murugaiah Arumugam', businessName: 'HotFlow Water Systems',
-    phone: '+60 12-300 0057',
+    phone: '+60182862739 0057',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1311,7 +1311,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M58', email: 'ang.khim.seng@demo.local',
     name: 'Ang Khim Seng', businessName: 'BreezeWorks Fan & Electrical',
-    phone: '+60 12-300 0058',
+    phone: '+60182862739 0058',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1331,7 +1331,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M59', email: 'ridzuan.salleh@demo.local',
     name: 'Ridzuan Salleh', businessName: 'FrostFix AC Repair',
-    phone: '+60 12-300 0059',
+    phone: '+60182862739 0059',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1351,7 +1351,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M60', email: 'yew.siau.lin@demo.local',
     name: 'Yew Siau Lin', businessName: 'InkWell Art Academy',
-    phone: '+60 12-300 0060',
+    phone: '+60182862739 0060',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1371,7 +1371,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M61', email: 'azri.hamidon@demo.local',
     name: 'Azri Hamidon', businessName: 'LinguaEdge Language Centre',
-    phone: '+60 12-300 0061',
+    phone: '+60182862739 0061',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1392,7 +1392,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M62', email: 'prabhakaran.suresh@demo.local',
     name: 'Prabhakaran Suresh', businessName: 'RhythmBox Music School',
-    phone: '+60 12-300 0062',
+    phone: '+60182862739 0062',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1413,7 +1413,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M63', email: 'chong.mei.fong@demo.local',
     name: 'Chong Mei Fong', businessName: 'ApexTutor Learning Centre',
-    phone: '+60 12-300 0063',
+    phone: '+60182862739 0063',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1433,7 +1433,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M64', email: 'ganesh.krishnamurthy@demo.local',
     name: 'Ganesh Krishnamurthy', businessName: 'SpiceRoute Cooking Academy',
-    phone: '+60 12-300 0064',
+    phone: '+60182862739 0064',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1453,7 +1453,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M65', email: 'farah.diyana@demo.local',
     name: 'Farah Diyana', businessName: 'CoreStrong Personal Fitness',
-    phone: '+60 12-300 0065',
+    phone: '+60182862739 0065',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1474,7 +1474,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M66', email: 'patrick.chin@demo.local',
     name: 'Patrick Chin', businessName: 'SafeHaven Security Systems',
-    phone: '+60 12-300 0066',
+    phone: '+60182862739 0066',
     isCompany: true, entityType: 'enterprise',
     taxMode: 'exclusive', taxNumber: 'SST-W10-1808-31000066', brn: '202301000066',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000066',
@@ -1500,7 +1500,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M67', email: 'suhaimi.ghazali@demo.local',
     name: 'Suhaimi Ghazali', businessName: 'DrainMaster Plumbing & Sewerage',
-    phone: '+60 12-300 0067',
+    phone: '+60182862739 0067',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1521,7 +1521,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M68', email: 'wee.chun.hoong@demo.local',
     name: 'Wee Chun Hoong', businessName: 'PolarCool Aircon Service Centre',
-    phone: '+60 12-300 0068',
+    phone: '+60182862739 0068',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1541,7 +1541,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M69', email: 'mohan.subramaniam@demo.local',
     name: 'Mohan Subramaniam', businessName: 'Ampere Electrical Contractors',
-    phone: '+60 12-300 0069',
+    phone: '+60182862739 0069',
     isCompany: true, entityType: 'enterprise',
     taxMode: 'inclusive', taxNumber: 'SST-W10-1808-31000069', brn: '202301000069',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000069',
@@ -1562,7 +1562,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M70', email: 'salmah.othman@demo.local',
     name: 'Salmah Othman', businessName: 'Bersih Cermat Home Clean',
-    phone: '+60 12-300 0070',
+    phone: '+60182862739 0070',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1583,7 +1583,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M71', email: 'raymond.ong@demo.local',
     name: 'Raymond Ong', businessName: 'SofaRenew Cleaning Specialists',
-    phone: '+60 12-300 0071',
+    phone: '+60182862739 0071',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1604,7 +1604,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M72', email: 'shanthi.balakrishnan@demo.local',
     name: 'Shanthi Balakrishnan', businessName: 'CarpetPro Steam Clean',
-    phone: '+60 12-300 0072',
+    phone: '+60182862739 0072',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1624,7 +1624,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M73', email: 'noor.aisyah.ramli@demo.local',
     name: 'Noor Aisyah Ramli', businessName: 'VelvetClean Curtain & Drape',
-    phone: '+60 12-300 0073',
+    phone: '+60182862739 0073',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1644,7 +1644,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M74', email: 'derrick.lau@demo.local',
     name: 'Derrick Lau', businessName: 'Premier Occasions Event Co',
-    phone: '+60 12-300 0074',
+    phone: '+60182862739 0074',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1664,7 +1664,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M75', email: 'kavitha.suppiah@demo.local',
     name: 'Kavitha Suppiah', businessName: 'Lotus Leaf Catering Services',
-    phone: '+60 12-300 0075',
+    phone: '+60182862739 0075',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1685,7 +1685,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M76', email: 'lim.jia.hui@demo.local',
     name: 'Lim Jia Hui', businessName: 'NeatNest Organising Studio',
-    phone: '+60 12-300 0076',
+    phone: '+60182862739 0076',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1705,7 +1705,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M77', email: 'roslan.taib@demo.local',
     name: 'Roslan Taib', businessName: 'IceKing AC Installation Works',
-    phone: '+60 12-300 0077',
+    phone: '+60182862739 0077',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1725,7 +1725,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M78', email: 'foo.chee.wah@demo.local',
     name: 'Foo Chee Wah', businessName: 'GrainLine Custom Carpentry',
-    phone: '+60 12-300 0078',
+    phone: '+60182862739 0078',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1746,7 +1746,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M79', email: 'adzrul.hafiz@demo.local',
     name: 'Adzrul Hafiz', businessName: 'AceReno Building & Renovation',
-    phone: '+60 12-300 0079',
+    phone: '+60182862739 0079',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1766,7 +1766,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M80', email: 'anastasia.lim@demo.local',
     name: 'Anastasia Lim', businessName: 'Aether Design Atelier',
-    phone: '+60 12-300 0080',
+    phone: '+60182862739 0080',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1786,7 +1786,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M81', email: 'shahril.amin@demo.local',
     name: 'Shahril Amin', businessName: 'IronShield Gate & Grille Works',
-    phone: '+60 12-300 0081',
+    phone: '+60182862739 0081',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1807,7 +1807,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M82', email: 'balachandran.pillai@demo.local',
     name: 'Balachandran Pillai', businessName: 'ApexRoof Construction Works',
-    phone: '+60 12-300 0082',
+    phone: '+60182862739 0082',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1827,7 +1827,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M83', email: 'ooi.boon.huat@demo.local',
     name: 'Ooi Boon Huat', businessName: 'WashTech Appliance Care',
-    phone: '+60 12-300 0083',
+    phone: '+60182862739 0083',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1847,7 +1847,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M84', email: 'nor.azlina.musa@demo.local',
     name: 'Nor Azlina Musa', businessName: 'FridgePro Cooling Services',
-    phone: '+60 12-300 0084',
+    phone: '+60182862739 0084',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1867,7 +1867,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M85', email: 'sivakumar.rajan@demo.local',
     name: 'Sivakumar Rajan', businessName: 'SmartScreen TV & AV Repair',
-    phone: '+60 12-300 0085',
+    phone: '+60182862739 0085',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1887,7 +1887,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M86', email: 'juliana.mohd.zain@demo.local',
     name: 'Juliana Mohd Zain', businessName: 'KitchenFix Oven & Appliance',
-    phone: '+60 12-300 0086',
+    phone: '+60182862739 0086',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1907,7 +1907,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M87', email: 'remy.haziq@demo.local',
     name: 'Remy Haziq', businessName: 'AquaHeat Plumbing & Heater',
-    phone: '+60 12-300 0087',
+    phone: '+60182862739 0087',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1927,7 +1927,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M88', email: 'krishnan.nair@demo.local',
     name: 'Krishnan Nair', businessName: 'AirSpin Fan & Lighting Works',
-    phone: '+60 12-300 0088',
+    phone: '+60182862739 0088',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1948,7 +1948,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M89', email: 'syafiq.azman@demo.local',
     name: 'Syafiq Azman', businessName: 'ChillDoc Aircon Diagnostic',
-    phone: '+60 12-300 0089',
+    phone: '+60182862739 0089',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1969,7 +1969,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M90', email: 'amelia.fong@demo.local',
     name: 'Amelia Fong', businessName: 'UrbanBrush Art & Craft Studio',
-    phone: '+60 12-300 0090',
+    phone: '+60182862739 0090',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -1990,7 +1990,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M91', email: 'ong.siew.ching@demo.local',
     name: 'Ong Siew Ching', businessName: 'SpeakEasy Language Hub',
-    phone: '+60 12-300 0091',
+    phone: '+60182862739 0091',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2010,7 +2010,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M92', email: 'tengku.amirul@demo.local',
     name: 'Tengku Amirul', businessName: 'Nada Music Academy',
-    phone: '+60 12-300 0092',
+    phone: '+60182862739 0092',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2031,7 +2031,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M93', email: 'nurul.ain.zahari@demo.local',
     name: 'Nurul Ain Zahari', businessName: 'SmartKids Home Tuition',
-    phone: '+60 12-300 0093',
+    phone: '+60182862739 0093',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2051,7 +2051,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M94', email: 'ho.lai.yee@demo.local',
     name: 'Ho Lai Yee', businessName: 'Chopstick Kitchen Studio',
-    phone: '+60 12-300 0094',
+    phone: '+60182862739 0094',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2072,7 +2072,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M95', email: 'hardeep.singh@demo.local',
     name: 'Hardeep Singh', businessName: 'IronWill Fitness Coaching',
-    phone: '+60 12-300 0095',
+    phone: '+60182862739 0095',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2093,7 +2093,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M96', email: 'marcus.yong@demo.local',
     name: 'Marcus Yong', businessName: 'VisionGuard CCTV & Access Control',
-    phone: '+60 12-300 0096',
+    phone: '+60182862739 0096',
     isCompany: true, entityType: 'sdn_bhd',
     taxMode: 'inclusive', taxNumber: 'SST-W10-1808-31000096', brn: '202301000096',
     sstRegistered: true, sstNumber: 'SST-W10-1808-31000096',
@@ -2119,7 +2119,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M97', email: 'zainul.arifin@demo.local',
     name: 'Zainul Arifin', businessName: 'BrightWall Painting Services',
-    phone: '+60 12-300 0097',
+    phone: '+60182862739 0097',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2140,7 +2140,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M98', email: 'hafizi.mokhtar@demo.local',
     name: 'Hafizi Mokhtar', businessName: 'EasyMove Relocation Services',
-    phone: '+60 12-300 0098',
+    phone: '+60182862739 0098',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2161,7 +2161,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M99', email: 'ramesh.pillai@demo.local',
     name: 'Ramesh Pillai', businessName: 'GreenThumb Garden Care',
-    phone: '+60 12-300 0099',
+    phone: '+60182862739 0099',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2182,7 +2182,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M100', email: 'faridah.othman@demo.local',
     name: 'Faridah Othman', businessName: 'ColourCraft Interior Painting',
-    phone: '+60 12-300 0100',
+    phone: '+60182862739 0100',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2203,7 +2203,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M101', email: 'azwan.shah@demo.local',
     name: 'Azwan Shah', businessName: 'SwiftShift Moving & Storage',
-    phone: '+60 12-300 0101',
+    phone: '+60182862739 0101',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2224,7 +2224,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M102', email: 'tan.beng.hock@demo.local',
     name: 'Tan Beng Hock', businessName: 'LushGarden Landscaping Works',
-    phone: '+60 12-300 0102',
+    phone: '+60182862739 0102',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2245,7 +2245,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M103', email: 'nur.izzati.razak@demo.local',
     name: 'Nur Izzati Razak', businessName: 'ProPaint Specialist',
-    phone: '+60 12-300 0103',
+    phone: '+60182862739 0103',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2266,7 +2266,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M104', email: 'chandran.govindasamy@demo.local',
     name: 'Chandran Govindasamy', businessName: 'SafeMove Professional Movers',
-    phone: '+60 12-300 0104',
+    phone: '+60182862739 0104',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2287,7 +2287,7 @@ export const servicers: SeedServicer[] = [
   {
     ref: 'M105', email: 'noraini.hamzah@demo.local',
     name: 'Noraini Hamzah', businessName: 'EcoGarden Services',
-    phone: '+60 12-300 0105',
+    phone: '+60182862739 0105',
     isCompany: false, entityType: 'sole_proprietorship',
     taxMode: 'none', taxNumber: null, brn: null,
     sstRegistered: false, sstNumber: null,
@@ -2320,7 +2320,7 @@ export const customers: SeedCustomer[] = [
     ref: 'C_FRESH',
     email: 'sarah.lim2@demo.local',
     name: 'Sarah Lim',
-    phone: '+60 12-345 6789',
+    phone: '+60182862739 6789',
     addresses: [
       { label: 'Home', address: 'B-3-5, Tamarind Suites, Cyberjaya', propertyType: 'condo', isDefault: true, postcode: '63000', district: 'Cyberjaya', state: 'Selangor' },
     ],
@@ -2329,7 +2329,7 @@ export const customers: SeedCustomer[] = [
     ref: 'C_ACTIVE',
     email: 'david.tan@demo.local',
     name: 'David Tan',
-    phone: '+60 11-234 5678',
+    phone: '+60182862739 5678',
     addresses: [
       { label: 'Home', address: 'Suite 8, KLCC Residences, KLCC, KL', propertyType: 'condo', isDefault: true, postcode: '50088', district: 'KLCC', state: 'Kuala Lumpur' },
     ],
@@ -2338,7 +2338,7 @@ export const customers: SeedCustomer[] = [
     ref: 'C_LOYAL',
     email: 'priya.subramaniam@demo.local',
     name: 'Priya Subramaniam',
-    phone: '+60 19-876 5432',
+    phone: '+60182862739 5432',
     preferredTimeSlot: 'noon',
     addresses: [
       { label: 'Home', address: '5 Jalan Setiabakti, Damansara Heights, KL', propertyType: 'landed', isDefault: true, postcode: '50490', district: 'Damansara Heights', state: 'Kuala Lumpur' },
@@ -2347,33 +2347,33 @@ export const customers: SeedCustomer[] = [
   },
   {
     ref: 'C_FRESH2', email: 'nurul.hafizah@demo.local',
-    name: 'Nurul Hafizah', phone: '+60 17-111 2233',
+    name: 'Nurul Hafizah', phone: '+60182862739 2233',
     addresses: [{ label: 'Home', address: '8 Jalan Gombak, Setapak, KL', propertyType: 'landed', isDefault: true, postcode: '53000', district: 'Setapak', state: 'Kuala Lumpur' }],
   },
   {
     ref: 'C_FRESH3', email: 'michael.lim@demo.local',
-    name: 'Michael Lim', phone: '+60 16-222 3344',
+    name: 'Michael Lim', phone: '+60182862739 3344',
     addresses: [{ label: 'Home', address: '3 Jalan Klang Lama, Old Klang Road, KL', propertyType: 'condo', isDefault: true, postcode: '58000', district: 'Old Klang Road', state: 'Kuala Lumpur' }],
   },
   {
     ref: 'C_ACTIVE2', email: 'rashida.kamila@demo.local',
-    name: 'Rashida Kamila', phone: '+60 18-333 4455',
+    name: 'Rashida Kamila', phone: '+60182862739 4455',
     addresses: [{ label: 'Home', address: '22 Jalan Duta, Mont Kiara, KL', propertyType: 'condo', isDefault: true, postcode: '50480', district: 'Mont Kiara', state: 'Kuala Lumpur' }],
   },
   {
     ref: 'C_ACTIVE3', email: 'jason.yeoh@demo.local',
-    name: 'Jason Yeoh', phone: '+60 14-444 5566',
+    name: 'Jason Yeoh', phone: '+60182862739 5566',
     addresses: [{ label: 'Home', address: '15 Persiaran Ampang, Ampang, KL', propertyType: 'landed', isDefault: true, postcode: '68000', district: 'Ampang', state: 'Selangor' }],
   },
   {
     ref: 'C_LOYAL2', email: 'tan.mei.ling@demo.local',
-    name: 'Tan Mei Ling', phone: '+60 13-555 6677',
+    name: 'Tan Mei Ling', phone: '+60182862739 6677',
     preferredTimeSlot: 'morning' as const,
     addresses: [      { label: 'Home', address: '7 Jalan Bangsar, Bangsar, KL', propertyType: 'condo', isDefault: true, postcode: '59000', district: 'Bangsar', state: 'Kuala Lumpur' }],
   },
   {
     ref: 'C_LOYAL3', email: 'rajan.krishnan@demo.local',
-    name: 'Rajan Krishnan', phone: '+60 11-666 7788',
+    name: 'Rajan Krishnan', phone: '+60182862739 7788',
     preferredTimeSlot: 'afternoon' as const,
     addresses: [{ label: 'Home', address: '33 Jalan Cheras, Cheras, KL', propertyType: 'landed', isDefault: true, postcode: '56000', district: 'Cheras', state: 'Kuala Lumpur' }],
   },

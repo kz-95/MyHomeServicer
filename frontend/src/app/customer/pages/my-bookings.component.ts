@@ -29,6 +29,10 @@ interface Booking {
   lat?: number | null;
   lng?: number | null;
   address?: string | null;
+  servicerEmail?: string | null;
+  servicerPhone?: string | null;
+  showEmailPublic?: boolean;
+  showPhonePublic?: boolean;
 }
 
 interface InvoiceDetail {
@@ -161,6 +165,19 @@ const TAB_ROUTES: Record<TabKey, string> = {
             }
             @if (b.invoiceNumber) {
               <div class="inv-id">{{ b.invoiceNumber }}</div>
+            }
+            @if (b.status !== 'pending_confirm' && (b.showPhonePublic || b.showEmailPublic)) {
+              <div class="svc-contact">
+                <strong>Servicer contact</strong>
+                <div class="contact-items">
+                  @if (b.showPhonePublic && b.servicerPhone) {
+                    <a [href]="'tel:' + b.servicerPhone" class="contact-link">{{ b.servicerPhone }}</a>
+                  }
+                  @if (b.showEmailPublic && b.servicerEmail) {
+                    <a [href]="'mailto:' + b.servicerEmail" class="contact-link">{{ b.servicerEmail }}</a>
+                  }
+                </div>
+              </div>
             }
           </div>
           <div class="right">
@@ -515,6 +532,11 @@ const TAB_ROUTES: Record<TabKey, string> = {
         font-family: inherit;
       }
       .map-link:hover { color: var(--color-text); }
+      .svc-contact { margin: 0.75rem 0; padding: 0.5rem; background: var(--color-surface); border-radius: var(--radius); }
+      .svc-contact strong { font-size: 0.8rem; display: block; margin-bottom: 0.3rem; }
+      .contact-items { display: flex; gap: 1rem; flex-wrap: wrap; }
+      .contact-link { font-size: 0.85rem; color: var(--color-primary); text-decoration: none; }
+      .contact-link:hover { text-decoration: underline; }
       .err {
         color: var(--color-danger);
       }

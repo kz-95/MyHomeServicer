@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { ApiService } from './api.service';
+import { ConfigService } from './config.service';
 
 export type ToastLevel = 'success' | 'error' | 'info';
 
@@ -22,6 +23,7 @@ const DEFAULT_DURATION_MS = 4_500;
 @Injectable({ providedIn: 'root' })
 export class ToastService {
   private readonly api = inject(ApiService);
+  private readonly config = inject(ConfigService);
 
   /** Currently visible action toasts - read by SnackbarComponent. */
   readonly toasts = signal<ActionToast[]>([]);
@@ -38,14 +40,7 @@ export class ToastService {
   }
 
   private loadSoundSetting(): void {
-    this.api.get<{ data: { key: string; value: unknown }[] }>('/admin/settings')
-      .subscribe({
-        next: (r) => {
-          const setting = r.data.find(s => s.key === 'notification_sound_enabled');
-          if (setting != null) this.soundEnabled.set(setting.value === true);
-        },
-        error: () => {},
-      });
+    this.soundEnabled.set(this.config.notificationSoundEnabled);
   }
 
   /** Unlock the Audio API on the first user gesture (browser autoplay policy). */

@@ -25,8 +25,22 @@ export function createApp(): Application {
   configurePassport();
   app.use(passport.initialize());
 
-  // Security headers (must be first).
-  app.use(helmet());
+  // Security headers (must be first). Relax CSP for Google Maps.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://maps.googleapis.com'],
+          connectSrc: ["'self'", 'https://maps.googleapis.com'],
+          imgSrc: ["'self'", 'data:', 'https://*.googleapis.com', 'https://*.gstatic.com'],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+          frameSrc: ["'self'"],
+        },
+      },
+    }),
+  );
 
   // CORS - allow APP_URL plus any extra origins from CORS_EXTRA_ORIGINS
   // (comma-separated, used for LAN / tunnel dev access).  Never `*`.

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Input, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, ViewChild, ElementRef, inject, signal } from '@angular/core';
 
 import { ConfigService } from '../core/services/config.service';
 
@@ -97,10 +97,11 @@ export class MapViewComponent implements OnInit, OnDestroy {
   loadError = signal(false);
   mapReady = signal(false);
 
+  @ViewChild('mapContainer', { static: false }) containerRef!: ElementRef<HTMLDivElement>;
+
   private config = inject(ConfigService);
   private map: google.maps.Map | null = null;
   private marker: google.maps.Marker | null = null;
-  private scriptTag: HTMLScriptElement | null = null;
 
   /** Max retries for key resolution (50 * 200ms = 10 seconds). */
   private static readonly KEY_RETRY_MAX = 50;
@@ -110,7 +111,7 @@ export class MapViewComponent implements OnInit, OnDestroy {
   /** Fallback link to open in Google Maps. */
   mapsUrl(): string {
     if (this.lat != null && this.lng != null) {
-      return `https://www.google.com/maps?q=${this.lat},${this.lng}`;
+      return `https://www.google.com/maps/dir/?api=1&destination=${this.lat},${this.lng}`;
     }
     return 'https://www.google.com/maps';
   }
@@ -123,14 +124,6 @@ export class MapViewComponent implements OnInit, OnDestroy {
     if (this.retryTimer) {
       clearTimeout(this.retryTimer);
       this.retryTimer = null;
-    }
-    if (this.scriptTag && this.scriptTag.parentNode) {
-      this.scriptTag.parentNode.removeChild(this.scriptTag);
-    }
-    const cbKey = '__gmaps_map_callback';
-    const w = window as unknown as Record<string, unknown>;
-    if (w[cbKey]) {
-      delete w[cbKey];
     }
   }
 
@@ -146,7 +139,6 @@ export class MapViewComponent implements OnInit, OnDestroy {
       this.loadError.set(true);
       return;
     }
-    // Reset retries on success path
     this.keyRetries = 0;
 
     if (typeof google !== 'undefined' && google.maps) {
@@ -155,22 +147,36 @@ export class MapViewComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const cbKey = '__gmaps_map_callback';
-    (window as unknown as Record<string, unknown>)[cbKey] = () => {
-      this.loaded.set(true);
-      this.initMap();
-    };
-
-    this.scriptTag = document.createElement('script');
-    this.scriptTag.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=${cbKey}`;
-    this.scriptTag.async = true;
-    this.scriptTag.defer = true;
-    this.scriptTag.onerror = () => {
-      this.loadError.set(true);
-      this.loaded.set(true);
-    };
-    document.head.appendChild(this.scriptTag);
+    // Shared script loading — prevent duplicate <script> tags from multiple instances
+    if (!MapViewComponent._mapsLoading) {
+      MapViewComponent._mapsLoading = new Promise<void>((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}`;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          // Poll until google.maps is actually defined
+          let polls = 0;
+          const check = setInterval(() => {
+            polls++;
+            if (typeof google !== 'undefined' && google.maps) {
+              clearInterval(check);
+              resolve();
+            } else if (polls > 50) {
+              clearInterval(check);
+              reject(new Error('Google Maps API timeout'));
+            }
+          }, 200);
+        };
+        script.onerror = () => reject(new Error('Google Maps script load failed'));
+        document.head.appendChild(script);
+      });
+    }
+    MapViewComponent._mapsLoading
+      .then(() => { this.loaded.set(true); this.initMap(); })
+      .catch(() => { this.loadError.set(true); this.loaded.set(true); });
   }
+  private static _mapsLoading: Promise<void> | null = null;
 
   private initMap(): void {
     if (this.lat == null || this.lng == null) {
@@ -179,7 +185,7 @@ export class MapViewComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const container = document.querySelector<HTMLDivElement>('.map-container');
+    const container = this.containerRef.nativeElement as HTMLDivElement;
     if (!container) {
       setTimeout(() => this.initMap(), 100);
       return;

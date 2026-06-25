@@ -320,7 +320,7 @@ interface PromoValidationResult {
                 </div>
               }
               <label class="qp-field">
-                <span>Your price</span>
+                <span>Your price <span class="qp-req">*</span></span>
                 <div class="qp-price-wrap">
                   <span class="qp-price-prefix">RM</span>
                   <input
@@ -331,11 +331,12 @@ interface PromoValidationResult {
                     name="proposalPrice"
                     placeholder="0.00"
                     class="qp-price-input"
+                    required
                   />
                 </div>
               </label>
               <label class="qp-field">
-                <span>ETA <span class="qp-optional">(min)</span></span>
+                <span>ETA <span class="qp-req">*</span> <span class="qp-optional">(min)</span></span>
                 <input
                   type="number"
                   min="1"
@@ -344,6 +345,7 @@ interface PromoValidationResult {
                   name="proposalEta"
                   placeholder="60"
                   class="qp-eta-input"
+                  required
                 />
               </label>
               <label class="qp-field">
@@ -1841,8 +1843,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
 
   private resetQuoteTimer(): void {
-    if (this.quoteDismissTimer) clearTimeout(this.quoteDismissTimer);
-    this.quoteDismissTimer = setTimeout(() => this.dismissQuotePrompt(), 60000);
+    // No auto-dismiss — prompt stays until servicer explicitly dismisses
   }
 
   dismissQuotePrompt(): void {
@@ -1905,6 +1906,7 @@ export class ShellComponent implements OnInit, OnDestroy {
         this.submitting.set(false);
         this.toast.success('Proposal sent!');
         this.pendingQuotes.update((list) => list.filter((x) => x.quoteId !== q.quoteId));
+        // Keep prompt open for next pending quote if available
         this.expandedQuote.set(null);
         this.proposalDesc = '';
         this.proposalPrice = null;

@@ -15,13 +15,14 @@ export interface PublicConfig {
   googleClientId: string;
   googleMapsApiKey: string;
   condoEntryNote: string;
+  notificationSoundEnabled: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class ConfigService {
   private http = inject(HttpClient);
 
-  private config: PublicConfig = { googleClientId: '', googleMapsApiKey: '', condoEntryNote: '' };
+  private config: PublicConfig = { googleClientId: '', googleMapsApiKey: '', condoEntryNote: '', notificationSoundEnabled: true };
   private _hasDemoData = false;
 
   /** Fetch /config/public from the API. Called once by APP_INITIALIZER. */
@@ -34,7 +35,7 @@ export class ConfigService {
       this.config = cfg;
       this._hasDemoData = demoStatus.hasDemoData;
     } catch {
-      this.config = { googleClientId: '', googleMapsApiKey: '', condoEntryNote: '' };
+      this.config = { googleClientId: '', googleMapsApiKey: '', condoEntryNote: '', notificationSoundEnabled: true };
     }
     return this.config;
   }
@@ -51,5 +52,9 @@ export class ConfigService {
 
   get condoEntryNote(): string {
     return this.config.condoEntryNote;
+  }
+
+  get notificationSoundEnabled(): boolean {
+    return this.config.notificationSoundEnabled;
   }
 }

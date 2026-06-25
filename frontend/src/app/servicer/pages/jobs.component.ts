@@ -113,12 +113,6 @@ interface ModuleRef {
   priceOverride: number | null;
 }
 
-interface ProposalPrefill {
-  defaultTotal: number;
-  basePrice: number;
-  breakdown: { optionLabel: string; price: number }[];
-}
-
 const ACTIVE = ['confirmed', 'in_progress'];
 
 /**
@@ -184,13 +178,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
             @for (q of filteredQuotes(); track q.quoteId) {
               <div class="card item">
                 <!-- Row 1: name · session date · budget · building type · payment | status -->
-                <div
-                  class="pq-head"
-                  role="button"
-                  tabindex="0"
-                  (click)="expand(q)"
-                  (keydown.enter)="expand(q)"
-                >
+                <div class="pq-head">
                   <div class="pq-id">
                     @if (q.customerAvatarUrl) {
                       <img [src]="q.customerAvatarUrl" alt="" class="avatar-circle sm" />
@@ -213,17 +201,22 @@ const ACTIVE = ['confirmed', 'in_progress'];
                   </span>
                 </div>
 
-                <!-- Row 2: address + map button -->
+                <!-- Row 2: address + map links -->
                 @if (q.address) {
                   <div class="pq-addr-row">
                     <span class="pq-addr">{{ composedAddress(q) }}</span>
                     @if (q.lat != null && q.lng != null) {
-                      <button class="btn-ghost pq-map-btn" (click)="toggleMap(q.quoteId, $event)">
-                        <app-icon name="eye" sizeToken="sm" /> {{ mapQuoteId() === q.quoteId ? 'Hide map' : 'Show map' }}
-                      </button>
+                      <div class="pq-map-links">
+                        <a class="btn-ghost btn-sm" [href]="gmapsUrl(q.lat!, q.lng!)" target="_blank" rel="noopener">
+                          <svg width="14" height="14" viewBox="0 0 24 24"><path d="M19.527 4.799c1.212 2.608.937 5.678-.405 8.173-1.101 2.047-2.744 3.74-4.098 5.614-.619.858-1.244 1.75-1.669 2.727-.141.325-.263.658-.383.992-.121.333-.224.673-.34 1.008-.109.314-.236.684-.627.687h-.007c-.466-.001-.579-.53-.695-.887-.284-.874-.581-1.713-1.019-2.525-.51-.944-1.145-1.817-1.79-2.671L19.527 4.799zM8.545 7.705l-3.959 4.707c.724 1.54 1.821 2.863 2.871 4.18.247.31.494.622.737.936l4.984-5.925-.029.01c-1.741.601-3.691-.291-4.392-1.987a3.377 3.377 0 0 1-.209-.716c-.063-.437-.077-.761-.004-1.198l.001-.007zM5.492 3.149l-.003.004c-1.947 2.466-2.281 5.88-1.117 8.77l4.785-5.689-.058-.05-3.607-3.035zM14.661.436l-3.838 4.563a.295.295 0 0 1 .027-.01c1.6-.551 3.403.15 4.22 1.626.176.319.323.683.377 1.045.068.446.085.773.012 1.22l-.003.016 3.836-4.561A8.382 8.382 0 0 0 14.67.439l-.009-.003zM9.466 5.868L14.162.285l-.047-.012A8.31 8.31 0 0 0 11.986 0a8.439 8.439 0 0 0-6.169 2.766l-.016.018 3.665 3.084z" fill="#4285F4"/></svg> Google Maps
+                        </a>
+                        <a class="btn-ghost btn-sm" [href]="wazeUrl(q.lat!, q.lng!)" target="_blank" rel="noopener">
+                          <svg width="14" height="14" viewBox="0 0 24 24"><path d="M13.218 0C9.915 0 6.835 1.49 4.723 4.148c-1.515 1.913-2.31 4.272-2.31 6.706v1.739c0 .894-.62 1.738-1.862 1.813-.298.025-.547.224-.547.522-.05.82.82 2.31 2.012 3.502.82.844 1.788 1.515 2.832 2.036a3 3 0 0 0 2.955 3.528 2.966 2.966 0 0 0 2.931-2.385h2.509c.323 1.689 2.086 2.856 3.974 2.21 1.64-.546 2.36-2.409 1.763-3.924a12.84 12.84 0 0 0 1.838-1.465 10.73 10.73 0 0 0 3.18-7.65c0-2.882-1.118-5.589-3.155-7.625A10.899 10.899 0 0 0 13.218 0zm0 1.217c2.558 0 4.967.994 6.78 2.807a9.525 9.525 0 0 1 2.807 6.78A9.526 9.526 0 0 1 20 17.585a9.647 9.647 0 0 1-6.78 2.807h-2.46a3.008 3.008 0 0 0-2.93-2.41 3.03 3.03 0 0 0-2.534 1.367v.024a8.945 8.945 0 0 1-2.41-1.788c-.844-.844-1.316-1.614-1.515-2.11a2.858 2.858 0 0 0 1.441-.846 2.959 2.959 0 0 0 .795-2.036v-1.789c0-2.11.696-4.197 2.012-5.861 1.863-2.385 4.62-3.726 7.6-3.726zm-2.41 5.986a1.192 1.192 0 0 0-1.191 1.192 1.192 1.192 0 0 0 1.192 1.193A1.192 1.192 0 0 0 12 8.395a1.192 1.192 0 0 0-1.192-1.192zm7.204 0a1.192 1.192 0 0 0-1.192 1.192 1.192 1.192 0 0 0 1.192 1.193 1.192 1.192 0 0 0 1.192-1.193 1.192 1.192 0 0 0-1.192-1.192zm-7.377 4.769a.596.596 0 0 0-.546.845 4.813 4.813 0 0 0 4.346 2.757 4.77 4.77 0 0 0 4.347-2.757.596.596 0 0 0-.547-.845h-.025a.561.561 0 0 0-.521.348 3.59 3.59 0 0 1-3.254 2.061 3.591 3.591 0 0 1-3.254-2.061.64.64 0 0 0-.546-.348z" fill="#33CCFF"/></svg> Waze
+                        </a>
+                      </div>
                     }
                   </div>
-                  @if (mapQuoteId() === q.quoteId && q.lat != null && q.lng != null) {
+                  @if (q.lat != null && q.lng != null) {
                     <div class="map-section">
                       <app-map-view [lat]="q.lat" [lng]="q.lng" [zoom]="15" />
                     </div>
@@ -241,7 +234,6 @@ const ACTIVE = ['confirmed', 'in_progress'];
                       <span class="muted small">No extra details</span>
                     }
                   </div>
-                  <app-countdown [deadline]="q.servicerDeadline" />
                 </div>
 
                 <!-- Post-accept collapse: 3 lines once a proposal has been sent. -->
@@ -257,68 +249,17 @@ const ACTIVE = ['confirmed', 'in_progress'];
                       <p class="pq-msg">{{ q.myProposalMessage }}</p>
                     }
                   </div>
-                } @else {
-                  <!-- One-tap accept: submit a proposal at the listing's computed price. -->
-                  <div class="actions">
-                    <button class="btn-primary" (click)="acceptListing(q, $event)" [disabled]="busy()">
-                      Accept Job
-                    </button>
+                } @else if (!q.myProposalId) {
+                  <div class="pq-actions">
+                    <div class="pq-propose-inline">
+                      <input type="text" class="prop-input prop-msg" placeholder="Message (optional)" [(ngModel)]="proposalMsg" name="pmsg_{{q.quoteId}}" />
+                      <input type="number" class="prop-input prop-price" placeholder="RM" [(ngModel)]="price" name="price_{{q.quoteId}}" />
+                      <input type="number" class="prop-input prop-dur" placeholder="min" [(ngModel)]="eta" name="eta_{{q.quoteId}}" />
+                      <button class="btn-primary btn-sm" (click)="propose(q)" [disabled]="busy() || !price">Accept</button>
+                      <button class="btn-ghost btn-sm" (click)="declineQuote(q, $event)" [disabled]="busy()">Decline</button>
+                    </div>
+                    <app-countdown [deadline]="q.servicerDeadline" />
                   </div>
-                }
-                @if (expanded() === q.quoteId && (!q.myProposalId || q.myProposalIsAuto)) {
-                  <!-- Customer identity in accept view (Phase 6 §16.2) -->
-                  @if (expandedCustomerName()) {
-                    <div class="customer-row">
-                      @if (expandedCustomerAvatar()) {
-                        <img [src]="expandedCustomerAvatar()" alt="" class="avatar-circle" />
-                      } @else {
-                        <div class="avatar-fallback">{{ initials(expandedCustomerName()) }}</div>
-                      }
-                      <span class="customer-name">{{ expandedCustomerName() }}</span>
-                    </div>
-                  }
-                  @if (quoteLat() != null && quoteLng() != null) {
-                    <div class="map-section">
-                      <app-map-view [lat]="quoteLat()" [lng]="quoteLng()" [zoom]="15" />
-                    </div>
-                  }
-                  <form class="propose" (ngSubmit)="propose(q)">
-                    <label class="propose-label">
-                      Price (RM)
-                      @if (getPrefill(q.quoteId); as pf) {
-                        <span class="prefill-hint">(default: RM {{ pf.defaultTotal | number: '1.2-2' }})</span>
-                      }
-                      <input type="number" placeholder="Price (RM)" [(ngModel)]="price" name="price" />
-                    </label>
-                    <input type="number" placeholder="ETA (min)" [(ngModel)]="eta" name="eta" />
-                    <input placeholder="Message" [(ngModel)]="proposalMsg" name="pmsg" />
-                    @if (pricingModules().length > 0) {
-                      <details class="modules-details">
-                        <summary class="muted small">Pricing modules ({{ moduleRefs().length }} selected)</summary>
-                        <div class="modules-grid">
-                          @for (m of pricingModules(); track m.id) {
-                            <label class="module-row">
-                              <input type="checkbox" [checked]="isModuleSelected(m.id)" (change)="toggleModule(m, $event)" />
-                              <span class="module-label">{{ m.label }}</span>
-                              <span class="module-price">RM {{ m.defaultPrice | number: '1.2-2' }}</span>
-                              @if (isModuleSelected(m.id)) {
-                                <input
-                                  type="number"
-                                  class="module-override"
-                                  placeholder="Override price"
-                                  [value]="getModuleOverride(m.id)"
-                                  (input)="setModuleOverride(m.id, $event)"
-                                />
-                              }
-                            </label>
-                          }
-                        </div>
-                      </details>
-                    }
-                    <button class="btn-primary" type="submit" [disabled]="busy()">
-                      Send proposal
-                    </button>
-                  </form>
                 }
               </div>
             } @empty {
@@ -730,7 +671,6 @@ const ACTIVE = ['confirmed', 'in_progress'];
         align-items: flex-start;
         justify-content: space-between;
         gap: 0.6rem;
-        cursor: pointer;
         border-radius: calc(var(--radius) - 2px);
         padding: 0.25rem;
         margin: -0.25rem;
@@ -766,6 +706,9 @@ const ACTIVE = ['confirmed', 'in_progress'];
       }
       .pq-addr { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
       .pq-map-btn { font-size: 0.75rem; padding: 0.25rem 0.7rem; flex-shrink: 0; }
+      .pq-map-links { display: flex; gap: 0.5rem; flex-shrink: 0; }
+      .pq-map-links a { font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.25rem; }
+      .pq-map-links svg { width: 14px; height: 14px; }
       .map-link {
         background: none;
         border: none;
@@ -852,98 +795,25 @@ const ACTIVE = ['confirmed', 'in_progress'];
         flex-wrap: wrap;
         margin-top: 0.4rem;
       }
-      .propose {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-        margin-top: 0.6rem;
-        animation: slide-down 0.18s ease-out both;
+      .pq-actions {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0.5rem 0; gap: 0.4rem; flex-wrap: nowrap;
       }
-      .modules-details {
-        font-size: 0.82rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        padding: 0.4rem 0.6rem;
+      .pq-propose-inline {
+        display: flex; align-items: center; gap: 0.35rem; flex: 1; flex-wrap: nowrap; min-width: 0;
       }
-      .modules-details summary {
-        cursor: pointer;
-        font-weight: 500;
+      .prop-input {
+        border: 1px solid var(--color-border); border-radius: var(--radius);
+        padding: 0.3rem 0.4rem; font-size: 0.78rem; font-family: inherit;
+        background: var(--color-bg); color: var(--color-text); min-width: 0;
       }
-      .modules-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
-        margin-top: 0.4rem;
-      }
-      .module-row {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        font-size: 0.82rem;
-        cursor: pointer;
-      }
-      .module-label { flex: 1; }
-      .module-price { font-weight: 600; }
-      .module-override {
-        width: 80px;
-        font-size: 0.78rem;
-        padding: 0.15rem 0.3rem;
-      }
-      .module-picker {
-        display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
-        padding: 0.5rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        background: var(--color-bg);
-      }
-      .module-picker-label {
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: var(--color-muted);
-      }
-      .module-opt {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        font-size: 0.85rem;
-        font-weight: 400;
-        cursor: pointer;
-      }
-      .module-opt input { width: auto; }
-      .module-label { flex: 1; }
-      .module-price {
-        font-weight: 600;
-        color: var(--color-primary);
-      }
-      .module-override {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        font-size: 0.78rem;
-        font-weight: 400;
-        margin-left: 1.4rem;
-      }
-      .module-override input {
-        width: 100px;
-        padding: 0.2rem 0.4rem;
-      }
+      .prop-input:focus { border-color: var(--color-primary); outline: none; }
+      .prop-msg { flex: 2; min-width: 0; }
+      .prop-price { flex: 0 0 56px; min-width: 0; }
+      .prop-dur { flex: 0 0 46px; min-width: 0; }
       @keyframes slide-down {
         from { opacity: 0; transform: translateY(-6px); }
         to   { opacity: 1; transform: translateY(0); }
-      }
-      .propose-label {
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-        font-size: 0.82rem;
-        font-weight: 500;
-      }
-      .prefill-hint {
-        font-size: 0.75rem;
-        color: var(--color-muted);
-        font-weight: 400;
       }
 
       /* ── Upload modal ─────────────────────────────────────────────────── */
@@ -1070,18 +940,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
       .inv-row { display: flex; justify-content: space-between; align-items: center; }
       .inv-label { color: var(--color-muted); font-size: 0.88rem; }
 
-      /* ── Customer identity avatar (Phase 6 §16.2) ───────────────────────── */
-      .customer-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.4rem;
-      }
-      .customer-name {
-        font-weight: 600;
-        font-size: 0.85rem;
-        color: var(--color-text);
-      }
+      /* ── Avatar ──────────────────────────────────────────────────────────── */
       .avatar-circle {
         width: 40px;
         height: 40px;
@@ -1104,16 +963,6 @@ const ACTIVE = ['confirmed', 'in_progress'];
       .onboarding-list { margin: 0 0 0.7rem; padding-left: 1.2rem; }
       .onboarding-list li { margin-bottom: 0.3rem; font-size: 0.9rem; }
       .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
-      .section-label {
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--color-muted);
-        margin: 1.25rem 0 0.5rem;
-        padding-bottom: 0.35rem;
-        border-bottom: 1px solid var(--color-border);
-      }
     `,
     ]
 })
@@ -1238,7 +1087,6 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     this.overlayReadOnly.set(readOnly);
   }
 
-  expanded = signal<string | null>(null);
   busy = signal(false);
   price?: number;
   eta?: number;
@@ -1247,20 +1095,6 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   /** Proposal price pre-fills keyed by quoteId. Populated when a quote is opened. */
   pricingModules = signal<PricingModule[]>([]);
   moduleRefs = signal<ModuleRef[]>([]);
-
-  private prefillMap = signal<Map<string, ProposalPrefill>>(new Map());
-
-  /** Customer identity shown on expand - set from openQuote response. */
-  expandedCustomerAvatar = signal<string | null>(null);
-  expandedCustomerName = signal<string>('');
-
-  /** Address lat/lng for the map - set from openQuote response. */
-  quoteLat = signal<number | null>(null);
-  quoteLng = signal<number | null>(null);
-
-  getPrefill(quoteId: string): ProposalPrefill | null {
-    return this.prefillMap().get(quoteId) ?? null;
-  }
 
   activeJobs = computed(() => this.jobs().filter((j) => ACTIVE.includes(j.status)));
   pendingJobs = computed(() => this.jobs().filter((j) => j.status === 'pending_confirm'));
@@ -1568,9 +1402,6 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   }
 
   // ── Pending card helpers ───────────────────────────────────────────────────
-  /** Which pending card's inline map is currently expanded (by quoteId). */
-  mapQuoteId = signal<string | null>(null);
-
   private readonly PAY_LABELS: Record<string, string> = {
     pay_now: 'Pay now',
     pay_later: 'Pay later',
@@ -1589,48 +1420,15 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     return [q.address, tail].filter(Boolean).join(', ');
   }
 
-  toggleMap(quoteId: string, event: Event): void {
-    event.stopPropagation();
-    this.mapQuoteId.set(this.mapQuoteId() === quoteId ? null : quoteId);
+  gmapsUrl(lat: number, lng: number): string {
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  }
+
+  wazeUrl(lat: number, lng: number): string {
+    return `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
   }
 
   // ── Pending column - propose on a quote ────────────────────────────────────
-  expand(q: IncomingQuote): void {
-    const next = this.expanded() === q.quoteId ? null : q.quoteId;
-    this.expanded.set(next);
-    if (!next) {
-      this.expandedCustomerAvatar.set(null);
-      this.expandedCustomerName.set('');
-      this.quoteLat.set(null);
-      this.quoteLng.set(null);
-      return;
-    }
-
-    // POST /servicer/quotes/:id/open now returns 200 JSON with an optional
-    // proposalPrefill, customer info, and address lat/lng for the map.
-    this.api
-      .post<{ proposalPrefill: ProposalPrefill | null; customerAvatarUrl: string | null; customerName: string; lat: number | null; lng: number | null }>(`/servicer/quotes/${q.quoteId}/open`, {})
-      .subscribe({
-        next: (res) => {
-          this.expandedCustomerAvatar.set(res.customerAvatarUrl ?? null);
-          this.expandedCustomerName.set(res.customerName ?? '');
-          this.quoteLat.set(res.lat ?? null);
-          this.quoteLng.set(res.lng ?? null);
-          if (res?.proposalPrefill) {
-            // Store the prefill keyed by quoteId.
-            this.prefillMap.update((m) => {
-              const next = new Map(m);
-              next.set(q.quoteId, res.proposalPrefill!);
-              return next;
-            });
-            // Pre-fill the price input so the servicer sees the computed total.
-            this.price = res.proposalPrefill.defaultTotal;
-          }
-        },
-        error: () => {}, // non-critical - proposal form still works without prefill
-      });
-  }
-
   isModuleSelected(moduleId: string): boolean {
     return this.moduleRefs().some((r) => r.moduleId === moduleId);
   }
@@ -1660,33 +1458,6 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
         r.moduleId === moduleId ? { ...r, priceOverride: val } : r,
       ),
     );
-  }
-
-  /** One-tap accept: submit a proposal at the listing's computed price/duration/message. */
-  acceptListing(q: IncomingQuote, event: Event): void {
-    event.stopPropagation();
-    if (this.busy()) return;
-    this.busy.set(true);
-    this.api.post(`/servicer/quotes/${q.quoteId}/accept-listing`, {}).subscribe({
-      next: () => {
-        this.busy.set(false);
-        this.toast.success('Job accepted — proposal sent.');
-        this.loadQuotes();
-      },
-      error: (e) => {
-        this.busy.set(false);
-        if (e.error?.message?.includes('taken')) {
-          this.toast.error('Sorry, this job was taken by another servicer.');
-          this.loadQuotes();
-        } else if (e.error?.missing && Array.isArray(e.error.missing)) {
-          this.missingItems.set(e.error.missing.map((m: string) => m.replace(/_/g, ' ')));
-          this.redirectUrl.set(e.error.redirectUrl ?? '/servicer/account');
-          this.onboardingRequired.set(true);
-        } else {
-          this.toast.error(e.error?.message ?? e.message ?? 'Could not accept the job.');
-        }
-      },
-    });
   }
 
   propose(q: IncomingQuote): void {
@@ -1726,7 +1497,6 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
           this.eta = undefined;
           this.proposalMsg = '';
           this.moduleRefs.set([]);
-          this.expanded.set(null);
           this.busy.set(false);
           this.toast.success('Proposal sent.');
           this.loadQuotes();
@@ -1743,6 +1513,30 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
           }
         },
       });
+  }
+
+  async declineQuote(q: IncomingQuote, event: Event): Promise<void> {
+    event.stopPropagation();
+    const confirmed = await this.dialog.prompt(
+      'Decline this quote request?',
+      {
+        detail: 'You will not be able to receive this job request again after declining.',
+        confirmLabel: 'Yes, decline',
+      },
+    ).toPromise();
+    if (!confirmed) return;
+
+    this.busy.set(true);
+    this.api.post(`/quotes/${q.quoteId}/decline`, {}).subscribe({
+      next: () => {
+        this.quotes.set(this.quotes().filter(p => p.quoteId !== q.quoteId));
+      },
+      error: (e) => {
+        this.busy.set(false);
+        this.toast.error(e.error?.message ?? 'Decline failed');
+      },
+      complete: () => this.busy.set(false),
+    });
   }
 
   // ── Active column - job lifecycle ──────────────────────────────────────────

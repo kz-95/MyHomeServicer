@@ -429,7 +429,7 @@ export class IncomingQuotesComponent implements OnInit, OnDestroy {
     const hasCoords = q.lat != null && q.lng != null;
     const url = app === 'waze'
       ? (hasCoords ? `https://waze.com/ul?ll=${q.lat},${q.lng}&navigate=yes` : `https://waze.com/ul?q=${query}`)
-      : (hasCoords ? `https://www.google.com/maps/search/?api=1&query=${q.lat},${q.lng}` : `https://www.google.com/maps/search/?api=1&query=${query}`);
+      : (hasCoords ? `https://www.google.com/maps/dir/?api=1&destination=${q.lat},${q.lng}` : `https://www.google.com/maps/dir/?api=1&destination=${query}`);
     window.open(url, '_blank', 'noopener');
   }
 }

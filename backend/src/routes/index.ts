@@ -74,7 +74,7 @@ apiRouter.get(
       'condo_entry_note', 'chat_guest_auto_open', 'chat_guest_auto_open_delay',
       'chat_greetings', 'chat_greetings_returning', 'chat_greetings_customer',
       'chat_greetings_servicer', 'chat_greetings_admin',
-      'demo_unlock_phrase',
+      'demo_unlock_phrase', 'notification_sound_enabled',
     ];
     const rows = await prisma.platformSettings.findMany({
       where: { key: { in: keys } },
@@ -96,6 +96,7 @@ apiRouter.get(
       chatGreetingsAdmin: (byKey['chat_greetings_admin'] as string[]) ?? [],
       // DB override (admin-editable) wins; otherwise the deploy-time env default.
       demoUnlockPhrase: (byKey['demo_unlock_phrase'] as string) || env.DEMO_UNLOCK_PHRASE,
+      notificationSoundEnabled: (byKey['notification_sound_enabled'] as boolean) ?? true,
     });
   }),
 );

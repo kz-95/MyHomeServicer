@@ -3,6 +3,7 @@ import { Subscription } from 'rxjs';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { SocketService } from './socket.service';
+import { ConfigService } from './config.service';
 
 export interface Notif {
   id: string;
@@ -37,6 +38,7 @@ export class NotificationService {
   private api = inject(ApiService);
   private auth = inject(AuthService);
   private socketSvc = inject(SocketService);
+  private config = inject(ConfigService);
 
   /** Full notification list (most recent first). */
   items = signal<Notif[]>([]);
@@ -92,14 +94,7 @@ export class NotificationService {
 
   /** Loads the notification sound setting from admin settings. */
   checkSoundSetting(): void {
-    this.api.get<{ data: { key: string; value: unknown }[] }>('/admin/settings')
-      .subscribe({
-        next: (r) => {
-          const setting = r.data.find(s => s.key === 'notification_sound_enabled');
-          if (setting) this.soundEnabled.set(setting.value === true);
-        },
-        error: () => {},
-      });
+    this.soundEnabled.set(this.config.notificationSoundEnabled);
   }
 
   /** Begins polling and opens the real-time socket subscription. Safe to call repeatedly. */

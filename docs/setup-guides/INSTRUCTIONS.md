@@ -376,5 +376,28 @@ The chatbot falls back to canned answers when no API key is configured. To enabl
 **401 Unauthorized on every request**
 The demo seed was not applied - run `npm run db:reset` in `backend/` to create demo accounts. Make sure `JWT_SECRET` in `.env` matches between the token issuer and verifier.
 
+---
+
+## UI debugging rule (ASCII comparison)
+
+When debugging a UI issue and you have no vision model (cannot see screenshots), **always draw an ASCII before/after comparison first.** This reveals layout bugs that code alone hides:
+
+1. Read the current template + CSS
+2. Draw what the CURRENT broken state looks like in ASCII
+3. Draw what the FIXED state should look like in ASCII
+4. Show both side-by-side, mark the exact bug location
+5. Only THEN apply the fix
+
+**Example:** label wrapper with `overflow:hidden` clips text — invisible in code, obvious in ASCII:
+
+```
+BEFORE: [RM[  Prece] ← clipped        AFTER: [RM____]
+BUG: label wrapper adds "RM " text that overflows flex-basis + overflow:hidden
+
+Fix: drop <label> wrapper, use placeholder="RM" instead.
+```
+
+This rule applies to every UI edit. No exceptions.
+
 **500 error on first API call**
 Most likely the database schema was not applied. Run `npm run db:reset` in `backend/` to push the schema, generate the Prisma client, and seed demo data.
