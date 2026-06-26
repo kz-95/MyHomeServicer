@@ -498,11 +498,17 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       h1 { margin-bottom: 1rem; }
 
       /* ── Sticky top bar ────────────────────────────────────────────── */
-      .dash-head { background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+      .dash-head {
+        margin: -1.5rem -2rem 0 -2rem;
+        padding: 1.5rem 2rem 0 2rem;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+      }
       .dash-head-a { padding: 0.6rem 1rem; background: var(--color-bg); }
       .dash-head-b { padding: 0.4rem 1rem; background: var(--color-surface); }
       .dash-divider { border: none; border-top: 1px solid var(--color-border); margin: 0; }
-      .cat-marquee { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; scrollbar-width: thin; }
+      .cat-marquee { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; scrollbar-width: none; }
+.cat-marquee::-webkit-scrollbar { display: none; }
       .cat-marquee.sub { padding-top: 0.3rem; }
       .cat-marquee::-webkit-scrollbar { height: 4px; }
 
