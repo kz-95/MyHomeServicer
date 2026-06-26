@@ -173,7 +173,9 @@ interface ServiceOption {
   `,
   styles: [`
     :host { display: block; max-width: 720px; width: 100%; }
-    .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .head > div { flex: 1; min-width: 0; }
+    .head > button { flex-shrink: 0; }
     .head h1 { margin-bottom: 0.2rem; }
     .chips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
     .chip { background: transparent; border: 1px solid var(--color-border); border-radius: 999px; padding: 0.2rem 0.65rem; font-size: 0.8rem; font-weight: 500; color: var(--color-muted); cursor: pointer; font-family: inherit; transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease; }

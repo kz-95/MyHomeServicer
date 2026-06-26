@@ -2,6 +2,41 @@
 
 > Single-writer log - only the **Frontend** agent writes here.
 
+## Session 2026-06-26 — Admin Onboarding Wizard + Lerp Animation System + Clear Finance + Scrollbar Theming
+
+### Scope
+New wizard at `/admin/onboarding` with animated number lerping, glow/blink effects, money counter milestones, sequential card reveal, and locked-step navigation. Plus `[appLerpNumber]` reusable directive, clear-finance demobar button, and global scrollbar theming.
+
+### New files
+| File | Purpose |
+|---|---|
+| `src/app/shared/lerp-number.directive.ts` | `[appLerpNumber]` directive — lerps 0→target with `requestAnimationFrame` + `easeOutCubic`. Host CSS classes `.lerping`/`.complete`/`.skipped`. Click-to-skip. Per-frame `lerpTick` output. Dual trigger: auto via `[lerpActive]` effect OR manual `run()` via `viewChild`. |
+| `src/app/admin/pages/onboarding-wizard/stat-card.component.ts` | Card with fade-in, number lerp, glow/blink. Uses `viewChild(LerpNumberDirective)` + `effect()` to call `dir.run()` when `active` goes true. |
+| `src/app/admin/pages/onboarding-wizard/money-counter.component.ts` | RM currency counter with milestone bumps. Detects crossings (1k/5k/10k/50k/100k/500k) via `lerpTick` output. Applies scale(1.05)+rotate(3deg) animation and highlight ring pulse on each milestone hit. |
+| `src/app/admin/pages/onboarding-wizard/lerp-bar.component.ts` | Horizontal bar fills 0→target% via CSS transition; percentage text lerps alongside via directive. |
+| `src/app/admin/pages/onboarding-wizard/onboarding-wizard.component.ts` | 5-step wizard. Fetches `GET /admin/dashboard` + `GET /admin/dashboard/financial?days=30`. Step dots evenly spaced (`space-between`), disabled until all 5 complete. Fade transitions. Next button gated. |
+
+### Modified files
+| File | Change |
+|---|---|
+| `src/app/admin/admin.routes.ts` | Added `/admin/onboarding` lazy route |
+| `src/app/core/route-for.ts` | Added `admin.onboarding` route key → `/admin/onboarding` |
+| `src/app/shared/demo-bar.component.ts` | Added "Clear Finance" button (admin-only, brick-red, left of Reseed). Calls `POST /dev/clear-finance` then `window.location.reload()`. Added `clearingFinance` signal + `clearFinance()` method + `.demo-action--clear-finance` CSS. |
+| `src/styles.css` | Added scrollbar theming block: Firefox `scrollbar-color`/`scrollbar-width` + WebKit `::-webkit-scrollbar` using `--color-muted`/`--color-primary` tokens that auto-track `[data-theme]` toggle |
+
+### Animation system design
+- **Lerp engine:** `requestAnimationFrame` loop, easeOutCubic easing, 0→target interpolation.
+- **Glow:** `.lerping` class applies `color: var(--color-primary)` + `text-shadow` glow while running.
+- **Blink:** `.complete` class applies `color: var(--color-success)` + green text-shadow for 400ms then resets to idle.
+- **Skip:** clicking the host element cancels RAF, jumps to final value, emits `lerpDone`.
+- **Milestones (money counter):** `lerpTick` output emits raw number each frame; parent compares against milestone set `[1k,5k,10k,50k,100k,500k,...]`; crossing triggers `@keyframes mc-bump` (scale+rotate) + highlight ring pulse.
+
+### Trigger mechanism (bug fix history)
+Initial design used `effect()` in the directive's `ngOnInit` to watch `[lerpActive]` changes. This failed because signal changes propagated through TWO levels (parent wizard → `StatCardComponent.active` input → template re-eval `[lerpActive]="active()"` → directive) and Angular's signal change detection dropped the second-level propagation before the effect re-ran. Fix: wrapper components (`StatCard`, `MoneyCounter`, `LerpBar`) now use `viewChild(LerpNumberDirective)` + `effect(() => { if (active()) dir?.run() })` to bypass the nested-propagation issue. Inline directives (page 3 leaderboard) still use `[lerpActive]` auto-trigger since they're single-hop.
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+
 ## Session 2026-06-26 — Admin Dashboard Layout Restructure + Expand/Collapse
 
 ### Scope
@@ -2723,3 +2758,57 @@ Replace hand-rolled SVG line chart, CSS bar chart, and CSS conic-gradient donut 
 | `frontend/src/app/admin/components/donut-chart.component.ts` | new |
 | `frontend/src/app/admin/pages/dashboard.component.ts` | ~200 lines removed, ~100 added |
 | `frontend/src/app/app.config.ts` | +2 lines (provideCharts) |
+
+## Session 2026-06-26 — Proposal selectability UI (status badges + stale quote detection)
+
+**Task:** Fix bug where proposal "Select" button fails with "Proposal can no longer be selected" but timer still shows active countdown. The backend now sends `status` and `quoteStatus`; frontend uses them to disable Select and show status.
+
+### Changes
+
+**Modified: `frontend/src/app/customer/pages/proposals.component.ts`**
+- `Proposal` interface: added `status: 'submitted' | 'selected'` and `quoteStatus: string`
+- New `quoteStatus` signal — captured from API response, defaults to `'open'`
+- `load()`: extracts `quoteStatus` from first proposal's data
+- `confirmSelect()`: frontend gate — rejects with error if `p.status !== 'submitted'` or `quoteStatus() !== 'open'` before showing confirm modal
+- Template: stale quote banner ("This quote is no longer available") shown when `quoteStatus() !== 'open'` with link back to My Quotes
+- Template: proposal action area now shows "Already selected" badge for `status !== 'submitted'`, "Unavailable" badge for non-open quotes, instead of the Select button
+- New CSS: `.stale-banner`, `.stale-link`, `.selected-badge`, `.unavailable-badge`
+
+### Verification
+- Frontend `npx tsc --noEmit` — zero errors
+- `ng serve` — bundle compiles without errors
+
+### Fixup: RouterLink import (2026-06-26 22:05)
+- Added `import { RouterLink } from '@angular/router'` and `RouterLink` to component `imports` array — stale-banner `<a [routerLink]>` needed the directive
+
+## Session 2026-06-26 22:32 — AI Analysis dedicated regenerate button
+
+**Task:** Financial report AI analysis text stuck mid-sentence at "What an exciting period of". The regenerate button existed but called `generate()` which reloaded the entire snapshot + AI report from scratch (forcing step reset to 0). No way to regenerate only the AI analysis text.
+
+### Changes
+
+**Modified: `frontend/src/app/admin/pages/financial-chat.component.ts`**
+- New `regenerateAi()` method — re-fetches only `POST /admin/chat/financial-report`, clears `aiReport` before request, keeps existing `finData` snapshot and current step position
+- Step 5 heading button now calls `regenerateAi()` instead of `generate()`, disabled only during `aiLoading`
+- Added "Regenerate Analysis" button below AI report text (after successful render)
+- Added "Regenerate Analysis" button in the "not available" state (replaces plain text)
+- New CSS: `.gen-btn.small` (compact button variant), `.gen-btn:disabled`, `.ai-actions` (right-aligned footer above AI text)
+
+### Verification
+- Frontend `npx tsc --noEmit` — zero errors
+
+## Session 2026-06-26 22:39 — Typewriter word-by-word reveal for AI analysis text
+
+**Task:** AI report text appeared all at once after generation. User wants word-by-word reveal animation.
+
+### Changes
+
+**Modified: `frontend/src/app/admin/pages/financial-chat.component.ts`**
+- New `typedReport` signal — progressively revealed text
+- New `startTypewriter(rawText)`: splits text on whitespace, reveals 3 words every 20ms via `setInterval`
+- New `cancelTypewriter()`: clears interval
+- `generate()` and `regenerateAi()`: cancel before generation, start typewriter after AI text arrives
+- Template: `[innerHTML]="fmtRpt(typedReport())"` instead of `aiReport()`
+
+### Verification
+- Frontend `npx tsc --noEmit` — zero errors

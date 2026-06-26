@@ -110,7 +110,7 @@ function toContentFilter(type: string): ContentFilter {
           } @empty {
             <div class="np-empty">
               <app-icon name="bell" sizeToken="xl" class="np-empty-ic" strokeWidth="1.5" />
-              <p>{{ unreadOnly() || contentFilter() !== 'all' ? 'No matching notifications.' : 'You&apos;re all caught up.' }}</p>
+              <p>{{ unreadOnly() || contentFilter() !== 'all' ? 'No matching notifications.' : 'You\u2019re all caught up.' }}</p>
             </div>
           }
         </div>

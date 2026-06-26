@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, inject, signal, input, computed } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, signal, input, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
@@ -61,6 +61,7 @@ function canc(c: CatItem): number { return c.count > 0 ? (c.cancelled / c.count)
           </div>
           <div class="wiz-actions">
             @if (finData()) {
+              <button class="tb-btn" title="Export PDF" (click)="exportPdf()"><app-icon name="file-down" sizeToken="sm" /></button>
               <button class="tb-btn" title="Regenerate" (click)="generate()" [disabled]="loading()"><app-icon name="refresh-cw" sizeToken="sm" /></button>
             }
             <button class="tb-btn" title="Close" (click)="close()"><app-icon name="x" sizeToken="sm" /></button>
@@ -80,7 +81,7 @@ function canc(c: CatItem): number { return c.count > 0 ? (c.cancelled / c.count)
         }
 
         <!-- Body -->
-        <div class="wiz-body" #scrollBody>
+        <div class="wiz-body" #scrollBody (scroll)="onWizBodyScroll()">
           @if (loading()) {
             <div class="wiz-skeleton">
               @for (i of [1,2,3,4]; track i) {
@@ -193,7 +194,7 @@ function canc(c: CatItem): number { return c.count > 0 ? (c.cancelled / c.count)
                   @for (k of kpiItems(); track k.label; let i = $index) {
                     <div class="kpi-card" [style.animation-delay.ms]="i * 80">
                       <div class="kpi-hdr"><span>{{ k.label }}</span><span class="kpi-tgt">{{ fmtMyr(k.current) }} / {{ fmtMyr(k.target) }}</span></div>
-                      <div class="kpi-track"><div class="kpi-fill" [class.g]="k.pct>=80" [class.a]="k.pct>=50&&k.pct<80" [class.r]="k.pct<50" [style.width.%]="k.pct"></div></div>
+                      <div class="kpi-track"><div class="kpi-fill" [class.g]="k.pct>=80" [class.a]="k.pct>=50&&k.pct<80" [class.r]="k.pct<50" [style.width.%]="barsReady() ? k.pct : 0"></div></div>
                       <div class="kpi-ftr"><span class="kpi-pct">{{ k.pct.toFixed(0) }}%</span><span>{{ k.estimate }}</span></div>
                     </div>
                   }
@@ -213,7 +214,7 @@ function canc(c: CatItem): number { return c.count > 0 ? (c.cancelled / c.count)
             <!-- ═══ STEP 5: AI Insights ═══ -->
             @if (step() === 4) {
               <div class="wiz-page" @enter>
-                <h2 class="sec-title"><app-icon name="sparkles" sizeToken="sm" /> AI Analysis</h2>
+                <h2 class="sec-title"><app-icon name="sparkles" sizeToken="sm" /> AI Analysis <button class="tb-btn" title="Regenerate Analysis" (click)="regenerateAi()" [disabled]="aiLoading()" style="margin-left:auto"><app-icon name="refresh-cw" sizeToken="sm" /></button></h2>
                 @if (aiLoading()) {
                   <div class="ai-block ai-loading">
                     <div class="sk-line w80"></div><div class="sk-line w60"></div><div class="sk-line w90"></div>
@@ -221,9 +222,19 @@ function canc(c: CatItem): number { return c.count > 0 ? (c.cancelled / c.count)
                     <p class="ai-loading-text">Generating detailed analysis...</p>
                   </div>
                 } @else if (aiReport()) {
-                  <div class="ai-block" [innerHTML]="fmtRpt(aiReport()!)"></div>
+                  <div class="ai-block" [innerHTML]="fmtRpt(typedReport())"></div>
+                  <div class="ai-actions">
+                    <button class="gen-btn small" (click)="regenerateAi()" [disabled]="aiLoading()">
+                      <app-icon name="refresh-cw" sizeToken="sm" /> Regenerate Analysis
+                    </button>
+                  </div>
                 } @else {
-                  <div class="ai-block"><p class="ai-loading-text">Analysis not available. Try regenerating.</p></div>
+                  <div class="ai-block">
+                    <p class="ai-loading-text">Analysis not available.</p>
+                    <button class="gen-btn small" (click)="regenerateAi()" [disabled]="aiLoading()">
+                      <app-icon name="refresh-cw" sizeToken="sm" /> Regenerate Analysis
+                    </button>
+                  </div>
                 }
               </div>
             }
@@ -294,7 +305,7 @@ function canc(c: CatItem): number { return c.count > 0 ? (c.cancelled / c.count)
       background:var(--color-surface);
     }
     .wiz-brand { display:flex; align-items:center; gap:8px; font-weight:700; font-size:0.95rem; }
-    .wiz-period { font-weight:400; font-size:0.72rem; color:var(--color-muted); margin-left:4px; }
+    .wiz-period { font-weight:400; font-size:0.72rem; color:var(--color-muted); margin-left:4px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .wiz-actions { display:flex; gap:4px; }
     .tb-btn {
       display:flex; align-items:center; justify-content:center;
@@ -477,16 +488,18 @@ function canc(c: CatItem): number { return c.count > 0 ? (c.cancelled / c.count)
 
     /* AI block */
     .ai-block {
-      font-size:0.82rem; line-height:1.7; color:var(--color-text);
-      padding:16px 20px; background:var(--color-surface);
+      font-size:0.84rem; line-height:1.85; color:var(--color-text);
+      padding:20px 24px; background:var(--color-surface);
       border-radius:10px; border:1px solid var(--color-border);
     }
-    .ai-block h2 { font-size:0.95rem; margin:1em 0 0.3em; }
-    .ai-block h3 { font-size:0.85rem; margin:0.8em 0 0.2em; }
-    .ai-block p { margin:0.4em 0; }
-    .ai-block strong { color:var(--color-primary); }
-    .ai-block ul, .ai-block ol { padding-left:1.2em; margin:0.3em 0; }
-    .ai-block li { margin:0.15em 0; }
+    .ai-block h2 { font-size:0.95rem; margin:1.2em 0 0.5em; }
+    .ai-block h3 { font-size:0.85rem; margin:1em 0 0.4em; }
+    .ai-block p { margin:0.6em 0; }
+    .ai-block strong { color:var(--color-primary); font-weight:700; }
+    .ai-block strong.hl-num { color:var(--color-accent, #e8a838); }
+    .ai-block em { color:var(--color-accent, #e8a838); }
+    .ai-block ul, .ai-block ol { padding-left:1.2em; margin:0.4em 0; }
+    .ai-block li { margin:0.2em 0; }
     .ai-block code { font-size:0.75rem; padding:2px 5px; border-radius:4px; background:var(--color-border); }
     .ai-loading { display:flex; flex-direction:column; gap:10px; padding:24px 20px; }
     .ai-loading-text { font-size:0.8rem; color:var(--color-muted); text-align:center; margin-top:8px; }
@@ -519,6 +532,12 @@ function canc(c: CatItem): number { return c.count > 0 ? (c.cancelled / c.count)
       font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.15s;
     }
     .gen-btn:hover { opacity:0.85; transform:translateY(-1px); }
+    .gen-btn.small { padding:6px 14px; font-size:0.82rem; }
+    .gen-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .ai-actions {
+      display:flex; justify-content:flex-end; margin-top:16px;
+      padding-top:12px; border-top:1px solid var(--color-border);
+    }
 
     /* footer */
     .wiz-foot {
@@ -547,6 +566,13 @@ export class FinancialChatComponent {
   loading = signal(false);
   error = signal<string | null>(null);
   step = signal(0);
+  barsReady = signal(false);
+
+  typedReport = signal('');
+  private typewriterTimer: ReturnType<typeof setInterval> | null = null;
+  private typewriterIndex = 0;
+  private typewriterWords: string[] = [];
+  private userScrolled = false;
 
   readonly steps = [
     { id: 'overview', label: 'Overview' },
@@ -557,6 +583,23 @@ export class FinancialChatComponent {
   ];
 
   @ViewChild('dialogRef') dialogRef!: ElementRef<HTMLDialogElement>;
+  @ViewChild('scrollBody') scrollBodyEl!: ElementRef<HTMLDivElement>;
+
+  private barsEffect = effect(() => {
+    if (this.step() === 3) {
+      this.barsReady.set(false);
+      setTimeout(() => this.barsReady.set(true), 50);
+    } else {
+      this.barsReady.set(false);
+    }
+  });
+
+  private scrollEffect = effect(() => {
+    if (this.step() === 4) {
+      this.userScrolled = false;
+      setTimeout(() => this.scrollToBottom(), 100);
+    }
+  });
 
   readonly queryParams = input<Record<string, string | number>>({ days: 30 });
 
@@ -671,7 +714,83 @@ export class FinancialChatComponent {
   }
   close(): void { try { const d=this.dialogRef?.nativeElement as HTMLDialogElement|undefined; if(d?.open) d.close(); } catch{} }
 
+  exportPdf(): void {
+    const d = this.finData();
+    if (!d) return;
+    const hero = this.heroCards();
+    const perf = this.perfCards();
+    const income = this.incomeItems();
+    const expense = this.expenseItems();
+    const cats = this.topCategories();
+    const cust = d.customerTop10.slice(0, 5);
+    const serv = d.servicerTop10.slice(0, 5);
+    const kpis = this.kpiItems();
+    const achs = this.achievements();
+    const ai = this.aiReport();
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Financial Report — ${d.periodLabel}</title><style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a2e;line-height:1.6;padding:40px 48px;max-width:800px;margin:0 auto}
+h1{font-size:1.5rem;margin-bottom:4px}h2{font-size:1rem;text-transform:uppercase;letter-spacing:.05em;color:#888;margin:28px 0 12px;border-bottom:2px solid #c95a3c;padding-bottom:6px}
+.period{color:#888;font-size:.85rem;margin-bottom:24px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:8px}
+.card{border:1px solid #e0e0e0;border-radius:8px;padding:12px 14px}
+.card .label{font-size:.7rem;color:#888;text-transform:uppercase;letter-spacing:.04em}
+.card .value{font-size:1.1rem;font-weight:700;margin:2px 0}.card .sub{font-size:.72rem;color:#aaa}
+.card.primary{border-color:#c95a3c;background:#fdf6f3}
+.pos{color:#2d8a4e}.neg{color:#c0392b}
+.row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:.85rem}
+.row .amt{font-weight:600}
+.bar-track{flex:1;height:6px;background:#eee;border-radius:3px;margin:0 10px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px}.g{background:#2d8a4e}.a{background:#e8a838}.r{background:#c0392b}
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cat-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:.82rem}
+.cat-rank{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.78rem;color:#fff;background:#888;flex-shrink:0}
+.t1 .cat-rank{background:#c95a3c}.t2 .cat-rank{background:#e8a838}.t3 .cat-rank{background:#6c757d}
+.ldr-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:.82rem}
+.ldr-rank{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.7rem;color:#fff;background:#c95a3c;flex-shrink:0}
+.ldr-meta{font-size:.72rem;color:#888}
+.kpi-row{margin-bottom:14px}.kpi-hdr{display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px}
+.ach-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ach-card{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:.78rem}
+.ach-card.earned{border-color:#2d8a4e;background:#f0faf4}
+.ach-card.locked{opacity:.5}
+.ai-section{font-size:.82rem;line-height:1.8;margin-top:8px}
+.ai-section h3{font-size:.9rem;margin:1em 0 .3em;color:#c95a3c}
+.ai-section strong{color:#c95a3c}
+@media print{body{padding:20px 28px}}
+</style></head><body>
+<h1>Financial Advisory Report</h1><p class="period">${d.periodLabel}</p>
+<h2>Key Performance Indicators</h2>
+<div class="grid">${hero.map(h=>`<div class="card${h.positive?' pos':''}${h.negative?' neg':''}${hero.indexOf(h)===0?' primary':''}"><div class="label">${h.label}</div><div class="value">${h.value}</div><div class="sub">${h.sub}</div></div>`).join('')}</div>
+<h2>Performance Summary</h2>
+${perf.map(p=>`<div class="row"><span>${p.label}</span><span class="amt">${p.value}</span></div>`).join('')}
+<h2>Income Breakdown</h2>
+${income.map(it=>`<div class="row"><span>${it.label}</span><div class="bar-track"><div class="bar-fill g" style="width:${it.pct}%"></div></div><span class="amt">${fmtMyr(it.value)}</span></div>`).join('')}
+<h2>Expense Breakdown</h2>
+${expense.map(it=>`<div class="row"><span>${it.label}</span><div class="bar-track"><div class="bar-fill r" style="width:${it.pct}%"></div></div><span class="amt">${fmtMyr(it.value)}</span></div>`).join('')}
+<h2>Top Categories</h2>
+<div class="cat-grid">${cats.map((c,i)=>`<div class="cat-card${i<3?' t'+(i+1):''}"><div class="cat-rank">${i+1}</div><div><strong>${c.name}</strong><br><span style="font-size:.72rem;color:#888">${c.count} bookings · ${fmtMyr(c.revenue)}</span></div></div>`).join('')}</div>
+<h2>Top Customers</h2>
+${cust.map((c,i)=>`<div class="ldr-row"><div class="ldr-rank">${i+1}</div><div><strong>${c.name}</strong><br><span class="ldr-meta">${c.bookingCount} bookings · ${fmtMyr(c.totalSpent)}</span></div></div>`).join('')}
+<h2>Top Servicers</h2>
+${serv.map((s,i)=>`<div class="ldr-row"><div class="ldr-rank">${i+1}</div><div><strong>${s.businessName||s.name}</strong><br><span class="ldr-meta">${s.jobCount} jobs · ${fmtMyr(s.revenue)} · ${(s.rating||0).toFixed(1)}★</span></div></div>`).join('')}
+<h2>KPI Progress</h2>
+${kpis.map(k=>`<div class="kpi-row"><div class="kpi-hdr"><span>${k.label}</span><span style="font-size:.72rem;color:#888">${fmtMyr(k.current)} / ${fmtMyr(k.target)}</span></div><div class="bar-track" style="height:10px"><div class="bar-fill${k.pct>=80?' g':k.pct>=50?' a':' r'}" style="width:${k.pct}%"></div></div></div>`).join('')}
+<h2>Achievements</h2>
+<div class="ach-grid">${achs.map(a=>`<div class="ach-card ${a.earned?'earned':'locked'}"><span style="font-size:1.2rem">${a.icon}</span><div><strong>${a.label}</strong><br><span style="font-size:.68rem;color:#888">${a.desc}</span></div></div>`).join('')}</div>
+${ai?`<h2>AI Analysis</h2><div class="ai-section">${this.fmtRpt(ai)}</div>`:''}
+</body></html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 600);
+  }
+
   async generate(): Promise<void> {
+    this.cancelTypewriter();
     this.loading.set(true); this.aiLoading.set(true); this.error.set(null); this.step.set(0);
 
     const qp = this.queryParams();
@@ -695,6 +814,7 @@ export class FinancialChatComponent {
         this.api.post<ReportResponse>(`/admin/chat/financial-report?${qs}`, {}),
       );
       this.aiReport.set(aiRes.report);
+      this.startTypewriter(aiRes.report);
     } catch (err: any) {
       // If snapshot failed, show error. If only AI failed, steps 1-4 still work.
       if (!this.finData()) {
@@ -707,8 +827,38 @@ export class FinancialChatComponent {
     }
   }
 
+  async regenerateAi(): Promise<void> {
+    if (!this.finData()) return;
+    this.cancelTypewriter();
+    this.aiLoading.set(true);
+    this.aiReport.set(null);
+
+    const qp = this.queryParams();
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(qp)) {
+      if (v !== undefined && v !== null && v !== '') params.set(k, String(v));
+    }
+    const qs = params.toString();
+
+    try {
+      const aiRes = await firstValueFrom(
+        this.api.post<ReportResponse>(`/admin/chat/financial-report?${qs}`, {}),
+      );
+      this.aiReport.set(aiRes.report);
+      this.startTypewriter(aiRes.report);
+    } catch {
+      // silent — "not available" state will show with regenerate button
+    } finally {
+      this.aiLoading.set(false);
+    }
+  }
+
   fmtRpt(text:string): string {
-    let o = text.replace(/^#### (.+)$/gm,'<h4>$1</h4>').replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^# (.+)$/gm,'<h1>$1</h1>');
+    let o = text
+      .replace(/(RM\s*[\d,]+(?:\.\d{2})?)/g, '<strong class="hl-num">$1</strong>')
+      .replace(/(?<!\w)(\d{1,3}(?:,\d{3})*(?:\.\d+)?%)(?!\w)/g, '<strong class="hl-num">$1</strong>')
+      .replace(/(?<!\w)(\d{1,3}(?:,\d{3})+)(?!\w)/g, '<strong class="hl-num">$1</strong>');
+    o = o.replace(/^#### (.+)$/gm,'<h4>$1</h4>').replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^# (.+)$/gm,'<h1>$1</h1>');
     o = o.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>');
     o = o.replace(/^(\d+)\.\s+(.+)$/gm,'<li value="$1">$2</li>');
     o = o.replace(/^[-*]\s+(.+)$/gm,'<li>$1</li>');
@@ -716,5 +866,47 @@ export class FinancialChatComponent {
     o = o.replace(/<p>\s*<\/p>/g,'').replace(/<p>(<(?:h[1-4]|ul|ol|li|hr)[^>]*>[\s\S]*?)<\/p>/g,'$1');
     o = o.replace(/^---$/gm,'<hr>'); o = o.replace(/`([^`]+)`/g,'<code>$1</code>');
     return o;
+  }
+
+  private startTypewriter(rawText: string): void {
+    this.cancelTypewriter();
+    this.typedReport.set('');
+    this.userScrolled = false;
+    this.typewriterWords = rawText.split(/(\s+)/);
+    this.typewriterIndex = 0;
+    const wordsPerTick = 3;
+    this.typewriterTimer = setInterval(() => {
+      if (this.typewriterIndex >= this.typewriterWords.length) {
+        this.cancelTypewriter();
+        this.scrollToBottom();
+        return;
+      }
+      const end = Math.min(this.typewriterIndex + wordsPerTick, this.typewriterWords.length);
+      this.typedReport.set(this.typewriterWords.slice(0, end).join(''));
+      this.typewriterIndex = end;
+      this.scrollToBottom();
+    }, 20);
+  }
+
+  private scrollToBottom(): void {
+    if (this.userScrolled) return;
+    const el = this.scrollBodyEl?.nativeElement;
+    if (el) {
+      requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+    }
+  }
+
+  protected onWizBodyScroll = (): void => {
+    const el = this.scrollBodyEl?.nativeElement;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    this.userScrolled = !atBottom;
+  };
+
+  private cancelTypewriter(): void {
+    if (this.typewriterTimer !== null) {
+      clearInterval(this.typewriterTimer);
+      this.typewriterTimer = null;
+    }
   }
 }

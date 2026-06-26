@@ -3,9 +3,6 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { routeFor } from '../../core/route-for';
-import { NewOrderFormComponent } from '../components/new-order-form.component';
-import { IconComponent } from '../../shared/icon.component';
-
 interface EarningsToday {
   date: string;
   earningsToday: number;
@@ -28,13 +25,11 @@ interface WeekDay {
 @Component({
     selector: 'app-servicer-dashboard',
     host: { class: 'page-enter' },
-    imports: [CommonModule, RouterLink, NewOrderFormComponent, IconComponent],
+    imports: [CommonModule, RouterLink],
     template: `
     <div class="dash-head">
       <h1>Servicer dashboard</h1>
-      <button class="btn-primary new-order-btn" (click)="newOrderOpen.set(true)">
-        <app-icon name="plus" sizeToken="sm" /> + New order
-      </button>
+
     </div>
 
     @if (earnings(); as e) {
@@ -107,12 +102,6 @@ interface WeekDay {
       }
     </div>
 
-    <!-- New order form modal -->
-    <app-new-order-form
-      [open]="newOrderOpen()"
-      (closed)="newOrderOpen.set(false)"
-    />
-
     <!-- Quick links -->
     <h2>Quick links</h2>
     <div class="grid links page-child">
@@ -136,12 +125,7 @@ interface WeekDay {
         flex-wrap: wrap;
       }
       .dash-head h1 { margin: 0; }
-      .new-order-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        white-space: nowrap;
-      }
+
       h2 {
         margin-top: 1.8rem;
       }
@@ -317,8 +301,6 @@ export class ServicerDashboardComponent implements OnInit {
         error: () => { /* chart stays at previous data */ },
       });
   }
-
-  newOrderOpen = signal(false);
 
   readonly quickLinks = [
     { label: 'Pending Requests', path: routeFor('servicer.jobs.pending'), icon: '📨', detail: 'Incoming quotes to respond to' },

@@ -6,8 +6,10 @@ import { badRequest, notFound } from '../lib/errors';
 import { allowDemo, env } from '../config/env';
 import { requireAuth } from '../middleware/auth';
 import { checkPinCooldown, recordPinFailure, recordPinSuccess } from '../middleware/pin-cooldown';
-import { runReseed, runClear, runClearContent } from '../services/admin.service';
+import { runReseed, runClear, runClearContent, runClearFinance } from '../services/admin.service';
 import { seedDemoQuote, seedDemoProposal } from '../services/quote.service';
+import { emitToServicer, emitToServicers } from '../socket';
+import { notify } from '../services/notification.service';
 import { adjustCredit } from '../services/credit.service';
 import { login, getCurrentPrincipal } from '../services/auth.service';
 import { categoriesRouter } from './categories.routes';
@@ -313,6 +315,15 @@ apiRouter.post(
   asyncHandler(async (req, res) => res.json(await runClearContent(req.body.pin ?? ''))),
 );
 
+apiRouter.post(
+  '/dev/clear-finance',
+  requireAuth,
+  asyncHandler(async (_req, res) => {
+    const result = await runClearFinance();
+    res.json(result);
+  }),
+);
+
 /**
  * POST /dev/seed-quote - generates one demo open quote request (from a random
  * demo customer) so the servicer incoming-quotes feed can be shown live.
@@ -364,10 +375,65 @@ apiRouter.post(
 );
 
 /**
- * POST /dev/random-order - creates a demo order for the signed-in servicer.
- * Picks a random customer, creates a quote in a random category the servicer
- * offers, and immediately accepts it as a confirmed booking. Development only.
+ * POST /dev/random-order - creates a demo quote request for the signed-in
+ * servicer from a random customer in a random category. The servicer must
+ * manually send a proposal — nothing is auto-accepted. Development only.
  */
+
+type QuestionSchemaItem = {
+  key: string; label: string; type: string;
+  priced?: boolean; active?: boolean; maxSelect?: number; minSelect?: number;
+  showIf?: { questionKey: string; includesAny: string[] };
+  options?: { value: string; label: string; active?: boolean }[];
+};
+
+function isQuestionVisible(q: QuestionSchemaItem, answers: Record<string, unknown>): boolean {
+  if (!q.showIf) return true;
+  const raw = answers[q.showIf.questionKey];
+  if (raw === undefined || raw === null) return false;
+  const selected = Array.isArray(raw) ? raw : [raw];
+  return q.showIf.includesAny.some((v) => selected.includes(v));
+}
+
+function generateRandomServiceDetails(schema: QuestionSchemaItem[]): Record<string, unknown> {
+  const answers: Record<string, unknown> = {};
+  // Sort: questions without showIf first, then dependents (simple topological-ish).
+  const ordered = [...schema].sort((a, b) => (a.showIf ? 1 : 0) - (b.showIf ? 1 : 0));
+  for (const q of ordered) {
+    if (q.active === false) continue;
+    if (!isQuestionVisible(q, answers)) continue;
+    const opts = (q.options ?? []).filter((o) => o.active !== false);
+    if (opts.length === 0) continue;
+
+    switch (q.type) {
+      case 'radio': {
+        const pick = opts[Math.floor(Math.random() * opts.length)];
+        answers[q.key] = pick.value;
+        break;
+      }
+      case 'checkbox': {
+        const max = q.maxSelect ?? opts.length;
+        const min = q.minSelect ?? 1;
+        const count = min + Math.floor(Math.random() * (max - min + 1));
+        const shuffled = [...opts].sort(() => Math.random() - 0.5);
+        answers[q.key] = shuffled.slice(0, Math.min(count, shuffled.length)).map((o) => o.value);
+        break;
+      }
+      case 'quantity': {
+        const count = 1 + Math.floor(Math.random() * 3);
+        const picks: Record<string, number> = {};
+        const shuffled = [...opts].sort(() => Math.random() - 0.5).slice(0, Math.min(count, opts.length));
+        for (const o of shuffled) picks[o.value] = 1 + Math.floor(Math.random() * 3);
+        answers[q.key] = picks;
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  return answers;
+}
+
 const DEMO_CUSTOMER_EMAILS = [
   'sarah.lim2@demo.local', 'nurul.hafizah@demo.local', 'michael.lim@demo.local',
   'david.tan@demo.local', 'rashida.kamila@demo.local', 'jason.yeoh@demo.local',
@@ -391,10 +457,10 @@ apiRouter.post(
     const addr = await prisma.userAddress.findFirst({ where: { userId: customer.id }, orderBy: { createdAt: 'asc' } });
     if (!addr) throw badRequest('Customer has no saved address');
 
-    // Pick a random category from the servicer's listings.
+    // Pick a random category from the servicer's listings, with question schema.
     const services = await prisma.servicerService.findMany({
       where: { servicerId },
-      select: { id: true, categoryId: true, basePrice: true, category: { select: { name: true } } },
+      select: { id: true, categoryId: true, basePrice: true, category: { select: { name: true, questionSchema: true } } },
     });
     if (services.length === 0) throw badRequest('Servicer has no service listings');
     const svc = services[Math.floor(Math.random() * services.length)];
@@ -402,6 +468,10 @@ apiRouter.post(
 
     const now = new Date();
     const deadline = new Date(now.getTime() + 60 * 60_000); // 1h from now
+
+    // Generate random answers based on the category's question schema.
+    const schema = (svc.category.questionSchema as QuestionSchemaItem[]) ?? [];
+    const serviceDetails = schema.length > 0 ? generateRandomServiceDetails(schema) : undefined;
 
     // 1. Create quote request.
     const quote = await prisma.quoteRequest.create({
@@ -423,49 +493,129 @@ apiRouter.post(
         lat: addr.lat,
         lng: addr.lng,
         notes: 'Demo auto-generated order',
+        serviceDetails: (serviceDetails as any) ?? undefined,
       },
     });
 
     // 2. Broadcast to the servicer.
     await prisma.quoteBroadcast.create({ data: { quoteRequestId: quote.id, servicerId } });
 
-    // 3. Create proposal from the servicer.
-    const proposal = await prisma.quoteProposal.create({
-      data: {
-        quoteRequestId: quote.id,
-        servicerId,
-        proposedPrice: price,
-        lineItems: [{ label: svc.category.name, amount: price, taxable: true, serviceChargeable: true }],
-        message: `Demo auto-accepted order — ${svc.category.name} for RM ${price}`,
-        etaMinutes: 60,
-        status: 'selected',
-      },
-    });
+    // 3. Real-time socket event so the jobs page refreshes live.
+    emitToServicer(servicerId, 'quote.new', { quoteId: quote.id, category: svc.category.name });
 
-    // 4. Create the booking (confirmed — skips the 5s wait + unpaid-invoice gates).
-    const sched = new Date(now.getTime() + 2 * 86_400_000);
-    const booking = await prisma.booking.create({
-      data: {
-        quoteRequestId: quote.id,
-        proposalId: proposal.id,
-        userId: customer.id,
-        servicerId,
-        status: 'confirmed',
-        price,
-        paymentMode: 'pay_later' as any,
-        lineItems: [{ label: svc.category.name, amount: price, taxable: true, serviceChargeable: true }],
-        settlementMethod: 'cash',
-        paymentTiming: 'pay_later' as any,
-        scheduledDate: sched,
-        timeSlot: 'morning',
-        notes: 'Demo auto-generated order',
-        confirmedAt: now,
-      },
+    // 4. In-app notification so the bell badge lights up.
+    await notify({
+      servicerId,
+      type: 'jobs',
+      message: `New ${svc.category.name} request from ${customer.name}`,
+      linkUrl: `/servicer/jobs/pending`,
+      category: svc.categoryId,
     });
 
     res.json({
       customer: customer.name,
       category: svc.category.name,
+      price,
+      quoteId: quote.id,
+    });
+  }),
+);
+
+/**
+ * POST /dev/seed-accept-proposal - accepts one pending proposal from the
+ * signed-in servicer (simulates the customer selecting it). Creates a
+ * confirmed booking and emits real-time notifications. Development only.
+ */
+apiRouter.post(
+  '/dev/seed-accept-proposal',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!allowDemo) throw badRequest('Demo actions are disabled in production');
+    const u = req.user!;
+    if (u.kind !== 'servicer') throw badRequest('Only servicer accounts can accept demo proposals');
+
+    // Find one submitted (pending) proposal from this servicer.
+    const proposal = await prisma.quoteProposal.findFirst({
+      where: { servicerId: u.id, status: 'submitted' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!proposal) throw badRequest('No pending proposals found. Send a proposal first, then accept it.');
+
+    // Load the quote request separately.
+    const quote = await prisma.quoteRequest.findUnique({
+      where: { id: proposal.quoteRequestId },
+      include: {
+        user: { select: { id: true, name: true } },
+        category: { select: { name: true } },
+      },
+    });
+    if (!quote) throw notFound('Quote not found');
+    if (quote.status !== 'open') throw badRequest('The quote is no longer open for selection.');
+
+    const now = new Date();
+    const svc = await prisma.servicerService.findFirst({
+      where: { servicerId: u.id, categoryId: quote.categoryId },
+      select: { basePrice: true },
+    });
+    const price = Number(proposal.proposedPrice) || Number(svc?.basePrice) || 100;
+
+    // 1. Select this proposal, reject others.
+    await prisma.quoteProposal.update({ where: { id: proposal.id }, data: { status: 'selected' } });
+    await prisma.quoteProposal.updateMany({
+      where: { quoteRequestId: quote.id, id: { not: proposal.id } },
+      data: { status: 'rejected' },
+    });
+    await prisma.quoteRequest.update({ where: { id: quote.id }, data: { status: 'matched' } });
+
+    // 2. Create confirmed booking.
+    const sched = new Date(now.getTime() + 2 * 86_400_000);
+    const lineItems = (proposal.lineItems as any[] | undefined)?.length
+      ? (proposal.lineItems as any[])
+      : [{ label: quote.category.name, amount: price, taxable: true, serviceChargeable: true }];
+
+    const booking = await prisma.booking.create({
+      data: {
+        quoteRequestId: quote.id,
+        proposalId: proposal.id,
+        userId: quote.userId,
+        servicerId: u.id,
+        status: 'confirmed',
+        price,
+        paymentMode: 'pay_later' as any,
+        lineItems,
+        settlementMethod: 'cash',
+        paymentTiming: 'pay_later' as any,
+        scheduledDate: sched,
+        timeSlot: quote.timeSlot,
+        notes: 'Demo accepted proposal',
+        confirmedAt: now,
+      },
+    });
+
+    // 3. Socket event so the jobs page refreshes.
+    emitToServicer(u.id, 'job.new', { bookingId: booking.id, quoteId: quote.id });
+
+    // 4. Notify other servicers their proposals were rejected.
+    const others = await prisma.quoteBroadcast.findMany({
+      where: { quoteRequestId: quote.id, servicerId: { not: u.id } },
+      select: { servicerId: true },
+    });
+    if (others.length > 0) {
+      emitToServicers(others.map((o) => o.servicerId), 'quote.matched', { quoteId: quote.id });
+    }
+
+    // 5. In-app notification for the servicer.
+    await notify({
+      servicerId: u.id,
+      type: 'jobs',
+      message: `${quote.user.name} accepted your ${quote.category.name} proposal — RM ${price}`,
+      linkUrl: `/servicer/jobs/active`,
+      category: quote.categoryId,
+    });
+
+    res.status(201).json({
+      customer: quote.user.name,
+      category: quote.category.name,
       price,
       bookingId: booking.id,
       quoteId: quote.id,

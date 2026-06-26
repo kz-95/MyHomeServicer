@@ -67,6 +67,7 @@ export type RouteKey =
   | 'admin.aiChatSettings'
   | 'admin.categorySettings'
   | 'admin.setup'
+  | 'admin.onboarding'
   | 'admin.apiKeys';
 
 /**
@@ -135,6 +136,7 @@ export const ROUTES: Record<RouteKey, string> = {
   'admin.aiChatSettings':'/admin/ai-chat-settings',
   'admin.categorySettings':'/admin/category-settings',
   'admin.setup':        '/admin/setup',
+  'admin.onboarding':   '/admin/onboarding',
   'admin.apiKeys':      '/admin/settings/api-keys',
 };
 

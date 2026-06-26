@@ -108,6 +108,13 @@
 > - [x] Demobar: `+ New Order` button already wired to `POST /dev/random-order` (random customer → current servicer)
 > - [x] Zen customer seeded: `zen@demo.local / Demo@2026`, leak repair booking with Ahmad Plumbing
 > - [x] Both backend + frontend typecheck pass (zero errors)
+>
+> ### ✅ DONE — Proposal selectability fix (2026-06-26)
+> - [x] Backend: `getQuoteProposals()` response now includes `status` and `quoteStatus` fields
+> - [x] Frontend: `Proposal` interface updated, status badges ("Already selected" / "Unavailable") replace Select button for non-submittable proposals
+> - [x] Frontend: stale quote banner when `quoteStatus !== 'open'` with link back to My Quotes
+> - [x] Frontend: `confirmSelect()` frontend gate rejects non-submitted / non-open quotes before showing modal
+> - [x] Both backend + frontend typecheck pass
 
 ---
 
@@ -284,12 +291,8 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [x] **Seed reform** - cap each servicer at 3 listings; seed painting/moving/gardening servicers;
   add profile pictures for servicers M97–M105 (currently missing avatar/logoUrl)
   ✅ Already done: all servicers ≤3 listings, M97-M105 seeded with 9 entries across painting/moving/gardening.
-- [x] **Servicer shell content widths** - 720px default (`:host` on each page component), exceptions:
-  - Dashboard: 900px (already had it)
-  - Calendar: 1000px (already had it)
-  - Shell `.content-main.narrow` uses flex center so each page's own `max-width` takes effect.
-  - Pages set: Jobs, Promotions, Invoices, Deposit, Account, Services Listings, Services Modules, Listing Wizard.
-  - Shared components (Notifications, Notification Settings) run full-width in the narrow container.
+- [x] **Servicer shell content widths** - `servicer-shell.component.ts` now dynamically computes `[narrow]` from URL (matching `admin-shell` pattern): Dashboard + Jobs + Calendar routes → `narrow=false` (allowing 900px/1200px `:host` widths); all other pages → `narrow=true` (720px container). Previously hardcoded `[narrow]="true"` which clipped everything including calendar to 720px regardless of `:host` overrides. Calendar `.wh-body` stays 720px (intentional sub-section). Jobs proposal inputs widened (`.prop-price` 80px, `.prop-dur` 68px, `.prop-msg` `flex:0.6`), parent `.pq-propose-inline` `min-width:0` removed, `.pq-actions` now `flex-wrap:wrap`. Jobs `:host` centered with `margin:0 auto`.
+- [x] **STYLE-RULES.md §5.3 Portal content width rules** - permanent rule table documenting all `narrow` exclusions, `:host` max-widths, and non-negotiable minimums.
 - [x] **routeFor() relative-path guard** (defense-in-depth)
 - [ ] **Itemization** - separate "service listing" vs "itemized line items" (parts/labour). Defer
   until SP3-SP4 land.

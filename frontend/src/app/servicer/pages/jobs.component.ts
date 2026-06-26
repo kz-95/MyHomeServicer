@@ -27,7 +27,7 @@ import { MapViewComponent } from '../../shared/map-view.component';
 import { WaButtonComponent } from '../../shared/wa-button.component';
 import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
-import { NewOrderFormComponent } from '../components/new-order-form.component';
+
 
 interface IncomingQuote {
   quoteId: string;
@@ -129,7 +129,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
 @Component({
     selector: 'app-servicer-jobs',
     host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, RouterLink, IconComponent, CountdownComponent, ModalComponent, DispatchOverlayComponent, ListToolbarComponent, MapViewComponent, WaButtonComponent, NewOrderFormComponent],
+    imports: [CommonModule, FormsModule, RouterLink, IconComponent, CountdownComponent, ModalComponent, DispatchOverlayComponent, ListToolbarComponent, MapViewComponent, WaButtonComponent],
     template: `
     <div class="page-head">
       <div class="tabs">
@@ -143,9 +143,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
           History <span class="n">{{ historyJobs().length }}</span>
         </button>
       </div>
-      <button class="btn-primary new-order-btn" (click)="newOrderOpen.set(true)">
-        <app-icon name="plus" sizeToken="sm" /> + New order
-      </button>
+
     </div>
 
     <app-list-toolbar>
@@ -258,10 +256,11 @@ const ACTIVE = ['confirmed', 'in_progress'];
                 } @else if (!q.myProposalId) {
                   <div class="pq-actions">
                     <div class="pq-propose-inline">
-                      <input type="text" class="prop-input prop-msg" placeholder="Message (optional)" [(ngModel)]="proposalMsg" name="pmsg_{{q.quoteId}}" />
-                      <input type="number" class="prop-input prop-price" placeholder="RM" [(ngModel)]="price" name="price_{{q.quoteId}}" />
-                      <input type="number" class="prop-input prop-dur" placeholder="min" [(ngModel)]="eta" name="eta_{{q.quoteId}}" />
-                      <button class="btn-primary btn-sm" (click)="propose(q)" [disabled]="busy() || !price">Accept</button>
+                      <input type="text" class="prop-input prop-msg" placeholder="Message (optional)" [ngModel]="proposalMsgMap[q.quoteId] ?? ''" (ngModelChange)="proposalMsgMap[q.quoteId] = $event" name="pmsg_{{q.quoteId}}" />
+                      <button type="button" class="prop-preset-btn" (click)="applyPreset(q, $event)" title="Insert preset greeting">✎</button>
+                      <input type="number" class="prop-input prop-price" placeholder="RM" [ngModel]="proposalPriceMap[q.quoteId]" (ngModelChange)="proposalPriceMap[q.quoteId] = $event" name="price_{{q.quoteId}}" />
+                      <input type="number" class="prop-input prop-dur" placeholder="min" [ngModel]="proposalEtaMap[q.quoteId]" (ngModelChange)="proposalEtaMap[q.quoteId] = $event" name="eta_{{q.quoteId}}" />
+                      <button class="btn-primary btn-sm" (click)="propose(q)" [disabled]="busy() || !proposalPriceMap[q.quoteId]">Accept</button>
                       <button class="btn-ghost btn-sm" (click)="declineQuote(q, $event)" [disabled]="busy()">Decline</button>
                     </div>
                     <app-countdown [deadline]="q.servicerDeadline" />
@@ -500,15 +499,11 @@ const ACTIVE = ['confirmed', 'in_progress'];
       />
     }
 
-    <!-- ── New order form modal ────────────────────────────────────────────── -->
-    <app-new-order-form
-      [open]="newOrderOpen()"
-      (closed)="newOrderOpen.set(false); loadJobs()"
-    />
+
   `,
     styles: [
         `
-      :host { display: block; max-width: 720px; width: 100%; }
+      :host { display: block; max-width: 900px; width: 100%; margin: 0 auto; }
       .page-head {
         display: flex;
         align-items: center;
@@ -517,12 +512,7 @@ const ACTIVE = ['confirmed', 'in_progress'];
         flex-wrap: wrap;
         margin-bottom: 1rem;
       }
-      .new-order-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        white-space: nowrap;
-      }
+
       .tabs {
         display: flex;
         justify-content: center;
@@ -823,20 +813,26 @@ const ACTIVE = ['confirmed', 'in_progress'];
       }
       .pq-actions {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 0.5rem 0; gap: 0.4rem; flex-wrap: nowrap;
+        padding: 0.5rem 0; gap: 0.4rem; flex-wrap: wrap;
       }
       .pq-propose-inline {
-        display: flex; align-items: center; gap: 0.35rem; flex: 1; flex-wrap: nowrap; min-width: 0;
+        display: flex; align-items: center; gap: 0.35rem; flex: 1; flex-wrap: nowrap;
       }
       .prop-input {
         border: 1px solid var(--color-border); border-radius: var(--radius);
         padding: 0.3rem 0.4rem; font-size: 0.78rem; font-family: inherit;
-        background: var(--color-bg); color: var(--color-text); min-width: 0;
+        background: var(--color-bg); color: var(--color-text);
       }
       .prop-input:focus { border-color: var(--color-primary); outline: none; }
-      .prop-msg { flex: 2; min-width: 0; }
-      .prop-price { flex: 0 0 56px; min-width: 0; }
-      .prop-dur { flex: 0 0 46px; min-width: 0; }
+      .prop-msg { flex: 0.6; min-width: 0; }
+      .prop-price { flex: 0 0 80px; }
+      .prop-dur { flex: 0 0 68px; }
+      .prop-preset-btn {
+        background: none; border: 1px solid var(--color-border); color: var(--color-muted);
+        font-size: 0.65rem; font-family: inherit; cursor: pointer; border-radius: 3px;
+        padding: 0.05rem 0.35rem; flex: 0 0 auto; transition: color 0.15s, border-color 0.15s;
+      }
+      .prop-preset-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
       @keyframes slide-down {
         from { opacity: 0; transform: translateY(-6px); }
         to   { opacity: 1; transform: translateY(0); }
@@ -1103,9 +1099,6 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   overlayJobId = signal<string | null>(null);
   overlayReadOnly = signal(false);
 
-  // ── New order form ────────────────────────────────────────────────────────
-  newOrderOpen = signal(false);
-
   // ── Onboarding gate ───────────────────────────────────────────────────────
   onboardingRequired = signal(false);
   missingItems = signal<string[]>([]);
@@ -1117,9 +1110,10 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   }
 
   busy = signal(false);
-  price?: number;
-  eta?: number;
-  proposalMsg = '';
+  // Per-card proposal form state (keyed by quoteId).
+  proposalPriceMap: Record<string, number | undefined> = {};
+  proposalEtaMap: Record<string, number | undefined> = {};
+  proposalMsgMap: Record<string, string | undefined> = {};
 
   /** Proposal price pre-fills keyed by quoteId. Populated when a quote is opened. */
   pricingModules = signal<PricingModule[]>([]);
@@ -1379,6 +1373,14 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     return (name ?? '?').charAt(0).toUpperCase();
   }
 
+  applyPreset(q: IncomingQuote, event: Event): void {
+    event.stopPropagation();
+    const name = q.customerName ?? 'there';
+    const priceVal = this.proposalPriceMap[q.quoteId] ? `RM ${this.proposalPriceMap[q.quoteId]}` : 'a fair price';
+    const etaVal = this.proposalEtaMap[q.quoteId] ? `${this.proposalEtaMap[q.quoteId]} min` : 'a short time';
+    this.proposalMsgMap[q.quoteId] = `Hello ${name}, I am a pro at this - please select me. I can do it for you for just ${priceVal} in ${etaVal}.`;
+  }
+
   // ── Active card session/timer helpers ───────────────────────────────────────
   private readonly TIME_SLOT_HOURS: Record<string, [number, number]> = {
     morning: [8, 12], noon: [12, 14], afternoon: [14, 17], evening: [17, 20], night: [20, 23],
@@ -1490,7 +1492,8 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   }
 
   propose(q: IncomingQuote): void {
-    if (!this.price || this.price <= 0) {
+    const price = this.proposalPriceMap[q.quoteId];
+    if (!price || price <= 0) {
       this.toast.error('Enter a valid price.');
       return;
     }
@@ -1512,9 +1515,9 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     }
 
     const body: Record<string, unknown> = {
-      proposedPrice: this.price,
-      etaMinutes: this.eta,
-      message: this.proposalMsg || undefined,
+      proposedPrice: this.proposalPriceMap[q.quoteId],
+      etaMinutes: this.proposalEtaMap[q.quoteId] || undefined,
+      message: this.proposalMsgMap[q.quoteId] || undefined,
     };
     if (lineItems.length > 0) body['lineItems'] = lineItems;
     if (refs.length > 0) body['moduleRefs'] = refs;
@@ -1522,9 +1525,9 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
       .post(`/servicer/quotes/${q.quoteId}/propose`, body)
       .subscribe({
         next: () => {
-          this.price = undefined;
-          this.eta = undefined;
-          this.proposalMsg = '';
+          delete this.proposalPriceMap[q.quoteId];
+          delete this.proposalEtaMap[q.quoteId];
+          delete this.proposalMsgMap[q.quoteId];
           this.moduleRefs.set([]);
           this.busy.set(false);
           this.toast.success('Proposal sent.');
@@ -1570,8 +1573,11 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
 
   // ── Active column - job lifecycle ──────────────────────────────────────────
   private act(path: string, body: unknown, okMsg: string): void {
-    this.api.post(path, body).subscribe({
-      next: () => {
+    this.api.post<{ demoBypass?: string }>(path, body).subscribe({
+      next: (res) => {
+        if (res?.demoBypass) {
+          this.toast.info(res.demoBypass);
+        }
         this.toast.success(okMsg);
         this.loadJobs();
       },

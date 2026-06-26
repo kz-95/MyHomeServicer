@@ -11,6 +11,7 @@ import {
   isDevMode,
   signal,
 } from '@angular/core';
+import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import {
   RouterOutlet,
@@ -49,6 +50,29 @@ interface OpenedQuoteDetail extends IncomingQuoteSummary {
   estimatedPrice: number;
   estimatedDurationMin?: number;
   descriptions?: string[];
+  // Detail fields (match jobs-card layout).
+  preferredDate: string | null;
+  timeSlot: string | null;
+  lat: number | null;
+  lng: number | null;
+  budgetMin: number | null;
+  budgetMax: number | null;
+  address: string | null;
+  postcode: string | null;
+  district: string | null;
+  state: string | null;
+  propertyType: string | null;
+  paymentMode: string | null;
+  notes: string | null;
+  images: string[];
+  distanceKm: number | null;
+  isUrgent: boolean;
+  urgentFee: number | null;
+  myProposalId: string | null;
+  myProposalIsAuto: boolean;
+  myProposalPrice: number | null;
+  myProposalEta: number | null;
+  myProposalMessage: string | null;
 }
 
 export interface NavItem {
@@ -84,16 +108,17 @@ interface PromoValidationResult {
 @Component({
     selector: "app-shell",
     imports: [
+        CommonModule,
         FormsModule,
         RouterOutlet,
         RouterLink,
         ModalComponent,
         IconComponent,
         SiteFooterComponent,
-    PullToRefreshDirective,
-    DispatchPromptGuardComponent,
-    ShellNavComponent,
-    DemoBarComponent,
+        PullToRefreshDirective,
+        DispatchPromptGuardComponent,
+        ShellNavComponent,
+        DemoBarComponent,
   ],
     template: `
     <div class="shell" [class.admin-portal]="portalTitle === 'Admin'">
@@ -299,78 +324,101 @@ interface PromoValidationResult {
             </div>
           </div>
         } @else {
-          <!-- Expanded: inline proposal form -->
+          <!-- Expanded: inline proposal form with full detail -->
+          @if (expandedQuote(); as eq) {
           <div class="qp-expanded">
+            <!-- ── Header: avatar + identity + dismiss ─────────────────────── -->
             <div class="qp-form-hd">
               <div class="qp-identity">
-                <div class="qp-avatar">{{ customerInitials() }}</div>
-                <div>
-                  <strong class="qp-customer-name">{{ expandedQuote()!.customerName }}</strong>
-                  <span class="qp-cat-badge">{{ expandedQuote()!.category }}</span>
+                @if (eq.customerAvatarUrl) {
+                  <img [src]="eq.customerAvatarUrl" alt="" class="avatar-circle sm" />
+                } @else {
+                  <div class="avatar-fallback sm">{{ customerInitials() }}</div>
+                }
+                <div class="qp-id-text">
+                  <strong class="qp-customer-name">{{ eq.customerName }}</strong>
+                  <div class="qp-tags">
+                    <span class="qp-tag">{{ eq.preferredDate | date: 'mediumDate' }} · {{ eq.timeSlot }}</span>
+                    <span class="qp-tag budget">RM {{ eq.budgetMin ?? '—' }}–{{ eq.budgetMax ?? '—' }}</span>
+                    @if (eq.propertyType) { <span class="qp-tag">{{ eq.propertyType }}</span> }
+                    @if (eq.paymentMode) { <span class="qp-tag pay">{{ payLabel(eq.paymentMode) }}</span> }
+                    @if (eq.distanceKm != null) { <span class="qp-tag dist">{{ eq.distanceKm | number:'1.1-1' }} km</span> }
+                  </div>
                 </div>
               </div>
               <button class="qp-dismiss" (click)="dismissQuotePrompt()" aria-label="Dismiss">×</button>
             </div>
+
+            <!-- ── Address row + map links ─────────────────────────────────── -->
+            @if (eq.address) {
+              <div class="qp-addr-row">
+                <span class="qp-addr">{{ composeAddress(eq) }}</span>
+                @if (eq.lat != null && eq.lng != null) {
+                  <div class="qp-map-links">
+                    <a class="btn-ghost btn-sm" [href]="gmapsUrl(eq.lat, eq.lng)" target="_blank" rel="noopener">
+                      <svg width="14" height="14" viewBox="0 0 24 24"><path d="M19.527 4.799c1.212 2.608.937 5.678-.405 8.173-1.101 2.047-2.744 3.74-4.098 5.614-.619.858-1.244 1.75-1.669 2.727-.141.325-.263.658-.383.992-.121.333-.224.673-.34 1.008-.109.314-.236.684-.627.687h-.007c-.466-.001-.579-.53-.695-.887-.284-.874-.581-1.713-1.019-2.525-.51-.944-1.145-1.817-1.79-2.671L19.527 4.799zM8.545 7.705l-3.959 4.707c.724 1.54 1.821 2.863 2.871 4.18.247.31.494.622.737.936l4.984-5.925-.029.01c-1.741.601-3.691-.291-4.392-1.987a3.377 3.377 0 0 1-.209-.716c-.063-.437-.077-.761-.004-1.198l.001-.007zM5.492 3.149l-.003.004c-1.947 2.466-2.281 5.88-1.117 8.77l4.785-5.689-.058-.05-3.607-3.035zM14.661.436l-3.838 4.563a.295.295 0 0 1 .027-.01c1.6-.551 3.403.15 4.22 1.626.176.319.323.683.377 1.045.068.446.085.773.012 1.22l-.003.016 3.836-4.561A8.382 8.382 0 0 0 14.67.439l-.009-.003zM9.466 5.868L14.162.285l-.047-.012A8.31 8.31 0 0 0 11.986 0a8.439 8.439 0 0 0-6.169 2.766l-.016.018 3.665 3.084z" fill="#4285F4"/></svg> Google Maps
+                    </a>
+                    <a class="btn-ghost btn-sm" [href]="wazeUrl(eq.lat, eq.lng)" target="_blank" rel="noopener">
+                      <svg width="14" height="14" viewBox="0 0 24 24"><path d="M13.218 0C9.915 0 6.835 1.49 4.723 4.148c-1.515 1.913-2.31 4.272-2.31 6.706v1.739c0 .894-.62 1.738-1.862 1.813-.298.025-.547.224-.547.522-.05.82.82 2.31 2.012 3.502.82.844 1.788 1.515 2.832 2.036a3 3 0 0 0 2.955 3.528 2.966 2.966 0 0 0 2.931-2.385h2.509c.323 1.689 2.086 2.856 3.974 2.21 1.64-.546 2.36-2.409 1.763-3.924a12.84 12.84 0 0 0 1.838-1.465 10.73 10.73 0 0 0 3.18-7.65c0-2.882-1.118-5.589-3.155-7.625A10.899 10.899 0 0 0 13.218 0zm0 1.217c2.558 0 4.967.994 6.78 2.807a9.525 9.525 0 0 1 2.807 6.78A9.526 9.526 0 0 1 20 17.585a9.647 9.647 0 0 1-6.78 2.807h-2.46a3.008 3.008 0 0 0-2.93-2.41 3.03 3.03 0 0 0-2.534 1.367v.024a8.945 8.945 0 0 1-2.41-1.788c-.844-.844-1.316-1.614-1.515-2.11a2.858 2.858 0 0 0 1.441-.846 2.959 2.959 0 0 0 .795-2.036v-1.789c0-2.11.696-4.197 2.012-5.861 1.863-2.385 4.62-3.726 7.6-3.726zm-2.41 5.986a1.192 1.192 0 0 0-1.191 1.192 1.192 1.192 0 0 0 1.192 1.193A1.192 1.192 0 0 0 12 8.395a1.192 1.192 0 0 0-1.192-1.192zm7.204 0a1.192 1.192 0 0 0-1.192 1.192 1.192 1.192 0 0 0 1.192 1.193 1.192 1.192 0 0 0 1.192-1.193 1.192 1.192 0 0 0-1.192-1.192zm-7.377 4.769a.596.596 0 0 0-.546.845 4.813 4.813 0 0 0 4.346 2.757 4.77 4.77 0 0 0 4.347-2.757.596.596 0 0 0-.547-.845h-.025a.561.561 0 0 0-.521.348 3.59 3.59 0 0 1-3.254 2.061 3.591 3.591 0 0 1-3.254-2.061.64.64 0 0 0-.546-.348z" fill="#33CCFF"/></svg> Waze
+                    </a>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- ── Descriptions chips ──────────────────────────────────────── -->
             <div class="qp-form-body">
-              @if (expandedQuote()!.descriptions?.length) {
+              @if (eq.descriptions?.length) {
                 <div class="qp-details">
-                  @for (d of expandedQuote()!.descriptions; track d) {
+                  @for (d of eq.descriptions; track d) {
                     <span class="qp-chip">{{ d }}</span>
                   }
                 </div>
               }
-              <label class="qp-field">
-                <span>Your price <span class="qp-req">*</span></span>
-                <div class="qp-price-wrap">
-                  <span class="qp-price-prefix">RM</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    [(ngModel)]="proposalPrice"
-                    name="proposalPrice"
-                    placeholder="0.00"
-                    class="qp-price-input"
-                    required
-                  />
+
+              <!-- ── If proposal already sent: post-accept view ────────────── -->
+              @if (eq.myProposalId && !eq.myProposalIsAuto) {
+                <div class="qp-accepted">
+                  <div class="qp-accepted-row">
+                    <span class="qp-price">RM {{ (eq.myProposalPrice ?? 0) | number: '1.2-2' }}</span>
+                    @if (eq.myProposalEta != null) {
+                      <span class="qp-dur">{{ eq.myProposalEta }} min</span>
+                    }
+                  </div>
+                  @if (eq.myProposalMessage) {
+                    <p class="qp-msg">{{ eq.myProposalMessage }}</p>
+                  }
                 </div>
-              </label>
-              <label class="qp-field">
-                <span>ETA <span class="qp-req">*</span> <span class="qp-optional">(min)</span></span>
-                <input
-                  type="number"
-                  min="1"
-                  step="5"
-                  [(ngModel)]="proposalEta"
-                  name="proposalEta"
-                  placeholder="60"
-                  class="qp-eta-input"
-                  required
-                />
-              </label>
-              <label class="qp-field">
-                <span>Description <span class="qp-optional">(optional)</span></span>
-                <textarea
-                  rows="2"
-                  [(ngModel)]="proposalDesc"
-                  name="proposalDesc"
-                  placeholder="Tell the customer what's included…"
-                  class="qp-textarea"
-                ></textarea>
-              </label>
-              @if (proposalError()) {
-                <p class="qp-error">{{ proposalError() }}</p>
+              } @else if (!eq.myProposalId) {
+                <!-- ── Proposal form ──────────────────────────────────────── -->
+                <label class="qp-field">
+                  <input type="number" step="0.01" min="0.01" [(ngModel)]="proposalPrice" name="proposalPrice" placeholder="RM 0.00" class="qp-price-input" required />
+                </label>
+                <label class="qp-field">
+                  <span>ETA <span class="qp-req">*</span> <span class="qp-optional">(min)</span></span>
+                  <input type="number" min="1" step="5" [(ngModel)]="proposalEta" name="proposalEta" placeholder="60" class="qp-eta-input" required />
+                </label>
+                <label class="qp-field">
+                  <span>Description <span class="qp-optional">(optional)</span>
+                    <button type="button" class="qp-preset-btn" (click)="applyPresetMessage()" title="Insert preset greeting">✎ preset</button>
+                  </span>
+                  <textarea rows="2" [(ngModel)]="proposalDesc" name="proposalDesc" placeholder="Tell the customer what's included…" class="qp-textarea"></textarea>
+                </label>
+                @if (proposalError()) {
+                  <p class="qp-error">{{ proposalError() }}</p>
+                }
+                <div class="qp-form-actions">
+                  <button class="qp-btn-primary" (click)="submitProposal()" [disabled]="submitting()">
+                    {{ submitting() ? 'Sending…' : 'Send proposal' }}
+                  </button>
+                  <button class="qp-btn-ghost" (click)="collapseExpanded()" [disabled]="submitting()">
+                    Cancel
+                  </button>
+                </div>
               }
             </div>
-            <div class="qp-form-actions">
-              <button class="qp-btn-primary" (click)="submitProposal()" [disabled]="submitting()">
-                {{ submitting() ? 'Sending…' : 'Send proposal' }}
-              </button>
-              <button class="qp-btn-ghost" (click)="collapseExpanded()" [disabled]="submitting()">
-                Cancel
-              </button>
-            </div>
           </div>
+          }
         }
       </div>
     }
@@ -1504,17 +1552,15 @@ interface PromoValidationResult {
         color: var(--color-muted);
       }
       .qp-optional { font-weight: 400; font-size: 0.75rem; opacity: 0.7; }
-      .qp-price-wrap { position: relative; display: flex; align-items: center; }
-      .qp-price-prefix {
-        position: absolute;
-        left: 0.6rem;
-        font-size: 0.85rem;
-        color: var(--color-muted);
-        pointer-events: none;
+      .qp-preset-btn {
+        background: none; border: 1px solid var(--color-border); color: var(--color-muted);
+        font-size: 0.68rem; font-family: inherit; cursor: pointer; border-radius: 3px;
+        padding: 0.05rem 0.4rem; margin-left: 0.4rem; transition: color 0.15s, border-color 0.15s;
       }
+      .qp-preset-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
       .qp-price-input {
         width: 100%;
-        padding: 0.45rem 0.6rem 0.45rem 2.2rem;
+        padding: 0.45rem 0.6rem;
         border: 1px solid var(--color-border);
         border-radius: var(--radius);
         background: var(--color-bg);
@@ -1545,6 +1591,53 @@ interface PromoValidationResult {
       .qp-details { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
       .qp-chip { font-size: 0.75rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 999px; padding: 0.1rem 0.5rem; color: var(--color-muted); }
       .qp-error { color: var(--color-danger); font-size: 0.82rem; margin: 0; }
+
+      /* ── Detail tags (match jobs-card layout) ──────────────────────────── */
+      .qp-id-text { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+      .qp-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+      .qp-tag {
+        font-size: 0.72rem; font-weight: 500; color: var(--color-muted);
+        background: var(--color-bg); border: 1px solid var(--color-border);
+        border-radius: 999px; padding: 0.1rem 0.5rem; white-space: nowrap;
+      }
+      .qp-tag.budget { color: var(--color-text); font-weight: 600; }
+      .qp-tag.pay { color: var(--color-primary); border-color: var(--color-primary); }
+      .qp-tag.dist { color: var(--color-muted); }
+      .qp-addr-row {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 0.5rem; margin: 0.5rem 0; font-size: 0.82rem; color: var(--color-text);
+      }
+      .qp-addr { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+      .qp-map-links { display: flex; gap: 0.5rem; flex-shrink: 0; }
+      .qp-map-links a { font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.25rem; }
+      .qp-map-links svg { width: 14px; height: 14px; }
+
+      /* ── Post-accept view (proposal already sent) ────────────────────────── */
+      .qp-accepted {
+        display: flex; flex-direction: column; gap: 0.3rem;
+        padding-top: 0.5rem; border-top: 1px solid var(--color-border);
+      }
+      .qp-accepted-row {
+        display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+      }
+      .qp-price { font-weight: 700; color: var(--color-primary); font-size: 1rem; }
+      .qp-dur {
+        font-size: 0.78rem; font-weight: 600; color: var(--color-muted);
+        background: var(--color-bg); border: 1px solid var(--color-border);
+        border-radius: 999px; padding: 0.1rem 0.55rem;
+      }
+      .qp-msg { margin: 0; font-size: 0.85rem; color: var(--color-text); line-height: 1.35; }
+
+      /* ── Avatar variants ─────────────────────────────────────────────────── */
+      .avatar-circle.sm, .avatar-fallback.sm { width: 32px; height: 32px; font-size: 0.85rem; }
+      .avatar-circle { border-radius: 50%; object-fit: cover; }
+      .avatar-fallback {
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        background: var(--color-accent); color: white; font-weight: 600;
+      }
+
+      /* ── Small ghost button ──────────────────────────────────────────────── */
+      .btn-sm { font-size: 0.75rem; padding: 0.2rem 0.55rem; border-radius: var(--radius); }
       .qp-form-actions { display: flex; align-items: center; gap: 0.5rem; }
       .qp-btn-primary {
         background: var(--gradient-primary);
@@ -1703,6 +1796,26 @@ export class ShellComponent implements OnInit, OnDestroy {
     const name = this.expandedQuote()?.customerName ?? '';
     return name.split(' ').map((p: string) => p[0] ?? '').join('').slice(0, 2).toUpperCase() || '?';
   });
+
+  // ── Quote prompt helpers (match jobs-card layout) ──────────────────────
+  composeAddress(q: OpenedQuoteDetail): string {
+    const tail = [q.postcode, q.district].filter(Boolean).join(' ');
+    return [q.address, tail].filter(Boolean).join(', ');
+  }
+  gmapsUrl(lat: number, lng: number): string {
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  }
+  wazeUrl(lat: number, lng: number): string {
+    return `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+  }
+  private readonly PAY_LABELS: Record<string, string> = {
+    pay_now: 'Pay now', pay_later: 'Pay later', cash: 'Cash', credit: 'Credit',
+  };
+  payLabel(mode?: string | null): string {
+    if (!mode) return '';
+    return this.PAY_LABELS[mode] ?? mode.replace(/_/g, ' ');
+  }
+
   private quoteSub?: Subscription;
   private quoteDismissTimer?: ReturnType<typeof setTimeout>;
 
@@ -1865,7 +1978,19 @@ export class ShellComponent implements OnInit, OnDestroy {
     if (!q || this.loadingExpand()) return;
     this.loadingExpand.set(true);
     this.proposalError.set('');
-    this.api.post<{ customerName: string; customerAvatarUrl: string | null; proposalPrefill: { defaultTotal: number; estimatedDurationMin?: number } | null; descriptions?: string[] }>(
+    this.api.post<{
+      customerName: string; customerAvatarUrl: string | null;
+      proposalPrefill: { defaultTotal: number; estimatedDurationMin?: number } | null;
+      descriptions?: string[];
+      preferredDate: string | null; timeSlot: string | null;
+      lat: number | null; lng: number | null;
+      budgetMin: number | null; budgetMax: number | null;
+      address: string | null; postcode: string | null; district: string | null; state: string | null;
+      propertyType: string | null; paymentMode: string | null; notes: string | null;
+      images: string[]; distanceKm: number | null; isUrgent: boolean; urgentFee: number | null;
+      myProposalId: string | null; myProposalIsAuto: boolean;
+      myProposalPrice: number | null; myProposalEta: number | null; myProposalMessage: string | null;
+    }>(
       `/servicer/quotes/${q.quoteId}/open`, {}
     ).subscribe({
       next: (data) => {
@@ -1877,6 +2002,28 @@ export class ShellComponent implements OnInit, OnDestroy {
           estimatedPrice: data.proposalPrefill?.defaultTotal ?? 0,
           estimatedDurationMin: data.proposalPrefill?.estimatedDurationMin,
           descriptions: data.descriptions ?? [],
+          preferredDate: data.preferredDate,
+          timeSlot: data.timeSlot,
+          lat: data.lat,
+          lng: data.lng,
+          budgetMin: data.budgetMin,
+          budgetMax: data.budgetMax,
+          address: data.address,
+          postcode: data.postcode,
+          district: data.district,
+          state: data.state,
+          propertyType: data.propertyType,
+          paymentMode: data.paymentMode,
+          notes: data.notes,
+          images: data.images,
+          distanceKm: data.distanceKm,
+          isUrgent: data.isUrgent,
+          urgentFee: data.urgentFee,
+          myProposalId: data.myProposalId,
+          myProposalIsAuto: data.myProposalIsAuto,
+          myProposalPrice: data.myProposalPrice,
+          myProposalEta: data.myProposalEta,
+          myProposalMessage: data.myProposalMessage,
         });
         this.proposalPrice = data.proposalPrefill?.defaultTotal ?? null;
         this.proposalEta = data.proposalPrefill?.estimatedDurationMin ?? null;
@@ -1887,6 +2034,14 @@ export class ShellComponent implements OnInit, OnDestroy {
         this.toast.error('Could not load quote details.');
       },
     });
+  }
+
+  applyPresetMessage(): void {
+    const q = this.expandedQuote();
+    const name = q?.customerName ?? 'there';
+    const price = this.proposalPrice ? `RM ${this.proposalPrice}` : 'a fair price';
+    const eta = this.proposalEta ? `${this.proposalEta} min` : 'a short time';
+    this.proposalDesc = `Hello ${name}, I am a pro at this - please select me. I can do it for you for just ${price} in ${eta}.`;
   }
 
   submitProposal(): void {

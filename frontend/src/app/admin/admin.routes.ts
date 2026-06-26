@@ -74,6 +74,11 @@ export const adminRoutes: Routes = [
           import('./pages/setup-wizard.component').then((m) => m.SetupWizardComponent),
       },
       {
+        path: 'onboarding',
+        loadComponent: () =>
+          import('./pages/onboarding-wizard/onboarding-wizard.component').then((m) => m.OnboardingWizardComponent),
+      },
+      {
         path: 'settings/api-keys',
         canActivate: [adminActionPinGuard],
         loadComponent: () =>

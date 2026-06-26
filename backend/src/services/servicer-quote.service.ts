@@ -364,13 +364,45 @@ export async function listIncomingQuotes(servicerId: string, status?: string) {
  * (Previous shape was `204 No Content` - this endpoint now returns `200 JSON`
  *  as documented in COORDINATION.md §API contracts.)
  */
+export interface OpenQuoteResult {
+  proposalPrefill: ProposalPrefill | null;
+  customerAvatarUrl: string | null;
+  customerName: string;
+  lat: number | null;
+  lng: number | null;
+  budgetMin: number | null;
+  budgetMax: number | null;
+  preferredDate: string | null;
+  timeSlot: string | null;
+  descriptions: string[];
+  // Extended detail fields (match jobs-card level of detail).
+  address: string | null;
+  postcode: string | null;
+  district: string | null;
+  state: string | null;
+  propertyType: string | null;
+  paymentMode: string | null;
+  notes: string | null;
+  images: string[];
+  distanceKm: number | null;
+  isUrgent: boolean;
+  urgentFee: number | null;
+  // Servicer's own proposal (if already sent).
+  myProposalId: string | null;
+  myProposalIsAuto: boolean;
+  myProposalPrice: number | null;
+  myProposalEta: number | null;
+  myProposalMessage: string | null;
+}
+
 export async function openQuote(
   servicerId: string,
   quoteId: string,
-): Promise<{ proposalPrefill: ProposalPrefill | null; customerAvatarUrl: string | null; customerName: string; lat: number | null; lng: number | null; budgetMin: number | null; budgetMax: number | null; preferredDate: string | null; timeSlot: string | null; descriptions: string[] }> {
+): Promise<OpenQuoteResult> {
   // 1. Verify the broadcast exists.
   const broadcast = await prisma.quoteBroadcast.findUnique({
     where: { quoteRequestId_servicerId: { quoteRequestId: quoteId, servicerId } },
+    select: { id: true, openedAt: true },
   });
   if (!broadcast) throw notFound('Quote was not broadcast to this servicer');
 
@@ -382,9 +414,7 @@ export async function openQuote(
     });
   }
 
-  // 3. Load quote (serviceDetails + category questionSchema) and the
-  //    servicer's best-fit service (first one with modifiers for this
-  //    category, falling back to the first service in the category).
+  // 3. Load quote with all detail fields + the servicer's own proposal.
   const quote = await prisma.quoteRequest.findUnique({
     where: { id: quoteId },
     select: {
@@ -392,13 +422,25 @@ export async function openQuote(
       category: { select: { questionSchema: true } },
       categoryId: true,
       lat: true,
+      lng: true,
       budgetMin: true,
       budgetMax: true,
       preferredDate: true,
       timeSlot: true,
-      lng: true,
       notes: true,
+      propertyType: true,
+      paymentMode: true,
+      isUrgent: true,
+      urgentFee: true,
+      images: true,
       user: { select: { email: true, name: true, avatarUrl: true } },
+      address: { select: { address: true, postcode: true, district: true, state: true } },
+      proposals: {
+        where: { servicerId },
+        select: { id: true, status: true, isAuto: true, proposedPrice: true, etaMinutes: true, message: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
     },
   });
   if (!quote) throw notFound('Quote not found');
@@ -409,13 +451,12 @@ export async function openQuote(
     throw forbidden('You cannot act on a quote request from your own customer account');
   }
 
-  // Find servicer's service for this category - prefer one with modifiers.
+  // 4. Find servicer's service for this category - prefer one with modifiers.
   const services = await prisma.servicerService.findMany({
     where: { servicerId, categoryId: quote.categoryId, deletedAt: null },
     select: { basePrice: true, modifiers: true },
     orderBy: { createdAt: 'asc' },
   });
-
   const serviceWithModifiers = services.find((s) => s.modifiers !== null) ?? services[0] ?? null;
 
   const proposalPrefill = computePrefill(
@@ -423,6 +464,21 @@ export async function openQuote(
     quote.category.questionSchema as QuestionSchemaItem[] | null,
     serviceWithModifiers,
   );
+
+  // 5. Compute distance (need servicer coords).
+  let distanceKm: number | null = null;
+  if (quote.lat != null && quote.lng != null) {
+    const sv = await prisma.servicer.findUnique({
+      where: { id: servicerId },
+      select: { lat: true, lng: true },
+    });
+    if (sv?.lat != null && sv?.lng != null) {
+      distanceKm = haversineKm(quote.lat, quote.lng, sv.lat, sv.lng);
+    }
+  }
+
+  // 6. Servicer's own proposal (may have already sent one).
+  const myProposal = quote.proposals[0] ?? null;
 
   logger.info('Quote opened', { quoteId, servicerId, hasPrefill: proposalPrefill !== null });
   return {
@@ -442,6 +498,22 @@ export async function openQuote(
       ),
       ...(quote.notes ? [quote.notes] : []),
     ],
+    address: quote.address?.address ?? null,
+    postcode: quote.address?.postcode ?? null,
+    district: quote.address?.district ?? null,
+    state: quote.address?.state ?? null,
+    propertyType: quote.propertyType ?? null,
+    paymentMode: quote.paymentMode ?? null,
+    notes: quote.notes ?? null,
+    images: quote.images ?? [],
+    distanceKm,
+    isUrgent: quote.isUrgent,
+    urgentFee: quote.urgentFee ? Number(quote.urgentFee) : null,
+    myProposalId: myProposal?.id ?? null,
+    myProposalIsAuto: myProposal?.isAuto ?? false,
+    myProposalPrice: myProposal?.proposedPrice ? Number(myProposal.proposedPrice) : null,
+    myProposalEta: myProposal?.etaMinutes ?? null,
+    myProposalMessage: myProposal?.message ?? null,
   };
 }
 

@@ -280,6 +280,34 @@ Loaded in `index.html`:
 height and the overflow scrollbar never engages - content appears "chopped"
 at the bottom of the container.
 
+**Portal content width rules (non-negotiable):**
+
+All authenticated portal pages render inside `<main class="content">` in `shell.component.ts`.
+When `[narrow]="true"` (the `@Input`), `.content-main` gets `.narrow` which sets
+`max-width: 720px; margin: 1.5rem auto`. When `[narrow]="false"`, `.content-main` fills
+the available space and each page's `:host { max-width: ... }` takes full effect.
+
+Each shell wrapper controls `narrow` dynamically via a `computed()` on the current URL
+(pattern from `admin-shell.component.ts`):
+
+| Portal / Page                          | `narrow` | Container              | `:host` max-width                         |
+| -------------------------------------- | -------- | ---------------------- | ----------------------------------------- |
+| Servicer Dashboard `/servicer`              | false    | Full-width `.content`  | 900px (via `dashboard.component.ts :host`)|
+| Servicer Jobs `/servicer/jobs/*`            | false    | Full-width `.content`  | 900px (via `jobs.component.ts :host`)      |
+| Servicer Calendar `/servicer/calendar`      | false    | Full-width `.content`  | 1200px (via `calendar.component.ts :host`) |
+| Calendar Work Hours sub-tab            | false    | Inherits parent        | 720px (via `.wh-body` inside calendar)     |
+| All other servicer pages               | true     | `.content-main.narrow` | 720px (via `:host` on each page component) |
+| Admin Dashboard `/admin`               | false    | Full-width `.content`  | None (full-width dashboard layout)         |
+| All other admin pages `/admin/*`       | true     | `.content-main.narrow` | 720px                                      |
+| Customer / guest pages                 | true     | `.content-main.narrow` | 720px                                      |
+
+**Rule:** Never reduce calendar `:host` below 1200px or jobs/dashboard `:host` below 900px.
+Never widen `.wh-body` beyond 720px (work-hours is a focused sub-view inside the
+calendar, intentionally narrow). When adding a new servicer page that needs a wider
+layout, add its route to `servicer-shell.component.ts`'s `narrow()` computed exclusion.
+These values are deliberate - the jobs table, calendar grid and financial dashboard cards need the
+extra horizontal space to avoid crushing.
+
 ### 5.4 Mobile keyboard push
 
 When the virtual keyboard opens on mobile, inputs near the bottom of the viewport

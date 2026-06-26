@@ -283,6 +283,14 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
         <button class="demo-action demo-action--order" (click)="seedOrder()" [disabled]="seedingOrder()" title="Generate a random customer order">
           {{ seedingOrder() ? 'Creating…' : '+ New Order' }}
         </button>
+        <button class="demo-action demo-action--accept" (click)="seedAcceptProposal()" [disabled]="seedingAcceptProposal()" title="Accept one of your pending proposals">
+          {{ seedingAcceptProposal() ? 'Accepting…' : 'Accept Proposal' }}
+        </button>
+      }
+      @if (auth.principal()?.role === 'admin') {
+        <button class="demo-action demo-action--clear-finance" (click)="clearFinance()" [disabled]="clearingFinance()" title="Clear financial data for fresh reports">
+          {{ clearingFinance() ? 'Clearing…' : 'Clear Finance' }}
+        </button>
       }
       <button class="demo-action demo-action--reseed" (click)="confirmReseed.set(true)" title="Reset demo data">↻ Reseed</button>
     </div>
@@ -462,8 +470,12 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
     .demo-action--proposal:hover { background: var(--color-danger); color: #fff; }
     .demo-action--order { background: var(--color-success-bg, color-mix(in srgb, var(--color-success) 15%, transparent)); border: 1px solid var(--color-success); color: var(--color-success); }
     .demo-action--order:hover { background: var(--color-success); color: #fff; }
+    .demo-action--accept { background: var(--color-primary-bg, color-mix(in srgb, var(--color-primary) 12%, transparent)); border: 1px solid var(--color-primary); color: var(--color-primary); }
+    .demo-action--accept:hover { background: var(--color-primary); color: #fff; }
     .demo-action--reseed { background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-warning); }
     .demo-action--reseed:hover { background: var(--color-warning); color: #fff; }
+    .demo-action--clear-finance { background: var(--color-danger-bg); border: 1px solid var(--color-danger); color: var(--color-danger); }
+    .demo-action--clear-finance:hover { background: var(--color-danger); color: #fff; }
     .demo-action--unplug { background: var(--color-promo-bg); border: 1px solid var(--color-promo-border); color: var(--color-promo-text); }
     .demo-action--unplug:hover { background: var(--color-promo); color: #fff; }
     .demo-action:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -536,6 +548,12 @@ export class DemoBarComponent {
 
   // Seed order (servicer)
   seedingOrder = signal(false);
+
+  // Accept proposal (servicer)
+  seedingAcceptProposal = signal(false);
+
+  // Clear finance (admin)
+  clearingFinance = signal(false);
 
   customerAccounts = CUSTOMER_ACCOUNTS;
   servicerGroups = SERVICER_GROUPS;
@@ -624,16 +642,49 @@ export class DemoBarComponent {
   seedOrder(): void {
     this.seedingOrder.set(true);
     this.demoMsg.set('');
-    this.api.post<{ customer: string; category: string; price: number; bookingId: string }>('/dev/random-order', {}).subscribe({
+    this.api.post<{ customer: string; category: string; price: number; quoteId: string }>('/dev/random-order', {}).subscribe({
       next: (r) => {
         this.seedingOrder.set(false);
-        this.demoMsg.set(`${r.customer} ordered ${r.category} — RM ${r.price} (confirmed).`);
+        this.demoMsg.set(`New request: ${r.customer} — ${r.category} — RM ${r.price}`);
         setTimeout(() => this.demoMsg.set(''), 8000);
       },
       error: (e) => {
         this.seedingOrder.set(false);
         this.demoMsg.set(e.error?.message ?? e.message ?? 'Could not create demo order');
         setTimeout(() => this.demoMsg.set(''), 6000);
+      },
+    });
+  }
+
+  seedAcceptProposal(): void {
+    this.seedingAcceptProposal.set(true);
+    this.demoMsg.set('');
+    this.api.post<{ customer: string; category: string; price: number; bookingId: string }>('/dev/seed-accept-proposal', {}).subscribe({
+      next: (r) => {
+        this.seedingAcceptProposal.set(false);
+        this.demoMsg.set(`${r.customer} accepted your ${r.category} proposal — RM ${r.price} (confirmed).`);
+        setTimeout(() => this.demoMsg.set(''), 8000);
+      },
+      error: (e) => {
+        this.seedingAcceptProposal.set(false);
+        this.demoMsg.set(e.error?.message ?? e.message ?? 'Could not accept proposal');
+        setTimeout(() => this.demoMsg.set(''), 6000);
+      },
+    });
+  }
+
+  clearFinance(): void {
+    this.clearingFinance.set(true);
+    this.demoMsg.set('');
+    this.api.post<{ ok: boolean }>('/dev/clear-finance', {}).subscribe({
+      next: () => {
+        this.clearingFinance.set(false);
+        window.location.reload();
+      },
+      error: (e) => {
+        this.clearingFinance.set(false);
+        this.demoMsg.set(e.error?.message ?? e.message ?? 'Clear finance failed');
+        setTimeout(() => this.demoMsg.set(''), 5000);
       },
     });
   }

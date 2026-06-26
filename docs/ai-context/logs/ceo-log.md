@@ -6663,3 +6663,28 @@ Each phase is a separate task launch, ensuring isolation and preventing context 
 - Playwright: v1.61.1 installed, 18 tests discoverable in light suite
 - Chromium: installed at `ms-playwright/chromium-1228`
 
+---
+
+## Session 2026-06-26 - Portal content width rules codified
+
+**Trigger:** User asked why calendar/dashboard shell width is still 720px and which docs specify the correct values.
+
+**Investigation result:**
+- The code was already correct - all three widths were set properly:
+  - Servicer dashboard `:host`: 900px (`dashboard.component.ts` line 121)
+  - Servicer calendar `:host`: 1200px (`calendar.component.ts` line 274)
+  - Calendar `.wh-body`: 720px (`calendar.component.ts` line 305)
+- BUT `TODO.md` had a stale value: "Calendar: 1000px" when the code was 1200px.
+
+**Actions taken:**
+1. Fixed `TODO.md` line 289: "Calendar: 1000px" → "Calendar: 1200px"
+2. Added permanent content-width rule table to `STYLE-RULES.md §5.3` documenting:
+   - All portal page width defaults and exceptions
+   - Non-negotiable: dashboard ≥900px, calendar ≥1200px, `.wh-body` ≤720px
+   - Full breakdown by portal/role (servicer, admin, customer)
+
+The 720px in the shell `.content-main.narrow` is the DEFAULT that applies to all pages
+except those with their own `:host` override. The calendar and dashboard both override
+it with wider `:host` values. No code changes were needed - the values were already
+correct in the CSS; only the docs were stale.
+

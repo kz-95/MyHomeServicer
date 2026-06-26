@@ -913,6 +913,8 @@ export async function getQuoteProposals(userId: string, quoteId: string) {
     submittedAt: p.createdAt,
     categoryName: quote.category.name,
     categoryIcon: quote.category.icon,
+    status: p.status,
+    quoteStatus: quote.status,
   }));
 }
 

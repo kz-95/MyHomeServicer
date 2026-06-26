@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { routeFor } from '../../core/route-for';
+import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
@@ -20,6 +21,8 @@ interface Proposal {
   submittedAt: string;
   categoryName?: string;
   categoryIcon?: string;
+  status: 'submitted' | 'selected';
+  quoteStatus: string;
 }
 
 const SKELETON_COUNT = 5;
@@ -29,10 +32,17 @@ const STAGGER_MS = 70;
 @Component({
     selector: 'app-proposals',
     host: { class: 'page-enter page-narrow' },
-    imports: [CommonModule, FormsModule, ModalComponent, ListToolbarComponent, ServicerDetailPopupComponent],
+    imports: [CommonModule, FormsModule, RouterLink, ModalComponent, ListToolbarComponent, ServicerDetailPopupComponent],
     template: `
     <h1>Proposals</h1>
     <p class="muted">Compare servicer offers and pick one to create a booking.</p>
+
+    @if (quoteStatus() !== 'open') {
+      <div class="stale-banner">
+        ⚠ This quote is no longer available for selection.
+        <a routerLink="/customer/quotes" class="stale-link">Back to My Quotes</a>
+      </div>
+    }
 
     @if (loading()) {
       <div class="skeleton-list">
@@ -96,9 +106,15 @@ const STAGGER_MS = 70;
           </div>
           <div class="action">
             <span class="price">RM {{ p.proposedPrice | number: '1.2-2' }}</span>
-            <button class="btn-primary" (click)="confirmSelect(p)" [disabled]="selecting()">
-              Select
-            </button>
+            @if (p.status !== 'submitted') {
+              <span class="badge selected-badge">Already selected</span>
+            } @else if (quoteStatus() !== 'open') {
+              <span class="badge unavailable-badge">Unavailable</span>
+            } @else {
+              <button class="btn-primary" (click)="confirmSelect(p)" [disabled]="selecting()">
+                Select
+              </button>
+            }
           </div>
         </div>
         }
@@ -240,6 +256,43 @@ const STAGGER_MS = 70;
       .err {
         color: var(--color-danger);
       }
+      .stale-banner {
+        background: var(--color-warning-bg, #fff3cd);
+        border: 1px solid var(--color-warning, #ffc107);
+        color: var(--color-warning-text, #856404);
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        font-size: 0.9rem;
+      }
+      .stale-link {
+        color: var(--color-primary);
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .selected-badge {
+        background: var(--color-primary-light, #d4edda);
+        color: var(--color-primary);
+        padding: 0.3rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+      .unavailable-badge {
+        background: var(--color-muted-bg, #e9ecef);
+        color: var(--color-muted);
+        padding: 0.3rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
       .modal-acts {
         display: flex;
         gap: 0.5rem;
@@ -317,6 +370,8 @@ export class ProposalsComponent implements OnInit, OnDestroy {
   private staggerTimer: ReturnType<typeof setInterval> | null = null;
 
   proposals = signal<Proposal[]>([]);
+  /** Quote status from the proposals response - used to detect stale quotes. */
+  quoteStatus = signal<string>('open');
   /** Servicer id whose detail popup is open, or null. */
   detailServicerId = signal<string | null>(null);
   loading = signal(true);
@@ -377,6 +432,9 @@ export class ProposalsComponent implements OnInit, OnDestroy {
       next: (r) => {
         this.proposals.set(r.data);
         this.loading.set(false);
+        if (r.data.length > 0) {
+          this.quoteStatus.set(r.data[0].quoteStatus);
+        }
         this.staggerReveal(r.data.length);
       },
       error: (e) => {
@@ -417,6 +475,14 @@ export class ProposalsComponent implements OnInit, OnDestroy {
   }
 
   confirmSelect(p: Proposal): void {
+    if (p.status !== 'submitted') {
+      this.error.set('This proposal can no longer be selected.');
+      return;
+    }
+    if (this.quoteStatus() !== 'open') {
+      this.error.set('This quote is no longer open for selection.');
+      return;
+    }
     this.error.set('');
     this.pending.set(p);
   }

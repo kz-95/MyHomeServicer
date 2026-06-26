@@ -2,6 +2,24 @@
 
 > Single-writer log - only the **Backend** agent writes here.
 
+## Session 2026-06-26 — Clear Finance Report Endpoint
+
+**Task:** Add `POST /dev/clear-finance` for targeted financial data clearing without full reseed.
+
+### Changes
+
+**Modified: `backend/src/services/admin.service.ts`**
+- Added `runClearFinance()` function — clears financial-related tables: `transaction`, `escrow`, `invoice`, `orderHistory`, `booking`, `quoteProposal`, `quoteBroadcast`, `quoteRequest`, `servicerWithdrawal`, `promotionRedemption`, `penaltyAppeal`, `penaltyLog`, `report`, `discountCode`, `promotion`, `servicerCreditLog`, `categoryRequest`, `quotePreset`
+- Preserves demo accounts, services, categories, settings, chat, and notifications
+- Hard-blocked when `NODE_ENV=production` via `allowDemo` guard
+
+**Modified: `backend/src/routes/index.ts`**
+- Added `POST /dev/clear-finance` route under `requireAuth`
+- Imports `runClearFinance` from `admin.service`
+
+### Verification
+- Backend `npx tsc --noEmit` — no new errors (pre-existing TS config deprecation warnings only)
+
 ## Session 2026-06-26 14:49 - Servicer "+New Order" endpoint
 
 **Task:** Implement `POST /api/v1/servicer/new-order` for walk-in customer order creation.
@@ -2850,3 +2868,36 @@ The `@demo.local` suffix guard prevents the original BE-013 attack (arbitrary em
 
 **Gates:**
 - `npx tsc --noEmit`: EXIT:0 (zero errors)
+
+## Session 2026-06-26 — Proposal status + quoteStatus in getQuoteProposals response
+
+**Task:** Fix bug where proposal "Select" fails with "Proposal can no longer be selected" but timer still shows active countdown. Root cause: `getQuoteProposals()` response omitted `status` field, frontend had no awareness of proposal selectability.
+
+### Changes
+
+**Modified: `backend/src/services/quote.service.ts`**
+- `getQuoteProposals()` response mapper (line 906-918): added `status: p.status` and `quoteStatus: quote.status` fields
+- Both fields already present on Prisma query results; just weren't mapped to response
+- No schema changes, no new migrations
+
+### Verification
+- Backend `npx tsc --noEmit` — no new errors (pre-existing TS config deprecation warnings only)
+
+## Session 2026-06-26 22:37 — Financial report: max_tokens 1024→8192 + extended timeout
+
+**Task:** Financial report AI text truncated mid-sentence at "What an exciting period of" and "###". Root cause: `callOpenAi`/`callGemini` hardcoded `max_tokens: 1024` — the report hit the output token limit. Also `AI_TIMEOUT_MS = 60_000` too short for comprehensive report.
+
+### Changes
+
+**Modified: `backend/src/services/chat.service.ts`**
+- `streamLlm()`: added optional `overallTimeoutMs?: number` param, defaults to `AI_TIMEOUT_MS`
+- `callOpenAi()`: added optional `maxTokens?: number` and `timeoutMs?: number` params, body uses `maxTokens ?? 1024`
+- `callGemini()`: same — `maxOutputTokens: maxTokens ?? 1024`, `timeoutMs` passed to `streamLlm`
+- `callDeepSeek()`: same — `max_tokens: maxTokens ?? 4096`, `timeoutMs` passed to `streamLlm`
+- `callByProvider()`: added `maxTokens?`, `timeoutMs?` params, passed to dispatch fn
+- `buildLlmChain()`: added `maxTokens?`, `timeoutMs?` params, passed to `callByProvider`
+- `tryAiChain()`: added `maxTokens?`, `timeoutMs?` params. Budget extended to `timeoutMs + 30_000` when provided
+- `generateFinancialReport()`: calls `tryAiChain(..., 8192, 180_000)` — 8k tokens, 3-minute budget
+
+### Verification
+- Backend `npx tsc --noEmit` — no new errors (pre-existing TS config deprecation warnings only)

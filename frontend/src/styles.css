@@ -807,6 +807,39 @@ select {
   }
 }
 
+/* ── Scrollbar theming ───────────────────────────────────── *
+ * Firefox: scrollbar-color / scrollbar-width                    *
+ * WebKit/Blink: ::-webkit-scrollbar pseudo-elements             *
+ * Both use existing theme tokens so thumb+toggle auto-track     *
+ * the warm/cool data-theme switch.                              *
+ * ──────────────────────────────────────────────────────────── */
+html {
+  scrollbar-color: var(--color-muted) transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-muted);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .logo-icon {
   width: 34px;
   height: 34px;

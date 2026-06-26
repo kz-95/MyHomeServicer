@@ -550,11 +550,15 @@ Get bundled proposals received for a quote.
       "proposedPrice": 80.00,
       "message": "I can do this job at...",
       "etaMinutes": 30,
-      "submittedAt": "..."
+      "submittedAt": "...",
+      "status": "submitted",
+      "quoteStatus": "open"
     }
   ]
 }
 ```
+- `status`: proposal state (`submitted` | `selected`). Only `submitted` proposals can be selected.
+- `quoteStatus`: parent quote state (`open` | `matched` | `expired` | `cancelled`). Used by frontend to detect stale quotes.
 
 ### `POST /quotes/:id/select`
 Pick a proposal.
@@ -2375,6 +2379,14 @@ Convenience endpoints for the live demo. All require a Bearer token and are
 Wipes and reloads the demo data set. Any signed-in user may trigger it (the
 topbar "Reseed" button). Demo accounts keep fixed logins, so the session
 stays valid across a reseed.
+
+### `POST /dev/clear-finance`
+Clears financial data (transactions, escrow, invoices, bookings, quotes,
+withdrawals, penalties, reports, promotions, discount codes, credit logs,
+category requests) while preserving demo accounts, services, categories,
+settings, chat, and notifications. Useful for resetting dashboard/report
+numbers without a full reseed. Admin-only via the demobar "Clear Finance"
+button. Hard-blocked when `NODE_ENV=production`.
 
 ### `POST /dev/seed-quote`
 Generates one demo open quote request from a random demo customer, so the

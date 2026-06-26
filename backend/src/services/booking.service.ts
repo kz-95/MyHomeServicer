@@ -4,6 +4,7 @@ import { logger } from '../lib/logger';
 import { haversineKm } from '../lib/haversine';
 import { badRequest, businessRule, conflict, forbidden, notFound, paymentRequired } from '../lib/errors';
 import { emitToUser, emitToServicer, emitToServicers } from '../socket';
+import { allowDemo } from '../config/env';
 import { requireOnboarded } from './servicer-quote.service';
 import { enqueue, JOB_NAMES } from '../lib/queue';
 import { recordTransaction } from './ledger.service';
@@ -428,6 +429,25 @@ export async function confirmJob(servicerId: string, bookingId: string) {
   return updated;
 }
 
+/** Compute distance between servicer GPS and the booking's job-site coords. */
+async function targetDistance(
+  bookingId: string,
+  servicerLat: number,
+  servicerLng: number,
+): Promise<number | null> {
+  const b = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      quoteRequest: { select: { lat: true, lng: true, address: { select: { lat: true, lng: true } } } },
+    },
+  });
+  if (!b) return null;
+  const tLat = b.quoteRequest.lat ?? b.quoteRequest.address.lat;
+  const tLng = b.quoteRequest.lng ?? b.quoteRequest.address.lng;
+  if (tLat == null || tLng == null) return null;
+  return +haversineKm(servicerLat, servicerLng, tLat, tLng).toFixed(1);
+}
+
 /** Servicer marks arrived (with photo + optional GPS): confirmed → in_progress. */
 export async function arriveJob(
   servicerId: string,
@@ -441,12 +461,21 @@ export async function arriveJob(
   }
 
   // GPS verification (optional - backward compat when not provided)
+  let demoBypass: string | undefined;
   if (gps) {
     const verified = await logArrivalLocation(bookingId, servicerId, gps.lat, gps.lng, gps.accuracy);
     if (!verified) {
-      throw badRequest(
-        'You appear to be too far from the job site. Please move closer and try again.',
-      );
+      if (allowDemo) {
+        const dist = targetDistance(bookingId, gps.lat, gps.lng);
+        demoBypass = dist != null
+          ? `GPS check bypassed: you are ${dist} km from the job site (demo mode only).`
+          : 'GPS check bypassed for demo purposes only.';
+        logger.warn('GPS arrive check bypassed for demo', { bookingId, servicerId, distanceKm: dist });
+      } else {
+        throw badRequest(
+          'You appear to be too far from the job site. Please move closer and try again.',
+        );
+      }
     }
   }
 
@@ -461,7 +490,7 @@ export async function arriveJob(
     message: 'The servicer has arrived and is starting the job.',
     linkUrl: `/customer/bookings`,
   });
-  return updated;
+  return { booking: updated, demoBypass };
 }
 
 /** Servicer marks done (with photo + optional GPS): in_progress → completed. */
@@ -477,12 +506,21 @@ export async function doneJob(
   }
 
   // GPS verification (optional - backward compat when not provided)
+  let demoBypass: string | undefined;
   if (gps) {
     const verified = await logDoneLocation(bookingId, servicerId, gps.lat, gps.lng, gps.accuracy);
     if (!verified) {
-      throw badRequest(
-        'You appear to be too far from the job site. Please move closer and try again.',
-      );
+      if (allowDemo) {
+        const dist = targetDistance(bookingId, gps.lat, gps.lng);
+        demoBypass = dist != null
+          ? `GPS check bypassed: you are ${dist} km from the job site (demo mode only).`
+          : 'GPS check bypassed for demo purposes only.';
+        logger.warn('GPS done check bypassed for demo', { bookingId, servicerId, distanceKm: dist });
+      } else {
+        throw badRequest(
+          'You appear to be too far from the job site. Please move closer and try again.',
+        );
+      }
     }
   }
 
@@ -580,7 +618,7 @@ export async function doneJob(
       data: { status: 'open' },
     });
   }
-  return updated;
+  return { booking: updated, demoBypass };
 }
 
 /** Servicer confirms cash received (cash bookings only). */

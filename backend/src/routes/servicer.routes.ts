@@ -930,7 +930,8 @@ servicerRouter.post(
     const gps = req.body.lat != null && req.body.lng != null
       ? { lat: req.body.lat, lng: req.body.lng, accuracy: req.body.accuracy }
       : undefined;
-    res.json(await arriveJob(req.user!.id, req.params.id, req.body.photoUrl ?? null, gps));
+    const result = await arriveJob(req.user!.id, req.params.id, req.body.photoUrl ?? null, gps);
+    res.json({ ...result.booking, demoBypass: result.demoBypass });
   }),
 );
 
@@ -941,7 +942,8 @@ servicerRouter.post(
     const gps = req.body.lat != null && req.body.lng != null
       ? { lat: req.body.lat, lng: req.body.lng, accuracy: req.body.accuracy }
       : undefined;
-    res.json(await doneJob(req.user!.id, req.params.id, req.body.photoUrl ?? null, gps));
+    const result = await doneJob(req.user!.id, req.params.id, req.body.photoUrl ?? null, gps);
+    res.json({ ...result.booking, demoBypass: result.demoBypass });
   }),
 );
 

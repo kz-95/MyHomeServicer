@@ -700,12 +700,8 @@ async function streamLlm(
   extractFinish: (evt: unknown) => string | undefined,
   extractTokens: (evt: unknown) => number | undefined,
   label: string,
-  // Reasoning models (deepseek-v4-*, o-series) stream THINKING (reasoning_content)
-  // before any answer (content). Pass an extractor for it so the first-token timer
-  // clears on the thinking phase - otherwise the model is mid-reasoning when the
-  // 8.8s cap fires and we wrongly abort a working model. Reasoning is NOT added to
-  // the answer; only `content` is.
   extractReasoning?: (evt: unknown) => string,
+  overallTimeoutMs?: number,
 ): Promise<{ answer: string; truncated: boolean; tokensUsed: number | null }> {
   const ac = new AbortController();
   let firstTimer: ReturnType<typeof setTimeout> | null = setTimeout(
@@ -714,7 +710,7 @@ async function streamLlm(
   );
   const overallTimer = setTimeout(
     () => ac.abort(new Error(`${label} overall timeout`)),
-    AI_TIMEOUT_MS,
+    overallTimeoutMs ?? AI_TIMEOUT_MS,
   );
   const clearFirst = () => {
     if (firstTimer) {
@@ -783,6 +779,8 @@ async function callGemini(
   apiKey?: string,
   model?: string,
   noFallback = false,
+  maxTokens?: number,
+  timeoutMs?: number,
 ): Promise<AiReply> {
   const key = apiKey;
   if (!key) throw new Error("Gemini: no API key provided");
@@ -804,7 +802,7 @@ async function callGemini(
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+        generationConfig: { temperature: 0.7, maxOutputTokens: maxTokens ?? 1024 },
       }),
     },
     (evt) => {
@@ -822,6 +820,8 @@ async function callGemini(
       (evt as { usageMetadata?: { totalTokenCount?: number } }).usageMetadata
         ?.totalTokenCount,
     "Gemini",
+    undefined,
+    timeoutMs,
   );
 
   return {
@@ -839,6 +839,8 @@ async function callDeepSeek(
   apiKey?: string,
   model?: string,
   noFallback = false,
+  maxTokens?: number,
+  timeoutMs?: number,
 ): Promise<AiReply> {
   const key = apiKey;
   if (!key) throw new Error("DeepSeek: no API key provided");
@@ -864,10 +866,8 @@ async function callDeepSeek(
         messages,
         stream: true,
         // deepseek-v4-* are REASONING models: the thinking phase spends output tokens
-        // BEFORE any answer. 1024 let a long reasoning eat the whole budget, truncating
-        // the actual reply (finish_reason=length) → the chat showed "out of service".
-        // Give plenty of headroom (only tokens actually generated are billed).
-        max_tokens: 4096,
+        // BEFORE any answer. Give plenty of headroom (only tokens actually generated are billed).
+        max_tokens: maxTokens ?? 4096,
         stream_options: { include_usage: true },
       }),
     },
@@ -879,10 +879,10 @@ async function callDeepSeek(
         ?.finish_reason ?? undefined,
     (evt) => (evt as { usage?: { total_tokens?: number } }).usage?.total_tokens,
     "DeepSeek",
-    // deepseek-v4-* stream reasoning_content (thinking) before the answer content.
     (evt) =>
       (evt as { choices?: Array<{ delta?: { reasoning_content?: string } }> })
         .choices?.[0]?.delta?.reasoning_content ?? "",
+    timeoutMs,
   );
 
   return {
@@ -900,6 +900,8 @@ async function callOpenAi(
   apiKey: string,
   model?: string,
   noFallback = false,
+  maxTokens?: number,
+  timeoutMs?: number,
 ): Promise<AiReply> {
   const modelName = model || "gpt-4o-mini";
   const messages: Array<{ role: string; content: string }> = [
@@ -922,7 +924,7 @@ async function callOpenAi(
         model: modelName,
         messages,
         stream: true,
-        max_tokens: 1024,
+        max_tokens: maxTokens ?? 1024,
         stream_options: { include_usage: true },
       }),
     },
@@ -934,6 +936,8 @@ async function callOpenAi(
         ?.finish_reason ?? undefined,
     (evt) => (evt as { usage?: { total_tokens?: number } }).usage?.total_tokens,
     "OpenAI",
+    undefined,
+    timeoutMs,
   );
 
   return {
@@ -1323,9 +1327,11 @@ async function callByProvider(
   role: string,
   model?: string,
   noFallback = false,
+  maxTokens?: number,
+  timeoutMs?: number,
 ): Promise<AiReply> {
   const fn = LLM_DISPATCH[provider] ?? callOpenAi;
-  return fn(systemPrompt, message, history, role, apiKey, model, noFallback);
+  return fn(systemPrompt, message, history, role, apiKey, model, noFallback, maxTokens, timeoutMs);
 }
 
 // 429 cooldown: once a key is rate-limited/quota-exhausted, skip it for a while
@@ -1364,6 +1370,8 @@ async function buildLlmChain(
   history: HistoryMessage[],
   role: string,
   noFallback = false,
+  maxTokens?: number,
+  timeoutMs?: number,
 ): Promise<LlmAttempt[]> {
   const attempts: LlmAttempt[] = [];
 
@@ -1392,6 +1400,8 @@ async function buildLlmChain(
           role,
           k.model,
           noFallback,
+          maxTokens,
+          timeoutMs,
         ),
     });
   }
@@ -1410,15 +1420,18 @@ async function tryAiChain(
   message: string,
   history: HistoryMessage[],
   role: string,
+  maxTokens?: number,
+  timeoutMs?: number,
 ): Promise<AiReply> {
-  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  const budgetMs = timeoutMs ? timeoutMs + 30_000 : TOTAL_BUDGET_MS;
+  const deadline = Date.now() + budgetMs;
   let lastErr: unknown;
 
   // Rotate through the LLMs; if all cold-time-out (no quota cooldown) and we still
   // have budget, rotate again - a backup that was cold on the first pass is warm on
   // the next, so the retry lands without making the user wait on one slow provider.
   while (Date.now() < deadline) {
-    const chain = await buildLlmChain(systemPrompt, message, history, role);
+    const chain = await buildLlmChain(systemPrompt, message, history, role, false, maxTokens, timeoutMs);
     let triedAny = false;
     for (const llm of chain) {
       if (isCoolingDown(llm.id)) continue;
@@ -3688,7 +3701,7 @@ export async function generateFinancialReport(
   const systemPrompt = buildReportPrompt(financialData);
   const userMessage = "Generate the complete financial advisory report based on the data provided. Follow the report structure exactly. Be specific with numbers, name names, and give actionable recommendations.";
   try {
-    return await tryAiChain(systemPrompt, userMessage, [], "admin");
+    return await tryAiChain(systemPrompt, userMessage, [], "admin", 8192, 180_000);
   } catch (e) {
     return { answer: adminLlmDiagnostic(e), tokensUsed: null };
   }
