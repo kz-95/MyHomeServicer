@@ -364,6 +364,116 @@ apiRouter.post(
 );
 
 /**
+ * POST /dev/random-order - creates a demo order for the signed-in servicer.
+ * Picks a random customer, creates a quote in a random category the servicer
+ * offers, and immediately accepts it as a confirmed booking. Development only.
+ */
+const DEMO_CUSTOMER_EMAILS = [
+  'sarah.lim2@demo.local', 'nurul.hafizah@demo.local', 'michael.lim@demo.local',
+  'david.tan@demo.local', 'rashida.kamila@demo.local', 'jason.yeoh@demo.local',
+  'priya.subramaniam@demo.local', 'tan.mei.ling@demo.local', 'rajan.krishnan@demo.local',
+];
+apiRouter.post(
+  '/dev/random-order',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!allowDemo) throw badRequest('Demo orders are disabled in production');
+    const u = req.user!;
+    if (u.kind !== 'servicer') throw badRequest('Only servicer accounts can create demo orders');
+    const servicerId = u.id;
+
+    // Pick a random demo customer.
+    const email = DEMO_CUSTOMER_EMAILS[Math.floor(Math.random() * DEMO_CUSTOMER_EMAILS.length)];
+    const customer = await prisma.user.findFirst({ where: { email }, select: { id: true, name: true } });
+    if (!customer) throw badRequest('Demo customer not found — run reseed first');
+
+    // Get customer address.
+    const addr = await prisma.userAddress.findFirst({ where: { userId: customer.id }, orderBy: { createdAt: 'asc' } });
+    if (!addr) throw badRequest('Customer has no saved address');
+
+    // Pick a random category from the servicer's listings.
+    const services = await prisma.servicerService.findMany({
+      where: { servicerId },
+      select: { id: true, categoryId: true, basePrice: true, category: { select: { name: true } } },
+    });
+    if (services.length === 0) throw badRequest('Servicer has no service listings');
+    const svc = services[Math.floor(Math.random() * services.length)];
+    const price = Number(svc.basePrice) || [60, 80, 100, 120, 150][Math.floor(Math.random() * 5)];
+
+    const now = new Date();
+    const deadline = new Date(now.getTime() + 60 * 60_000); // 1h from now
+
+    // 1. Create quote request.
+    const quote = await prisma.quoteRequest.create({
+      data: {
+        userId: customer.id,
+        categoryId: svc.categoryId,
+        addressId: addr.id,
+        contactName: customer.name,
+        contactNumber: '012-3456789',
+        timeSlot: 'morning',
+        preferredDate: new Date(now.getTime() + 2 * 86_400_000), // 2 days ahead
+        budgetMin: price - 20,
+        budgetMax: price + 80,
+        paymentMode: 'pay_later',
+        settlementMethod: 'cash',
+        deadlineMode: 'fcfs',
+        proposalDeadline: deadline,
+        servicerDeadline: deadline,
+        lat: addr.lat,
+        lng: addr.lng,
+        notes: 'Demo auto-generated order',
+      },
+    });
+
+    // 2. Broadcast to the servicer.
+    await prisma.quoteBroadcast.create({ data: { quoteRequestId: quote.id, servicerId } });
+
+    // 3. Create proposal from the servicer.
+    const proposal = await prisma.quoteProposal.create({
+      data: {
+        quoteRequestId: quote.id,
+        servicerId,
+        proposedPrice: price,
+        lineItems: [{ label: svc.category.name, amount: price, taxable: true, serviceChargeable: true }],
+        message: `Demo auto-accepted order — ${svc.category.name} for RM ${price}`,
+        etaMinutes: 60,
+        status: 'selected',
+      },
+    });
+
+    // 4. Create the booking (confirmed — skips the 5s wait + unpaid-invoice gates).
+    const sched = new Date(now.getTime() + 2 * 86_400_000);
+    const booking = await prisma.booking.create({
+      data: {
+        quoteRequestId: quote.id,
+        proposalId: proposal.id,
+        userId: customer.id,
+        servicerId,
+        status: 'confirmed',
+        price,
+        paymentMode: 'pay_later' as any,
+        lineItems: [{ label: svc.category.name, amount: price, taxable: true, serviceChargeable: true }],
+        settlementMethod: 'cash',
+        paymentTiming: 'pay_later' as any,
+        scheduledDate: sched,
+        timeSlot: 'morning',
+        notes: 'Demo auto-generated order',
+        confirmedAt: now,
+      },
+    });
+
+    res.json({
+      customer: customer.name,
+      category: svc.category.name,
+      price,
+      bookingId: booking.id,
+      quoteId: quote.id,
+    });
+  }),
+);
+
+/**
  * POST /dev/points - awards 500 demo points to the signed-in customer.
  * Hard-blocked in production. Only for customer accounts.
  */

@@ -279,6 +279,11 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
           {{ seedingProposal() ? 'Creating…' : '+ Proposal' }}
         </button>
       }
+      @if (auth.mode() === 'servicer' || auth.principal()?.role === 'servicer') {
+        <button class="demo-action demo-action--order" (click)="seedOrder()" [disabled]="seedingOrder()" title="Generate a random customer order">
+          {{ seedingOrder() ? 'Creating…' : '+ New Order' }}
+        </button>
+      }
       <button class="demo-action demo-action--reseed" (click)="confirmReseed.set(true)" title="Reset demo data">↻ Reseed</button>
     </div>
 
@@ -455,6 +460,8 @@ const SERVICER_GROUPS: DemoParentGroup[] = [
     }
     .demo-action--proposal { background: var(--color-danger-bg); border: 1px solid var(--color-danger); color: var(--color-danger); }
     .demo-action--proposal:hover { background: var(--color-danger); color: #fff; }
+    .demo-action--order { background: var(--color-success-bg, color-mix(in srgb, var(--color-success) 15%, transparent)); border: 1px solid var(--color-success); color: var(--color-success); }
+    .demo-action--order:hover { background: var(--color-success); color: #fff; }
     .demo-action--reseed { background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-warning); }
     .demo-action--reseed:hover { background: var(--color-warning); color: #fff; }
     .demo-action--unplug { background: var(--color-promo-bg); border: 1px solid var(--color-promo-border); color: var(--color-promo-text); }
@@ -526,6 +533,9 @@ export class DemoBarComponent {
 
   // Seed proposal
   seedingProposal = signal(false);
+
+  // Seed order (servicer)
+  seedingOrder = signal(false);
 
   customerAccounts = CUSTOMER_ACCOUNTS;
   servicerGroups = SERVICER_GROUPS;
@@ -606,6 +616,23 @@ export class DemoBarComponent {
       error: (e) => {
         this.seedingProposal.set(false);
         this.demoMsg.set(e.message ?? 'Could not create demo proposal');
+        setTimeout(() => this.demoMsg.set(''), 6000);
+      },
+    });
+  }
+
+  seedOrder(): void {
+    this.seedingOrder.set(true);
+    this.demoMsg.set('');
+    this.api.post<{ customer: string; category: string; price: number; bookingId: string }>('/dev/random-order', {}).subscribe({
+      next: (r) => {
+        this.seedingOrder.set(false);
+        this.demoMsg.set(`${r.customer} ordered ${r.category} — RM ${r.price} (confirmed).`);
+        setTimeout(() => this.demoMsg.set(''), 8000);
+      },
+      error: (e) => {
+        this.seedingOrder.set(false);
+        this.demoMsg.set(e.error?.message ?? e.message ?? 'Could not create demo order');
         setTimeout(() => this.demoMsg.set(''), 6000);
       },
     });
