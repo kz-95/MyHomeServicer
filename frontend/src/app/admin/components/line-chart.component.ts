@@ -17,7 +17,7 @@ import { ChartConfiguration, ChartData } from 'chart.js';
         [type]="chartType"
         [data]="chartData"
         [options]="chartOptions"
-        [height]="chartType === 'bar' ? 200 : 140"
+         [height]="chartType === 'bar' ? 300 : 300"
       ></canvas>
     }
   `,
@@ -83,6 +83,7 @@ export class LineChartComponent implements OnChanges {
       animation: { duration: 300 },
       plugins: {
         legend: { display: false },
+        datalabels: { display: false },
         tooltip: {
           mode: 'index', intersect: false,
           backgroundColor: surfaceColor,
