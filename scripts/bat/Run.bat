@@ -260,13 +260,18 @@ REM Apply migrations without dropping data (also creates tables on a fresh DB) +
 call npm run db:deploy
 if errorlevel 1 goto :db_fail
 
-REM Probe whether the DB has been seeded (row count in the users table)
+REM Probe whether the DB has been seeded (row count in the users table, via the
+REM app's own Prisma client so it hits the real DATABASE_URL). Prints a number or ERR.
 set "USERCOUNT="
-for /f "usebackq delims=" %%C in (`docker compose -f "%~dp0..\..\docker-compose.yml" exec -T postgres psql -U postgres -d homeservices -tAc "SELECT COUNT(*) FROM users;" 2^>nul`) do set "USERCOUNT=%%C"
+for /f "usebackq delims=" %%C in (`node "%~dp0..\check-db-seeded.cjs" 2^>nul`) do set "USERCOUNT=%%C"
 if defined USERCOUNT set "USERCOUNT=%USERCOUNT: =%"
 
 if not defined USERCOUNT (
-    echo [DB] Could not read users table - seeding fresh...
+    echo [DB] Could not read DB state - reseeding fresh...
+    call npm run db:reset
+    if errorlevel 1 goto :db_fail
+) else if /i "%USERCOUNT%"=="ERR" (
+    echo [DB] Could not read DB state - reseeding fresh...
     call npm run db:reset
     if errorlevel 1 goto :db_fail
 ) else if "%USERCOUNT%"=="0" (

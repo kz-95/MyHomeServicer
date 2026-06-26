@@ -2910,8 +2910,8 @@ The `@demo.local` suffix guard prevents the original BE-013 attack (arbitrary em
 **Issue 4a: Add hero banner + sound fields to /config/public**
 - `backend/src/routes/index.ts` — /config/public now queries `hero_banner_url`, `hero_banner_pos_x`, `hero_banner_pos_y`, `hero_banner_zoom`, `chat_sound_enabled`, `typing_sound_enabled` from platform_settings and returns them as flat JSON fields.
 
-**Issue 5: Railway migration on deploy**
-- `railway.json` — startCommand changed from `npm start` to `prisma migrate deploy && npm start` so schema stays current on every deploy.
+**Issue 5: Railway migrations already handled by npm start**
+- `railway.json` — reverted to `npm start` after discovering that `prisma` is not directly on the Railway container PATH. Root `package.json` `npm start` already runs `npx prisma migrate deploy` (via `cd backend && npx prisma migrate resolve --applied 0_init || true && npx prisma migrate deploy && npx prisma generate && node dist/index.js`). All 28 migrations confirmed applied against Railway Postgres via `railway ssh`; demo data confirmed present.
 
 ### Verification
 - Backend `npx tsc --noEmit` — zero errors

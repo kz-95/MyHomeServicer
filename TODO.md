@@ -306,13 +306,14 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
 - [ ] Prose hallucination in QA harness (needs log to reproduce)
 
 ### ✅ DONE — 5 Bug Fixes (Auth/Interceptor/Guard/Settings/Railway) — 2026-06-27
+> Note: railway.json startCommand reverted to `npm start` — root package.json already runs `npx prisma migrate deploy` before the app starts. Direct `prisma` command fails on Railway because the CLI binary isn't on the container PATH.
 - [x] Issue 1: Auth middleware — malformed Bearer token on public routes no longer 401s (treats as no token, lets requireAuth catch protected routes). `backend/src/middleware/auth.ts:36-39`
 - [x] Issue 2: Auth interceptor — non-TOKEN_EXPIRED 401 clears hs_access/hs_refresh/hs_user and redirects to /login. `frontend/src/app/core/interceptors/auth.interceptor.ts:50-59`
 - [x] Issue 3: Auth guard — checks `auth.accessToken` in addition to `auth.principal()`; redirects to /login when token is missing even if stale hs_user exists. `frontend/src/app/core/guards/auth.guards.ts:25`
 - [x] Issue 4a: Backend `/config/public` now returns hero_banner fields (url/pos_x/pos_y/zoom) and chat_sound_enabled/typing_sound_enabled. `backend/src/routes/index.ts:79-81,111-114`
 - [x] Issue 4b: Home component reads hero banner from `/config/public` instead of `/admin/settings`. `frontend/src/app/home/home.component.ts:1671-1685`
 - [x] Issue 4c: Chat widget reads sound settings from `/config/public` instead of `/admin/settings`. `frontend/src/app/shared/chat-widget.component.ts:4916-4928`
-- [x] Issue 5: railway.json startCommand changed to `prisma migrate deploy && npm start`. `railway.json:9`
+- [x] Issue 5: Railway startCommand stays as `npm start` (root package.json already runs `npx prisma migrate deploy` before starting). DB had all 28 migrations applied; demo data was missing from the Railway Postgres — confirmed present via `/config/demo-status`. No changes needed to railway.json after all.
 - [x] Both backend + frontend typecheck pass
 
 ---
