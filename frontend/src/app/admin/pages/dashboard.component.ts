@@ -3,9 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { Chart, registerables } from 'chart.js';
+Chart.register(...registerables);
+
 import { routeFor } from '../../core/route-for';
 import { ApiService } from '../../core/services/api.service';
 import { IconComponent } from '../../shared/icon.component';
+import { LineChartComponent } from '../components/line-chart.component';
+import { BarChartComponent } from '../components/bar-chart.component';
+import { DonutChartComponent } from '../components/donut-chart.component';
 
 // ── Interfaces ────────────────────────────────────────────────────────────
 
@@ -95,7 +101,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 @Component({
   selector: 'app-admin-dashboard',
   host: { class: 'page-enter' },
-  imports: [CommonModule, RouterLink, FormsModule, IconComponent],
+  imports: [CommonModule, RouterLink, FormsModule, IconComponent, LineChartComponent, BarChartComponent, DonutChartComponent],
   template: `
     <h1>Admin dashboard</h1>
 
@@ -292,8 +298,8 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <button class="range-btn" [class.on]="activeQuarter() === 2" (click)="setQuarter(2)">Q2</button>
             <button class="range-btn" [class.on]="activeQuarter() === 3" (click)="setQuarter(3)">Q3</button>
             <button class="range-btn" [class.on]="activeQuarter() === 4" (click)="setQuarter(4)">Q4</button>
-            <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
           </div>
+          <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
         </div>
 
         <!-- Chart filter pills -->
@@ -317,92 +323,11 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 
         <!-- Chart -->
         <div class="card chart-card">
-          @if (finLoading()) {
-            <p class="muted">Loading chart…</p>
-          } @else if (fd.dailyRevenue.length || (fd.dailyEscrow && fd.dailyEscrow.length) || (fd.dailyPayouts && fd.dailyPayouts.length)) {
-            <div class="chart-wrap">
-              <!-- Legend -->
-              <div class="chart-legend">
-                @if (chartPills()['revenue']) {
-                  <span class="legend-item"><span class="legend-dot rev"></span>Revenue</span>
-                }
-                @if (chartPills()['fees']) {
-                  <span class="legend-item"><span class="legend-dot fee"></span>Fees</span>
-                }
-                @if (chartPills()['gross']) {
-                  <span class="legend-item"><span class="legend-dot gross"></span>Gross</span>
-                }
-                @if (chartPills()['cashflow']) {
-                  <span class="legend-item"><span class="legend-dot cashflow"></span>Cashflow</span>
-                }
-                @if (chartPills()['discount']) {
-                  <span class="legend-item"><span class="legend-dot disc"></span>Discounts</span>
-                }
-              </div>
-              <svg class="chart-svg" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none"
-                   (mousemove)="onChartHover($event)" (mouseleave)="chartTooltip.set(null)">
-                <!-- Grid lines -->
-                @for (line of gridLines(); track line.y) {
-                  <line [attr.x1]="padL" [attr.y1]="line.y" [attr.x2]="chartW - padR" [attr.y2]="line.y" class="grid-line" />
-                  <text [attr.x]="padL - 6" [attr.y]="line.y + 4" class="axis-label" text-anchor="end">{{ line.label }}</text>
-                }
-                <!-- Revenue line -->
-                @if (chartPills()['revenue'] && revenueLine()) {
-                  <polyline [attr.points]="revenueLine()" class="line-rev" />
-                }
-                <!-- Fees line -->
-                @if (chartPills()['fees'] && feesLine()) {
-                  <polyline [attr.points]="feesLine()" class="line-fee" />
-                }
-                <!-- Gross line -->
-                @if (chartPills()['gross'] && grossLine()) {
-                  <polyline [attr.points]="grossLine()" class="line-gross" />
-                }
-                <!-- Cashflow line -->
-                @if (chartPills()['cashflow'] && cashflowLine()) {
-                  <polyline [attr.points]="cashflowLine()" class="line-cashflow" />
-                }
-                <!-- Discount line -->
-                @if (chartPills()['discount'] && discountLine()) {
-                  <polyline [attr.points]="discountLine()" class="line-disc" />
-                }
-                <!-- X-axis labels -->
-                @for (xl of xLabels(); track xl.x) {
-                  <text [attr.x]="xl.x" [attr.y]="chartH - 4" class="axis-label x-label" text-anchor="middle">{{ xl.label | date:'M/d' }}</text>
-                }
-              </svg>
-              @if (chartTooltip(); as tip) {
-                <div class="chart-tooltip" [style.left.px]="tip.x" [style.top.px]="tip.y">
-                  <div class="tip-date">{{ tip.date }}</div>
-                  @if (tip.rev != null) { <div class="tip-row rev">Revenue: RM {{ tip.rev | number:'1.2-2' }}</div> }
-                  @if (tip.fee != null) { <div class="tip-row fee">Fees: RM {{ tip.fee | number:'1.2-2' }}</div> }
-                  @if (tip.gross != null) { <div class="tip-row gross">Gross: RM {{ tip.gross | number:'1.2-2' }}</div> }
-                  @if (tip.cf != null) { <div class="tip-row cf">Cashflow: RM {{ tip.cf | number:'1.2-2' }}</div> }
-                  @if (tip.disc != null) { <div class="tip-row disc">Discounts: RM {{ tip.disc | number:'1.2-2' }}</div> }
-                </div>
-              }
-            </div>
-            <!-- Summary row -->
-            <div class="chart-summary">
-              @if (chartPills()['revenue']) {
-                <span class="summary-item rev">Revenue: <strong>RM {{ revenueTotal() | number:'1.2-2' }}</strong></span>
-              }
-              @if (chartPills()['fees']) {
-                <span class="summary-item fee">Fees: <strong>RM {{ feesTotal() | number:'1.2-2' }}</strong></span>
-              }
-              @if (chartPills()['gross']) {
-                <span class="summary-item gross">Gross: <strong>RM {{ grossTotal() | number:'1.2-2' }}</strong></span>
-              }
-              @if (chartPills()['cashflow']) {
-                <span class="summary-item cashflow">Cashflow: <strong>RM {{ cashflowTotal() | number:'1.2-2' }}</strong></span>
-              }
-              @if (chartPills()['discount']) {
-                <span class="summary-item disc">Discounts: <strong>RM {{ discountTotal() | number:'1.2-2' }}</strong></span>
-              }
-            </div>
-          } @else {
-            <p class="muted">No revenue data yet - bookings will populate this chart.</p>
-          }
+          <app-line-chart
+            [labels]="chartLabels()"
+            [datasets]="chartDatasets()"
+            [loading]="finLoading()"
+          />
         </div>
       }
     }
@@ -415,30 +340,20 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <!-- Bar + Donut charts -->
             <div class="chart-row">
               <div class="chart-left">
-                <div class="h-bar-chart">
-                  @for (row of catBarTop5(); track row.label) {
-                    <div class="h-bar-row">
-                      <span class="h-bar-label" [title]="row.label">{{ row.label }}</span>
-                      <div class="h-bar-track">
-                        <div class="h-bar-fill" [style.width.%]="row.pct"></div>
-                      </div>
-                      <span class="h-bar-val">{{ row.value }}</span>
-                    </div>
-                  }
-                  @if (!catBarTop5().length) {
-                    <span class="muted">No data</span>
-                  }
-                </div>
+                <app-bar-chart
+                  [labels]="catBarLabels()"
+                  [values]="catBarValues()"
+                  color="#f59e0b"
+                  (barClick)="onCatBarClick($event)"
+                />
               </div>
               <div class="chart-right">
-                @if (catDonutGradient()) {
-                  <div class="donut-legend">
-                    @for (item of catDonutLegend(); track item.name) {
-                      <span><span class="donut-dot" [style.background]="item.color"></span>{{ item.name }}</span>
-                    }
-                  </div>
-                  <div class="donut" [style.background]="catDonutGradient()"></div>
-                }
+                <app-donut-chart
+                  [labels]="catDonutLabels()"
+                  [values]="catDonutValues()"
+                  [colors]="DONUT_COLORS"
+                  (sliceClick)="onCatSliceClick($event)"
+                />
               </div>
             </div>
             <table class="cb-table">
@@ -478,30 +393,20 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <!-- Bar + Donut charts -->
             <div class="chart-row">
               <div class="chart-left">
-                <div class="h-bar-chart">
-                  @for (row of custBarTop5(); track row.label) {
-                    <div class="h-bar-row">
-                      <span class="h-bar-label" [title]="row.label">{{ row.label }}</span>
-                      <div class="h-bar-track">
-                        <div class="h-bar-fill" [style.width.%]="row.pct"></div>
-                      </div>
-                      <span class="h-bar-val">RM {{ row.value | number:'1.0-0' }}</span>
-                    </div>
-                  }
-                  @if (!custBarTop5().length) {
-                    <span class="muted">No data</span>
-                  }
-                </div>
+                <app-bar-chart
+                  [labels]="custBarLabels()"
+                  [values]="custBarValues()"
+                  color="#16a34a"
+                  (barClick)="onCustBarClick($event)"
+                />
               </div>
               <div class="chart-right">
-                @if (custDonutGradient()) {
-                  <div class="donut-legend">
-                    @for (item of custDonutLegend(); track item.name) {
-                      <span><span class="donut-dot" [style.background]="item.color"></span>{{ item.name }}</span>
-                    }
-                  </div>
-                  <div class="donut" [style.background]="custDonutGradient()"></div>
-                }
+                <app-donut-chart
+                  [labels]="custDonutLabels()"
+                  [values]="custDonutValues()"
+                  [colors]="DONUT_COLORS"
+                  (sliceClick)="onCustSliceClick($event)"
+                />
               </div>
             </div>
             <table class="lb-table">
@@ -541,30 +446,20 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <!-- Bar + Donut charts -->
             <div class="chart-row">
               <div class="chart-left">
-                <div class="h-bar-chart">
-                  @for (row of svcBarTop5(); track row.label) {
-                    <div class="h-bar-row">
-                      <span class="h-bar-label" [title]="row.label">{{ row.label }}</span>
-                      <div class="h-bar-track">
-                        <div class="h-bar-fill" [style.width.%]="row.pct"></div>
-                      </div>
-                      <span class="h-bar-val">RM {{ row.value | number:'1.0-0' }}</span>
-                    </div>
-                  }
-                  @if (!svcBarTop5().length) {
-                    <span class="muted">No data</span>
-                  }
-                </div>
+                <app-bar-chart
+                  [labels]="svcBarLabels()"
+                  [values]="svcBarValues()"
+                  color="#2563eb"
+                  (barClick)="onSvcBarClick($event)"
+                />
               </div>
               <div class="chart-right">
-                @if (svcDonutGradient()) {
-                  <div class="donut" [style.background]="svcDonutGradient()"></div>
-                  <div class="donut-legend">
-                    @for (item of svcDonutLegend(); track item.name) {
-                      <span><span class="donut-dot" [style.background]="item.color"></span>{{ item.name }}</span>
-                    }
-                  </div>
-                }
+                <app-donut-chart
+                  [labels]="svcDonutLabels()"
+                  [values]="svcDonutValues()"
+                  [colors]="DONUT_COLORS"
+                  (sliceClick)="onSvcSliceClick($event)"
+                />
               </div>
             </div>
             <table class="lb-table">
@@ -821,16 +716,21 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .range-toggle,
       .quarter-toggle {
         display: flex;
+        align-items: center;  /* prevent flex children from stretching to tallest sibling */
         gap: 0;
         border: 1px solid var(--color-border);
         border-radius: 6px;
         overflow: hidden;
       }
       .range-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         background: transparent;
         border: none;
         padding: 0.3rem 0.7rem;
         font-size: 0.78rem;
+        line-height: 1;
         font-weight: 600;
         color: var(--color-muted);
         cursor: pointer;
@@ -841,15 +741,17 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .range-btn.on { background: #f59e0b; color: #fff; }
       .year-input {
         background: transparent;
-        border: none;
-        padding: 0.3rem 0.5rem;
-        font-size: 0.78rem;
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        /* !important to override global input:not([type="radio"]):not([type="checkbox"]) (0,0,3,1 > 0,0,1,0) */
+        padding: 0.3rem 0.5rem !important;
+        font-size: 0.78rem !important;
+        line-height: normal !important;
         font-weight: 600;
         color: var(--color-muted);
         font-family: inherit;
-        width: 4ch;
+        width: 5rem !important;
         text-align: center;
-        line-height: 1.4;
         box-sizing: border-box;
       }
       .year-input:focus { outline: none; color: var(--color-primary); }
@@ -900,138 +802,6 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 
       /* ── Chart card ─────────────────────────────────────────────────── */
       .chart-card { padding: 1rem 1.25rem 0.5rem; overflow: hidden; }
-      .chart-wrap { width: 100%; overflow: hidden; position: relative; }
-      .chart-svg { width: 100%; display: block; }
-
-      /* Chart legend */
-      .chart-legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 0.5rem;
-        font-size: 0.8rem;
-        color: var(--color-muted);
-      }
-      .legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
-      .legend-dot {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-      }
-      .legend-dot.rev { background: var(--color-primary); }
-      .legend-dot.fee { background: var(--color-warning); }
-      .legend-dot.gross { background: #16a34a; }
-      .legend-dot.cashflow {
-        background: #9333ea;
-        outline: 1px dashed #9333ea;
-        outline-offset: 1px;
-      }
-      .legend-dot.disc {
-        background: #dc2626;
-        outline: 1px dashed #dc2626;
-        outline-offset: 1px;
-      }
-
-      /* Line chart polylines */
-      .line-rev {
-        fill: none;
-        stroke: var(--color-primary);
-        stroke-width: 1;
-        vector-effect: non-scaling-stroke;
-      }
-      .line-fee {
-        fill: none;
-        stroke: #f59e0b;
-        stroke-dasharray: 6 3;
-        stroke-width: 1;
-        vector-effect: non-scaling-stroke;
-      }
-      .line-gross {
-        fill: none;
-        stroke: #16a34a;
-        stroke-width: 1;
-        vector-effect: non-scaling-stroke;
-      }
-      .line-cashflow {
-        fill: none;
-        stroke: #9333ea;
-        stroke-dasharray: 2 6;
-        stroke-width: 1;
-        vector-effect: non-scaling-stroke;
-      }
-      .line-disc {
-        fill: none;
-        stroke: #dc2626;
-        stroke-dasharray: 4 4;
-        stroke-width: 1;
-        vector-effect: non-scaling-stroke;
-      }
-      .line-fee {
-        fill: none;
-        stroke: var(--color-warning);
-        stroke-width: 2;
-        stroke-dasharray: 6 3;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-      .line-gross {
-        fill: none;
-        stroke: #16a34a;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-      .line-cashflow {
-        fill: none;
-        stroke: #9333ea;
-        stroke-width: 2;
-        stroke-dasharray: 2 6;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-      .line-disc {
-        fill: none;
-        stroke: #dc2626;
-        stroke-width: 2;
-        stroke-dasharray: 4 4;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-
-      /* Grid & axis */
-      .grid-line { stroke: var(--color-border); stroke-width: 0.5; }
-      .axis-label {
-        font-size: 9px;
-        fill: var(--color-muted);
-        font-family: inherit;
-      }
-      .x-label { font-size: 8px; }
-
-      /* Chart summary */
-      .chart-summary {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-top: 0.5rem;
-        font-size: 0.82rem;
-      }
-      .summary-item { color: var(--color-muted); }
-      .summary-item.rev strong { color: var(--color-primary); }
-      .summary-item.fee strong { color: var(--color-warning); }
-      .summary-item.gross strong { color: #16a34a; }
-      .summary-item.cashflow strong { color: #9333ea; }
-      .summary-item.disc strong { color: #dc2626; }
-
-      /* Chart tooltip */
-      .chart-tooltip { position: absolute; pointer-events: none; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.5rem 0.75rem; font-size: 0.78rem; z-index: 5; box-shadow: var(--shadow-md); min-width: 140px; }
-      .tip-date { font-weight: 600; margin-bottom: 0.25rem; color: var(--color-text); }
-      .tip-row { padding: 0.1rem 0; }
-      .tip-row.rev { color: var(--color-primary); }
-      .tip-row.fee { color: #f59e0b; }
-      .tip-row.gross { color: #16a34a; }
-      .tip-row.cf { color: #9333ea; }
-      .tip-row.disc { color: #dc2626; }
 
       /* ── Category breakdown table ───────────────────────────────────── */
       .cat-breakdown { padding: 0.75rem 1rem; margin-top: 1.5rem; }
@@ -1095,24 +865,9 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .report-ok { color: var(--color-muted); }
 
       /* ── Bar + Donut charts ─────────────────────────────────────────── */
-      .chart-row { display: flex; gap: 1.5rem; align-items: center; margin-bottom: 1rem; }
+      .chart-row { display: flex; gap: 1rem; align-items: stretch; margin-bottom: 1rem; }
       .chart-left { flex: 1; min-width: 0; }
-      .chart-right { flex-shrink: 0; min-width: 140px; }
-
-      /* Bar chart */
-      .h-bar-chart { width: 100%; }
-      .h-bar-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; padding: 0.15rem 0; }
-      .h-bar-row:hover { background: var(--color-bg); border-radius: 4px; }
-      .h-bar-label { width: 90px; font-size: 0.78rem; text-align: right; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-muted); }
-      .h-bar-track { flex: 1; height: 16px; background: var(--color-bg); border-radius: 4px; overflow: hidden; }
-      .h-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); min-width: 2px; }
-      .h-bar-val { width: 55px; font-size: 0.78rem; text-align: right; flex-shrink: 0; font-weight: 600; color: var(--color-text); }
-
-      /* Donut */
-      .donut { width: 130px; height: 130px; border-radius: 50%; mask: radial-gradient(circle, transparent 55%, black 56%); -webkit-mask: radial-gradient(circle, transparent 55%, black 56%); }
-      .donut-legend { font-size: 0.72rem; margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; }
-      .donut-legend span { display: inline-flex; align-items: center; gap: 0.25rem; }
-      .donut-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+      .chart-right { flex: 0 0 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
       /* ── Responsive ─────────────────────────────────────────────────── */
       @media (max-width: 760px) { .chart-row { display: none; } }
@@ -1132,6 +887,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 })
 export class AdminDashboardComponent implements OnInit {
   protected readonly routeFor = routeFor;
+  protected readonly DONUT_COLORS = DONUT_COLORS;
   private api = inject(ApiService);
 
   // ── Queues dashboard ─────────────────────────────────────────────────
@@ -1212,66 +968,10 @@ export class AdminDashboardComponent implements OnInit {
 
   toggleChartPill(key: ChartLineKey): void {
     this.chartPills.update((p) => ({ ...p, [key]: !p[key] }));
-    this.rebuildChart();
   }
 
-  // ── Chart layout constants ───────────────────────────────────────────
-  readonly chartH = 140;
-  readonly padL = 48;
-  readonly padR = 12;
-  readonly padT = 14;
-  readonly padB = 22;
-  chartW = 600;
-
-  // ── Chart line signals ───────────────────────────────────────────────
-  revenueLine = signal('');
-  feesLine = signal('');
-  grossLine = signal('');
-  cashflowLine = signal('');
-  discountLine = signal('');
-  gridLines = signal<{ y: number; label: string }[]>([]);
-  xLabels = signal<{ x: number; label: string }[]>([]);
-
-  chartTooltip = signal<{ x: number; y: number; date: string; rev?: number; fee?: number; gross?: number; cf?: number; disc?: number } | null>(null);
-
-  onChartHover(e: MouseEvent): void {
-    const fd = this.finData();
-    if (!fd) return;
-    const svg = (e.currentTarget as SVGElement).getBoundingClientRect();
-    const x = e.clientX - svg.left;
-    const w = svg.width - this.padL - this.padR;
-    const days = this.financialDays();
-    const step = w / Math.max(days - 1, 1);
-    const idx = Math.round((x - this.padL) / step);
-    if (idx < 0 || idx >= days) { this.chartTooltip.set(null); return; }
-
-    const dr = fd.dailyRevenue[idx];
-    const dp = fd.dailyPayouts?.[idx];
-    const dd = fd.dailyDiscount?.[idx];
-    const rev = dr?.revenue ?? 0;
-    const payout = dp?.amount ?? 0;
-    const disc = dd?.amount ?? 0;
-    const gross = rev - payout - disc;
-    const cf = gross; // approximate (withdrawals are total, not daily)
-    this.chartTooltip.set({
-      x: e.clientX - svg.left + 12,
-      y: e.clientY - svg.top - 60,
-      date: dr?.date ?? '',
-      rev: dr?.revenue,
-      fee: dr?.fees,
-      gross: gross || undefined,
-      cf: cf || undefined,
-      disc: dd?.amount,
-    });
-  }
-
-  // ── Totals ───────────────────────────────────────────────────────────
+  // ── Financial days ──────────────────────────────────────────────────
   financialDays = signal(30);
-  revenueTotal = signal(0);
-  feesTotal = signal(0);
-  grossTotal = signal(0);
-  cashflowTotal = signal(0);
-  discountTotal = signal(0);
 
   // ── Date range ───────────────────────────────────────────────────────
   dateFrom = signal(this.formatDate(todayMinus(30)));
@@ -1329,7 +1029,6 @@ export class AdminDashboardComponent implements OnInit {
     }
     return filtered;
   });
-  labelInterval = computed(() => (this.financialDays() > 20 ? 5 : 1));
 
   // ── Search ───────────────────────────────────────────────────────────
   searchQuery = '';
@@ -1397,88 +1096,52 @@ export class AdminDashboardComponent implements OnInit {
     return rows;
   });
 
-  // ── Bar + Donut charts for bottom 3 sections ──────────────────────────
-  catBarTop5 = computed(() => {
-    const rows = [...(this.finData()?.categoryBreakdown ?? [])];
-    const sorted = rows.sort((a, b) => b.count - a.count).slice(0, 5);
-    if (!sorted.length) return [];
-    const maxVal = sorted[0].count || 1;
-    return sorted.map((r) => ({ label: r.name, value: r.count, pct: (r.count / maxVal) * 100 }));
+  // ── Chart computed signals ──────────────────────────────────────────
+  chartLabels = computed(() => this.finData()?.dailyRevenue?.map(d => d.date) ?? []);
+  chartDatasets = computed(() => {
+    const fd = this.finData();
+    if (!fd) return [];
+    const pills = this.chartPills();
+    const rev = pills.revenue ? fd.dailyRevenue?.map(d => d.revenue) ?? [] : [];
+    const fee = pills.fees ? fd.dailyRevenue?.map(d => d.fees) ?? [] : [];
+    const disc = fd.dailyDiscount ? fd.dailyDiscount.map(d => d.amount) : [];
+    const payouts = fd.dailyPayouts ? fd.dailyPayouts.map(d => d.amount) : [];
+    const gross = rev.map((_, i) => fee[i] - (disc[i] ?? 0));
+    const cf = gross.map((_, i) => gross[i]);
+    return [
+      { label: 'Revenue', data: rev, color: '#2563eb', hidden: !pills.revenue },
+      { label: 'Fees', data: fee, color: '#f59e0b', dashed: true, hidden: !pills.fees },
+      { label: 'Gross', data: gross, color: '#16a34a', hidden: !pills.gross },
+      { label: 'Discounts', data: disc, color: '#dc2626', dashed: true, hidden: !pills.discount },
+      { label: 'Cashflow', data: cf, color: '#9333ea', dashed: true, hidden: !pills.cashflow },
+    ];
   });
 
-  catDonutGradient = computed(() => {
-    const rows = [...(this.finData()?.categoryBreakdown ?? [])].sort((a, b) => b.fees - a.fees);
-    return this.buildDonutGradient(rows, (r) => r.fees);
-  });
+  // Category breakdown charts
+  catBarLabels = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.name));
+  catBarValues = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.count));
+  catDonutLabels = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.name));
+  catDonutValues = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.fees));
 
-  catDonutLegend = computed(() => {
-    const rows = [...(this.finData()?.categoryBreakdown ?? [])].sort((a, b) => b.fees - a.fees);
-    return this.buildDonutLegend(rows, (r) => r.fees, (r) => r.name);
-  });
+  // Customer leaderboard charts
+  custBarLabels = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.name));
+  custBarValues = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.totalSpent));
+  custDonutLabels = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.name));
+  custDonutValues = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.totalSpent));
 
-  custBarTop5 = computed(() => {
-    const rows = [...(this.finData()?.customerLeaderboard ?? [])]
-      .sort((a, b) => b.totalSpent - a.totalSpent)
-      .slice(0, 5);
-    if (!rows.length) return [];
-    const maxVal = rows[0].totalSpent || 1;
-    return rows.map((r) => ({ label: r.name, value: r.totalSpent, pct: (r.totalSpent / maxVal) * 100 }));
-  });
+  // Servicer leaderboard charts
+  svcBarLabels = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.businessName || r.name));
+  svcBarValues = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.revenue));
+  svcDonutLabels = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.businessName || r.name));
+  svcDonutValues = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.revenue));
 
-  custDonutGradient = computed(() => {
-    const rows = [...(this.finData()?.customerLeaderboard ?? [])].sort((a, b) => b.totalSpent - a.totalSpent);
-    return this.buildDonutGradient(rows, (r) => r.totalSpent);
-  });
-
-  custDonutLegend = computed(() => {
-    const rows = [...(this.finData()?.customerLeaderboard ?? [])].sort((a, b) => b.totalSpent - a.totalSpent);
-    return this.buildDonutLegend(rows, (r) => r.totalSpent, (r) => r.name);
-  });
-
-  svcBarTop5 = computed(() => {
-    const rows = [...(this.finData()?.servicerLeaderboard ?? [])]
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-    if (!rows.length) return [];
-    const maxVal = rows[0].revenue || 1;
-    return rows.map((r) => ({ label: r.businessName || r.name, value: r.revenue, pct: (r.revenue / maxVal) * 100 }));
-  });
-
-  svcDonutGradient = computed(() => {
-    const rows = [...(this.finData()?.servicerLeaderboard ?? [])].sort((a, b) => b.revenue - a.revenue);
-    return this.buildDonutGradient(rows, (r) => r.revenue);
-  });
-
-  svcDonutLegend = computed(() => {
-    const rows = [...(this.finData()?.servicerLeaderboard ?? [])].sort((a, b) => b.revenue - a.revenue);
-    return this.buildDonutLegend(rows, (r) => r.revenue, (r) => r.businessName || r.name);
-  });
-
-  private buildDonutGradient<T>(rows: T[], valFn: (r: T) => number): string {
-    const top5 = rows.slice(0, 5);
-    const otherSum = rows.slice(5).reduce((s, r) => s + valFn(r), 0);
-    const total = top5.reduce((s, r) => s + valFn(r), 0) + otherSum || 1;
-    const stops: string[] = [];
-    let acc = 0;
-    for (let i = 0; i < top5.length; i++) {
-      const pct = (valFn(top5[i]) / total) * 100;
-      if (pct <= 0) continue;
-      stops.push(`${DONUT_COLORS[i]} ${acc}% ${acc + pct}%`);
-      acc += pct;
-    }
-    if (otherSum > 0 && acc < 100) {
-      stops.push(`${DONUT_COLORS[5]} ${acc}% 100%`);
-    }
-    return stops.length ? `conic-gradient(${stops.join(',')})` : '';
-  }
-
-  private buildDonutLegend<T>(rows: T[], valFn: (r: T) => number, nameFn: (r: T) => string): { name: string; color: string }[] {
-    const top5 = rows.slice(0, 5);
-    const otherSum = rows.slice(5).reduce((s, r) => s + valFn(r), 0);
-    const legend = top5.map((r, i) => ({ name: nameFn(r), color: DONUT_COLORS[i] }));
-    if (otherSum > 0) legend.push({ name: 'Other', color: DONUT_COLORS[5] });
-    return legend;
-  }
+  // Chart interaction handlers
+  onCatBarClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
+  onCatSliceClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
+  onCustBarClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
+  onCustSliceClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
+  onSvcBarClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
+  onSvcSliceClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
 
   // ── Helpers ─────────────────────────────────────────────────────────
   cycleSortField(): void {
@@ -1590,7 +1253,6 @@ export class AdminDashboardComponent implements OnInit {
           this.finData.set(d);
           this.finLoading.set(false);
           this.finFailed.set(false);
-          this.rebuildChart();
         },
         error: () => {
           this.finLoading.set(false);
@@ -1599,152 +1261,6 @@ export class AdminDashboardComponent implements OnInit {
       });
   }
 
-  // ── Chart builder ────────────────────────────────────────────────────
-  private rebuildChart(): void {
-    const fd = this.finData();
-    if (!fd) {
-      this.clearChart();
-      return;
-    }
-
-    const pills = this.chartPills();
-
-    // Gather all unique dates from all series
-    const allDays = new Map<string, { rev: number; fee: number; pay: number; disc: number }>();
-
-    for (const d of fd.dailyRevenue) {
-      if (!allDays.has(d.date)) allDays.set(d.date, { rev: 0, fee: 0, pay: 0, disc: 0 });
-      const pt = allDays.get(d.date)!;
-      pt.rev = d.revenue;
-      pt.fee = d.fees;
-    }
-
-    if (fd.dailyPayouts) {
-      for (const d of fd.dailyPayouts) {
-        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, pay: 0, disc: 0 });
-        allDays.get(d.day)!.pay = d.amount;
-      }
-    }
-
-    if (fd.dailyDiscount) {
-      for (const d of fd.dailyDiscount) {
-        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, pay: 0, disc: 0 });
-        allDays.get(d.day)!.disc = d.amount;
-      }
-    }
-
-    if (!allDays.size) {
-      this.clearChart();
-      return;
-    }
-
-    // Sort by date
-    const sorted = [...allDays.entries()].sort(([a], [b]) => a.localeCompare(b));
-    const n = sorted.length;
-
-    // Compute totals
-    let revTotal = 0, feeTotal = 0, grossTotal = 0, cashflowTotal = 0, discTotal = 0;
-    const revArr: number[] = [], feeArr: number[] = [], payArr: number[] = [], discArr: number[] = [];
-    const dateArr: string[] = [];
-
-    for (const [date, vals] of sorted) {
-      dateArr.push(date);
-      revArr.push(vals.rev);
-      feeArr.push(vals.fee);
-      payArr.push(vals.pay);
-      discArr.push(vals.disc);
-      if (pills.revenue) revTotal += vals.rev;
-      if (pills.fees) feeTotal += vals.fee;
-      if (pills.discount) discTotal += vals.disc;
-    }
-
-    // Compute gross and cashflow arrays (gross = rev - payout - disc)
-    const grossArr: number[] = [];
-    const cashflowArr: number[] = [];
-    for (let i = 0; i < revArr.length; i++) {
-      const payout = payArr[i] ?? 0;
-      const disc = discArr[i] ?? 0;
-      const g = revArr[i] - payout - disc;
-      grossArr.push(g);
-      cashflowArr.push(g); // approx (withdrawals are total, not daily)
-      if (pills.gross) grossTotal += g;
-      if (pills.cashflow) cashflowTotal += g;
-    }
-
-    this.revenueTotal.set(revTotal);
-    this.feesTotal.set(feeTotal);
-    this.grossTotal.set(grossTotal);
-    this.cashflowTotal.set(cashflowTotal);
-    this.discountTotal.set(discTotal);
-
-    // Compute max value across active series
-    let maxVal = 1;
-    if (pills.revenue) maxVal = Math.max(maxVal, ...revArr);
-    if (pills.fees) maxVal = Math.max(maxVal, ...feeArr);
-    if (pills.gross) maxVal = Math.max(maxVal, ...grossArr.map(v => Math.abs(v)));
-    if (pills.cashflow) maxVal = Math.max(maxVal, ...cashflowArr.map(v => Math.abs(v)));
-    if (pills.discount) maxVal = Math.max(maxVal, ...discArr);
-
-    const innerW = this.chartW - this.padL - this.padR;
-    const innerH = this.chartH - this.padT - this.padB;
-    const stepX = n > 1 ? innerW / (n - 1) : innerW / 2;
-    const fmt = (v: number) => v.toFixed(1);
-
-    const yFor = (v: number) => this.padT + innerH - (v / maxVal) * innerH;
-
-    // Build polyline point strings
-    const buildLine = (arr: number[], active: boolean): string => {
-      if (!active) return '';
-      return arr
-        .map((v, i) => {
-          const x = this.padL + i * stepX;
-          const y = yFor(v);
-          return `${fmt(x)},${fmt(y)}`;
-        })
-        .join(' ');
-    };
-
-    this.revenueLine.set(buildLine(revArr, pills.revenue));
-    this.feesLine.set(buildLine(feeArr, pills.fees));
-    this.grossLine.set(buildLine(grossArr, pills.gross));
-    this.cashflowLine.set(buildLine(cashflowArr, pills.cashflow));
-    this.discountLine.set(buildLine(discArr, pills.discount));
-
-    // Grid lines
-    this.gridLines.set(
-      [0.25, 0.5, 0.75, 1].map((frac) => ({
-        y: this.padT + innerH * (1 - frac),
-        label: `RM${this.formatK(maxVal * frac)}`,
-      })),
-    );
-
-    // X-axis date labels
-    const interval = this.labelInterval();
-    this.xLabels.set(
-      dateArr
-        .map((d, i) => ({ x: this.padL + i * stepX, label: d }))
-        .filter((_, i) => i % interval === 0),
-    );
-  }
-
-  private clearChart(): void {
-    this.revenueLine.set('');
-    this.feesLine.set('');
-    this.grossLine.set('');
-    this.cashflowLine.set('');
-    this.discountLine.set('');
-    this.gridLines.set([]);
-    this.xLabels.set([]);
-    this.revenueTotal.set(0);
-    this.feesTotal.set(0);
-    this.grossTotal.set(0);
-    this.cashflowTotal.set(0);
-    this.discountTotal.set(0);
-  }
-
-  private formatK(n: number): string {
-    return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : n.toFixed(0);
-  }
 }
 
 /** Return a date N days before today. */
