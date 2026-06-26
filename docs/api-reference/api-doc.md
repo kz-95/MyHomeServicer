@@ -1217,17 +1217,21 @@ Two-step confirm. Body must include confirmation token from prompt.
 ```
 
 ### `POST /servicer/jobs/:id/arrive`
-Mark arrived with photo.
+Mark arrived with photo. Optional GPS coordinates for location verification.
 ```json
-{ "photoUrl": "..." }
+{ "photoUrl": "...", "lat": 2.9412, "lng": 101.6495, "accuracy": 15.3 }
 ```
+If `lat`/`lng` provided: verifies servicer is within **500m** of job site (via `BookingLocationLog`).
+If out of range: returns 400 with message "You appear to be too far from the job site."
+If GPS omitted: falls back to legacy behavior (no verification).
 
 ### `POST /servicer/jobs/:id/done`
-Mark done with photo. The invoice is generated as part of this call
-(idempotent - re-calling for the same booking returns the existing invoice).
+Mark done with photo. Optional GPS coordinates. Invoice generated idempotently.
 ```json
-{ "photoUrl": "..." }
+{ "photoUrl": "...", "lat": 2.9412, "lng": 101.6495, "accuracy": 15.3 }
 ```
+If `lat`/`lng` provided: verifies servicer is within **1km** of job site.
+If GPS omitted: falls back to legacy behavior.
 
 ### `GET /servicer/bookings/:id/invoice-preview`
 Returns a preview of what the invoice WILL look like for a booking, for

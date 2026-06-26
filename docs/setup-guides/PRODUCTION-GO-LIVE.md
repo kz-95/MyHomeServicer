@@ -298,6 +298,6 @@ npx ng build --configuration production  # Exit 0, dist/ populated
 | NODE_ENV | `development` | `production` |
 | Demo accounts | Allowed | Blocked |
 | Dev endpoints | Active | 403 |
-| Schema sync | `prisma migrate dev` (Run.bat → `migrate reset`) | `prisma migrate deploy` - automatic in the deploy start command |
+| Schema sync | `prisma migrate dev` (`scripts/bat/Run.bat` → `migrate reset`) | `prisma migrate deploy` - automatic in the deploy start command |
 | Secrets storage | `.env` file | Railway Variables tab |
 | Process | `npm run dev` | Railway managed |

@@ -27,6 +27,7 @@ import { MapViewComponent } from '../../shared/map-view.component';
 import { WaButtonComponent } from '../../shared/wa-button.component';
 import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
+import { NewOrderFormComponent } from '../components/new-order-form.component';
 
 interface IncomingQuote {
   quoteId: string;
@@ -128,17 +129,22 @@ const ACTIVE = ['confirmed', 'in_progress'];
 @Component({
     selector: 'app-servicer-jobs',
     host: { class: 'page-enter' },
-    imports: [CommonModule, FormsModule, RouterLink, IconComponent, CountdownComponent, ModalComponent, DispatchOverlayComponent, ListToolbarComponent, MapViewComponent, WaButtonComponent],
+    imports: [CommonModule, FormsModule, RouterLink, IconComponent, CountdownComponent, ModalComponent, DispatchOverlayComponent, ListToolbarComponent, MapViewComponent, WaButtonComponent, NewOrderFormComponent],
     template: `
-    <div class="tabs">
-      <button class="tab" [class.active]="tab() === 'pending'" [routerLink]="[routeFor('servicer.jobs.pending')]">
-        Pending <span class="n">{{ quotes().length + pendingJobs().length }}</span>
-      </button>
-      <button class="tab" [class.active]="tab() === 'active'" [routerLink]="[routeFor('servicer.jobs.active')]">
-        Active <span class="n">{{ activeJobs().length }}</span>
-      </button>
-      <button class="tab" [class.active]="tab() === 'history'" [routerLink]="[routeFor('servicer.jobs.history')]">
-        History <span class="n">{{ historyJobs().length }}</span>
+    <div class="page-head">
+      <div class="tabs">
+        <button class="tab" [class.active]="tab() === 'pending'" [routerLink]="[routeFor('servicer.jobs.pending')]">
+          Pending <span class="n">{{ quotes().length + pendingJobs().length }}</span>
+        </button>
+        <button class="tab" [class.active]="tab() === 'active'" [routerLink]="[routeFor('servicer.jobs.active')]">
+          Active <span class="n">{{ activeJobs().length }}</span>
+        </button>
+        <button class="tab" [class.active]="tab() === 'history'" [routerLink]="[routeFor('servicer.jobs.history')]">
+          History <span class="n">{{ historyJobs().length }}</span>
+        </button>
+      </div>
+      <button class="btn-primary new-order-btn" (click)="newOrderOpen.set(true)">
+        <app-icon name="plus" sizeToken="sm" /> + New order
       </button>
     </div>
 
@@ -493,10 +499,30 @@ const ACTIVE = ['confirmed', 'in_progress'];
         (actionPerformed)="loadJobs()"
       />
     }
+
+    <!-- ── New order form modal ────────────────────────────────────────────── -->
+    <app-new-order-form
+      [open]="newOrderOpen()"
+      (closed)="newOrderOpen.set(false); loadJobs()"
+    />
   `,
     styles: [
         `
       :host { display: block; max-width: 720px; width: 100%; }
+      .page-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+      .new-order-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        white-space: nowrap;
+      }
       .tabs {
         display: flex;
         justify-content: center;
@@ -1077,6 +1103,9 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
   overlayJobId = signal<string | null>(null);
   overlayReadOnly = signal(false);
 
+  // ── New order form ────────────────────────────────────────────────────────
+  newOrderOpen = signal(false);
+
   // ── Onboarding gate ───────────────────────────────────────────────────────
   onboardingRequired = signal(false);
   missingItems = signal<string[]>([]);
@@ -1550,6 +1579,37 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Capture GPS position, then call arrive/done with coords included. */
+  private captureGpsThenAct(jobId: string, photoUrl: string, purpose: 'arrive_photo' | 'done_photo'): void {
+    const path = purpose === 'arrive_photo'
+      ? `/servicer/jobs/${jobId}/arrive`
+      : `/servicer/jobs/${jobId}/done`;
+    const okMsg = purpose === 'arrive_photo' ? 'Marked as arrived.' : 'Marked as done.';
+
+    if (!navigator.geolocation) {
+      // No GPS — fall back to legacy behavior
+      this.act(path, { photoUrl }, okMsg);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        this.act(path, {
+          photoUrl,
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        }, okMsg);
+      },
+      (err) => {
+        // GPS denied or unavailable — proceed without coords
+        console.warn('GPS unavailable for arrive/done:', err.message);
+        this.act(path, { photoUrl }, okMsg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }
+
   cashConfirm(j: Job): void {
     this.act(`/servicer/jobs/${j.id}/cash-confirm`, {}, 'Cash confirmed.');
   }
@@ -1658,13 +1718,9 @@ export class ServicerJobsComponent implements OnInit, OnDestroy {
           this.photoUploading.set(false);
           this.photoModalOpen.set(false);
 
-          // Step 4 - post the job status update with the confirmed photo URL
+          // Step 4 - capture GPS, then post the job status update
           const purpose = this.photoTargetPurpose;
-          if (purpose === 'arrive_photo') {
-            this.act(`/servicer/jobs/${job.id}/arrive`, { photoUrl: fileUrl }, 'Marked as arrived.');
-          } else {
-            this.act(`/servicer/jobs/${job.id}/done`, { photoUrl: fileUrl }, 'Marked as done.');
-          }
+          this.captureGpsThenAct(job.id, fileUrl, purpose);
         },
         error: (e) => {
           this.photoUploading.set(false);

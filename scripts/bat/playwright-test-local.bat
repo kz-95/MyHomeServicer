@@ -1,6 +1,9 @@
 @echo off
 setlocal
 
+REM Change to project root so docker-compose.yml is found
+cd /d "%~dp0..\.."
+
 REM ==========================================================
 REM === MyHomeServicer — Playwright E2E Runner (Local) ========
 REM === Runs browser E2E suite (frontend/e2e) against live ====
@@ -68,7 +71,7 @@ if errorlevel 1 (
 REM ==========================================================
 REM === Backend setup =========================================
 REM ==========================================================
-cd /d "%~dp0backend"
+cd /d "%~dp0..\..\backend"
 
 REM --- Force-kill stale node processes BEFORE npm install: a running
 REM --- backend holds query_engine-windows.dll.node, which makes the
@@ -105,7 +108,7 @@ echo [OK] Database reset + seed complete.
 REM ==========================================================
 REM === Frontend setup ========================================
 REM ==========================================================
-cd /d "%~dp0frontend"
+cd /d "%~dp0..\..\frontend"
 
 echo.
 echo ============================================

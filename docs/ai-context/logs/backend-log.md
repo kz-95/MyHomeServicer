@@ -2,6 +2,54 @@
 
 > Single-writer log - only the **Backend** agent writes here.
 
+## Session 2026-06-26 14:49 - Servicer "+New Order" endpoint
+
+**Task:** Implement `POST /api/v1/servicer/new-order` for walk-in customer order creation.
+
+**No commit** (explicit instruction).
+
+### Changes
+
+**New file: `backend/src/services/servicer-order.service.ts`**
+- `createServicerOrder(servicerId, input)` - main entry point
+- `findOrCreateCustomer()` - upserts User by email then phone; new users get isDemo:true, Demo@2026 password
+- `findOrCreateAddress()` - matches existing address or creates new UserAddress
+- `buildQuoteData()` - shared QuoteRequest payload for both modes
+- `handleDirectOrder()` - creates matched QuoteRequest + selected QuoteProposal + confirmed Booking in a transaction
+- `handleBroadcastOrder()` - creates open QuoteRequest + calls `broadcastQuote()` from quote.service.ts
+
+**Modified: `backend/src/routes/servicer.routes.ts`**
+- Imported `createServicerOrder` from `../services/servicer-order.service`
+- Added `POST /new-order` route with express-validator validation for all fields
+- Route is under `requireAuth` + `requireServicer` (applied at router level line 108)
+- Returns 201 with `{ bookingId, quoteId, customerId }` (direct) or `{ quoteId, customerId, broadcastCount }` (broadcast)
+
+**Schema check: `arrivedAt`/`doneAt` `@map` in Booking model**
+- Lines 961, 965 of schema.prisma already have `@map("arrived_at")` and `@map("done_at")`. No changes needed.
+
+### Verification
+- `npx tsc --noEmit` - **zero errors** (exit 0)
+- All patterns match existing code: `prisma.$transaction`, `broadcastQuote`, `bcrypt.hash` with cost 12, explicit field picking
+
+## Session 2026-06-26 14:13 — Fix: Spread booking createdAt across 90-day seed window
+
+**Bug:** Admin dashboard categoryBreakdown, customerLeaderboard, totalBookingRevenue all showed zero because SQL queries filtered `b.created_at >= $1` (30-day window), but all seed bookings had `createdAt = now()` (seed time). If seed was >30 days ago, every booking fell outside the window.
+
+**Root cause:** `makeBooking()` in `seed.ts` never set `createdAt` — relied on Prisma `@default(now())`. The `platform_fee` transactions had correct spread dates (via `doneAt`), but the bookings they referenced had stale `createdAt`.
+
+**Fix (Option B — fix seed, not queries):**
+- Added `createdAt?: Date` to `makeBooking()` opts
+- Added `createdAt: opts?.createdAt` to `prisma.booking.create` data (undefined → Prisma default)
+- Bulk completed bookings loop: passed `createdAt: sched` (same 90-day spread as `scheduledDate`)
+
+**Result:** ~1/3 of bulk bookings now have `createdAt` within the 30-day window. `categoryBreakdown`, `customerLeaderboard`, and `totalBookingRevenue` queries will show non-zero data after reseed.
+
+**Files changed:** `backend/prisma/seed/seed.ts` (+4, -2)
+**Gates:** `npx tsc --noEmit` — 0 code errors (2 pre-existing TS deprecation warnings)
+**Commit:** `ef6d503` on `feat/admin-fix`
+
+---
+
 ## Session 2026-06-26 01:45 - P1 Financial Foundation Fixes (T1-T23)
 
 **Task:** Execute all 23 P1 financial correctness tasks from the forensic audit.
@@ -2732,3 +2780,73 @@ The `@demo.local` suffix guard prevents the original BE-013 attack (arbitrary em
 **Gates:** `npx tsc --noEmit` - 0 new errors (2 pre-existing TS5107/TS5101 deprecation warnings).
 
 **Commit:** Included in `3c31254` on `feat/ux-polish` (merged with guest payment fix).
+
+## Session 2026-06-26 09:38 - Post-P1 Review Fixes (F1-F6)
+
+**Task:** Fix 6 bugs found by QA, reviewer, and roast agents against P1 commit `4284130`.
+
+**Commit:** `ba0cfbc` on `feat/ux-polish`
+
+### F1 [CRITICAL] - feeRate undefined in dispatch.service.ts
+- `dispatch.service.ts:363`: Replaced `${(feeRate * 100).toFixed(1)}%` template with static text `(pay_now dispatch accept)`
+- `feeRate` was never declared after migration from `getPlatformFeeRate()` to `computeFees`
+
+### F2 [HIGH] - Urgent fee double-dip on pay_later paths
+- **F2a:** `computeAfterPromo` (booking.service.ts:1470) - Added `prisma.booking.findUnique` query for `isUrgent`/`urgentFee`, subtract from `afterPromo` before returning
+- **F2b:** `computeSettlementAmounts` (booking.service.ts:943) - Added `isUrgent`/`urgentFee` to destructured params, subtract from `totalResult.afterPromo` before `computeFees`
+
+### F3 [HIGH] - TOCTOU race: cash double-fee in settleBooking
+- `settleBooking` cash case (booking.service.ts:1090): Re-read `cashConfirmed` inside `$transaction` via `tx.booking.findUnique` before guard
+
+### F4 [HIGH] - TOCTOU race: double promo reimbursement
+- `handlePromoCreditPayback` (admin.jobs.ts:57): Added `paidToServicerViaCredit: false` to `where` clause of `promotionRedemption.update`
+
+### F5 [MEDIUM] - Orphan registered_customer_discount transaction
+- `createQuote` (quote.service.ts): Wrapped `quoteRequest.create` + discount `recordTransaction` inside `prisma.$transaction` so both atomically succeed or fail
+
+### F6 [MEDIUM] - Dispute resolution silently skips if escrow already released
+- `resolveDispute` (dispute.service.ts:135): After `refundEscrowIfHeld`, query escrow status; warn if not `refunded`
+
+**Gates:**
+- `npx tsc --noEmit` backend: 0 code errors (2 pre-existing TS5107/TS5101 deprecation warnings)
+- `npx tsc --noEmit` frontend: no errors
+
+---
+
+## Session 2026-06-26 13:21 - P3+P4+P6: sampleAnswers update + dispute clear order
+
+**Task:** Update sampleAnswers to use exact static.ts option values + add 2-3 variants per category (P3+P4). Verify dispute FK-safe clear order (P6).
+
+### P3+P4: sampleAnswers rewrite
+- **File:** `backend/prisma/seed/seed.ts` (lines 1482-1661)
+- Replaced old single-entry `map` with a `switch`-based variant generator
+- All 34 categories now use EXACT `optionValue` strings from `static.ts` question schemas
+- 2-3 variants per category, randomly selected via `Math.random()`
+- Fixed old broken values:
+  - `plumber`: `kitchen` → `pipe_drain`, `leaking_pipe` → `leak_drip`, `clogged` → `clogged_stuck`
+  - `electrical-wiring`: `socket` → `power_socket_switch`
+  - `curtain-cleaning`: `'normal'` → `'normal_cleaning'`
+  - `event-planner`: `['full','catering']` → `['style_theme','budget_planning']`, `attendees` added
+  - `carpenter`: `item: 'cabinet'` → `item: ['cabinet_kitchen','wardrobe_closet']`
+  - `interior-design`: `'concept'` → `'concept_3d'`
+  - `door-gate`: `'install'` → `'new_install'`, `'sliding'` → `'autogate_sliding'`
+  - `roof`: `'repair'` → `'leak_repair'`, `'pitched'` → `'clay_concrete_tile'`
+  - `renovation`: `'kitchen_only'` → `'kitchen'`
+  - `painting`: `'room_only'` → `'one_room'`, added `paint_surfaces`, `paint_supply`
+  - `moving`: `'house'` → `'whole_home'`, `'1_2br'` → `'2_3_rooms'`
+  - `gardening`: `['lawn','hedge']` → `['lawn_mowing','hedge']`
+  - `alarm-cctv`: `'install'` → `'new_install'`, `'cctv_4ch'` → `['cctv_cameras','alarm_system']`
+  - All appliance repair: type values now match `static.ts` optionValues
+  - All training classes: `'offline'` → `'in_person_tutor'`/`'in_person_home'` etc.
+  - `gym-trainer`: `'home'` → `'at_my_home'`
+  - `3d-modeling-class`: `['product_design']` → `['product']`
+
+### P6: dispute clear order verification
+- **File:** `backend/prisma/seed/clear.ts`
+- Dispute model has FKs: `bookingId` → Booking, `escrowId` → Escrow (optional)
+- **Fixed:** Moved `dispute.deleteMany()` BEFORE `escrow.deleteMany()` (was line 21 after escrow at 19; now line 20 before escrow at 21)
+- `dispute.deleteMany()` already correctly before `booking.deleteMany()` (line 26)
+- No FK to servicer or user in current schema
+
+**Gates:**
+- `npx tsc --noEmit`: EXIT:0 (zero errors)

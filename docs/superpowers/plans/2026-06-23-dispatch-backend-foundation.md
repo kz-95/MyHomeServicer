@@ -36,7 +36,7 @@ Run tests with `npm test` (jest) from `backend/`. Type-gate every edit: `rtk pro
 
 - [x] **Step 1: Stop the running backend.** The server holds a lock on
   `query_engine-windows.dll.node`; `prisma generate` fails silently while it runs
-  (P2022 on next login). Stop the backend terminal / `Run.bat` window before migrating.
+  (P2022 on next login). Stop the backend terminal / `scripts/bat/Run.bat` window before migrating.
 
 - [x] **Step 2: Add fields to `QuoteRequest`** (after `lng Float?`, ~line 840):
 

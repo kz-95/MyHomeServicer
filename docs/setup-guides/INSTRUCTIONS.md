@@ -258,6 +258,26 @@ ng test                       # Run Jasmine/Karma tests
 ng generate component <name>  # Scaffold a component
 ```
 
+### E2E Testing
+
+Two suites available:
+
+**Light smoke test** (18 tests, ~3-5 min):
+```bash
+scripts\bat\e2e-test-local.bat
+```
+Runs `frontend/e2e/` specs + backend Jest E2E. Output to console + `frontend/playwright-report/`.
+
+**Full 29-scenario harness with AI-gated fix pipeline**:
+```bash
+scripts\bat\auto-fix-loop.bat   # Starts Docker + deps + servers
+/e2e-fix                         # Invoke in Kilo to run pipeline
+```
+The `/e2e-fix` pipeline processes each scenario:
+1. Run scenario → if fail: QA confirms → Reviewer analyzes → Roast challenges → Debugger proposes → Approval card [Discuss][Proceed] → Apply fix → Re-run verify
+2. Manual fallback: `cd tests\e2e && npx playwright test --config=playwright.config.ts --reporter=list`
+3. Structured logs: `tests\e2e\logs\e2e-qa-harness_XXXXX\scenario-NN.log`
+
 ---
 
 ## Demo day checklist

@@ -240,10 +240,10 @@
 
 ### scripts/
 
-- [ ] `scripts/fresh-start.ps1` (83 lines)
-- [ ] `scripts/tunnel.ps1` (74 lines)
-- [ ] `scripts/fresh-start.sh` (73 lines)
-- [ ] `scripts/lan-dev.ps1` (68 lines)
-- [ ] `scripts/lan-dev.sh` (70 lines)
-- [ ] `scripts/tunnel.sh` (65 lines)
+- [ ] `scripts/ps1/fresh-start.ps1` (83 lines)
+- [ ] `scripts/ps1/tunnel.ps1` (74 lines)
+- [ ] `scripts/sh/fresh-start.sh` (73 lines)
+- [ ] `scripts/ps1/lan-dev.ps1` (68 lines)
+- [ ] `scripts/sh/lan-dev.sh` (70 lines)
+- [ ] `scripts/sh/tunnel.sh` (65 lines)
 - [ ] `scripts/git-hooks/pre-commit` (26 lines)

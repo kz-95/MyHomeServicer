@@ -4,13 +4,14 @@
 
 ## Dashboard layout (final 2026-06-26)
 
-Sticky top bar (edge-to-edge, `position: sticky; top: 0; z-index: 10`), split into 3 sub-sections:
+Sticky top bar (edge-to-edge, `position: sticky; top: 0; z-index: 10`), split into sub-sections:
 
 | Section | Content |
 |---------|---------|
-| **A** (darker bg) | Category marquee: Row 1 = parent cats, Row 2 = child cats (filtered by parent selection). Draggable, hidden scrollbar. |
-| **A** (continued) | Search bar + sort buttons (cycle field + reverse toggle). Filters all 3 tables in real-time. |
-| **B** (lighter bg) | Section pills: [All] [Queues] [Cards] [Chart] [Breakdown] [Customers] [Servicers]. Multi-select — shows/hides content sections below. |
+| **A** (darker bg, collapsible) | Category marquee: Row 1 = parent cats (with "All" that selects/clears all parents only), Row 2 = child cats (with "All" that selects/clears all visible children only). Draggable, hidden scrollbar. |
+| **A** (continued) | Search bar. |
+| **A** (continued) | Calendar date filter: date range inputs + quick selects (Today/7d/30d/90d/All) + quarter toggle (Q1-Q4 with highlight on active quarter) + year input. Visible only when Chart section is active. |
+| **B** (lighter bg, always visible) | Section pills: [All] [Queues] [Cards] [Chart] [Breakdown] [Customers] [Servicers]. Multi-select. Right side: chevron toggle (expand/collapse Section A). |
 
 Content sections (scroll below sticky bar, 2rem side padding):
 
@@ -50,8 +51,11 @@ Lines: Revenue=solid primary, Fees=dashed warning, Escrow=solid success-green, P
 
 ```
 [Jun 1, 2026] -- to -- [Jun 25, 2026]
-[Today] [7d] [30d] [90d] [All]       [Q1] [Q2] [Q3] [Q4] [2026]  (quarter visual only)
+[Today] [7d] [30d] [90d] [All]       [Q1] [Q2] [Q3] [Q4]  [2026]
 ```
+
+Q1-Q4 highlight on the active quarter (detected from date range, timezone-safe — year extracted from date string directly, not `new Date().getFullYear()`).
+Year input is a standalone `<input type="number">` outside the quarter toggle group, with its own border and 5rem width.
 
 ## Financial metrics (GET /admin/dashboard/financial)
 

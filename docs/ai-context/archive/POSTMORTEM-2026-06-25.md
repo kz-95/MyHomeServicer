@@ -211,7 +211,7 @@
 | **Why happen** | `ts-node-dev --respawn` watches `src/` but may miss config changes to the Express middleware stack. |
 | **Why need solve** | CSP blocks Google Maps' internal CSP test request, preventing map from loading. |
 | **How happen** | I changed the code, saved the file, and thought "done." The server was still running with old middleware. |
-| **How solve** | Told user: "Need backend restart." User may need to kill + re-run Run.bat. |
+| **How solve** | Told user: "Need backend restart." User may need to kill + re-run `scripts/bat/Run.bat`. |
 | **Why cant communicate** | I didn't verify the change was live. "Code changed" ≠ "server using new code." |
 | **How improve** | After Express middleware changes: always mention "requires server restart." Add to post-edit verification checklist. |
 | **Hallucination habit** | "The server auto-reloads" — I don't know exactly what `ts-node-dev` watches. Assume it watches everything = wrong. Assume it watches only the entry point = also wrong. Don't assume. |

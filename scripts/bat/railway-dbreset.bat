@@ -26,7 +26,7 @@ REM
 REM  WARNING: only ever run this against the DEMO project (agile-cat). Never prod.
 REM ============================================================================
 setlocal EnableDelayedExpansion
-cd /d "%~dp0backend"
+cd /d "%~dp0..\..\backend"
 
 set "DB_SERVICE=Postgres Demo"
 

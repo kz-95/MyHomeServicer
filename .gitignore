@@ -106,6 +106,13 @@ $RECYCLE.BIN/
 .gstack/
 .superpowers/
 ignorethis/
+sandbox/
+
+# ── Assets: generated slide artifacts ─────────────────────
+assets/logo-gen/
+
+# ── Capstone presentation deck (personal, not project code) ─
+presentation/
 
 # ── Test / Coverage ──────────────────────────────────────
 coverage/
@@ -131,4 +138,6 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
-tests/e2e/logs/
+tests/e2e/logs/*.json
+tests/e2e/logs/**/*.log
+.playwright-mcp/

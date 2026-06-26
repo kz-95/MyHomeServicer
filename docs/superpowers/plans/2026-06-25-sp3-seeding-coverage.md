@@ -73,5 +73,5 @@ npm run seed:test     # Lean test seed (4 servicers, 32 bookings)
 - All 34 categories have `ServicerModule` records with `questionKey` + `optionValue` matching `static.ts` exactly
 - `roof.action` and `renovation.project_type` changed from `priced: false` to `priced: true`
 - Former standalone scripts (`seed-sp3-modules.ts`, `seed-settings.ts`, `seed-admin.ts`) consolidated into `seed.ts`
-- `Run.bat` no longer calls `seed:settings` separately
+- `scripts/bat/Run.bat` no longer calls `seed:settings` separately
 - `package.json` scripts `seed:admin`, `seed:settings`, `seed:modules` removed

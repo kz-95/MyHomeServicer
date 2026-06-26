@@ -31,6 +31,9 @@ interface CustomerLeaderboardRow {
   booking_count: bigint;
   total_spent: string;
   last_booking: string | Date;
+  confirmed: bigint;
+  completed: bigint;
+  cancelled: bigint;
 }
 
 interface ServicerLeaderboardRow {
@@ -41,6 +44,9 @@ interface ServicerLeaderboardRow {
   job_count: bigint;
   revenue: string;
   report_count: bigint;
+  confirmed: bigint;
+  completed: bigint;
+  cancelled: bigint;
 }
 
 /**
@@ -236,16 +242,19 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     }
   }
 
-  // ── categoryBreakdown - group by category with count, revenue, fees ──
+  // ── categoryBreakdown - group by category with count, revenue, fees + status breakdown ──
   const breakdownRows = await prisma.$queryRawUnsafe<
-    Array<{ category_id: string; category_name: string; booking_count: bigint; revenue: string; fees: string }>
+    Array<{ category_id: string; category_name: string; booking_count: bigint; revenue: string; fees: string; confirmed: bigint; completed: bigint; cancelled: bigint }>
   >(
     `SELECT
        c.id AS category_id,
        c.name AS category_name,
        COUNT(DISTINCT b.id)::bigint AS booking_count,
        COALESCE(SUM(COALESCE(b.price, 0)), 0)::numeric AS revenue,
-       COALESCE(SUM(ft.amount), 0)::numeric AS fees
+       COALESCE(SUM(ft.amount), 0)::numeric AS fees,
+       COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'confirmed')::bigint AS confirmed,
+       COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'completed')::bigint AS completed,
+       COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'cancelled')::bigint AS cancelled
      FROM categories c
      LEFT JOIN quote_requests qr ON qr.category_id = c.id
      LEFT JOIN bookings b ON b.quote_request_id = qr.id AND b.created_at >= $1
@@ -262,6 +271,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     count: Number(r.booking_count),
     revenue: Number(r.revenue),
     fees: Number(r.fees),
+    confirmed: Number(r.confirmed),
+    completed: Number(r.completed),
+    cancelled: Number(r.cancelled),
   }));
 
   // ── dailyRevenue - daily aggregation of platform_fee transactions ──
@@ -380,14 +392,17 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     dailyDiscount.push({ day: key, amount: discMap.get(key) ?? 0 });
   }
 
-  // ── customerLeaderboard - top 50 customers by total spent ──
+  // ── customerLeaderboard - top 50 customers by total spent + status breakdown ──
   const customerRows = await prisma.$queryRawUnsafe<CustomerLeaderboardRow[]>(
     `SELECT u.id, u.name, u.email,
             COUNT(DISTINCT b.id)::bigint AS booking_count,
-            COALESCE(SUM(COALESCE(b.price, 0)), 0)::numeric AS total_spent,
+            COALESCE(SUM(COALESCE(b.price, 0)) FILTER (WHERE b.status = 'completed'), 0)::numeric AS total_spent,
+            COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'confirmed')::bigint AS confirmed,
+            COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'completed')::bigint AS completed,
+            COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'cancelled')::bigint AS cancelled,
             MAX(b.created_at) AS last_booking
      FROM users u
-     INNER JOIN bookings b ON b.user_id = u.id AND b.status = 'completed'
+     INNER JOIN bookings b ON b.user_id = u.id
      ${categoryId ? 'INNER JOIN quote_requests qr ON b.quote_request_id = qr.id' : ''}
      WHERE u.role = 'customer' AND b.created_at >= $1
        ${categoryId ? 'AND qr.category_id = $2::uuid' : ''}
@@ -403,16 +418,22 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     bookingCount: Number(r.booking_count),
     totalSpent: Number(r.total_spent),
     lastBooking: r.last_booking instanceof Date ? r.last_booking.toISOString() : String(r.last_booking),
+    confirmed: Number(r.confirmed),
+    completed: Number(r.completed),
+    cancelled: Number(r.cancelled),
   }));
 
-  // ── servicerLeaderboard - top 20 servicers by revenue ──
+  // ── servicerLeaderboard - top 50 servicers by revenue + status breakdown ──
   const servicerRows = await prisma.$queryRawUnsafe<ServicerLeaderboardRow[]>(
     `SELECT s.id, s.name, s.business_name, s.rating,
             COUNT(DISTINCT b.id)::bigint AS job_count,
-            COALESCE(SUM(COALESCE(b.price, 0)), 0)::numeric AS revenue,
-            COUNT(DISTINCT r.id)::bigint AS report_count
+            COALESCE(SUM(COALESCE(b.price, 0)) FILTER (WHERE b.status = 'completed'), 0)::numeric AS revenue,
+            COUNT(DISTINCT r.id)::bigint AS report_count,
+            COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'confirmed')::bigint AS confirmed,
+            COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'completed')::bigint AS completed,
+            COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'cancelled')::bigint AS cancelled
      FROM servicers s
-     LEFT JOIN bookings b ON b.servicer_id = s.id AND b.status = 'completed' AND b.created_at >= $1
+     LEFT JOIN bookings b ON b.servicer_id = s.id AND b.created_at >= $1
      ${categoryId ? 'INNER JOIN quote_requests qr ON b.quote_request_id = qr.id' : ''}
      LEFT JOIN reports r ON r.booking_id = b.id AND r.status = 'open'
      ${categoryId ? "WHERE qr.category_id = $2::uuid OR b.id IS NULL" : ''}
@@ -436,6 +457,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
       jobCount: Number(r.job_count),
       revenue: Number(r.revenue),
       reportCount: Number(r.report_count),
+      confirmed: Number(r.confirmed),
+      completed: Number(r.completed),
+      cancelled: Number(r.cancelled),
     }));
 
   return {

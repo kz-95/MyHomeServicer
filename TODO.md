@@ -29,7 +29,7 @@
 > - [x] Prisma seed config: && fix on Windows
 > - [x] All docs synced: README, seed-plan, schema-notes, INSTRUCTIONS, PRODUCTION-GO-LIVE, spec, admin-account.md
 > - [x] Security coding styles doc: ignorethis/SECURITY-CODING-STYLES.md (8 anti-pattern rules)
-> - [x] Post-mortem: ignorethis/POSTMORTEM-2026-06-25.md (14 mistakes catalogued)
+> - [x] Post-mortem: docs/ai-context/archive/POSTMORTEM-2026-06-25.md (14 mistakes catalogued)
 > - [x] Git: squashed → merged to master → new feat/admin-fix branch
 >
 > ### ✅ DONE — Admin Dashboard Polish + Rewards Seed (2026-06-26)
@@ -37,22 +37,38 @@
 > - [x] Category marquee: 2 rows (parents + children), draggable, hidden scrollbar
 > - [x] Sub-category filter: hides children when parent selected
 > - [x] Section filter pills: All/Queues/Cards/Chart/Breakdown/Customers/Servicers
+> - [x] Date controls moved to section pills row (right-aligned, single row, no-wrap)
+> - [x] Q1-Q4 highlight fixed (string dates, no UTC shift)
 > - [x] Cashflow card: IN (orange), OUT (red), GROSS (green/neg red), Cashflow (white/neg red)
 > - [x] Revenue card: Fees/Top-ups (green), Discounts/Rewards/Gateway (red)
-> - [x] Chart: 1px lines, discount pill + SVG line, bar chart + donut pie chart
-> - [x] Chart controls: date picker, quick selects (Today/7d/30d/90d/All), Q1-Q4 highlight
-> - [x] Search: inline flex layout, filter all 3 tables, sort + reverse buttons
+> - [x] Chart.js: 7 interactive charts + dark mode theme + daily/cumulative toggle
+> - [x] Donut: pizza % labels + metric dropdown + legend + 3-column layout
+> - [x] Chart lines: 1px, 500px height
 > - [x] (?) tooltips: every metric label + sub-line with native title
-> - [x] Loyalty tiers list: /admin/rewards/tiers path fix
+> - [x] sampleAnswers updated for all 34 categories with 2-3 variants
 > - [x] Rewards seed: C_LOYAL2/3 with 2800pts + 2 redemptions, C_ACTIVE2/3 with 1250pts
-> - [x] Fintech docs: ignorethis/SECURITY-CODING-STYLES.md (8 rules)
+> - [x] ignorethis/ docs: SECURITY-CODING-STYLES, POSTMORTEM, CHARTJS-UPGRADE-PROPOSAL, AUDIT
 > - [x] Admin account doc: docs/ai-context/admin-account.md
-> - [x] Post-mortem: ignorethis/POSTMORTEM-2026-06-25.md (14 mistakes)
 >
-> ### PENDING - Seed Polish
-> - [ ] sampleAnswers: update values to match new question schema optionValues
-> - [ ] sampleAnswers: add 2-3 variant answers per category
-> - [ ] Discount chart line: total computation + legend wiring (pill + SVG exist, rebuildChart needs disc arrays)
+> ### ✅ DONE — Seed createdAt Date Spread Fix (2026-06-26)
+> - [x] Root cause: all seed bookings had `createdAt = now()` — admin dashboard `b.created_at >= $1` filter excluded all bookings if seed >30 days old
+> - [x] Fix: `makeBooking()` accepts `createdAt` in opts; bulk completed bookings pass `createdAt: sched` spread across 90 days
+> - [x] Commit `ef6d503` — after reseed, `categoryBreakdown`, `customerLeaderboard`, `totalBookingRevenue` show real non-zero data
+>
+> ### PENDING - Discount/Graph
+> - [ ] Per-category discount/promo/points/gateway data in backend (GROUP BY category_id)
+> - [ ] Wire to donut "Show by" dropdown + chart discount line
+>
+> ### ✅ DONE — Servicer +New Order + GPS Verification (2026-06-26)
+> - [x] Backend: `POST /servicer/new-order` endpoint with dual-mode (broadcast/direct) — `servicer-order.service.ts`
+> - [x] Backend: `BookingLocationLog` model + migration `20260626065510_add_booking_location_log`
+> - [x] Backend: `gps-verification.service.ts` — `isWithinRadius()`, `logArrivalLocation()`, `logDoneLocation()`
+> - [x] Backend: arrive/done endpoints accept optional `{ lat, lng, accuracy }` — verifies within 500m/1km radius
+> - [x] Frontend: `navigator.geolocation.getCurrentPosition()` wired into arrive/done flow in `jobs.component.ts`
+> - [x] Frontend: graceful fallback if GPS denied — proceeds without coords
+> - [x] Demobar: `+ New Order` button already wired to `POST /dev/random-order` (random customer → current servicer)
+> - [x] Zen customer seeded: `zen@demo.local / Demo@2026`, leak repair booking with Ahmad Plumbing
+> - [x] Both backend + frontend typecheck pass (zero errors)
 
 ---
 
@@ -170,6 +186,14 @@ Two centerpieces: **dispatch card** (beat 2) + **admin financial dashboard** (be
   (wired into credit.service.ts + booking.jobs.ts escrow release), saved-payment.service.ts CRUD,
   dispute.service.ts CRUD + status machine, admin dispute routes, open dispute route for customers.
 - [ ] **P1 Financial Foundation (plan-eng-review + forensic audit approved)** — 18 tasks over ~8h: tip fix (payout + refund paths), urgent fee double-dip fix, platform_fee_rate default alignment, fee-engine.test.ts, unify 5 fee sites, computeFees activeFrom/activeTo fix, 4 new TransactionType enum values, gateway fee settings + txn, registered discount txn, points liability txn + fix fire-and-forget, promo payback routing fix, points config cache invalidation, evaluatePromotions tests (6-8 cases), reconciliation harness (cases 1-4,7,8), dashboard urgentFee time-anchor fix, dashboard 4 cost-line fields. Spec: `docs/superpowers/specs/2026-06-26-profit-simulator-financial.md`. Full review + audit in `docs/ai-context/logs/ceo-log.md` (Session 2026-06-26 01:02 + 01:28).
+
+## E2E QA PIPELINE (2026-06-26)
+
+- [x] `/e2e-fix` Kilo command — per-scenario QA→Reviewer→Roast→Debugger→Approval→Apply pipeline
+- [x] `scripts/bat/auto-fix-loop.bat` — one-click launcher (Docker + deps + servers)
+- [x] `tests/e2e/scripts/summarize.js` — log parser → failure-summary.json
+- [x] `tests/e2e/auto-fix-loop.ps1` — fixed here-string + path resolution bugs
+- [x] `scripts/bat/e2e-test-local.bat` — fixed Playwright reporter (list+html)
 
 ---
 

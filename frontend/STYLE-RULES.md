@@ -1104,6 +1104,117 @@ pages). Rules:
 
 ---
 
+### 7.21 Admin dashboard sticky toolbar (`dash-head`)
+
+The admin dashboard has a sticky top bar that stays pinned while the content
+below scrolls. It is split into two visual sections divided by a thin divider.
+
+#### Structure
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Section A (darker bg, collapsible)                    │
+│  ┌─ Parent categories (marquee, draggable) ─────────┐│
+│  └──────────────────────────────────────────────────┘│
+│  ┌─ Child categories (marquee, filtered, draggable) ┐│
+│  └──────────────────────────────────────────────────┘│
+│  🔍 Search bookings, customers, servicers...          │
+│  [Jun 1, 2026] to [Jun 26, 2026] [Today][7d]...[All] │
+│  [Q1][Q2][Q3][Q4] [2026]                            │
+├──────────────────────────────────────────────────────┤ ← dash-divider
+│ Section B (lighter bg, always visible)                │
+│  [All] [Queues] [Cards] [Chart] ... [Servicers]  [▾] │
+└──────────────────────────────────────────────────────┘
+```
+
+| Element | Selector | Purpose |
+|---------|----------|---------|
+| Outer wrapper | `.dash-head` | `position: sticky; top: 0; z-index: 10`. Full-width block. |
+| Section A | `.dash-head-a` | `padding: 0.75rem 2rem; background: var(--color-bg)`. Collapsible via `@if (headerExpanded())`. |
+| Divider | `.dash-divider` | Thin horizontal line between A and B. |
+| Section B | `.dash-head-b` | `display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 2rem; background: var(--color-surface)`. Always visible. |
+| Expand/collapse | `.header-toggle` | Chevron button (`margin-left: auto`). Toggles `headerExpanded` signal. |
+
+#### Category marquee (`.cat-marquee`)
+
+- Two horizontally scrollable rows inside `dash-head-a`
+- Row 1: parent categories (`!parentCategoryId`)
+- Row 2: child categories (filtered by selected parents)
+- Both rows: `display: flex; overflow-x: auto; scrollbar-width: thin; gap: 0.35rem`
+- Draggable via `(mousedown)` → `@HostListener('document:mousemove')` / `('document:mouseup')`
+- `.chip` buttons: `white-space: nowrap; flex-shrink: 0; padding: 0.35rem 0.7rem; border-radius: 999px; font-size: 0.8rem`
+- Active chip: `background: var(--color-primary); color: #fff`
+- Each row has its own "All" button:
+  - Parent "All": selects/clears all parents only (`toggleAllParents()`)
+  - Child "All": selects/clears all visible children only (`toggleAllChildren()`)
+  - Active state when nothing is selected OR all items in that row are selected
+
+#### Search bar (`.search-row`)
+
+- `display: flex; align-items: center; gap: 0.5rem; padding-top: 0.5rem`
+- `.search-wrap`: `position: relative; flex: 1` with inline search icon
+- `.toolbar-search`: full-width search input, filters all 3 data tables in real-time
+- Sort controls removed — tables are sorted via clickable column headers (`sortState` signal + `sortIcon()` arrow indicator)
+
+#### Calendar filter (`.chart-controls` inside `dash-head-a`)
+
+- Visible only when Chart section is active (`@if (showSection('chart'))`)
+- `display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-top: 0.5rem`
+- Contains: `.date-range` (two date inputs + "to" separator), `.range-toggle` (Today/7d/30d/90d/All), `.quarter-toggle` (Q1-Q4), `.year-input` (standalone number input)
+- `.range-toggle, .quarter-toggle`: `display: flex; align-items: center; gap: 0; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden`
+- `.range-btn`: `display: inline-flex; align-items: center; justify-content: center; padding: 0.3rem 0.7rem; font-size: 0.78rem; line-height: 1; font-weight: 600`
+- Active button: `background: #f59e0b; color: #fff` (amber highlight)
+- `.year-input`: standalone `<input type="number">` with `border: 1px solid var(--color-border); border-radius: 6px; width: 5rem; text-align: center`. Uses `!important` on font/padding/width to override the global `input:not([type="radio"]):not([type="checkbox"])` rule (specificity 0,0,3,1 vs 0,0,1,0).
+- Quarter highlight: `activeQuarter()` computed detects matching quarter from date range. Year extracted from date string directly (`from.slice(0, 4)`) — never via `new Date().getFullYear()` which timezone-skews.
+
+#### Section filter pills (`.dash-head-b`)
+
+- 7 `.chip` buttons: All, Queues, Cards, Chart, Breakdown, Customers, Servicers
+- Multi-select via `sectionFilters` signal + `toggleSectionFilter(key)`
+- "All" toggles every section on/off
+- Each section below wrapped in `@if (showSection(key))`:
+  - Queues → pending withdrawal/appeal/category/report cards
+  - Cards → 4 financial stat cards
+  - Chart → chart toolbar (filter pills + daily/cumulative toggle) + SVG/bar chart
+  - Breakdown → category breakdown bar + donut + table
+  - Customers → customer leaderboard bar + donut + table
+  - Servicers → servicer leaderboard bar + donut + table
+
+#### Expand/collapse toggle (`.header-toggle`)
+
+- Appended to right side of `dash-head-b` via `margin-left: auto`
+- `display: flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem`
+- `border: 1px solid var(--color-border); border-radius: 6px; background: transparent`
+- Icon: `chevron-up` when expanded, `chevron-down` when collapsed
+- Toggles `headerExpanded` signal — collapses entire `dash-head-a` (categories + search + calendar), leaving only section pills visible
+
+#### TypeScript signals
+
+```ts
+headerExpanded = signal(true);
+toggleHeader(): void { this.headerExpanded.update(v => !v); }
+sectionFilters = signal<Record<string, boolean>>({ all: true, queues: true, ... });
+toggleSectionFilter(key: string): void { /* toggle key, sync "all" */ }
+showSection(s: string): boolean { return this.sectionFilters()[s] || this.sectionFilters()['all']; }
+```
+
+#### Mobile (≤600px)
+
+- `.chart-controls`: switches to `flex-direction: column; align-items: flex-start; gap: 0.6rem`
+- `.fin-cards`: `grid-template-columns: 1fr 1fr` (2 columns)
+- `.grid`: `grid-template-columns: 1fr 1fr`
+- Tables: `font-size: 0.75rem` with horizontal scroll
+
+#### Do not
+
+- Add `position: fixed` or hand-rolled overlays inside the toolbar
+- Use `new Date().getFullYear()` for date-string year extraction (timezone bug)
+- Nest `.year-input` inside `.quarter-toggle` (causes flex stretching)
+- Re-add sort dropdown to search row (tables use column-header sort)
+- Move `.chart-toolbar` (filter pills + mode toggle) out of the chart section — it belongs with the graph
+
+---
+
 ## 8. Theme System - Warm (Day) / Night (Stone + Copper)
 
 ### 8.1 How it works

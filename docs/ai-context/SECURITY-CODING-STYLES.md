@@ -188,7 +188,7 @@ route/service changes but may not re-initialize the Express middleware stack
 when `app.ts` changes.
 
 ### Fix
-After any `app.ts` edit: manual backend restart (Ctrl+C, re-run Run.bat).
+After any `app.ts` edit: manual backend restart (Ctrl+C, re-run `scripts/bat/Run.bat`).
 Or verify with `curl -I localhost:4000 | grep -i content-security-policy`.
 
 ---

@@ -74,20 +74,22 @@ wrong text position, wrong button order):
 - Update the test (selector, snapshot reference, expected text/order) instead.
 - Only touch component code if it's a proven functional bug (broken interaction,
   missing data, crash), not a style/layout choice.
-"
+"@
   $prompt | Out-File -FilePath $FixerPromptFile -Encoding utf8
   return $FixerPromptFile
 }
 
 function Invoke-Test($pattern) {
   Write-Host "`n=== Running: $pattern ===" -ForegroundColor Cyan
-  $specs = Get-ChildItem -Path $ScenarioDir -Filter "$pattern" | ForEach-Object { $_.FullName }
+  $specs = Get-ChildItem -Path $ScenarioDir -Filter "$pattern" | ForEach-Object { $_.Name }
   if ($specs.Count -eq 0) {
     Write-Host "No specs matching '$pattern'" -ForegroundColor Yellow
     return $true
   }
   $specList = $specs -join " "
-  $result = & "npx" "playwright" "test" $specList "--reporter=list" 2>&1
+  $cmd = "npx playwright test $specList --config=playwright.config.ts --reporter=list"
+  Write-Host $cmd
+  $result = Invoke-Expression $cmd 2>&1
   $exitCode = $LASTEXITCODE
   Write-Host ($result | Out-String)
   return $exitCode -eq 0

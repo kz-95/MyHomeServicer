@@ -1258,7 +1258,7 @@ ASSERT:  Exit 0, all lifecycle scenarios seeded
 
 ---
 
-## Build Order (updated)
+## Build Order
 
 ```
 1. Install Playwright:  cd frontend && npm i -D @playwright/test
@@ -1270,6 +1270,39 @@ ASSERT:  Exit 0, all lifecycle scenarios seeded
 ```
 
 **Estimate:** 3-4 hours for full 8-scenario suite.
+
+---
+
+## `/e2e-fix` Pipeline (Kilo Command)
+
+> Added 2026-06-26. Replaces the manual auto-fix loop with an AI-gated pipeline.
+
+Invoke `/e2e-fix` in Kilo to run the full harness with per-scenario analysis
+and approval-gated auto-fix:
+
+```
+Scenario 01 → run → pass? → next
+                  → fail?
+
+  Phase 1 - QA        Confirms real bug vs flake
+  Phase 2 - Reviewer  Root cause analysis
+  Phase 3 - Roast     Adversarial challenge (is it really a code bug?)
+  Phase 4 - Debugger  Proposes exact code fix with diff
+  Phase 5 - Approval  [Discuss] [Proceed] card
+  Phase 6 - Apply     Apply fix + typecheck + re-run verify
+```
+
+**Pipeline rules:**
+- Each phase must complete before the next starts
+- Roast can trigger one reconsideration round with Reviewer
+- Approval card loops until user selects Proceed or Skip
+- Max 2 full fix cycles per scenario before escalating
+- UI DESIGN GUARDRAIL: visual/layout failures → update test, not component code
+
+**Files:**
+- `.kilo/commands/e2e-fix.md` - orchestration command
+- `tests/e2e/scripts/summarize.js` - log parser → failure-summary.json
+- `scripts/bat/auto-fix-loop.bat` - one-click Docker + deps + servers launch
 
 ---
 

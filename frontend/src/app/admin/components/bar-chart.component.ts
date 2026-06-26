@@ -63,7 +63,16 @@ export class BarChartComponent implements OnInit, OnChanges {
       animation: { duration: 400, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
-        datalabels: { display: false },
+        datalabels: { 
+          display: true,
+          anchor: 'end' as const, 
+          align: 'end' as const,
+          offset: 4,
+          clip: false,
+          color: textColor, 
+          font: { size: 10, weight: 'bold' as any },
+          formatter: (value: number) => value > 0 ? value.toString() : '',
+        },
         tooltip: { backgroundColor: surfaceColor, titleColor: textColor, bodyColor: textColor, borderColor: borderColor, borderWidth: 1 },
       },
       scales: {

@@ -1190,24 +1190,33 @@ git commit -m "feat(e2e): auto-fix loop - self-healing harness per scenario"
 
 ---
 
-### How the CEO uses the auto-fix loop
+### How the `/e2e-fix` pipeline works (Kilo command)
+
+> **2026-06-26 UPDATE:** The manual `auto-fix-loop.ps1` + CEO dispatch flow is
+> superseded by the `/e2e-fix` Kilo command. The old PS1 script still works for
+> manual mode but the AI-gated pipeline is the recommended path.
 
 ```
-Terminal 1: .\tests\e2e\auto-fix-loop.ps1
-Terminal 2: tail -f logs\e2e-qa-harness_00001_17:50\scenario-01.log
+Invoke: /e2e-fix
 
-When harness pauses:
-  "⏸ WAITING for fixer to commit fix"
+The command runs each scenario, and on failure:
+  1. QA subagent     → confirms real bug vs flake
+  2. Reviewer subagent → root cause analysis
+  3. Roast subagent  → adversarial challenge
+  4. Debugger subagent → exact fix proposal with code diff
+  5. Approval card   → [Discuss] [Proceed]
+     - Discuss → iterate refinement → re-card
+     - Proceed → apply fix → typecheck → re-run → verify
+  6. Next scenario
 
-CEO reads .fixer-prompt.txt, dispatches fixer:
-  → Agent: "Read tests/e2e/.fixer-prompt.txt. Fix the bug. Commit. Push."
-
-After fixer pushes:
-  CEO presses ENTER in Terminal 1
-  → Harness re-runs Scenario 1
-  → If still failing, another fix round
-  → If all pass → auto-proceed to Scenario 2
+No manual log reading. No separate terminal. Everything inline.
 ```
+
+**Files:**
+- `.kilo/commands/e2e-fix.md` - orchestration command
+- `tests/e2e/scripts/summarize.js` - log parser → failure-summary.json
+- `scripts/bat/auto-fix-loop.bat` - one-click launcher (Docker + deps + servers)
+- `tests/e2e/auto-fix-loop.ps1` - manual mode (preserved as fallback)
 
 ---
 

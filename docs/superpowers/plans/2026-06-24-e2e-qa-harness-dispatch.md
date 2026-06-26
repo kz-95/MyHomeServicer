@@ -70,13 +70,17 @@ extends the cutoff or flags the task for manual intervention.
 > instead of dispatching per-scenario. The auto-fix loop in
 > Group E will catch individual remaining failures.
 
-### GROUP E - Closing (est. 2h, cutoff 4h - includes fixer iterations)
+### GROUP E - Closing (est. 2h, cutoff 4h - AUTOMATED via /e2e-fix)
+
+> **2026-06-26 UPDATE:** Task 31 (auto-fix loop) is now automated via the
+> `/e2e-fix` Kilo command. See `.kilo/commands/e2e-fix.md`.
+> The manual `auto-fix-loop.ps1` is preserved as fallback.
 
 | Task | Description | Agent | Estimate | Cutoff |
 |------|-------------|-------|----------|--------|
 | 29 | Self-Review (spec coverage check) | QA | 10 min | 15 min |
 | 30 | Full 29-scenario suite run | QA | 15 min | 30 min |
-| 31 | Auto-Fix Loop (up to 3 retries each) | QA + BE + FE | 90 min | 180 min |
+| 31 | `/e2e-fix` pipeline - automated fix loop | Kilo | 90 min | 180 min |
 
 > ⚠ **GROUP E BLOCKER:** If auto-fix loop exceeds 3 hours, flag
 > remaining failures for manual review. Do not loop indefinitely.

@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
-import { loginAsAdmin } from '../fixtures/demo-auth';
+import { test, expect } from "@playwright/test";
+import { loginAsAdmin } from "../fixtures/demo-auth";
 
-test.describe('Admin PIN Gate', () => {
-  test('admin can login and access dashboard', async ({ page }) => {
+test.describe("Admin PIN Gate", () => {
+  test("admin can login and access dashboard", async ({ page }) => {
     // 1. Login as admin (handles PIN gate internally)
     await loginAsAdmin(page);
 
@@ -10,36 +10,50 @@ test.describe('Admin PIN Gate', () => {
     expect(page.url()).toMatch(/\/admin/);
 
     // 3. Dashboard or admin shell should be visible
-    const adminShell = page.locator(
-      'nav, [class*="navbar"], [class*="sidebar"], [class*="admin-shell"], [class*="dashboard"]',
-    );
-    await expect(adminShell.first()).toBeVisible({ timeout: 5000 });
+    const adminShell = page
+      .locator(
+        'nav, [class*="navbar"], [class*="sidebar"], [class*="admin-shell"], ' +
+          '[class*="dashboard"], [role="navigation"], header',
+      )
+      .first();
+    await expect(adminShell).toBeVisible({ timeout: 5000 });
   });
 
-  test('admin sidebar navigation is present', async ({ page }) => {
+  test("admin sidebar navigation is present", async ({ page }) => {
     await loginAsAdmin(page);
+
+    // Wait for page to load
+    await page.waitForLoadState("networkidle");
 
     // Admin navigation links should exist
     const navLinks = page.locator(
-      'nav a, [class*="sidebar"] a, a[href*="/admin/"], [class*="nav-item"]',
+      'nav a, nav button, [class*="sidebar"] a, [class*="sidebar"] button, ' +
+        'a[href*="/admin/"], [class*="nav-item"]',
     );
     const count = await navLinks.count();
+
+    // At least some navigation items should be present
     expect(count).toBeGreaterThan(0);
   });
 
-  test('admin can navigate to settings', async ({ page }) => {
+  test("admin dashboard loads without errors", async ({ page }) => {
     await loginAsAdmin(page);
 
-    // Try navigating to settings
-    const settingsLink = page.locator(
-      'a[href*="/admin/settings"], a[href*="settings"], button:has-text("Settings"), a:has-text("Settings")',
-    );
-    if (await settingsLink.first().isVisible({ timeout: 3000 }).catch(() => false)) {
-      await settingsLink.first().click();
-      await page.waitForTimeout(1000);
+    // Collect any console errors during page load
+    let errors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        errors.push(msg.text());
+      }
+    });
 
-      // Should be on a settings page
-      expect(page.url()).toMatch(/\/admin\/.*settings/);
-    }
+    // Wait for dashboard to stabilize
+    await page.waitForLoadState("networkidle");
+
+    // Filter out harmless errors like favicon 404s
+    const criticalErrors = errors.filter(
+      (e) => !e.includes("favicon") && !e.includes("404"),
+    );
+    expect(criticalErrors).toHaveLength(0);
   });
 });

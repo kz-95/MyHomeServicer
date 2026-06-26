@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Style A Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* === VIEWPORT BASE === */
+html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#1a1a1a; }
+.deck-viewport { position:fixed; inset:0; overflow:hidden; background:#1a1a1a; }
+.deck-stage { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; transform-origin:0 0; }
+.slide { position:absolute; inset:0; width:1920px; height:1080px; overflow:hidden; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:0.01ms !important; } }
+
+/* === BLUE PROFESSIONAL PALETTE === */
+:root {
+  --bg: #FDFAE7;
+  --primary: #1E2BFA;
+  --text: #111111;
+  --muted: #6B6B6B;
+  --light: #9A9A9A;
+  --card: rgba(30,43,250,0.04);
+  --card-border: rgba(30,43,250,0.18);
+}
+
+/* === SLIDE LAYOUT === */
+.slide {
+  background: var(--bg);
+  font-family: 'Space Grotesk', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top accent bar */
+.top-bar {
+  height: 6px;
+  background: var(--primary);
+  flex-shrink: 0;
+}
+
+/* Main content area */
+.content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 520px;
+  gap: 0;
+}
+
+/* Left panel */
+.left {
+  padding: 100px 100px 80px 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: fadeUp 0.6s ease forwards 0.2s;
+}
+
+.title {
+  font-size: 110px;
+  font-weight: 700;
+  line-height: 1.0;
+  color: var(--text);
+  letter-spacing: -0.03em;
+  margin-bottom: 32px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards 0.4s;
+}
+
+.title span {
+  color: var(--primary);
+}
+
+.subtitle {
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 680px;
+  margin-bottom: 64px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards 0.6s;
+}
+
+.tags {
+  display: flex;
+  gap: 16px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards 0.8s;
+}
+
+.tag {
+  background: var(--card);
+  border: 1.5px solid var(--card-border);
+  border-radius: 100px;
+  padding: 10px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--primary);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Right panel */
+.right {
+  background: var(--primary);
+  padding: 80px 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  opacity: 0;
+  animation: slideIn 0.8s ease forwards 0.3s;
+}
+
+.right-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+}
+
+.right-number {
+  font-size: 220px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.08);
+  line-height: 1;
+  text-align: right;
+  letter-spacing: -0.05em;
+  margin-top: auto;
+}
+
+.right-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.right-stat {
+  border-top: 1px solid rgba(255,255,255,0.2);
+  padding-top: 20px;
+}
+
+.right-stat-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.right-stat-label {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  font-family: 'Inter', sans-serif;
+  margin-top: 6px;
+  letter-spacing: 0.05em;
+}
+
+/* Bottom bar */
+.bottom-bar {
+  height: 72px;
+  background: var(--bg);
+  border-top: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  padding: 0 120px;
+  justify-content: space-between;
+  flex-shrink: 0;
+  opacity: 0;
+  animation: fadeUp 0.5s ease forwards 1s;
+}
+
+.bottom-left {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--light);
+  letter-spacing: 0.05em;
+}
+
+.bottom-right {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--light);
+  letter-spacing: 0.05em;
+}
+
+/* Decorative dot grid */
+.dot-grid {
+  position: absolute;
+  bottom: 80px;
+  left: 120px;
+  display: grid;
+  grid-template-columns: repeat(8, 10px);
+  grid-template-rows: repeat(4, 10px);
+  gap: 8px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards 1.1s;
+}
+.dot { width:4px; height:4px; border-radius:50%; background:rgba(30,43,250,0.25); }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+@keyframes slideIn {
+  from { opacity:0; transform:translateX(40px); }
+  to { opacity:1; transform:translateX(0); }
+}
+</style>
+</head>
+<body>
+<div class="deck-viewport">
+  <div class="deck-stage" id="stage">
+    <div class="slide active">
+      <div class="top-bar"></div>
+      <div class="content">
+        <div class="left">
+          <div class="eyebrow">Capstone Project · 2026</div>
+          <div class="title">My<span>Servicer</span></div>
+          <div class="subtitle">A Home Services Marketplace Platform connecting customers with trusted local professionals.</div>
+          <div class="tags">
+            <span class="tag">Web Application</span>
+            <span class="tag">Full Stack</span>
+            <span class="tag">Marketplace</span>
+          </div>
+          <div class="dot-grid">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="right-label">Presented by</div>
+          <div class="right-number">01</div>
+          <div class="right-bottom">
+            <div class="right-stat">
+              <div class="right-stat-value">2026</div>
+              <div class="right-stat-label">Academic Year</div>
+            </div>
+            <div class="right-stat">
+              <div class="right-stat-value">Full Stack</div>
+              <div class="right-stat-label">Angular · Node · PostgreSQL</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <div class="bottom-left">Capstone Final Presentation</div>
+        <div class="bottom-right">MyServicer &nbsp;·&nbsp; Slide 01</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  const stage = document.getElementById('stage');
+  function fit() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const sc = Math.min(vw / 1920, vh / 1080);
+    const tx = (vw - 1920 * sc) / 2, ty = (vh - 1080 * sc) / 2;
+    stage.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`;
+  }
+  fit(); window.addEventListener('resize', fit);
+})();
+</script>
+</body>
+</html>

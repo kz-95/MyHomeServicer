@@ -17,7 +17,7 @@ import { ChartConfiguration, ChartData } from 'chart.js';
         [type]="chartType"
         [data]="chartData"
         [options]="chartOptions"
-         [height]="chartType === 'bar' ? 300 : 300"
+         [height]="500"
       ></canvas>
     }
   `,

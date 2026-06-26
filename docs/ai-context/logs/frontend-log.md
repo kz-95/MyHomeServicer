@@ -2,6 +2,102 @@
 
 > Single-writer log - only the **Frontend** agent writes here.
 
+## Session 2026-06-26 — Admin Dashboard Layout Restructure + Expand/Collapse
+
+### Scope
+`frontend/src/app/admin/pages/dashboard.component.ts` — Moved calendar filter to sticky header, removed sort toolbar, added expand/collapse toggle.
+
+### Changes
+
+1. **Calendar filter moved to sticky header**: `.chart-controls` (date range + range/quarter toggles + year input) moved from chart section into `dash-head-a`, after the search bar. Conditional on `showSection('chart')`. `.chart-toolbar` (filter pills + daily/cumulative toggle) stays in the chart section.
+
+2. **Sort controls removed from search bar**: `.sort-controls` dropdown + reverse button deleted from `.search-row`. Tables retain clickable column headers for sorting (`sortState` signal + `sortIcon()` helper kept). Removed dead code: `sortFields` array, `sortDropdownOpen` signal, `toggleSortDir()`, `cycleSortField()`, `sortFieldLabel()`, `selectSortField()` methods. Associated CSS cleaned.
+
+3. **Expand/collapse toggle on sticky header**: Added `headerExpanded` signal (default `true`) and `toggleHeader()` method. Whole `dash-head-a` wrapped in `@if (headerExpanded())`. Chevron toggle button appended to right side of `dash-head-b` — click collapses categories + search + calendar filter, leaving only section pills visible. `.dash-head-b` now `display: flex` with `margin-left: auto` on toggle.
+
+4. **CSS additions**: `.header-toggle` (1.75rem square, border, hover states). `.dash-head-b` updated to `display: flex; align-items: center; gap: 0.25rem`. `.chart-controls` `margin-top` reduced to `0.5rem` (was `1rem` + `margin-bottom: 0.6rem`).
+
+### Docs Updated
+- `TODO.md`: Added 3 completed items (sort removal, calendar filter move, expand/collapse toggle)
+- `docs/superpowers/specs/2026-06-23-admin-dashboard-financial-redesign.md`: Layout table updated — Section A now collapsible, calendar filter in header, sort removed, expand/collapse toggle noted
+
+### Gates
+- `npx tsc --noEmit` -> 0 errors
+
+## Session 2026-06-26 - Admin Dashboard UX Bug Fixes (Toggle Height + Category Filter + Q1-Q4 Highlight)
+
+### Scope
+`frontend/src/app/admin/pages/dashboard.component.ts` - Fix quarter-toggle height mismatch, year-input sizing, Q1-Q4 highlight timezone bug, category filter All button behavior.
+
+### Root Causes
+
+1. **Toggle height mismatch (41px Q1-Q4 vs 25px Today-All)**: `.year-input` (0,0,1,0) lost to global `input:not([type="radio"]):not([type="checkbox"])` (0,0,3,1) specificity. The global rule forced `font-size: 0.95rem` + `padding: 0.55rem 0.7rem` instead of the intended compact sizing, making the year-input ~41px tall. Since `.quarter-toggle` had `align-items: normal` (stretch default), all sibling buttons stretched to match. Fix: `!important` on year-input font/padding/width, `align-items: center` on both toggles, `inline-flex` on `.range-btn`.
+
+2. **Q1-Q4 highlight never active**: `activeQuarter()` computed signal used `new Date(from).getFullYear()` to extract year. In timezones west of UTC, `new Date("2026-01-01")` shifts to Dec 31 local time → year extraction wrong → quarter comparison strings never matched → always returned 0. Fix: `from.slice(0, 4)` extracts year directly from date string (no Date object, zero timezone dependency). Same fix applied to `activeYear()`.
+
+3. **Category "All" buttons**: Both parent and child row "All" called `clearCats()` which cleared everything. Now: parent "All" → `toggleAllParents()` selects/deselects parent categories only; child "All" → `toggleAllChildren()` selects/deselects visible child categories only. Added `allParentsSelected()` and `allChildrenSelected()` computed signals for active-state logic.
+
+4. **Year input structure**: Year input moved outside `.quarter-toggle` flex container to be a standalone sibling in `.chart-controls`. Gets its own `border: 1px solid var(--color-border); border-radius: 6px` and `width: 5rem`.
+
+### Changes
+
+**CSS (styles array):**
+- `.range-toggle, .quarter-toggle`: added `align-items: center`
+- `.range-btn`: changed to `display: inline-flex; align-items: center; justify-content: center; line-height: 1`
+- `.year-input`: added `!important` to `padding: 0.3rem 0.5rem`, `font-size: 0.78rem`, `line-height: normal`, `width: 5rem`; added `border: 1px solid var(--color-border)` and `border-radius: 6px`
+
+**Template:**
+- Year input moved from inside `.quarter-toggle` to directly inside `.chart-controls` (after quarter-toggle closing tag)
+- Parent "All": `(click)="toggleAllParents()"` with `[class.active]="selectedCatIds().size === 0 || allParentsSelected()"`
+- Child "All": `(click)="toggleAllChildren()"` with `[class.active]="selectedCatIds().size === 0 || allChildrenSelected()"`
+
+**TypeScript:**
+- `activeQuarter()`: `new Date(from).getFullYear()` → `from.slice(0, 4)`
+- `activeYear()`: `new Date(this.dateFrom()).getFullYear()` → `+this.dateFrom().slice(0, 4)`
+- Added `allParentsSelected` / `allChildrenSelected` computed signals
+- Added `toggleAllParents()` / `toggleAllChildren()` methods
+
+### Docs Updated
+- `TODO.md`: Added ✅ DONE section for Admin Dashboard UX Fixes (2026-06-26)
+- `docs/superpowers/specs/2026-06-23-admin-dashboard-financial-redesign.md`: Updated category marquee desc + date controls section
+
+### Gates
+- `npx tsc --noEmit` -> 0 errors
+
+## Session 2026-06-26 - Dashboard Chart UX Improvements (UI/UX Pro Max)
+
+### Scope
+`frontend/src/app/admin/pages/dashboard.component.ts` - SVG chart tooltip, bar chart polish, donut legend readability, pill touch targets.
+
+### Changes
+
+1. **SVG Chart Tooltip (UX: tooltip-on-interact)**:
+   - Added `(mousemove)="onChartHover($event)" (mouseleave)="chartTooltip.set(null)"` to SVG element
+   - Added `@if (chartTooltip(); as tip)` block with `chart-tooltip` div showing date + 5 data rows
+   - Added `chartTooltip` signal and `onChartHover` method (uses SVG bounding rect, computes nearest data index)
+   - CSS: `.chart-tooltip` (absolute, pointer-events: none, surface bg, shadow), `.tip-date`, `.tip-row` with per-series colors
+   - Made `.chart-wrap` `position: relative` so absolute tooltip anchors correctly
+
+2. **Bar Chart Polish (UX: data-density, touch-target)**:
+   - `.h-bar-row`: added hover bg highlight, increased margin-bottom + padding
+   - `.h-bar-label`: widened to 90px, font 0.78rem, color muted
+   - `.h-bar-track`: increased height to 16px
+   - `.h-bar-fill`: longer transition 0.5s cubic-bezier, min-width 2px
+   - `.h-bar-val`: widened to 55px, font 0.78rem, font-weight 600
+
+3. **Donut Chart Legend Readability**:
+   - `.donut`: increased to 130x130px
+   - `.donut-legend`: font 0.72rem, flex-wrap with gap, removed margin-right per-item hack
+   - `.donut-legend span`: inline-flex with gap 0.25rem
+   - `.donut-dot`: 9x9px, flex-shrink 0
+
+4. **Chart Pill Touch Targets**:
+   - `.pill`: padding tightened to 0.35rem 0.7rem, added `min-height: 44px`, explicit `display: inline-flex; align-items: center`
+
+### Gates
+- `npx tsc --noEmit` -> 0 errors
+- `npx ng build --configuration development` -> exit 0 (green, 11.8s)
+
 ## Session 2026-06-26 - 3 Bug Fixes in Admin Dashboard
 
 ### Scope
@@ -2528,3 +2624,102 @@ Three insertion points, all gated behind `if (!environment.production)`:
 | File | Action |
 |---|---|
 | `frontend/src/app/admin/pages/dashboard.component.ts` | ~180 lines added (TS signals + template + CSS) |
+
+## Session 2026-06-26 - Replace Escrow/Payouts Chart Lines with Gross/Cashflow
+
+### Scope
+`frontend/src/app/admin/pages/dashboard.component.ts` - Replace "Escrow Held" and "Pending Payouts" chart lines with "Gross" and "Cashflow".
+
+### Changes
+
+1. **Type**: `ChartLineKey` changed from `'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount'` to `'revenue' | 'fees' | 'gross' | 'discount' | 'cashflow'`
+
+2. **Signals**: Removed `escrowLine`, `payoutsLine`, `escrowTotal`, `payoutsTotal`. Added `grossLine`, `cashflowLine`, `grossTotal`, `cashflowTotal`. Updated `chartTooltip` type from `esc?/pay?` to `gross?/cf?`.
+
+3. **chartPills**: Default changed to `revenue: true, fees: true, gross: true, discount: false, cashflow: false`.
+
+4. **Template pills**: Escrow Held / Pending Payouts pills replaced with Gross / Cashflow.
+
+5. **SVG polylines**: Escrow/payouts blocks replaced with gross/cashflow using `grossLine()` and `cashflowLine()`.
+
+6. **Legend + summary**: Escrow/payouts entries replaced with gross/cashflow.
+
+7. **Tooltip**: Escrow/payouts rows replaced with gross/cashflow. Computed on-the-fly from revenue, payout, discount data.
+
+8. **rebuildChart**: Removed `esc` from allDays map and escrow data processing. Kept `payArr` and `discArr` for gross computation. Added `grossArr` and `cashflowArr` computed as `rev - payout - disc`. Max-value uses `Math.abs()` for gross/cashflow since they can be negative.
+
+9. **clearChart**: Removed escrow/payouts clearing, added gross/cashflow clearing.
+
+10. **CSS**: Replaced `.line-escrow`/`.line-payout` (both sets) with `.line-gross` (green #16a34a) and `.line-cashflow` (purple #9333ea, dashed). Updated `.pill-dot`, `.legend-dot`, `.summary-item`, `.tip-row` classes for gross/cashflow.
+
+11. **Preserved**: `dailyEscrow`, `dailyPayouts` in FinancialDashboard interface (unchanged). Escrow card section unchanged. Backend queries untouched.
+
+### Verification
+
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | 0 errors |
+| `npx ng build --configuration development` | exit 0 (9.0s) |
+
+### Files changed
+
+| File | Action |
+|---|---|
+| `frontend/src/app/admin/pages/dashboard.component.ts` | ~100 lines net (removed ~60 escrow/payouts, added ~40 gross/cashflow) |
+
+## Session 2026-06-26 - Interactive Chart.js Charts (Reusable Components)
+
+### Scope
+Replace hand-rolled SVG line chart, CSS bar chart, and CSS conic-gradient donut chart with interactive Chart.js (ng2-charts v10) components. Three reusable standalone components + dashboard integration.
+
+### Changes
+
+1. **`frontend/src/app/admin/components/line-chart.component.ts`** (new):
+   - Standalone component wrapping `BaseChartDirective` from ng2-charts
+   - Inputs: `labels`, `datasets` (with per-series `color`, `dashed`, `hidden`)
+   - Loading, empty, error states in template
+   - Chart.js config: no legend (custom pills used), index-mode tooltips, responsive, 300ms animation
+   - Scales: Y with k-formatting, X with max 10 ticks, muted color scheme
+
+2. **`frontend/src/app/admin/components/bar-chart.component.ts`** (new):
+   - Horizontal bar chart (indexAxis: 'y') with click handler emitting index
+   - Inputs: `labels`, `values`, `color`, `label`; Output: `barClick`
+   - Loading, empty, error states
+
+3. **`frontend/src/app/admin/components/donut-chart.component.ts`** (new):
+   - Doughnut chart with 55% cutout, click handler emitting index
+   - Inputs: `labels`, `values`, `colors`; Output: `sliceClick`
+   - Loading, empty, error states
+
+4. **`frontend/src/app/admin/pages/dashboard.component.ts`** (updated):
+   - Added Chart.js registration (`Chart.register(...registerables)`)
+   - Imported 3 chart components; added to `@Component.imports`
+   - **Line chart** (was SVG): replaced `<svg>` + polyline markup with `<app-line-chart>` bound to `chartLabels()` and `chartDatasets()` computed signals
+   - **Category/customer/servicer bar charts** (were CSS `.h-bar-chart`): replaced with `<app-bar-chart>`
+   - **Category/customer/servicer donut charts** (were CSS conic-gradient `.donut`): replaced with `<app-donut-chart>`
+   - **New computed signals**: `chartLabels`, `chartDatasets`, `catBarLabels/Values`, `catDonutLabels/Values`, `custBarLabels/Values`, `custDonutLabels/Values`, `svcBarLabels/Values`, `svcDonutLabels/Values`
+   - **Removed**: SVG layout constants (`chartW/H`, `padL/R/T/B`), polyline signals (`revenueLine`, `feesLine`, `grossLine`, `cashflowLine`, `discountLine`), `gridLines`, `xLabels`, `chartTooltip`, `onChartHover()`, `rebuildChart()`, `clearChart()`, `buildDonutGradient()`, `buildDonutLegend()`, old bar/donut computed signals, total signals, CSS for `.chart-svg`, `.line-*`, `.grid-line`, `.axis-label`, `.chart-tooltip`, `.h-bar-*`, `.donut`, `.donut-legend`, `.donut-dot`
+   - **Kept**: `DONUT_COLORS` (exposed as class member for template binding), `chartPills`, toggle logic, chart row layout, all tables/filters/search/cards
+   - Updated `.chart-row` CSS: `align-items: stretch`, `gap: 1rem`, `.chart-right: flex: 0 0 200px`
+
+5. **`frontend/src/app/app.config.ts`** (updated):
+   - Added `provideCharts(withDefaultRegisterables())` provider for ng2-charts v10
+
+### Verification
+
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | 0 errors |
+| `npx ng build --configuration development` | exit 0 (14.5s) |
+| Chart components created | 3 files in `admin/components/` |
+| Dashboard AOT compilation | passed |
+
+### Files changed
+
+| File | Action |
+|---|---|
+| `frontend/src/app/admin/components/line-chart.component.ts` | new |
+| `frontend/src/app/admin/components/bar-chart.component.ts` | new |
+| `frontend/src/app/admin/components/donut-chart.component.ts` | new |
+| `frontend/src/app/admin/pages/dashboard.component.ts` | ~200 lines removed, ~100 added |
+| `frontend/src/app/app.config.ts` | +2 lines (provideCharts) |

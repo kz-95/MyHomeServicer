@@ -1,6 +1,9 @@
 @echo off
 setlocal
 
+REM Change to project root so docker-compose.yml is found
+cd /d "%~dp0..\.."
+
 REM ==========================================================
 REM === Dispatch =============================================
 REM ==========================================================
@@ -109,7 +112,7 @@ REM ==========================================================
 REM === BACKEND ==============================================
 REM ==========================================================
 :backend_only
-cd /d "%~dp0backend"
+cd /d "%~dp0..\..\backend"
 
 REM --- .env check ---
 if exist ".env" (
@@ -203,7 +206,7 @@ if exist "node_modules\.prisma\client" (
 
 REM --- Guard: fail fast if any tracked JSON/TS has a UTF-8 BOM (crashes Node JSON.parse) ---
 echo [CHECK] Scanning tracked json/ts files for UTF-8 BOM...
-call node "%~dp0scripts\check-no-bom.mjs"
+call node "%~dp0..\check-no-bom.mjs"
 if errorlevel 1 (
     echo.
     echo [ERROR] A tracked file has a UTF-8 BOM and will crash the backend. Strip it (see message above) then re-run.
@@ -239,7 +242,7 @@ REM ==========================================================
 REM === FRONTEND =============================================
 REM ==========================================================
 :frontend_only
-cd /d "%~dp0frontend"
+cd /d "%~dp0..\..\frontend"
 echo === Frontend setup ===
 
 powershell -NoProfile -Command ^
@@ -272,7 +275,7 @@ REM === ENV VARS CHECK =======================================
 REM ==========================================================
 :check_env
 :check_env_retry
-powershell -NoProfile -Command "$f='%~dp0backend\.env'; if(!(Test-Path $f)){Write-Host '[ERROR] backend\.env not found'; exit 1}; $e=@{}; gc $f | Where-Object {$_ -match '^[A-Z_]+=.'} | ForEach-Object {$p=$_ -split '=',2; $e[$p[0].Trim()]=$p[1].Trim()}; $req=@('DATABASE_URL','REDIS_URL','JWT_SECRET','REFRESH_SECRET','NODE_ENV','PORT'); $miss=$req | Where-Object {!$e[$_]}; if($miss){Write-Host ''; Write-Host '[ERROR] Missing or empty .env variables:'; $miss | ForEach-Object {Write-Host ('  - ' + $_)}; Write-Host ''; exit 1}; exit 0"
+powershell -NoProfile -Command "$f='%~dp0..\..\backend\.env'; if(!(Test-Path $f)){Write-Host '[ERROR] backend\.env not found'; exit 1}; $e=@{}; gc $f | Where-Object {$_ -match '^[A-Z_]+=.'} | ForEach-Object {$p=$_ -split '=',2; $e[$p[0].Trim()]=$p[1].Trim()}; $req=@('DATABASE_URL','REDIS_URL','JWT_SECRET','REFRESH_SECRET','NODE_ENV','PORT'); $miss=$req | Where-Object {!$e[$_]}; if($miss){Write-Host ''; Write-Host '[ERROR] Missing or empty .env variables:'; $miss | ForEach-Object {Write-Host ('  - ' + $_)}; Write-Host ''; exit 1}; exit 0"
 if not errorlevel 1 (
     echo [OK] All required .env vars present.
     exit /b 0

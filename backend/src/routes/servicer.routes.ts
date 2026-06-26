@@ -97,6 +97,7 @@ import {
   updateContact,
   deleteContact,
 } from '../services/servicer-contact.service';
+import { createServicerOrder } from '../services/servicer-order.service';
 
 /**
  * Servicer self-service router (`/servicer/*`). Quote endpoints land in
@@ -737,6 +738,58 @@ servicerRouter.delete(
   }),
 );
 
+// ── New Order (walk-in) ──────────────────────────────────────────────────────
+
+/**
+ * POST /servicer/new-order - create a manual order for a walk-in customer.
+ *
+ * Two modes:
+ * - "direct": creates QuoteRequest (matched), QuoteProposal (selected),
+ *   Booking (confirmed) assigned to the authenticated servicer.
+ * - "broadcast": creates QuoteRequest (open) and broadcasts to matching
+ *   servicers in the same category.
+ */
+servicerRouter.post(
+  '/new-order',
+  validate([
+    body('mode').isIn(['direct', 'broadcast']),
+    body('customerName').isString().trim().notEmpty(),
+    body('customerPhone').isString().trim().notEmpty(),
+    body('customerEmail').optional().isEmail(),
+    body('address').isString().trim().notEmpty(),
+    body('postcode').optional().isString().trim(),
+    body('district').optional().isString().trim(),
+    body('state').optional().isString().trim(),
+    body('propertyType').optional().isString().trim(),
+    body('categorySlug').isString().trim().notEmpty(),
+    body('serviceDetails').optional().isObject(),
+    body('preferredDate').isString().trim().notEmpty(),
+    body('timeSlot').isString().trim().notEmpty(),
+    body('notes').optional().isString().trim(),
+    body('price').optional().isFloat({ gt: 0 }),
+  ]),
+  asyncHandler(async (req, res) => {
+    const result = await createServicerOrder(req.user!.id, {
+      mode: req.body.mode,
+      customerName: req.body.customerName,
+      customerPhone: req.body.customerPhone,
+      customerEmail: req.body.customerEmail,
+      address: req.body.address,
+      postcode: req.body.postcode,
+      district: req.body.district,
+      state: req.body.state,
+      propertyType: req.body.propertyType,
+      categorySlug: req.body.categorySlug,
+      serviceDetails: req.body.serviceDetails,
+      preferredDate: req.body.preferredDate,
+      timeSlot: req.body.timeSlot,
+      notes: req.body.notes,
+      price: req.body.price,
+    });
+    res.status(201).json(result);
+  }),
+);
+
 // ── Incoming quotes ──────────────────────────────────────────────────────────
 
 /** GET /servicer/quotes - quotes broadcast to this servicer. */
@@ -870,19 +923,25 @@ servicerRouter.post(
   }),
 );
 
-/** POST /servicer/jobs/:id/arrive - mark arrived with an optional arrival photo. */
+/** POST /servicer/jobs/:id/arrive - mark arrived with an optional arrival photo + GPS. */
 servicerRouter.post(
   '/jobs/:id/arrive',
   asyncHandler(async (req, res) => {
-    res.json(await arriveJob(req.user!.id, req.params.id, req.body.photoUrl ?? null));
+    const gps = req.body.lat != null && req.body.lng != null
+      ? { lat: req.body.lat, lng: req.body.lng, accuracy: req.body.accuracy }
+      : undefined;
+    res.json(await arriveJob(req.user!.id, req.params.id, req.body.photoUrl ?? null, gps));
   }),
 );
 
-/** POST /servicer/jobs/:id/done - mark job done with an optional completion photo. */
+/** POST /servicer/jobs/:id/done - mark job done with an optional completion photo + GPS. */
 servicerRouter.post(
   '/jobs/:id/done',
   asyncHandler(async (req, res) => {
-    res.json(await doneJob(req.user!.id, req.params.id, req.body.photoUrl ?? null));
+    const gps = req.body.lat != null && req.body.lng != null
+      ? { lat: req.body.lat, lng: req.body.lng, accuracy: req.body.accuracy }
+      : undefined;
+    res.json(await doneJob(req.user!.id, req.params.id, req.body.photoUrl ?? null, gps));
   }),
 );
 

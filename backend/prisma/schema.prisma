@@ -520,6 +520,7 @@ model Servicer {
   broadcasts       QuoteBroadcast[]
   proposals        QuoteProposal[]
   bookings         Booking[]
+  locationLogs     BookingLocationLog[]
   proposalPresets  ServicerProposalPreset[]
   creditLogs       ServicerCreditLog[]
   withdrawals      ServicerWithdrawal[]
@@ -976,10 +977,31 @@ model Booking {
   penaltyLogs  PenaltyLog[]
   disputes     Dispute[]
   transactions Transaction[] @relation("BookingTransactions")
+  locationLogs BookingLocationLog[]
 
   @@index([userId, status])
   @@index([servicerId, status])
   @@map("bookings")
+}
+
+model BookingLocationLog {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId   String    @map("booking_id") @db.Uuid
+  servicerId  String    @map("servicer_id") @db.Uuid
+  eventType   String    @map("event_type") // 'arrive' | 'done'
+  lat         Float
+  lng         Float
+  accuracy    Float?    // GPS accuracy in meters
+  verified    Boolean   @default(false) // within allowed radius?
+  verifiedAt  DateTime? @map("verified_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  booking  Booking  @relation(fields: [bookingId], references: [id])
+  servicer Servicer @relation(fields: [servicerId], references: [id])
+
+  @@index([bookingId])
+  @@index([servicerId])
+  @@map("booking_location_logs")
 }
 
 model OrderHistory {

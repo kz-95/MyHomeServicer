@@ -8,6 +8,7 @@ import { requireOnboarded } from './servicer-quote.service';
 import { enqueue, JOB_NAMES } from '../lib/queue';
 import { recordTransaction } from './ledger.service';
 import { adjustCredit, computeFee } from './credit.service';
+import { logArrivalLocation, logDoneLocation } from './gps-verification.service';
 import { computeTotal, LineItem, ServicerTaxConfig } from '../lib/money';
 import { getSetting, getSstRate } from './settings.service';
 import { notify, notifyAdmins } from './notification.service';
@@ -427,12 +428,28 @@ export async function confirmJob(servicerId: string, bookingId: string) {
   return updated;
 }
 
-/** Servicer marks arrived (with photo): confirmed → in_progress. */
-export async function arriveJob(servicerId: string, bookingId: string, photoUrl: string | null) {
+/** Servicer marks arrived (with photo + optional GPS): confirmed → in_progress. */
+export async function arriveJob(
+  servicerId: string,
+  bookingId: string,
+  photoUrl: string | null,
+  gps?: { lat: number; lng: number; accuracy?: number },
+) {
   const booking = await loadServicerBooking(servicerId, bookingId);
   if (booking.status !== 'confirmed') {
     throw conflict(`Cannot mark arrived from status "${booking.status}"`);
   }
+
+  // GPS verification (optional - backward compat when not provided)
+  if (gps) {
+    const verified = await logArrivalLocation(bookingId, servicerId, gps.lat, gps.lng, gps.accuracy);
+    if (!verified) {
+      throw badRequest(
+        'You appear to be too far from the job site. Please move closer and try again.',
+      );
+    }
+  }
+
   const updated = await prisma.booking.update({
     where: { id: bookingId },
     data: { status: 'in_progress', arrivedAt: new Date(), arrivePhotoUrl: photoUrl },
@@ -447,11 +464,26 @@ export async function arriveJob(servicerId: string, bookingId: string, photoUrl:
   return updated;
 }
 
-/** Servicer marks done (with photo): in_progress → completed. */
-export async function doneJob(servicerId: string, bookingId: string, photoUrl: string | null) {
+/** Servicer marks done (with photo + optional GPS): in_progress → completed. */
+export async function doneJob(
+  servicerId: string,
+  bookingId: string,
+  photoUrl: string | null,
+  gps?: { lat: number; lng: number; accuracy?: number },
+) {
   const booking = await loadServicerBooking(servicerId, bookingId);
   if (booking.status !== 'in_progress') {
     throw conflict(`Cannot mark done from status "${booking.status}"`);
+  }
+
+  // GPS verification (optional - backward compat when not provided)
+  if (gps) {
+    const verified = await logDoneLocation(bookingId, servicerId, gps.lat, gps.lng, gps.accuracy);
+    if (!verified) {
+      throw badRequest(
+        'You appear to be too far from the job site. Please move closer and try again.',
+      );
+    }
   }
 
   // T22: resolve points config BEFORE the transaction so we can award inside it.

@@ -5,6 +5,7 @@ Start here. One-line summary of every doc an agent or developer might need.
 | File | What it covers |
 |------|----------------|
 | [`CLAUDE.md`](../CLAUDE.md) | Session rules, permission policy, coding rules, agent coordination |
+| [`DIRECTORY.md`](../DIRECTORY.md) | Full project folder map - where everything lives |
 | [`TODO.md`](../TODO.md) | Current task checklist - single source of truth for task state |
 | [`docs/superpowers/specs/2026-06-12-sp3-service-listings-design.md`](superpowers/specs/2026-06-12-sp3-service-listings-design.md) | SP-3 service listings redesign: simple + advanced wizard, modules, auto-accept, customer proposal |
 | [`docs/ai-context/modal-audit.md`](ai-context/modal-audit.md) | Inventory of every modal/popup/dialog in the app + top-layer status |
