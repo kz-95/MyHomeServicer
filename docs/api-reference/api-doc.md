@@ -90,14 +90,23 @@ runtime instead of baking them into the static build.
 {
   "googleClientId": "xxxx.apps.googleusercontent.com",
   "googleMapsApiKey": "AIzaSy...",
-  "condoEntryNote": "If you live in a condo, please inform your management..."
+  "condoEntryNote": "If you live in a condo, please inform your management...",
+  "notificationSoundEnabled": true,
+  "heroBannerUrl": "",
+  "heroBannerPosX": "50",
+  "heroBannerPosY": "30",
+  "heroBannerZoom": "100",
+  "chatSoundEnabled": true,
+  "typingSoundEnabled": true
 }
 ```
 
 All values are empty strings when not configured. The frontend gracefully
 degrades (hides Google sign-in buttons, falls back to plain-text address
-input and static map placeholder). `condoEntryNote` is fetched from the
-`platform_settings` table at request time.
+input and static map placeholder). `condoEntryNote` and other settings are
+fetched from the `platform_settings` table at request time. `heroBanner*`
+fields are consumed by the public home page hero. `chatSoundEnabled` and
+`typingSoundEnabled` are consumed by the public chat widget.
 
 ---
 

@@ -2812,3 +2812,20 @@ Replace hand-rolled SVG line chart, CSS bar chart, and CSS conic-gradient donut 
 
 ### Verification
 - Frontend `npx tsc --noEmit` — zero errors
+
+## Session 2026-06-27 — 5 Bug Fixes (interceptor + guard + public settings)
+
+**Issue 2: Auth interceptor purges dead token on non-TOKEN_EXPIRED 401**
+- `frontend/src/app/core/interceptors/auth.interceptor.ts` — added clause for `err.status === 401 && code !== 'TOKEN_EXPIRED'` that calls `auth.logout()` + `window.location.href = '/login'`. Also added redirect after refresh failure in the TOKEN_EXPIRED path.
+
+**Issue 3: Auth guard redirects on missing access token**
+- `frontend/src/app/core/guards/auth.guards.ts` — `guardForRole()` now checks `!auth.accessToken` in addition to `!principal`. A stale `hs_user` with a missing/dead token no longer bypasses the guard.
+
+**Issue 4b: Home component reads hero banner from /config/public**
+- `frontend/src/app/home/home.component.ts` — `load()` now calls `/config/public` (flat JSON) instead of `/admin/settings` (array-of-objects format). Extracts `heroBannerUrl`, `heroBannerPosX`, `heroBannerPosY`, `heroBannerZoom` directly from the response.
+
+**Issue 4c: Chat widget reads sound settings from /config/public**
+- `frontend/src/app/shared/chat-widget.component.ts` — replaced `checkChatSoundSetting()` + `checkTypingSoundSetting()` with single `checkSoundSettings()` that calls `/config/public` and reads `chatSoundEnabled` + `typingSoundEnabled` from the flat response.
+
+### Verification
+- Frontend `npx tsc --noEmit` — zero errors

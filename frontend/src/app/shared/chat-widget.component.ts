@@ -4913,25 +4913,13 @@ export class ChatWidgetComponent
     }
   }
 
-  private checkChatSoundSetting(): void {
+  private checkSoundSettings(): void {
     this.api
-      .get<{ data: { key: string; value: unknown }[] }>("/admin/settings")
+      .get<{ chatSoundEnabled: boolean; typingSoundEnabled: boolean }>("/config/public")
       .subscribe({
         next: (r) => {
-          const s = r.data.find((x) => x.key === "chat_sound_enabled");
-          if (s) this.chatSoundEnabled.set(s.value === true);
-        },
-        error: () => {},
-      });
-  }
-
-  private checkTypingSoundSetting(): void {
-    this.api
-      .get<{ data: { key: string; value: unknown }[] }>("/admin/settings")
-      .subscribe({
-        next: (r) => {
-          const s = r.data.find((x) => x.key === "typing_sound_enabled");
-          if (s) this.typingSoundEnabled.set(s.value === true);
+          this.chatSoundEnabled.set(r.chatSoundEnabled === true);
+          this.typingSoundEnabled.set(r.typingSoundEnabled === true);
         },
         error: () => {},
       });

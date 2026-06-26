@@ -33,8 +33,9 @@ export async function authenticate(
       next(new ApiError('TOKEN_EXPIRED', 'Access token has expired'));
       return;
     }
-    // Malformed/forged token - reject outright.
-    next(unauthorized('Invalid access token'));
+    // Malformed/forged token - treat as no token so public routes
+    // continue unauthenticated. requireAuth catches it on protected routes.
+    next();
     return;
   }
   // No Bearer token. Dev-bypass fallback - never honoured in production.

@@ -1669,18 +1669,18 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.error.set(false);
     this.api
-      .get<{ data: { key: string; value: unknown }[] }>("/admin/settings")
+      .get<{
+        heroBannerUrl: string;
+        heroBannerPosX: string;
+        heroBannerPosY: string;
+        heroBannerZoom: string;
+      }>("/config/public")
       .subscribe({
         next: (r) => {
-          const byKey = new Map(r.data.map((s) => [s.key, s.value]));
-          const hb = byKey.get("hero_banner_url");
-          if (hb != null) this.heroBannerUrl.set(hb as string);
-          const hpx = byKey.get("hero_banner_pos_x");
-          if (hpx != null) this.heroPosX.set(hpx as string);
-          const hpy = byKey.get("hero_banner_pos_y");
-          if (hpy != null) this.heroPosY.set(hpy as string);
-          const hz = byKey.get("hero_banner_zoom");
-          if (hz != null) this.heroZoom.set(hz as string);
+          if (r.heroBannerUrl) this.heroBannerUrl.set(r.heroBannerUrl);
+          if (r.heroBannerPosX) this.heroPosX.set(r.heroBannerPosX);
+          if (r.heroBannerPosY) this.heroPosY.set(r.heroBannerPosY);
+          if (r.heroBannerZoom) this.heroZoom.set(r.heroBannerZoom);
         },
       });
     this.api

@@ -19,7 +19,9 @@ function guardForRole(required: 'customer' | 'servicer' | 'admin'): CanActivateF
     const auth = inject(AuthService);
     const router = inject(Router);
     const principal = auth.principal();
-    if (!principal) {
+    // No stored principal or no access token = no viable session.
+    // A stale hs_user with a dead/deleted token must not bypass the guard.
+    if (!principal || !auth.accessToken) {
       return router.createUrlTree(['/login']);
     }
     if (principal.role !== required) {

@@ -64,6 +64,9 @@ Rate limiting on `/auth/login` is per-IP - attackers can rotate IPs. Add a per-a
 **Demo account production safety**
 Accounts with `is_demo: true` use a weak shared password (`Demo@2026`) for seed data convenience. The auth middleware blocks demo account logins entirely when `NODE_ENV=production`. The seed script itself refuses to run in production. Never deploy demo accounts to a public-facing environment.
 
+**Production deploy must use NODE_ENV=production**
+Running `NODE_ENV=development` on a public Railway deploy enables the `x-dev-user` header auth-bypass in `auth.ts` (devBypassAuth) and opens all `/dev/*` routes (demo-login, reseed, top-up, etc.) without real auth. Intended safe-demo config is `NODE_ENV=production` + `DEMO_LOGIN_ENABLED=true`. The `x-dev-user` bypass is only safe on localhost/LAN.
+
 **Never trust the cached principal - validate the session on startup**
 The frontend keeps the principal in `localStorage` (`hs_user`) so a session survives a refresh, but `localStorage` is attacker-writable and a token may be stale/revoked. The SPA therefore calls `GET /session` once at startup, blocking on it via `APP_INITIALIZER`, before any logged-in UI ("My portal", portal routes) renders. `GET /session` runs the normal `authenticate` + `requireAuth` middleware and rebuilds the principal from the database; a stale/forged token returns 401 and the client calls `logout()` (clears tokens + principal). It is mounted at the API root (NOT under `/auth`) so the auth interceptor attaches the Bearer token and performs its silent refresh-on-expiry. Logged-in state must never be presented on the strength of `localStorage` alone.
 

@@ -77,6 +77,8 @@ apiRouter.get(
       'chat_greetings', 'chat_greetings_returning', 'chat_greetings_customer',
       'chat_greetings_servicer', 'chat_greetings_admin',
       'demo_unlock_phrase', 'notification_sound_enabled',
+      'hero_banner_url', 'hero_banner_pos_x', 'hero_banner_pos_y', 'hero_banner_zoom',
+      'chat_sound_enabled', 'typing_sound_enabled',
     ];
     const rows = await prisma.platformSettings.findMany({
       where: { key: { in: keys } },
@@ -99,6 +101,14 @@ apiRouter.get(
       // DB override (admin-editable) wins; otherwise the deploy-time env default.
       demoUnlockPhrase: (byKey['demo_unlock_phrase'] as string) || env.DEMO_UNLOCK_PHRASE,
       notificationSoundEnabled: (byKey['notification_sound_enabled'] as boolean) ?? true,
+      // Hero banner (public home page).
+      heroBannerUrl: (byKey['hero_banner_url'] as string) ?? '',
+      heroBannerPosX: (byKey['hero_banner_pos_x'] as string) ?? '50',
+      heroBannerPosY: (byKey['hero_banner_pos_y'] as string) ?? '30',
+      heroBannerZoom: (byKey['hero_banner_zoom'] as string) ?? '100',
+      // Chat sound settings (public chat widget).
+      chatSoundEnabled: (byKey['chat_sound_enabled'] as boolean) ?? true,
+      typingSoundEnabled: (byKey['typing_sound_enabled'] as boolean) ?? true,
     });
   }),
 );

@@ -2901,3 +2901,17 @@ The `@demo.local` suffix guard prevents the original BE-013 attack (arbitrary em
 
 ### Verification
 - Backend `npx tsc --noEmit` — no new errors (pre-existing TS config deprecation warnings only)
+
+## Session 2026-06-27 — 5 Bug Fixes (auth + public settings + railway)
+
+**Issue 1: Public routes 401 on stale Bearer token**
+- `backend/src/middleware/auth.ts` — `authenticate()` no longer hard-fails on malformed/invalid tokens. Instead of `next(unauthorized('Invalid access token'))`, it calls `next()` (continues unauthenticated). `requireAuth` still rejects protected routes. TOKEN_EXPIRED behavior unchanged.
+
+**Issue 4a: Add hero banner + sound fields to /config/public**
+- `backend/src/routes/index.ts` — /config/public now queries `hero_banner_url`, `hero_banner_pos_x`, `hero_banner_pos_y`, `hero_banner_zoom`, `chat_sound_enabled`, `typing_sound_enabled` from platform_settings and returns them as flat JSON fields.
+
+**Issue 5: Railway migration on deploy**
+- `railway.json` — startCommand changed from `npm start` to `prisma migrate deploy && npm start` so schema stays current on every deploy.
+
+### Verification
+- Backend `npx tsc --noEmit` — zero errors

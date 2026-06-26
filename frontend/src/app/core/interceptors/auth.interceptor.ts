@@ -12,6 +12,10 @@ import { environment } from '../../../environments/environment';
  * TOKEN_EXPIRED it performs one silent refresh and retries the request once.
  * The refresh endpoint itself is never intercepted to avoid a loop.
  *
+ * Any other 401 (Invalid access token, etc.) means the token is permanently
+ * dead — clear the session immediately so the user can recover without
+ * manually clearing localStorage.
+ *
  * After a successful token refresh the SocketService is notified so it can
  * reconnect with the new credential - without this the WebSocket handshake
  * would still carry the old (rotated) token after a disconnect/reconnect.
@@ -41,9 +45,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           switchMap(() => next(withToken())),
           catchError(() => {
             auth.logout();
+            window.location.href = '/login';
             return throwError(() => err);
           }),
         );
+      }
+      // Non-TOKEN_EXPIRED 401 (Invalid access token, forged token, etc.) -
+      // the token is permanently dead. Clear the session and redirect.
+      if (err.status === 401 && auth.accessToken) {
+        auth.logout();
+        window.location.href = '/login';
       }
       return throwError(() => err);
     }),
