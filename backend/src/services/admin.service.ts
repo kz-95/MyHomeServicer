@@ -302,9 +302,9 @@ export async function getDashboardFinancial(daysOrFrom: number | string, toOrCat
       LEFT JOIN quote_requests qr ON qr.category_id = c.id
       LEFT JOIN bookings b ON b.quote_request_id = qr.id AND b.created_at >= $1 AND b.created_at <= $2
       LEFT JOIN transactions ft ON ft.booking_id = b.id AND ft.type = 'platform_fee' AND ft.status = 'completed' AND ft.created_at >= $1 AND ft.created_at <= $2
-      WHERE c.deleted_at IS NULL
-        ${categoryId ? 'AND c.id = $3::uuid' : ''}
-      GROUP BY c.id
+       WHERE c.deleted_at IS NULL AND c.parent_category_id IS NOT NULL
+         ${categoryId ? 'AND c.id = $3::uuid' : ''}
+       GROUP BY c.id
       ORDER BY commission DESC`,
     ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
@@ -449,8 +449,9 @@ export async function getDashboardFinancial(daysOrFrom: number | string, toOrCat
      ${categoryId ? 'INNER JOIN quote_requests qr ON b.quote_request_id = qr.id' : ''}
      WHERE u.role = 'customer' AND b.created_at >= $1
        ${categoryId ? 'AND qr.category_id = $2::uuid' : ''}
-     GROUP BY u.id, u.name, u.email
-     ORDER BY total_spent DESC
+      GROUP BY u.id, u.name, u.email
+      HAVING COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'completed') > 0
+      ORDER BY total_spent DESC
       LIMIT 50`,
     ...(categoryId ? [start, categoryId] : [start]),
   );
@@ -655,6 +656,40 @@ export async function runClear(): Promise<{ ok: boolean; durationMs: number }> {
   await prisma.idempotencyFallback.deleteMany();
   const durationMs = Date.now() - start;
   logger.info('Clear complete', { durationMs });
+  return { ok: true, durationMs };
+}
+
+/**
+ * Clears financial data only (transactions, escrow, invoices, bookings, etc.)
+ * while keeping demo accounts, services, categories, chat, and settings intact.
+ * Useful for resetting the financial dashboard/report numbers without a full reseed.
+ */
+export async function runClearFinance(): Promise<{ ok: boolean; durationMs: number }> {
+  if (!allowDemo) throw forbidden('Clear finance is disabled in production');
+  const start = Date.now();
+  logger.warn('Admin triggered a finance data clear');
+
+  await prisma.transaction.deleteMany();
+  await prisma.escrow.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.orderHistory.deleteMany();
+  await prisma.booking.deleteMany();
+  await prisma.quoteProposal.deleteMany();
+  await prisma.quoteBroadcast.deleteMany();
+  await prisma.quoteRequest.deleteMany();
+  await prisma.servicerWithdrawal.deleteMany();
+  await prisma.promotionRedemption.deleteMany();
+  await prisma.penaltyAppeal.deleteMany();
+  await prisma.penaltyLog.deleteMany();
+  await prisma.report.deleteMany();
+  await prisma.discountCode.deleteMany();
+  await prisma.promotion.deleteMany();
+  await prisma.servicerCreditLog.deleteMany();
+  await prisma.categoryRequest.deleteMany();
+  await prisma.quotePreset.deleteMany();
+
+  const durationMs = Date.now() - start;
+  logger.info('Clear finance complete', { durationMs });
   return { ok: true, durationMs };
 }
 
