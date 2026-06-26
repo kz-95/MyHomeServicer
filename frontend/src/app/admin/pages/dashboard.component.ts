@@ -379,6 +379,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   <th class="num" (click)="sortState.set({key:'count',dir:sortState().key==='count'&&sortState().dir==='asc'?'desc':'asc'})">Bookings <span class="sort-icon">{{ sortIcon('count') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'revenue',dir:sortState().key==='revenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('revenue') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'fees',dir:sortState().key==='fees'&&sortState().dir==='asc'?'desc':'asc'})">Fees <span class="sort-icon">{{ sortIcon('fees') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'avgFee',dir:sortState().key==='avgFee'&&sortState().dir==='asc'?'desc':'asc'})">Avg Fee <span class="sort-icon">{{ sortIcon('avgFee') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'pct',dir:sortState().key==='pct'&&sortState().dir==='asc'?'desc':'asc'})">% of Total <span class="sort-icon">{{ sortIcon('pct') }}</span></th>
                 </tr>
               </thead>
@@ -389,6 +390,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                     <td class="num">{{ row.count }}</td>
                     <td class="num">RM {{ row.revenue | number:'1.2-2' }}</td>
                     <td class="num">RM {{ row.fees | number:'1.2-2' }}</td>
+                    <td class="num">RM {{ (row.fees / (row.count || 1)) | number:'1.2-2' }}</td>
                     <td class="num">{{ feesPercent(row.fees, fd.totalFees) }}%</td>
                   </tr>
                 }

@@ -2382,75 +2382,24 @@ async function main(): Promise<void> {
   // ── Historical platform revenue (last 30 days, for the admin revenue chart) ──
   // Simulate realistic daily platform-fee income so the chart is populated on
   // first boot. Amounts vary with a weekday/weekend pattern + some noise.
-  const revenuePattern = [
-    // day offset from today (-29 = oldest, 0 = today)
-    // [dayOffset, ...amountsRM]
-    [-29, 42.5, 28.0],
-    [-28, 55.0],
-    [-27, 18.0, 32.0, 22.5],
-    [-26, 0],
-    [-25, 0],
-    [-24, 63.0, 45.0],
-    [-23, 38.0, 29.5, 51.0],
-    [-22, 72.0, 38.5],
-    [-21, 55.0, 48.0, 33.0],
-    [-20, 44.0, 62.5],
-    [-19, 0],
-    [-18, 0],
-    [-17, 88.0, 54.0],
-    [-16, 67.5, 41.0, 29.0],
-    [-15, 95.0, 52.5],
-    [-14, 78.0, 63.0, 44.5],
-    [-13, 112.0, 67.0],
-    [-12, 0],
-    [-11, 14.0],
-    [-10, 103.5, 88.0, 55.0],
-    [-9, 92.0, 71.5, 48.0],
-    [-8, 118.0, 84.5],
-    [-7, 135.0, 96.0, 62.5],
-    [-6, 149.0, 107.0],
-    [-5, 0],
-    [-4, 22.5],
-    [-3, 158.0, 112.0, 74.5],
-    [-2, 167.5, 128.0, 91.0],
-    [-1, 143.0, 119.5, 85.0, 62.0],
-    [0, 88.0, 54.5],
-  ] as [number, ...number[]][];
-
-  // Build a map: categoryId → a representative completed booking in that category
-  const bookingIds = allBulkCompleted.map(cb => cb.booking.id);
-  const bookingsWithCats = await prisma.booking.findMany({
-    where: { id: { in: bookingIds } },
-    select: { id: true, quoteRequest: { select: { categoryId: true } } },
-  });
-  const catBookings = new Map<string, string>();
-  for (const b of bookingsWithCats) {
-    const catId = b.quoteRequest?.categoryId;
-    if (catId && !catBookings.has(catId)) catBookings.set(catId, b.id);
+  // ── Platform fee transactions: 20% of actual booking prices, spread over 30 days ──
+  // Each completed booking gets one platform_fee transaction on its doneAt date.
+  let feeCount = 0;
+  for (const cb of allBulkCompleted) {
+    if (!cb.booking.id) continue;
+    const fee = Math.round(cb.price * 0.20 * 100) / 100;
+    await prisma.transaction.create({
+      data: {
+        type: 'platform_fee',
+        amount: fee,
+        bookingId: cb.booking.id,
+        reference: `Platform commission (${cb.servicerRef})`,
+        createdAt: cb.booking.doneAt ?? new Date(),
+      },
+    });
+    feeCount++;
   }
-  const catIds = [...catBookings.keys()];
-
-  let catIdx = 0;
-  for (const [offset, ...amounts] of revenuePattern) {
-    for (const amount of amounts) {
-      const d = new Date();
-      d.setDate(d.getDate() + offset);
-      d.setHours(9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 60), 0, 0);
-      const catId = catIds[catIdx % catIds.length];
-      const bookingId = catBookings.get(catId)!;
-      catIdx++;
-      await prisma.transaction.create({
-        data: {
-          type: 'platform_fee',
-          amount,
-          bookingId,
-          reference: 'Platform commission (seed)',
-          createdAt: d,
-        },
-      });
-    }
-  }
-  console.log('  ✓ 30-day historical platform revenue across categories (chart seed data)');
+  console.log(`  ✓ platform fee transactions: ${feeCount} (computed at 20% of booking price)`);
 
   // ── Self-check: fail loudly if core history is empty ──
   // Catches silent partial seeds (e.g. a mid-run ReferenceError that aborts before
