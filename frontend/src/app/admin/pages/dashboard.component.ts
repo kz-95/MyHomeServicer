@@ -600,13 +600,13 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 
       /* ── Sticky top bar ────────────────────────────────────────────── */
       .dash-head {
-        padding: 0.4rem 0 0 0;
+        padding: 0.4rem 0 0.5rem 0;
         background: var(--color-surface);
         border-bottom: 1px solid var(--color-border);
       }
-      .dash-head-a { padding: 0.6rem 2rem; background: var(--color-bg); }
-      .dash-head-b { padding: 0.4rem 2rem; background: var(--color-surface); }
-      .dash-content { padding: 0 2rem; }
+      .dash-head-a { padding: 0.75rem 2rem; background: var(--color-bg); }
+      .dash-head-b { padding: 0.5rem 2rem; background: var(--color-surface); }
+      .dash-content { padding: 1.25rem 2rem 2rem 2rem; }
       .dash-divider { border: none; border-top: 1px solid var(--color-border); margin: 0; }
       .cat-marquee { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; scrollbar-width: none; cursor: grab; user-select: none; }
       .cat-marquee::-webkit-scrollbar { display: none; }
