@@ -97,377 +97,386 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
   template: `
     <h1>Admin dashboard</h1>
 
-    <!-- ── 1. PENDING QUEUES (collapsible) ─────────────────────────────── -->
-    @if (data(); as d) {
-      <div class="section-header page-child">
-        <button class="section-toggle" (click)="toggleSection('queues')">Pending Queues {{ showSections()['queues'] ? '▲' : '▼' }}</button>
-        <button class="hint-btn" title="Service requests waiting for admin action">(?)</button>
-        <span class="section-spacer"></span>
-      </div>
-      @if (showSections()['queues']) {
-        <div class="section-body">
-          <div class="grid">
-            <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'withdrawals'}" title="Review withdrawals">
-              <span class="n">{{ d.queues.pendingWithdrawals }}</span>
-              <span class="muted">Withdrawals</span>
-            </a>
-            <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'appeals'}" title="Review appeals">
-              <span class="n warn">{{ d.queues.pendingAppeals }}</span>
-              <span class="muted">Appeals</span>
-            </a>
-            <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'category'}" title="Review category requests">
-              <span class="n">{{ d.queues.pendingCategoryRequests }}</span>
-              <span class="muted">Category Requests</span>
-            </a>
-            <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'reports'}" title="View open reports">
-              <span class="n warn">{{ d.queues.openReports }}</span>
-              <span class="muted">Open Reports</span>
-            </a>
+    <!-- ── STICKY TOP BAR ──────────────────────────────────────────────── -->
+    <div class="dash-head" style="position:sticky;top:0;z-index:10;">
+      <!-- Section A (darker bg): Categories + Search -->
+      <div class="dash-head-a">
+        <!-- Row 1: Parent categories -->
+        <div class="cat-marquee">
+          <button class="chip" [class.active]="!dashCategoryId()" (click)="dashCategoryId.set(''); reloadDashboard()">All</button>
+          @for (cat of parentCategories(); track cat.id) {
+            <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
+          }
+        </div>
+        <!-- Row 2: Child categories -->
+        <div class="cat-marquee sub">
+          @for (cat of childCategories(); track cat.id) {
+            <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
+          }
+        </div>
+
+        <!-- Search bar -->
+        <div class="search-row">
+          <div class="search-wrap">
+            <app-icon name="search" sizeToken="sm" class="search-icon-inline" />
+            <input type="search" class="toolbar-search" placeholder="Search bookings, customers, servicers..." [(ngModel)]="searchQuery" (input)="onSearchChange()" />
           </div>
+          <div class="sort-controls">
+            <button class="btn-ghost btn-sm sort-btn" (click)="cycleSortField()">Sort: {{ sortFieldLabel() }} <app-icon name="chevron-down" sizeToken="sm" /></button>
+            <button class="btn-ghost btn-sm" title="Reverse order" (click)="toggleSortDir()"><app-icon [name]="sortState().dir === 'asc' ? 'arrow-up' : 'arrow-down'" sizeToken="sm" /></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="dash-divider"></div>
+
+      <!-- Section B (lighter bg): Section filter pills -->
+      <div class="dash-head-b">
+        <button class="chip" [class.active]="sectionFilter() === 'all'" (click)="sectionFilter.set('all')">All</button>
+        <button class="chip" [class.active]="sectionFilter() === 'queues'" (click)="sectionFilter.set('queues')">Queues</button>
+        <button class="chip" [class.active]="sectionFilter() === 'cards'" (click)="sectionFilter.set('cards')">Cards</button>
+        <button class="chip" [class.active]="sectionFilter() === 'chart'" (click)="sectionFilter.set('chart')">Chart</button>
+        <button class="chip" [class.active]="sectionFilter() === 'breakdown'" (click)="sectionFilter.set('breakdown')">Breakdown</button>
+        <button class="chip" [class.active]="sectionFilter() === 'customers'" (click)="sectionFilter.set('customers')">Customers</button>
+        <button class="chip" [class.active]="sectionFilter() === 'servicers'" (click)="sectionFilter.set('servicers')">Servicers</button>
+      </div>
+    </div>
+
+    <!-- ── 1. PENDING QUEUES ────────────────────────────────────────────── -->
+    @if (showSection('queues')) {
+      @if (data(); as d) {
+        <div class="grid page-child">
+          <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'withdrawals'}" title="Review withdrawals">
+            <span class="n">{{ d.queues.pendingWithdrawals }}</span>
+            <span class="muted">Withdrawals</span>
+          </a>
+          <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'appeals'}" title="Review appeals">
+            <span class="n warn">{{ d.queues.pendingAppeals }}</span>
+            <span class="muted">Appeals</span>
+          </a>
+          <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'category'}" title="Review category requests">
+            <span class="n">{{ d.queues.pendingCategoryRequests }}</span>
+            <span class="muted">Category Requests</span>
+          </a>
+          <a class="card stat" [routerLink]="[routeFor('admin.queues')]" [queryParams]="{tab:'reports'}" title="View open reports">
+            <span class="n warn">{{ d.queues.openReports }}</span>
+            <span class="muted">Open Reports</span>
+          </a>
         </div>
       }
     }
 
     <!-- ── 2. FINANCIAL CARDS (4 cards) ─────────────────────────────────── -->
-    @if (finData(); as fd) {
-      <div class="fin-cards page-child">
-        <!-- Card 1: Cashflow -->
-        @let grossIn = (fd.totalBookingRevenue ?? 0);
-        @let grossOut = (fd.totalPayouts ?? 0) + (fd.gatewayFee ?? 0) + (fd.registeredDiscount ?? 0) + (fd.promoCost ?? 0) + (fd.pointsCost ?? 0);
-        @let gross = grossIn - grossOut;
-        @let cashflow = gross - (fd.totalWithdrawals ?? 0);
-        <div class="card fin-card">
-          <div class="fin-cf-row">
-            <span class="fin-label">IN <button class="hint-btn" title="Total booking value from all completed jobs.">(?)</button></span>
-            <span class="fin-cf-in">RM {{ grossIn | number:'1.2-2' }}</span>
+    @if (showSection('cards')) {
+      @if (finData(); as fd) {
+        <div class="fin-cards page-child">
+          <!-- Card 1: Cashflow -->
+          @let grossIn = (fd.totalBookingRevenue ?? 0);
+          @let grossOut = (fd.totalPayouts ?? 0) + (fd.gatewayFee ?? 0) + (fd.registeredDiscount ?? 0) + (fd.promoCost ?? 0) + (fd.pointsCost ?? 0);
+          @let gross = grossIn - grossOut;
+          @let cashflow = gross - (fd.totalWithdrawals ?? 0);
+          <div class="card fin-card">
+            <div class="fin-cf-row">
+              <span class="fin-label">IN <button class="hint-btn" title="Total booking value from all completed jobs.">(?)</button></span>
+              <span class="fin-cf-in">RM {{ grossIn | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">OUT <button class="hint-btn" title="Servicer payouts + gateway fees + discounts + promo costs + points costs.">(?)</button></span>
+              <span class="fin-cf-out">RM {{ grossOut | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">GROSS <button class="hint-btn" [title]="'IN &minus; OUT = ' + (grossIn | number:'1.0-0') + ' &minus; ' + (grossOut | number:'1.0-0') + ' = RM ' + (gross | number:'1.2-2')">(?)</button></span>
+              <span class="fin-cf-gross" [class.neg]="gross < 0">RM {{ gross | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Cashflow <button class="hint-btn" title="GROSS &minus; company withdrawals = actual cash available.">(?)</button></span>
+              <span class="fin-cf-cashflow" [class.neg]="cashflow < 0">RM {{ cashflow | number:'1.2-2' }}</span>
+            </div>
           </div>
-          <div class="fin-cf-row">
-            <span class="fin-label">OUT <button class="hint-btn" title="Servicer payouts + gateway fees + discounts + promo costs + points costs.">(?)</button></span>
-            <span class="fin-cf-out">RM {{ grossOut | number:'1.2-2' }}</span>
+          <!-- Card 2: Revenue breakdown -->
+          <div class="card fin-card">
+            <div class="fin-cf-row">
+              <span class="fin-label">Revenue <button class="hint-btn" title="Platform earnings: 8% fees + customer top-ups">(?)</button></span>
+              <span class="fin-n">RM {{ (fd.totalFees + fd.totalTopUps) | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Fees <button class="hint-btn" title="Platform's commission (20%) collected from completed bookings.">(?)</button></span>
+              <span class="fin-cf-sub">RM {{ fd.totalFees | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Top-ups <button class="hint-btn" title="Customer wallet top-ups (deposit_topup transactions).">(?)</button></span>
+              <span class="fin-cf-sub">RM {{ fd.totalTopUps | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Discounts <button class="hint-btn" title="Registered customer discounts + promotion redemptions.">(?)</button></span>
+              <span class="fin-cf-sub">RM {{ ((fd.registeredDiscount ?? 0) + (fd.promoCost ?? 0)) | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Rewards <button class="hint-btn" title="Loyalty points redeemed by customers.">(?)</button></span>
+              <span class="fin-cf-sub">RM {{ (fd.pointsCost ?? 0) | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Gateway <button class="hint-btn" title="Stripe/gateway processing fees (3.4% + RM 1.00).">(?)</button></span>
+              <span class="fin-cf-sub">RM {{ (fd.gatewayFee ?? 0) | number:'1.2-2' }}</span>
+            </div>
           </div>
-          <div class="fin-cf-row">
-            <span class="fin-label">GROSS <button class="hint-btn" [title]="'IN &minus; OUT = ' + (grossIn | number:'1.0-0') + ' &minus; ' + (grossOut | number:'1.0-0') + ' = RM ' + (gross | number:'1.2-2')">(?)</button></span>
-            <span class="fin-cf-gross" [class.neg]="gross < 0">RM {{ gross | number:'1.2-2' }}</span>
+          <!-- Card 3: Escrow -->
+          <div class="card fin-card">
+            <div class="fin-cf-row">
+              <span class="fin-label">Escrow <button class="hint-btn" title="Funds held in escrow and pending release to servicers">(?)</button></span>
+              <span class="fin-n">RM {{ (fd.totalEscrow + fd.pendingPayouts) | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Held <button class="hint-btn" title="Customer payments currently held in escrow (funds not yet released).">(?)</button></span>
+              <span class="fin-cf-sub">RM {{ fd.totalEscrow | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Pending <button class="hint-btn" title="Escrow amounts ready to be released to servicers upon job completion.">(?)</button></span>
+              <span class="fin-cf-sub">RM {{ fd.pendingPayouts | number:'1.2-2' }}</span>
+            </div>
           </div>
-          <div class="fin-cf-row">
-            <span class="fin-label">Cashflow <button class="hint-btn" title="GROSS &minus; company withdrawals = actual cash available.">(?)</button></span>
-            <span class="fin-cf-cashflow" [class.neg]="cashflow < 0">RM {{ cashflow | number:'1.2-2' }}</span>
+          <!-- Card 4: Urgent -->
+          <div class="card fin-card urgent-card">
+            <div class="fin-cf-row">
+              <span class="fin-label">Urgent <button class="hint-btn" title="RM 150 same-day surcharge; platform takes 20% (RM 30)">(?)</button></span>
+              <span class="fin-n">RM {{ fd.urgentFeeRevenue | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Fee <button class="hint-btn" title="Total urgent surcharge collected from customers (RM 150 per urgent booking).">(?)</button></span>
+              <span class="fin-cf-sub">RM {{ fd.urgentFeeRevenue | number:'1.2-2' }}</span>
+            </div>
+            <div class="fin-cf-row">
+              <span class="fin-label">Platform share <button class="hint-btn" title="Platform's 20% cut of the urgent surcharge.">(?)</button></span>
+              <span class="fin-cf-sub">RM {{ fd.urgentFeePlatformShare | number:'1.2-2' }}</span>
+            </div>
           </div>
         </div>
-        <!-- Card 2: Revenue breakdown -->
-        <div class="card fin-card">
-          <div class="fin-cf-row">
-            <span class="fin-label">Revenue <button class="hint-btn" title="Platform earnings: 8% fees + customer top-ups">(?)</button></span>
-            <span class="fin-n">RM {{ (fd.totalFees + fd.totalTopUps) | number:'1.2-2' }}</span>
-          </div>
-          <div class="fin-cf-row">
-            <span class="fin-label">Fees <button class="hint-btn" title="Platform's commission (20%) collected from completed bookings.">(?)</button></span>
-            <span class="fin-cf-sub">RM {{ fd.totalFees | number:'1.2-2' }}</span>
-          </div>
-          <div class="fin-cf-row">
-            <span class="fin-label">Top-ups <button class="hint-btn" title="Customer wallet top-ups (deposit_topup transactions).">(?)</button></span>
-            <span class="fin-cf-sub">RM {{ fd.totalTopUps | number:'1.2-2' }}</span>
-          </div>
-        </div>
-        <!-- Card 3: Escrow -->
-        <div class="card fin-card">
-          <div class="fin-cf-row">
-            <span class="fin-label">Escrow <button class="hint-btn" title="Funds held in escrow and pending release to servicers">(?)</button></span>
-            <span class="fin-n">RM {{ (fd.totalEscrow + fd.pendingPayouts) | number:'1.2-2' }}</span>
-          </div>
-          <div class="fin-cf-row">
-            <span class="fin-label">Held <button class="hint-btn" title="Customer payments currently held in escrow (funds not yet released).">(?)</button></span>
-            <span class="fin-cf-sub">RM {{ fd.totalEscrow | number:'1.2-2' }}</span>
-          </div>
-          <div class="fin-cf-row">
-            <span class="fin-label">Pending <button class="hint-btn" title="Escrow amounts ready to be released to servicers upon job completion.">(?)</button></span>
-            <span class="fin-cf-sub">RM {{ fd.pendingPayouts | number:'1.2-2' }}</span>
-          </div>
-        </div>
-        <!-- Card 4: Urgent -->
-        <div class="card fin-card urgent-card">
-          <div class="fin-cf-row">
-            <span class="fin-label">Urgent <button class="hint-btn" title="RM 150 same-day surcharge; platform takes 20% (RM 30)">(?)</button></span>
-            <span class="fin-n">RM {{ fd.urgentFeeRevenue | number:'1.2-2' }}</span>
-          </div>
-          <div class="fin-cf-row">
-            <span class="fin-label">Fee <button class="hint-btn" title="Total urgent surcharge collected from customers (RM 150 per urgent booking).">(?)</button></span>
-            <span class="fin-cf-sub">RM {{ fd.urgentFeeRevenue | number:'1.2-2' }}</span>
-          </div>
-          <div class="fin-cf-row">
-            <span class="fin-label">Platform share <button class="hint-btn" title="Platform's 20% cut of the urgent surcharge.">(?)</button></span>
-            <span class="fin-cf-sub">RM {{ fd.urgentFeePlatformShare | number:'1.2-2' }}</span>
-          </div>
-        </div>
-      </div>
+      }
     }
 
-    <!-- ── 3. TOOLBAR ──────────────────────────────────────────────────── -->
-    <div class="toolbar page-child">
-      <div class="cat-chips">
-        <button class="chip" [class.active]="!dashCategoryId()" (click)="dashCategoryId.set(''); reloadDashboard()">All</button>
-        @for (cat of topCategories(); track cat.id) {
-          <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
-        }
-      </div>
-      <div class="search-row">
-        <div class="search-wrap">
-          <app-icon name="search" sizeToken="sm" class="search-icon-inline" />
-          <input type="search" class="toolbar-search" placeholder="Search bookings, customers, servicers..." [(ngModel)]="searchQuery" (input)="onSearchChange()" />
-        </div>
-        <div class="sort-controls">
-          <button class="btn-ghost btn-sm sort-btn" (click)="cycleSortField()">Sort: {{ sortFieldLabel() }} <app-icon name="chevron-down" sizeToken="sm" /></button>
-          <button class="btn-ghost btn-sm" title="Reverse order" (click)="toggleSortDir()"><app-icon [name]="sortState().dir === 'asc' ? 'arrow-up' : 'arrow-down'" sizeToken="sm" /></button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── 4-7. CHART + TABLES (all collapsible) ────────────────────────── -->
-    @if (finData(); as fd) {
-      <!-- ── 4. Revenue & Fees Chart ──────────────────────────────────── -->
-      <div class="section-header page-child">
-        <button class="section-toggle" (click)="toggleSection('chart')">Revenue &amp; Fees {{ showSections()['chart'] ? '▲' : '▼' }}</button>
-        <button class="hint-btn" title="Daily platform revenue and financial metrics. Toggle lines with the pills below.">(?)</button>
-        <span class="section-spacer"></span>
-      </div>
-      @if (showSections()['chart']) {
-        <div class="section-body">
-
-          <!-- Date range + quick selects -->
-          <div class="chart-controls">
-            <div class="date-range">
-              <input type="date" [ngModel]="dateFrom()" (ngModelChange)="setDateRange($event, dateTo())" />
-              <span class="date-sep">to</span>
-              <input type="date" [ngModel]="dateTo()" (ngModelChange)="setDateRange(dateFrom(), $event)" />
-            </div>
-            <div class="range-toggle">
-              <button class="range-btn" [class.on]="financialDays() === 1" (click)="setFinancialRange(1)">Today</button>
-              <button class="range-btn" [class.on]="financialDays() === 7" (click)="setFinancialRange(7)">7d</button>
-              <button class="range-btn" [class.on]="financialDays() === 30" (click)="setFinancialRange(30)">30d</button>
-              <button class="range-btn" [class.on]="financialDays() === 90" (click)="setFinancialRange(90)">90d</button>
-              <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">All</button>
-            </div>
-            <div class="quarter-toggle">
-              <button class="range-btn" [class.on]="activeQuarter() === 1" (click)="setQuarter(1)">Q1</button>
-              <button class="range-btn" [class.on]="activeQuarter() === 2" (click)="setQuarter(2)">Q2</button>
-              <button class="range-btn" [class.on]="activeQuarter() === 3" (click)="setQuarter(3)">Q3</button>
-              <button class="range-btn" [class.on]="activeQuarter() === 4" (click)="setQuarter(4)">Q4</button>
-              <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
-            </div>
+    <!-- ── 3. Revenue & Fees Chart ──────────────────────────────────────── -->
+    @if (showSection('chart')) {
+      @if (finData(); as fd) {
+        <!-- Date range + quick selects -->
+        <div class="chart-controls page-child">
+          <div class="date-range">
+            <input type="date" [ngModel]="dateFrom()" (ngModelChange)="setDateRange($event, dateTo())" />
+            <span class="date-sep">to</span>
+            <input type="date" [ngModel]="dateTo()" (ngModelChange)="setDateRange(dateFrom(), $event)" />
           </div>
-
-          <!-- Chart filter pills -->
-          <div class="chart-pills">
-            <button class="pill" [class.on]="chartPills()['revenue']" (click)="toggleChartPill('revenue')">
-              <span class="pill-dot rev" [class.off]="!chartPills()['revenue']"></span>Revenue
-            </button>
-            <button class="pill" [class.on]="chartPills()['fees']" (click)="toggleChartPill('fees')">
-              <span class="pill-dot fee" [class.off]="!chartPills()['fees']"></span>Fees
-            </button>
-            <button class="pill" [class.on]="chartPills()['escrow']" (click)="toggleChartPill('escrow')">
-              <span class="pill-dot escrow" [class.off]="!chartPills()['escrow']"></span>Escrow Held
-            </button>
-            <button class="pill" [class.on]="chartPills()['payouts']" (click)="toggleChartPill('payouts')">
-              <span class="pill-dot payout" [class.off]="!chartPills()['payouts']"></span>Pending Payouts
-            </button>
-            <button class="pill" [class.on]="chartPills()['discount']" (click)="toggleChartPill('discount')">
-              <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
-            </button>
+          <div class="range-toggle">
+            <button class="range-btn" [class.on]="financialDays() === 1" (click)="setFinancialRange(1)">Today</button>
+            <button class="range-btn" [class.on]="financialDays() === 7" (click)="setFinancialRange(7)">7d</button>
+            <button class="range-btn" [class.on]="financialDays() === 30" (click)="setFinancialRange(30)">30d</button>
+            <button class="range-btn" [class.on]="financialDays() === 90" (click)="setFinancialRange(90)">90d</button>
+            <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">All</button>
           </div>
+          <div class="quarter-toggle">
+            <button class="range-btn" [class.on]="activeQuarter() === 1" (click)="setQuarter(1)">Q1</button>
+            <button class="range-btn" [class.on]="activeQuarter() === 2" (click)="setQuarter(2)">Q2</button>
+            <button class="range-btn" [class.on]="activeQuarter() === 3" (click)="setQuarter(3)">Q3</button>
+            <button class="range-btn" [class.on]="activeQuarter() === 4" (click)="setQuarter(4)">Q4</button>
+            <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
+          </div>
+        </div>
 
-          <!-- Chart -->
-          <div class="card chart-card">
-            @if (finLoading()) {
-              <p class="muted">Loading chart…</p>
-            } @else if (fd.dailyRevenue.length || (fd.dailyEscrow && fd.dailyEscrow.length) || (fd.dailyPayouts && fd.dailyPayouts.length)) {
-              <div class="chart-wrap">
-                <!-- Legend -->
-                <div class="chart-legend">
-                  @if (chartPills()['revenue']) {
-                    <span class="legend-item"><span class="legend-dot rev"></span>Revenue</span>
-                  }
-                  @if (chartPills()['fees']) {
-                    <span class="legend-item"><span class="legend-dot fee"></span>Fees</span>
-                  }
-                  @if (chartPills()['escrow']) {
-                    <span class="legend-item"><span class="legend-dot escrow"></span>Escrow Held</span>
-                  }
-                  @if (chartPills()['payouts']) {
-                    <span class="legend-item"><span class="legend-dot payout"></span>Pending Payouts</span>
-                  }
-                </div>
-                <svg class="chart-svg" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none">
-                  <!-- Grid lines -->
-                  @for (line of gridLines(); track line.y) {
-                    <line [attr.x1]="padL" [attr.y1]="line.y" [attr.x2]="chartW - padR" [attr.y2]="line.y" class="grid-line" />
-                    <text [attr.x]="padL - 6" [attr.y]="line.y + 4" class="axis-label" text-anchor="end">{{ line.label }}</text>
-                  }
-                  <!-- Revenue line -->
-                  @if (chartPills()['revenue'] && revenueLine()) {
-                    <polyline [attr.points]="revenueLine()" class="line-rev" />
-                  }
-                  <!-- Fees line -->
-                  @if (chartPills()['fees'] && feesLine()) {
-                    <polyline [attr.points]="feesLine()" class="line-fee" />
-                  }
-                  <!-- Escrow line -->
-                  @if (chartPills()['escrow'] && escrowLine()) {
-                    <polyline [attr.points]="escrowLine()" class="line-escrow" />
-                  }
-                  <!-- Payouts line -->
-                  @if (chartPills()['payouts'] && payoutsLine()) {
-                    <polyline [attr.points]="payoutsLine()" class="line-payout" />
-                  }
-                  <!-- X-axis labels -->
-                  @for (xl of xLabels(); track xl.x) {
-                    <text [attr.x]="xl.x" [attr.y]="chartH - 4" class="axis-label x-label" text-anchor="middle">{{ xl.label | date:'M/d' }}</text>
-                  }
-                </svg>
-              </div>
-              <!-- Summary row -->
-              <div class="chart-summary">
+        <!-- Chart filter pills -->
+        <div class="chart-pills">
+          <button class="pill" [class.on]="chartPills()['revenue']" (click)="toggleChartPill('revenue')">
+            <span class="pill-dot rev" [class.off]="!chartPills()['revenue']"></span>Revenue
+          </button>
+          <button class="pill" [class.on]="chartPills()['fees']" (click)="toggleChartPill('fees')">
+            <span class="pill-dot fee" [class.off]="!chartPills()['fees']"></span>Fees
+          </button>
+          <button class="pill" [class.on]="chartPills()['escrow']" (click)="toggleChartPill('escrow')">
+            <span class="pill-dot escrow" [class.off]="!chartPills()['escrow']"></span>Escrow Held
+          </button>
+          <button class="pill" [class.on]="chartPills()['payouts']" (click)="toggleChartPill('payouts')">
+            <span class="pill-dot payout" [class.off]="!chartPills()['payouts']"></span>Pending Payouts
+          </button>
+          <button class="pill" [class.on]="chartPills()['discount']" (click)="toggleChartPill('discount')">
+            <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
+          </button>
+        </div>
+
+        <!-- Chart -->
+        <div class="card chart-card">
+          @if (finLoading()) {
+            <p class="muted">Loading chart…</p>
+          } @else if (fd.dailyRevenue.length || (fd.dailyEscrow && fd.dailyEscrow.length) || (fd.dailyPayouts && fd.dailyPayouts.length)) {
+            <div class="chart-wrap">
+              <!-- Legend -->
+              <div class="chart-legend">
                 @if (chartPills()['revenue']) {
-                  <span class="summary-item rev">Revenue: <strong>RM {{ revenueTotal() | number:'1.2-2' }}</strong></span>
+                  <span class="legend-item"><span class="legend-dot rev"></span>Revenue</span>
                 }
                 @if (chartPills()['fees']) {
-                  <span class="summary-item fee">Fees: <strong>RM {{ feesTotal() | number:'1.2-2' }}</strong></span>
+                  <span class="legend-item"><span class="legend-dot fee"></span>Fees</span>
                 }
                 @if (chartPills()['escrow']) {
-                  <span class="summary-item escrow">Escrow Held: <strong>RM {{ escrowTotal() | number:'1.2-2' }}</strong></span>
+                  <span class="legend-item"><span class="legend-dot escrow"></span>Escrow Held</span>
                 }
                 @if (chartPills()['payouts']) {
-                  <span class="summary-item payout">Pending Payouts: <strong>RM {{ payoutsTotal() | number:'1.2-2' }}</strong></span>
+                  <span class="legend-item"><span class="legend-dot payout"></span>Pending Payouts</span>
                 }
               </div>
-            } @else {
-              <p class="muted">No revenue data yet - bookings will populate this chart.</p>
-            }
-          </div>
+              <svg class="chart-svg" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none">
+                <!-- Grid lines -->
+                @for (line of gridLines(); track line.y) {
+                  <line [attr.x1]="padL" [attr.y1]="line.y" [attr.x2]="chartW - padR" [attr.y2]="line.y" class="grid-line" />
+                  <text [attr.x]="padL - 6" [attr.y]="line.y + 4" class="axis-label" text-anchor="end">{{ line.label }}</text>
+                }
+                <!-- Revenue line -->
+                @if (chartPills()['revenue'] && revenueLine()) {
+                  <polyline [attr.points]="revenueLine()" class="line-rev" />
+                }
+                <!-- Fees line -->
+                @if (chartPills()['fees'] && feesLine()) {
+                  <polyline [attr.points]="feesLine()" class="line-fee" />
+                }
+                <!-- Escrow line -->
+                @if (chartPills()['escrow'] && escrowLine()) {
+                  <polyline [attr.points]="escrowLine()" class="line-escrow" />
+                }
+                <!-- Payouts line -->
+                @if (chartPills()['payouts'] && payoutsLine()) {
+                  <polyline [attr.points]="payoutsLine()" class="line-payout" />
+                }
+                <!-- X-axis labels -->
+                @for (xl of xLabels(); track xl.x) {
+                  <text [attr.x]="xl.x" [attr.y]="chartH - 4" class="axis-label x-label" text-anchor="middle">{{ xl.label | date:'M/d' }}</text>
+                }
+              </svg>
+            </div>
+            <!-- Summary row -->
+            <div class="chart-summary">
+              @if (chartPills()['revenue']) {
+                <span class="summary-item rev">Revenue: <strong>RM {{ revenueTotal() | number:'1.2-2' }}</strong></span>
+              }
+              @if (chartPills()['fees']) {
+                <span class="summary-item fee">Fees: <strong>RM {{ feesTotal() | number:'1.2-2' }}</strong></span>
+              }
+              @if (chartPills()['escrow']) {
+                <span class="summary-item escrow">Escrow Held: <strong>RM {{ escrowTotal() | number:'1.2-2' }}</strong></span>
+              }
+              @if (chartPills()['payouts']) {
+                <span class="summary-item payout">Pending Payouts: <strong>RM {{ payoutsTotal() | number:'1.2-2' }}</strong></span>
+              }
+            </div>
+          } @else {
+            <p class="muted">No revenue data yet - bookings will populate this chart.</p>
+          }
         </div>
       }
+    }
 
-      <!-- ── 5. Category Breakdown ─────────────────────────────────────── -->
-      <div class="section-header page-child">
-        <button class="section-toggle" (click)="toggleSection('categories')">Category Breakdown {{ showSections()['categories'] ? '▲' : '▼' }}</button>
-        <button class="hint-btn" title="Per-category booking count, total booking value, and platform fees.">(?)</button>
-        <span class="section-spacer"></span>
-      </div>
-      @if (showSections()['categories']) {
-        <div class="section-body">
-          <div class="card cat-breakdown">
-            @if (fd.categoryBreakdown.length) {
-              <table class="cb-table">
-                <thead>
+    <!-- ── 4. Category Breakdown ────────────────────────────────────────── -->
+    @if (showSection('breakdown')) {
+      @if (finData(); as fd) {
+        <div class="card cat-breakdown page-child">
+          @if (fd.categoryBreakdown.length) {
+            <table class="cb-table">
+              <thead>
+                <tr>
+                  <th (click)="sortState.set({key:'name',dir:sortState().key==='name'&&sortState().dir==='asc'?'desc':'asc'})">Category <span class="sort-icon">{{ sortIcon('name') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'count',dir:sortState().key==='count'&&sortState().dir==='asc'?'desc':'asc'})">Bookings <span class="sort-icon">{{ sortIcon('count') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'revenue',dir:sortState().key==='revenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('revenue') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'fees',dir:sortState().key==='fees'&&sortState().dir==='asc'?'desc':'asc'})">Fees <span class="sort-icon">{{ sortIcon('fees') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'pct',dir:sortState().key==='pct'&&sortState().dir==='asc'?'desc':'asc'})">% of Total <span class="sort-icon">{{ sortIcon('pct') }}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of sortedCategoryBreakdown(); track row.categoryId) {
                   <tr>
-                    <th (click)="sortState.set({key:'name',dir:sortState().key==='name'&&sortState().dir==='asc'?'desc':'asc'})">Category <span class="sort-icon">{{ sortIcon('name') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'count',dir:sortState().key==='count'&&sortState().dir==='asc'?'desc':'asc'})">Bookings <span class="sort-icon">{{ sortIcon('count') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'revenue',dir:sortState().key==='revenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('revenue') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'fees',dir:sortState().key==='fees'&&sortState().dir==='asc'?'desc':'asc'})">Fees <span class="sort-icon">{{ sortIcon('fees') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'pct',dir:sortState().key==='pct'&&sortState().dir==='asc'?'desc':'asc'})">% of Total <span class="sort-icon">{{ sortIcon('pct') }}</span></th>
+                    <td>{{ row.name }}</td>
+                    <td class="num">{{ row.count }}</td>
+                    <td class="num">RM {{ row.revenue | number:'1.2-2' }}</td>
+                    <td class="num">RM {{ row.fees | number:'1.2-2' }}</td>
+                    <td class="num">{{ feesPercent(row.fees, fd.totalFees) }}%</td>
                   </tr>
-                </thead>
-                <tbody>
-                  @for (row of sortedCategoryBreakdown(); track row.categoryId) {
-                    <tr>
-                      <td>{{ row.name }}</td>
-                      <td class="num">{{ row.count }}</td>
-                      <td class="num">RM {{ row.revenue | number:'1.2-2' }}</td>
-                      <td class="num">RM {{ row.fees | number:'1.2-2' }}</td>
-                      <td class="num">{{ feesPercent(row.fees, fd.totalFees) }}%</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            } @else {
-              <p class="muted">No category data yet.</p>
-            }
-          </div>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="muted">No category data yet.</p>
+          }
         </div>
       }
+    }
 
-      <!-- ── 6. Customer Leaderboard ───────────────────────────────────── -->
-      <div class="section-header page-child">
-        <button class="section-toggle" (click)="toggleSection('customers')">Customer Leaderboard {{ showSections()['customers'] ? '▲' : '▼' }}</button>
-        <button class="hint-btn" title="Top 20 customers ranked by total spend.">(?)</button>
-        <span class="section-spacer"></span>
-      </div>
-      @if (showSections()['customers']) {
-        <div class="section-body">
-          <div class="card lb-table-wrap">
-            @if (fd.customerLeaderboard && fd.customerLeaderboard.length) {
-              <table class="lb-table">
-                <thead>
+    <!-- ── 5. Customer Leaderboard ──────────────────────────────────────── -->
+    @if (showSection('customers')) {
+      @if (finData(); as fd) {
+        <div class="card lb-table-wrap page-child">
+          @if (fd.customerLeaderboard && fd.customerLeaderboard.length) {
+            <table class="lb-table">
+              <thead>
+                <tr>
+                  <th class="num-col">#</th>
+                  <th (click)="sortState.set({key:'custName',dir:sortState().key==='custName'&&sortState().dir==='asc'?'desc':'asc'})">Customer <span class="sort-icon">{{ sortIcon('custName') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custBookings',dir:sortState().key==='custBookings'&&sortState().dir==='asc'?'desc':'asc'})">Bookings <span class="sort-icon">{{ sortIcon('custBookings') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custSpent',dir:sortState().key==='custSpent'&&sortState().dir==='asc'?'desc':'asc'})">Total Spent <span class="sort-icon">{{ sortIcon('custSpent') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custLast',dir:sortState().key==='custLast'&&sortState().dir==='asc'?'desc':'asc'})">Last Booking <span class="sort-icon">{{ sortIcon('custLast') }}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of sortedCustomerLB(); track row.userId; let i = $index) {
                   <tr>
-                    <th class="num-col">#</th>
-                    <th (click)="sortState.set({key:'custName',dir:sortState().key==='custName'&&sortState().dir==='asc'?'desc':'asc'})">Customer <span class="sort-icon">{{ sortIcon('custName') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'custBookings',dir:sortState().key==='custBookings'&&sortState().dir==='asc'?'desc':'asc'})">Bookings <span class="sort-icon">{{ sortIcon('custBookings') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'custSpent',dir:sortState().key==='custSpent'&&sortState().dir==='asc'?'desc':'asc'})">Total Spent <span class="sort-icon">{{ sortIcon('custSpent') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'custLast',dir:sortState().key==='custLast'&&sortState().dir==='asc'?'desc':'asc'})">Last Booking <span class="sort-icon">{{ sortIcon('custLast') }}</span></th>
+                    <td class="num-col">{{ i + 1 }}</td>
+                    <td><span class="lb-name">{{ row.name }}</span></td>
+                    <td class="num">{{ row.bookingCount }}</td>
+                    <td class="num">RM {{ row.totalSpent | number:'1.2-2' }}</td>
+                    <td class="num">{{ row.lastBooking | date:'MMM d, yyyy' }}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  @for (row of sortedCustomerLB(); track row.userId; let i = $index) {
-                    <tr>
-                      <td class="num-col">{{ i + 1 }}</td>
-                      <td><span class="lb-name">{{ row.name }}</span></td>
-                      <td class="num">{{ row.bookingCount }}</td>
-                      <td class="num">RM {{ row.totalSpent | number:'1.2-2' }}</td>
-                      <td class="num">{{ row.lastBooking | date:'MMM d, yyyy' }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            } @else {
-              <p class="muted">No customer data yet.</p>
-            }
-          </div>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="muted">No customer data yet.</p>
+          }
         </div>
       }
+    }
 
-      <!-- ── 7. Servicer Leaderboard ───────────────────────────────────── -->
-      <div class="section-header page-child">
-        <button class="section-toggle" (click)="toggleSection('servicers')">Servicer Leaderboard {{ showSections()['servicers'] ? '▲' : '▼' }}</button>
-        <button class="hint-btn" title="Top 20 servicers ranked by total booking revenue.">(?)</button>
-        <span class="section-spacer"></span>
-      </div>
-      @if (showSections()['servicers']) {
-        <div class="section-body">
-          <div class="card lb-table-wrap">
-            @if (fd.servicerLeaderboard && fd.servicerLeaderboard.length) {
-              <table class="lb-table">
-                <thead>
+    <!-- ── 6. Servicer Leaderboard ──────────────────────────────────────── -->
+    @if (showSection('servicers')) {
+      @if (finData(); as fd) {
+        <div class="card lb-table-wrap page-child">
+          @if (fd.servicerLeaderboard && fd.servicerLeaderboard.length) {
+            <table class="lb-table">
+              <thead>
+                <tr>
+                  <th class="num-col">#</th>
+                  <th (click)="sortState.set({key:'svcName',dir:sortState().key==='svcName'&&sortState().dir==='asc'?'desc':'asc'})">Servicer <span class="sort-icon">{{ sortIcon('svcName') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcJobs',dir:sortState().key==='svcJobs'&&sortState().dir==='asc'?'desc':'asc'})">Jobs <span class="sort-icon">{{ sortIcon('svcJobs') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcRevenue',dir:sortState().key==='svcRevenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('svcRevenue') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcRating',dir:sortState().key==='svcRating'&&sortState().dir==='asc'?'desc':'asc'})">Rating <span class="sort-icon">{{ sortIcon('svcRating') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcReports',dir:sortState().key==='svcReports'&&sortState().dir==='asc'?'desc':'asc'})">Reports <span class="sort-icon">{{ sortIcon('svcReports') }}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of sortedServicerLB(); track row.servicerId; let i = $index) {
                   <tr>
-                    <th class="num-col">#</th>
-                    <th (click)="sortState.set({key:'svcName',dir:sortState().key==='svcName'&&sortState().dir==='asc'?'desc':'asc'})">Servicer <span class="sort-icon">{{ sortIcon('svcName') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'svcJobs',dir:sortState().key==='svcJobs'&&sortState().dir==='asc'?'desc':'asc'})">Jobs <span class="sort-icon">{{ sortIcon('svcJobs') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'svcRevenue',dir:sortState().key==='svcRevenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('svcRevenue') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'svcRating',dir:sortState().key==='svcRating'&&sortState().dir==='asc'?'desc':'asc'})">Rating <span class="sort-icon">{{ sortIcon('svcRating') }}</span></th>
-                    <th class="num" (click)="sortState.set({key:'svcReports',dir:sortState().key==='svcReports'&&sortState().dir==='asc'?'desc':'asc'})">Reports <span class="sort-icon">{{ sortIcon('svcReports') }}</span></th>
+                    <td class="num-col">{{ i + 1 }}</td>
+                    <td><span class="lb-name">{{ row.businessName || row.name }}</span></td>
+                    <td class="num">{{ row.jobCount }}</td>
+                    <td class="num">RM {{ row.revenue | number:'1.2-2' }}</td>
+                    <td class="num"><span class="rating-stars">{{ row.rating | number:'1.1-1' }} ⭐</span></td>
+                    <td class="num">
+                      @if (row.reportCount > 0) {
+                        <span class="report-warn">{{ row.reportCount }}</span>
+                      } @else {
+                        <span class="report-ok">0</span>
+                      }
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  @for (row of sortedServicerLB(); track row.servicerId; let i = $index) {
-                    <tr>
-                      <td class="num-col">{{ i + 1 }}</td>
-                      <td><span class="lb-name">{{ row.businessName || row.name }}</span></td>
-                      <td class="num">{{ row.jobCount }}</td>
-                      <td class="num">RM {{ row.revenue | number:'1.2-2' }}</td>
-                      <td class="num"><span class="rating-stars">{{ row.rating | number:'1.1-1' }} ⭐</span></td>
-                      <td class="num">
-                        @if (row.reportCount > 0) {
-                          <span class="report-warn">{{ row.reportCount }}</span>
-                        } @else {
-                          <span class="report-ok">0</span>
-                        }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            } @else {
-              <p class="muted">No servicer data yet.</p>
-            }
-          </div>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="muted">No servicer data yet.</p>
+          }
         </div>
       }
     }
@@ -487,6 +496,15 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
     `
       :host { display: block; }
       h1 { margin-bottom: 1rem; }
+
+      /* ── Sticky top bar ────────────────────────────────────────────── */
+      .dash-head { background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+      .dash-head-a { padding: 0.6rem 1rem; background: var(--color-bg); }
+      .dash-head-b { padding: 0.4rem 1rem; background: var(--color-surface); }
+      .dash-divider { border: none; border-top: 1px solid var(--color-border); margin: 0; }
+      .cat-marquee { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; scrollbar-width: thin; }
+      .cat-marquee.sub { padding-top: 0.3rem; }
+      .cat-marquee::-webkit-scrollbar { height: 4px; }
 
       /* ── Hint tooltip (?) ──────────────────────────────────────────── */
       .hint-btn {
@@ -545,26 +563,12 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
         background: rgba(196, 144, 58, 0.04);
       }
 
-      /* ── Collapsible section headers ────────────────────────────────── */
-      .section-header {
-        display: flex; align-items: center; gap: 0.35rem;
-        border-bottom: 1px solid var(--color-border); margin-top: 1.5rem; padding: 0.5rem 0;
-      }
-      .section-spacer { flex: 1; }
-      .section-toggle {
-        background: none; border: none; cursor: pointer;
-        font-size: 1rem; font-weight: 600; font-family: inherit;
-        color: var(--color-text); text-align: left; padding: 0;
-      }
-      .section-toggle:hover { color: var(--color-primary); }
-      .section-body { padding-top: 0.75rem; }
-
       /* ── Queue grid ─────────────────────────────────────────────────── */
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
         gap: 1rem;
-        margin: 0 0 1rem;
+        margin: 1.5rem 0 1rem;
       }
       .stat {
         display: flex;
@@ -589,15 +593,9 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       .muted { color: var(--color-muted); font-size: 0.85rem; }
       .err { color: var(--color-danger); font-size: 0.9rem; }
 
-      /* ── Toolbar ────────────────────────────────────────────────────── */
-      .toolbar {
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-        margin: 0.5rem 0 1rem;
-      }
+      /* ── Search row ──────────────────────────────────────────────────── */
       .search-row {
-        display: flex; align-items: center; gap: 0.75rem;
+        display: flex; align-items: center; gap: 0.75rem; padding-top: 0.5rem;
       }
       .search-wrap {
         flex: 1;
@@ -631,12 +629,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       .toolbar-search:focus { outline: none; }
       .toolbar-search::placeholder { color: var(--color-muted); }
 
-      /* ── Category chips ─────────────────────────────────────────────── */
-      .cat-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-      }
+      /* ── Chips ───────────────────────────────────────────────────────── */
       .chip {
         background: var(--color-surface);
         border: 1px solid var(--color-border);
@@ -646,6 +639,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
         font-family: inherit;
         cursor: pointer;
         color: var(--color-text);
+        white-space: nowrap;
         transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
       }
       .chip:hover { border-color: var(--color-primary); }
@@ -662,6 +656,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
         gap: 1rem;
         align-items: center;
         margin-bottom: 0.6rem;
+        margin-top: 1rem;
       }
       .date-range {
         display: flex;
@@ -764,6 +759,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
         background: var(--color-success);
         border: 1px dashed var(--color-success);
       }
+      .pill-dot.disc { background: var(--color-muted); }
 
       /* ── Chart card ─────────────────────────────────────────────────── */
       .chart-card { padding: 1rem 1.25rem 0.5rem; overflow: hidden; }
@@ -799,9 +795,28 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       .line-rev {
         fill: none;
         stroke: var(--color-primary);
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+      .line-fee {
+        fill: none;
+        stroke: #f59e0b;
+        stroke-dasharray: 6 3;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+      .line-escrow {
+        fill: none;
+        stroke: #16a34a;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+      .line-payout {
+        fill: none;
+        stroke: #16a34a;
+        stroke-dasharray: 6 3;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
       }
       .line-fee {
         fill: none;
@@ -851,7 +866,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       .summary-item.payout strong { color: var(--color-success); }
 
       /* ── Category breakdown table ───────────────────────────────────── */
-      .cat-breakdown { padding: 0.75rem 1rem; }
+      .cat-breakdown { padding: 0.75rem 1rem; margin-top: 1.5rem; }
       .cb-table {
         width: 100%;
         border-collapse: collapse;
@@ -880,7 +895,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       th:hover .sort-icon { opacity: 1; }
 
       /* ── Leaderboard tables ─────────────────────────────────────────── */
-      .lb-table-wrap { padding: 0.5rem 1rem 1rem; }
+      .lb-table-wrap { padding: 0.5rem 1rem 1rem; margin-top: 1.5rem; }
       .lb-table {
         width: 100%;
         border-collapse: collapse;
@@ -939,17 +954,12 @@ export class AdminDashboardComponent implements OnInit {
   finLoading = signal(true);
   finFailed = signal(false);
 
-  // ── Collapsible sections ─────────────────────────────────────────────
-  showSections = signal<Record<string, boolean>>({
-    queues: true,
-    chart: true,
-    categories: true,
-    customers: true,
-    servicers: true,
-  });
+  // ── Section filter ───────────────────────────────────────────────────
+  sectionFilter = signal<'all' | 'queues' | 'cards' | 'chart' | 'breakdown' | 'customers' | 'servicers'>('all');
 
-  toggleSection(key: string): void {
-    this.showSections.update((s) => ({ ...s, [key]: !s[key] }));
+  showSection(s: string): boolean {
+    const f = this.sectionFilter();
+    return f === 'all' || f === s;
   }
 
   // ── Chart pills ──────────────────────────────────────────────────────
@@ -1009,7 +1019,8 @@ export class AdminDashboardComponent implements OnInit {
   // ── Category filter ──────────────────────────────────────────────────
   dashCategoryId = signal('');
   dashCategories = signal<{ id: string; name: string; parentCategoryId: string | null }[]>([]);
-  topCategories = computed(() => this.dashCategories().filter((c) => !c.parentCategoryId));
+  parentCategories = computed(() => this.dashCategories().filter((c) => !c.parentCategoryId));
+  childCategories = computed(() => this.dashCategories().filter((c) => c.parentCategoryId));
   labelInterval = computed(() => (this.financialDays() > 20 ? 5 : 1));
 
   // ── Search ───────────────────────────────────────────────────────────
@@ -1069,7 +1080,7 @@ export class AdminDashboardComponent implements OnInit {
     if (q) rows = rows.filter(r => (r.businessName || r.name).toLowerCase().includes(q) || String(r.jobCount).includes(q) || String(r.revenue).includes(q) || String(r.rating).includes(q));
     const { key, dir } = this.sortState();
     const m = dir === 'asc' ? 1 : -1;
-    if (key === 'svcName') rows.sort((a, b) => (a.businessName || a.name).localeCompare(b.businessName || b.name) * m);
+    if (key === 'svcName') rows.sort((a, b) => (a.businessName || b.name).localeCompare(b.businessName || b.name) * m);
     else if (key === 'svcJobs') rows.sort((a, b) => (a.jobCount - b.jobCount) * m);
     else if (key === 'svcRevenue') rows.sort((a, b) => (a.revenue - b.revenue) * m);
     else if (key === 'svcRating') rows.sort((a, b) => (a.rating - b.rating) * m);
