@@ -6,6 +6,19 @@
 >
 > Rule this phase: only work items on the demo thread. Everything else is deferred.
 >
+> ### ✅ DONE — Admin Financial Report Generator — Dota-style Report UI (2026-06-26)
+> - [x] Backend: `POST /admin/chat/financial-report` returns `{ report, financialData, tokensUsed }` with structured snapshot for rich rendering
+> - [x] Frontend: Dota Plus-inspired report dialog — hero KPIs (Net Profit, Revenue, Expenses, Platform Earnings, Pending, Cash Flow), performance summary cards, income/expense breakdowns with bar charts, KPI progress bars, category highlights with ranked cards, customer/servicer leaderboards, gamified achievements, embedded AI insights section
+> - [x] Button: rotating gradient border animation (CSS `@property` + `conic-gradient` + `mask-composite`) matching guest Request-a-Quote style, brightens on hover
+> - [x] Skeleton loading, fade-in animation, hover transitions on all cards
+> - [x] Both backend + frontend typecheck pass
+>
+> ### ✅ DONE — Admin Dashboard Status Columns + Avg/Total + Header Toggle (2026-06-26)
+> - [x] Category breakdown + customer leaderboard + servicer leaderboard tables now show Confirmed/Completed/Cancelled columns with sort support
+> - [x] Donut chart "Show by" dropdowns show Avg RM X | Total RM Y on same line (right-aligned)
+> - [x] Card titles (Category Breakdown, Customer Leaderboard, Servicer Leaderboard) bigger (1.15rem) + not bold
+> - [x] Collapse/expand toggle button (▲/▼) added to date-controls row in sticky toolbar
+>
 > ### ✅ DONE — Seed Consolidation + Dashboard Wiring + UX Polish (2026-06-25/26)
 > - [x] SP-3 modules merged into seed.ts (single `npm run seed`, all 34 categories)
 > - [x] OptionValue mismatches fixed + missing priced-question ModuleDefs added

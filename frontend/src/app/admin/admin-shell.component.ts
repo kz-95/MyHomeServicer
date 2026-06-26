@@ -1,14 +1,28 @@
-import { Component } from "@angular/core";
+import { Component, signal, inject, OnInit, computed } from "@angular/core";
 import { ShellComponent, NavItem } from "../shared/shell.component";
 import { routeFor } from "../core/route-for";
+import { Router, NavigationEnd } from "@angular/router";
+import { filter } from "rxjs/operators";
 
 @Component({
   selector: "app-admin-shell",
   imports: [ShellComponent],
-  template: `<app-shell portalTitle="Admin" [navItems]="nav" />`,
+  template: `<app-shell portalTitle="Admin" [navItems]="nav" [narrow]="narrow()" />`,
 })
-export class AdminShellComponent {
+export class AdminShellComponent implements OnInit {
   protected readonly routeFor = routeFor;
+  private readonly router = inject(Router);
+  private readonly urlSig = signal('');
+
+  /** Only the dashboard keeps full width; all other admin pages are narrow (720px max). */
+  readonly narrow = computed(() => this.urlSig() !== routeFor('admin'));
+
+  ngOnInit(): void {
+    this.urlSig.set(this.router.url.split('?')[0]);
+    this.router.events
+      .pipe(filter(e => e instanceof NavigationEnd))
+      .subscribe(() => this.urlSig.set(this.router.url.split('?')[0]));
+  }
 
   nav: NavItem[] = [
     { label: "Dashboard", path: routeFor('admin'), icon: "bar-chart", exact: true },

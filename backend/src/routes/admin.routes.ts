@@ -44,6 +44,7 @@ import {
 } from '../services/admin.service';
 import { listIdentityChangeRequests, updateIdentityChangeRequest } from '../services/identity-change.service';
 import { notify } from '../services/notification.service';
+import { adminFinancialChat, generateFinancialReport } from '../services/chat.service';
 
 /** Admin panel router (`/admin/*`). Settings-mutating routes also require PIN. */
 export const adminRouter = Router();
@@ -65,15 +66,109 @@ adminRouter.get(
 );
 
 /** GET /admin/dashboard/financial - top-ups, fees, escrow, urgent revenue,
- *  category breakdown, and daily revenue series. Optional ?days=30&categoryId=<uuid>. */
+ *  category breakdown, and daily revenue series. Optional ?days=30 or ?from=YYYY-MM-DD&to=YYYY-MM-DD + categoryId=<uuid>. */
 adminRouter.get(
   '/dashboard/financial',
   asyncHandler(async (req, res) => {
-    const days = Math.min(90, Math.max(1, Number(req.query.days) || 30));
-    const result = await getDashboardFinancial(days, req.query.categoryId as string | undefined);
-    res.json(result);
+    const fromStr = req.query.from as string | undefined;
+    const toStr = req.query.to as string | undefined;
+    const categoryId = req.query.categoryId as string | undefined;
+    if (fromStr && toStr) {
+      res.json(await getDashboardFinancial(fromStr, toStr, categoryId));
+    } else {
+      const days = Math.min(90, Math.max(1, Number(req.query.days) || 30));
+      res.json(await getDashboardFinancial(days, categoryId));
+    }
   }),
 );
+
+/** GET /admin/dashboard/financial/snapshot - Fast structured snapshot (no AI).
+ *  Returns the same FinancialSnapshot shape the report dialog uses, so the
+ *  frontend can render steps 1-4 immediately while the AI report loads. */
+adminRouter.get(
+  '/dashboard/financial/snapshot',
+  asyncHandler(async (req, res) => {
+    const fromStr = req.query.from as string | undefined;
+    const toStr = req.query.to as string | undefined;
+    const categoryId = req.query.categoryId as string | undefined;
+    const raw = fromStr && toStr
+      ? await getDashboardFinancial(fromStr, toStr, categoryId)
+      : await getDashboardFinancial(Math.min(90, Math.max(1, Number(req.query.days) || 30)), categoryId);
+    res.json(buildSnap(raw, fromStr, toStr));
+  }),
+);
+
+// ── AI Chat ──────────────────────────────────────────────────────────────────
+
+/** POST /admin/chat/financial - Admin financial QA. Accepts { message }. */
+adminRouter.post(
+  '/chat/financial',
+  validate([body('message').isString().trim().isLength({ min: 1, max: 2000 })]),
+  asyncHandler(async (req, res) => {
+    const fromStr = req.query.from as string | undefined;
+    const toStr = req.query.to as string | undefined;
+    const categoryId = req.query.categoryId as string | undefined;
+    const raw = fromStr && toStr
+      ? await getDashboardFinancial(fromStr, toStr, categoryId)
+      : await getDashboardFinancial(Math.min(90, Math.max(1, Number(req.query.days) || 30)), categoryId);
+
+    const reply = await adminFinancialChat(req.body.message, buildSnap(raw, fromStr, toStr));
+    res.json({ reply: reply.answer, ...(reply.actionBlocks ? { actionBlocks: reply.actionBlocks } : {}) });
+  }),
+);
+
+/** POST /admin/chat/financial-report - One-click report generator. No body. */
+adminRouter.post(
+  '/chat/financial-report',
+  asyncHandler(async (req, res) => {
+    const fromStr = req.query.from as string | undefined;
+    const toStr = req.query.to as string | undefined;
+    const categoryId = req.query.categoryId as string | undefined;
+    const raw = fromStr && toStr
+      ? await getDashboardFinancial(fromStr, toStr, categoryId)
+      : await getDashboardFinancial(Math.min(90, Math.max(1, Number(req.query.days) || 30)), categoryId);
+
+    const snap = buildSnap(raw, fromStr, toStr);
+    const reply = await generateFinancialReport(snap);
+    res.json({ report: reply.answer, tokensUsed: reply.tokensUsed, financialData: snap });
+  }),
+);
+
+/** Build a FinancialSnapshot from raw dashboard data. */
+function buildSnap(raw: Awaited<ReturnType<typeof getDashboardFinancial>>, fromStr?: string, toStr?: string) {
+  const totalIn = raw.totalBookingRevenue + raw.totalTopUps;
+  const totalOut = raw.totalPayouts + raw.gatewayFee + raw.registeredDiscount + raw.promoCost + raw.pointsCost;
+  const dailyRevs = raw.dailyRevenue;
+  let highestDay = '', highestAmount = 0, sumDaily = 0;
+  for (const d of dailyRevs) { sumDaily += d.revenue; if (d.revenue > highestAmount) { highestAmount = d.revenue; highestDay = d.date; } }
+  return {
+    period: fromStr && toStr ? `${fromStr} to ${toStr}` : `${dailyRevs.length} days`,
+    categoryId: undefined as string | undefined,
+    totals: {
+      bookingRevenue: raw.totalBookingRevenue, commission: raw.totalCommission,
+      topUps: raw.totalTopUps, payouts: raw.totalPayouts, withdrawals: raw.totalWithdrawals,
+      escrowHeld: raw.totalEscrow, pendingPayouts: raw.pendingPayouts,
+      gatewayFees: raw.gatewayFee, registeredDiscounts: raw.registeredDiscount,
+      promoCosts: raw.promoCost, pointsCosts: raw.pointsCost,
+      urgentFeeRevenue: raw.urgentFeeRevenue, urgentFeePlatformShare: raw.urgentFeePlatformShare,
+    },
+    cashflow: { totalIn, totalOut, gross: totalIn - totalOut, netAfterWithdrawals: totalIn - totalOut - raw.totalWithdrawals },
+    categoryBreakdown: raw.categoryBreakdown.map((c: any) => ({
+      name: c.name, count: c.count, revenue: c.revenue, commission: c.commission,
+      confirmed: c.confirmed, completed: c.completed, cancelled: c.cancelled,
+    })),
+    customerTop10: raw.customerLeaderboard.slice(0, 10).map((c: any) => ({
+      name: c.name, email: c.email, bookingCount: c.bookingCount, totalSpent: c.totalSpent,
+    })),
+    servicerTop10: raw.servicerLeaderboard.slice(0, 10).map((s: any) => ({
+      name: s.name, businessName: s.businessName, rating: s.rating,
+      jobCount: s.jobCount, revenue: s.revenue, reportCount: s.reportCount,
+    })),
+    dailyTrend: { highestRevenueDay: highestDay, highestRevenueAmount: highestAmount,
+      averageDailyRevenue: dailyRevs.length > 0 ? sumDaily / dailyRevs.length : 0, totalDays: dailyRevs.length },
+    periodLabel: fromStr && toStr ? `${fromStr} to ${toStr}` : `${dailyRevs.length} days`,
+  };
+}
 
 // ── Action PIN pre-validation ────────────────────────────────────────────────
 // Rate limited to 5 attempts / 15 min per admin (security-notes.md §6).

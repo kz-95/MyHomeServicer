@@ -1651,6 +1651,71 @@ Get conversation history.
 ### `GET /chat/faq`
 Public FAQ list.
 
+### `POST /admin/chat/financial`
+**Admin only.** Financial analysis chat - sends a question to the AI with live dashboard financial data injected into the system prompt. Stateless (no session needed).
+
+**Query params** (match dashboard filters):
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `from` | string (YYYY-MM-DD) | (derived from days) | Start date |
+| `to` | string (YYYY-MM-DD) | (derived from days) | End date |
+| `days` | number | 30 | Days of data (1-90); ignored if `from`/`to` provided |
+| `categoryId` | string (UUID) | none | Filter to one category |
+
+**Body:**
+```json
+{
+  "message": "What was total revenue and which category had the highest commission?"
+}
+```
+
+**Response:**
+```json
+{
+  "reply": "Total revenue over 30 days was RM 245,000.00. The top 3 categories by commission: ...",
+  "actionBlocks": [
+    {
+      "type": "financial_table",
+      "data": {
+        "title": "Top Categories by Commission",
+        "columns": ["Rank", "Category", "Commission", "Bookings"],
+        "rows": [["1", "Renovation", "RM 12,300.00", "8"], ...]
+      }
+    }
+  ]
+}
+```
+
+**Action block types:**
+- `financial_table` - structured table (title, columns, rows)
+- `financial_kpi` - single metric card (label, value, trend, sub)
+
+**System prompt includes:**
+- Revenue/income totals (booking revenue, commission, top-ups, urgent fees)
+- Cost/outflow totals (payouts, withdrawals, gateway fees, discounts, promos, points)
+- Escrow status (held, pending payouts)
+- Cashflow summary (IN/OUT/GROSS/NET)
+- Category breakdown (all categories with count, revenue, commission, status counts)
+- Customer leaderboard (top 10 by spending)
+- Servicer leaderboard (top 10 by revenue)
+
+### `POST /admin/chat/financial-report`
+**Admin only.** One-click financial report generator. Same query params as above. No body required.
+
+Generates a comprehensive 10-section advisory report:
+1. Executive Summary
+2. Revenue & Growth
+3. Cost & Margin Analysis
+4. Cashflow Health
+5. Category Performance Deep-Dive
+6. Customer Insights
+7. Servicer Performance
+8. Risks & Red Flags
+9. Opportunities & Growth Levers
+10. Recommendations (Priority-Ordered)
+
+**Response:** `{ "report": "markdown-formatted advisory report", "tokensUsed": 1234 }`
+
 ---
 
 ## Admin endpoints

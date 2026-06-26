@@ -49,22 +49,62 @@ interface ServicerLeaderboardRow {
   cancelled: bigint;
 }
 
+/** MYT offset in ms — Malaysia time is UTC+8 */
+const MYT_OFFSET = 8 * 60 * 60 * 1000;
+
+/** Parse a YYYY-MM-DD string as MYT midnight → UTC Date */
+function mytMidnight(dateStr: string): Date {
+  // "2024-01-01T00:00:00+08:00" → UTC equivalent
+  return new Date(`${dateStr}T00:00:00+08:00`);
+}
+
+/** Parse a YYYY-MM-DD string as MYT end-of-day → UTC Date */
+function mytEndOfDay(dateStr: string): Date {
+  return new Date(`${dateStr}T23:59:59+08:00`);
+}
+
+/** Get today's MYT midnight as UTC Date */
+function mytTodayMidnight(): Date {
+  const now = new Date();
+  // Compute MYT date: add 8h to UTC → extract year/month/day → construct MYT midnight
+  const myt = new Date(now.getTime() + MYT_OFFSET);
+  const y = myt.getUTCFullYear();
+  const m = String(myt.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(myt.getUTCDate()).padStart(2, '0');
+  return mytMidnight(`${y}-${m}-${d}`);
+}
+
 /**
  * Admin financial dashboard - top-ups, fees, escrow, urgent revenue,
  * category breakdown, and daily revenue series.
+ *
+ * Two modes:
+ *   getDashboardFinancial(days, categoryId) — last N days from today (MYT)
+ *   getDashboardFinancial(from, to, categoryId) — specific date range (YYYY-MM-DD, MYT)
  */
-export async function getDashboardFinancial(days: number, categoryId?: string) {
-  const start = new Date();
-  start.setDate(start.getDate() - (days - 1));
-  start.setHours(0, 0, 0, 0);
+export async function getDashboardFinancial(daysOrFrom: number | string, toOrCategory?: string, categoryId?: string) {
+  let start: Date;
+  let end: Date;
+  let days: number;
+  if (typeof daysOrFrom === 'string') {
+    // Date-range mode (MYT dates)
+    start = mytMidnight(daysOrFrom);
+    end = mytEndOfDay(toOrCategory as string);
+    days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86_400_000) + 1);
+  } else {
+    // Days-from-today mode (MYT)
+    days = daysOrFrom;
+    end = mytEndOfDay(new Date(Date.now() + MYT_OFFSET).toISOString().slice(0, 10));
+    start = new Date(end.getTime() - (days - 1) * 86_400_000);
+    start = mytMidnight(new Date(start.getTime() + MYT_OFFSET).toISOString().slice(0, 10));
+  }
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart = mytTodayMidnight();
 
   // ── totalTopUps - deposit_topup transactions (not linked to bookings, so no category filter) ──
   const [topUpRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
-    `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions WHERE type = 'deposit_topup' AND status = 'completed' AND created_at >= $1`,
-    start,
+    `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions WHERE type = 'deposit_topup' AND status = 'completed' AND created_at >= $1 AND created_at <= $2`,
+    start, end,
   );
   const totalTopUps = Number(topUpRow?.total ?? 0);
 
@@ -74,9 +114,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'platform_fee' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'platform_fee' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
   const totalFees = Number(feeRows[0]?.total ?? 0);
 
@@ -86,9 +126,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'escrow_hold' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'escrow_hold' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
   const totalEscrow = Number(escrowRows[0]?.total ?? 0);
 
@@ -104,9 +144,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     `SELECT COALESCE(SUM(b.price), 0)::numeric AS total
      FROM bookings b
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE b.status = 'completed' AND b.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE b.status = 'completed' AND b.created_at >= $1 AND b.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
   const totalBookingRevenue = Number(bRevRow?.total ?? 0);
 
@@ -116,24 +156,27 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'escrow_release' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'escrow_release' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
   const totalPayouts = Number(payoutRow?.total ?? 0);
 
   // ── totalWithdrawals - SUM(servicer withdrawals, marked as paid) ──
   const [wdrRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(amount), 0)::numeric AS total
-     FROM servicer_withdrawals WHERE status = 'paid' AND created_at >= $1`,
-    start,
+      FROM servicer_withdrawals WHERE status = 'paid' AND created_at >= $1 AND created_at <= $2`,
+    start, end,
   );
   const totalWithdrawals = Number(wdrRow?.total ?? 0);
 
   // ── todayTopUps - deposit_topup today ──
+  /* todayEnd = end of today MYT for todayTopUps/todayFees */
+  const todayEnd = mytEndOfDay(new Date(Date.now() + MYT_OFFSET).toISOString().slice(0, 10));
+
   const [todayTopUpRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
-    `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions WHERE type = 'deposit_topup' AND status = 'completed' AND created_at >= $1`,
-    todayStart,
+    `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions WHERE type = 'deposit_topup' AND status = 'completed' AND created_at >= $1 AND created_at <= $2`,
+    todayStart, todayEnd,
   );
   const todayTopUps = Number(todayTopUpRow?.total ?? 0);
 
@@ -143,9 +186,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'platform_fee' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
-    ...(categoryId ? [todayStart, categoryId] : [todayStart]),
+     WHERE t.type = 'platform_fee' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}`,
+    ...(categoryId ? [todayStart, todayEnd, categoryId] : [todayStart, todayEnd]),
   );
   const todayFees = Number(todayFeeRows[0]?.total ?? 0);
 
@@ -156,9 +199,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'gateway_fee' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'gateway_fee' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
   const gatewayFee = Number(gatewayFeeRow?.total ?? 0);
 
@@ -168,8 +211,8 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   // so they cannot be meaningfully scoped to a category. The total is always platform-wide.
   const [regDiscountRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions
-     WHERE type = 'registered_customer_discount' AND status = 'completed' AND created_at >= $1`,
-    start,
+     WHERE type = 'registered_customer_discount' AND status = 'completed' AND created_at >= $1 AND created_at <= $2`,
+    start, end,
   );
   const registeredDiscount = Number(regDiscountRow?.total ?? 0);
 
@@ -179,9 +222,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'promo_cost' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'promo_cost' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
   const promoCost = Number(promoCostRow?.total ?? 0);
 
@@ -191,8 +234,8 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   // bonuses), so they cannot be meaningfully scoped to a category.
   const [pointsCostRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions
-     WHERE type = 'points_liability' AND status = 'completed' AND created_at >= $1`,
-    start,
+     WHERE type = 'points_liability' AND status = 'completed' AND created_at >= $1 AND created_at <= $2`,
+    start, end,
   );
   const pointsCost = Number(pointsCostRow?.total ?? 0);
 
@@ -201,7 +244,7 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     _sum: { urgentFee: true },
     where: {
       isUrgent: true,
-      createdAt: { gte: start },
+      createdAt: { gte: start, lte: end },
       ...(categoryId ? { quoteRequest: { categoryId } } : {}),
     },
   });
@@ -216,9 +259,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'urgent_fee' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'urgent_fee' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
   const urgentFeePlatformShareLedger = Number(urgentFeeLedgerRows[0]?.total ?? 0);
 
@@ -244,33 +287,33 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
 
   // ── categoryBreakdown - group by category with count, revenue, fees + status breakdown ──
   const breakdownRows = await prisma.$queryRawUnsafe<
-    Array<{ category_id: string; category_name: string; booking_count: bigint; revenue: string; fees: string; confirmed: bigint; completed: bigint; cancelled: bigint }>
+    Array<{ category_id: string; category_name: string; booking_count: bigint; revenue: string; commission: string; confirmed: bigint; completed: bigint; cancelled: bigint }>
   >(
     `SELECT
        c.id AS category_id,
        c.name AS category_name,
        COUNT(DISTINCT b.id)::bigint AS booking_count,
        COALESCE(SUM(COALESCE(b.price, 0)), 0)::numeric AS revenue,
-       COALESCE(SUM(ft.amount), 0)::numeric AS fees,
+       COALESCE(SUM(ft.amount), 0)::numeric AS commission,
        COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'confirmed')::bigint AS confirmed,
        COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'completed')::bigint AS completed,
        COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'cancelled')::bigint AS cancelled
-     FROM categories c
-     LEFT JOIN quote_requests qr ON qr.category_id = c.id
-     LEFT JOIN bookings b ON b.quote_request_id = qr.id AND b.created_at >= $1
-     LEFT JOIN transactions ft ON ft.booking_id = b.id AND ft.type = 'platform_fee' AND ft.status = 'completed' AND ft.created_at >= $1
-     WHERE c.deleted_at IS NULL
-       ${categoryId ? 'AND c.id = $2::uuid' : ''}
-     GROUP BY c.id
-     ORDER BY fees DESC`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      FROM categories c
+      LEFT JOIN quote_requests qr ON qr.category_id = c.id
+      LEFT JOIN bookings b ON b.quote_request_id = qr.id AND b.created_at >= $1 AND b.created_at <= $2
+      LEFT JOIN transactions ft ON ft.booking_id = b.id AND ft.type = 'platform_fee' AND ft.status = 'completed' AND ft.created_at >= $1 AND ft.created_at <= $2
+      WHERE c.deleted_at IS NULL
+        ${categoryId ? 'AND c.id = $3::uuid' : ''}
+      GROUP BY c.id
+      ORDER BY commission DESC`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
   const categoryBreakdown = breakdownRows.map((r) => ({
     categoryId: r.category_id,
     name: r.category_name,
     count: Number(r.booking_count),
     revenue: Number(r.revenue),
-    fees: Number(r.fees),
+    commission: Number(r.commission),
     confirmed: Number(r.confirmed),
     completed: Number(r.completed),
     cancelled: Number(r.cancelled),
@@ -288,33 +331,33 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'platform_fee' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}
-     GROUP BY t.created_at::date
-     ORDER BY day ASC`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'platform_fee' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}
+      GROUP BY t.created_at::date
+      ORDER BY day ASC`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
 
   // Pad with zeros for days with no revenue
-  const dailyMap = new Map<string, { revenue: number; fees: number; count: number }>();
+  const dailyMap = new Map<string, { revenue: number; commission: number; count: number }>();
   for (const r of dailyRows) {
     dailyMap.set(r.day, {
       revenue: Number(r.revenue),
-      fees: Number(r.fees),
+      commission: Number(r.fees),
       count: Number(r.booking_count),
     });
   }
 
-  const dailyRevenue: { date: string; revenue: number; fees: number; count: number }[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+  const dailyRevenue: { date: string; revenue: number; commission: number; count: number }[] = [];
+  for (let i = 0; i < days; i++) {
+    const utcMs = start.getTime() + i * 86_400_000 + MYT_OFFSET; // offset to MYT for date key
+    const d = new Date(utcMs);
     const key = d.toISOString().slice(0, 10);
     const entry = dailyMap.get(key);
     dailyRevenue.push({
       date: key,
       revenue: entry?.revenue ?? 0,
-      fees: entry?.fees ?? 0,
+      commission: entry?.commission ?? 0,
       count: entry?.count ?? 0,
     });
   }
@@ -326,10 +369,10 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'escrow_hold' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}
-     GROUP BY t.created_at::date ORDER BY day`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'escrow_hold' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}
+      GROUP BY t.created_at::date ORDER BY day`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
 
   const escrowMap = new Map<string, number>();
@@ -338,9 +381,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   }
 
   const dailyEscrow: { day: string; amount: number }[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+  for (let i = 0; i < days; i++) {
+    const utcMs = start.getTime() + i * 86_400_000 + MYT_OFFSET;
+    const d = new Date(utcMs);
     const key = d.toISOString().slice(0, 10);
     dailyEscrow.push({ day: key, amount: escrowMap.get(key) ?? 0 });
   }
@@ -352,10 +395,10 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'escrow_release' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}
-     GROUP BY t.created_at::date ORDER BY day`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'escrow_release' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}
+      GROUP BY t.created_at::date ORDER BY day`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
 
   const payoutsMap = new Map<string, number>();
@@ -364,9 +407,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   }
 
   const dailyPayouts: { day: string; amount: number }[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+  for (let i = 0; i < days; i++) {
+    const utcMs = start.getTime() + i * 86_400_000 + MYT_OFFSET;
+    const d = new Date(utcMs);
     const key = d.toISOString().slice(0, 10);
     dailyPayouts.push({ day: key, amount: payoutsMap.get(key) ?? 0 });
   }
@@ -378,10 +421,10 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      FROM transactions t
      INNER JOIN bookings b ON t.booking_id = b.id
      INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
-     WHERE t.type = 'registered_customer_discount' AND t.status = 'completed' AND t.created_at >= $1
-       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}
-     GROUP BY t.created_at::date ORDER BY day`,
-    ...(categoryId ? [start, categoryId] : [start]),
+      WHERE t.type = 'registered_customer_discount' AND t.status = 'completed' AND t.created_at >= $1 AND t.created_at <= $2
+        ${categoryId ? `AND qr.category_id = $3::uuid` : ''}
+      GROUP BY t.created_at::date ORDER BY day`,
+    ...(categoryId ? [start, end, categoryId] : [start, end]),
   );
   const discMap = new Map<string, number>();
   for (const r of discountDailyRows) { discMap.set(r.day, Number(r.amount)); }
@@ -464,14 +507,14 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
 
   return {
     totalTopUps,
-    totalFees,
+    totalCommission: totalFees,
     totalEscrow,
     pendingPayouts,
     totalBookingRevenue,
     totalPayouts,
     totalWithdrawals,
     todayTopUps,
-    todayFees,
+    todayCommission: todayFees,
     urgentFeeRevenue,
     urgentFeePlatformShare,
     // T23: cost lines

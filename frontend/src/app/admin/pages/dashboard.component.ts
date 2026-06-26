@@ -12,6 +12,7 @@ import { IconComponent } from '../../shared/icon.component';
 import { LineChartComponent } from '../components/line-chart.component';
 import { BarChartComponent } from '../components/bar-chart.component';
 import { DonutChartComponent } from '../components/donut-chart.component';
+import { FinancialChatComponent } from './financial-chat.component';
 
 // ── Interfaces ────────────────────────────────────────────────────────────
 
@@ -33,13 +34,16 @@ interface CategoryBreakdown {
   name: string;
   count: number;
   revenue: number;
-  fees: number;
+  commission: number;
+  confirmed: number;
+  completed: number;
+  cancelled: number;
 }
 
 interface DailyRevenuePoint {
   date: string;
   revenue: number;
-  fees: number;
+  commission: number;
   count: number;
 }
 
@@ -55,6 +59,9 @@ interface CustomerLeader {
   bookingCount: number;
   totalSpent: number;
   lastBooking: string;
+  confirmed: number;
+  completed: number;
+  cancelled: number;
 }
 
 interface ServicerLeader {
@@ -65,11 +72,14 @@ interface ServicerLeader {
   jobCount: number;
   revenue: number;
   reportCount: number;
+  confirmed: number;
+  completed: number;
+  cancelled: number;
 }
 
 interface FinancialDashboard {
   totalTopUps: number;
-  totalFees: number;
+  totalCommission: number;
   totalBookingRevenue?: number;
   totalPayouts?: number;
   totalWithdrawals?: number;
@@ -80,7 +90,7 @@ interface FinancialDashboard {
   totalEscrow: number;
   pendingPayouts: number;
   todayTopUps: number;
-  todayFees: number;
+  todayCommission: number;
   urgentFeeRevenue: number;
   urgentFeePlatformShare: number;
   categoryBreakdown: CategoryBreakdown[];
@@ -92,7 +102,7 @@ interface FinancialDashboard {
   servicerLeaderboard?: ServicerLeader[];
 }
 
-type ChartLineKey = 'revenue' | 'fees' | 'gross' | 'discount' | 'cashflow';
+type ChartLineKey = 'revenue' | 'commission' | 'gross' | 'discount' | 'cashflow';
 
 const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6b7280'];
 
@@ -101,7 +111,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 @Component({
   selector: 'app-admin-dashboard',
   host: { class: 'page-enter' },
-  imports: [CommonModule, RouterLink, FormsModule, IconComponent, LineChartComponent, BarChartComponent, DonutChartComponent],
+  imports: [CommonModule, RouterLink, FormsModule, IconComponent, LineChartComponent, BarChartComponent, DonutChartComponent, FinancialChatComponent],
   template: `
     <h1>Admin dashboard</h1>
 
@@ -160,7 +170,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <button class="range-btn" [class.on]="financialDays() === 7" (click)="setFinancialRange(7)">7d</button>
             <button class="range-btn" [class.on]="financialDays() === 30" (click)="setFinancialRange(30)">30d</button>
             <button class="range-btn" [class.on]="financialDays() === 90" (click)="setFinancialRange(90)">90d</button>
-            <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">All</button>
+            <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">1Y</button>
           </div>
           <div class="quarter-toggle">
             <button class="range-btn" [class.on]="activeQuarter() === 1" (click)="setQuarter(1)">Q1</button>
@@ -168,7 +178,9 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <button class="range-btn" [class.on]="activeQuarter() === 3" (click)="setQuarter(3)">Q3</button>
             <button class="range-btn" [class.on]="activeQuarter() === 4" (click)="setQuarter(4)">Q4</button>
           </div>
-          <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
+          <input type="number" class="year-input" #yearInput [ngModel]="yearDraft()" (ngModelChange)="yearDraft.set($event)" (blur)="commitYear()" (keydown.enter)="commitYear()" min="2020" max="2030" />
+          <app-financial-chat [queryParams]="chatQueryParams()" />
+          <button class="header-toggle" (click)="toggleHeader()" [title]="headerExpanded() ? 'Collapse toolbar' : 'Expand toolbar'">{{ headerExpanded() ? '▲' : '▼' }}</button>
         </div>
       </div>
     </div>
@@ -213,7 +225,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
               <span class="fin-cf-in">RM {{ grossIn | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
-              <span class="fin-label">OUT <button class="hint-btn" title="Servicer payouts + gateway fees + discounts + promo costs + points costs.">(?)</button></span>
+              <span class="fin-label">OUT <button class="hint-btn" title="Servicer payouts + gateway commission + discounts + promo costs + points costs.">(?)</button></span>
               <span class="fin-cf-out">RM {{ grossOut | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
@@ -228,12 +240,12 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
           <!-- Card 2: Revenue breakdown -->
           <div class="card fin-card">
             <div class="fin-cf-row">
-              <span class="fin-label">Revenue <button class="hint-btn" title="Platform earnings: 8% fees + customer top-ups">(?)</button></span>
-              <span class="fin-n">RM {{ (fd.totalFees + fd.totalTopUps) | number:'1.2-2' }}</span>
+              <span class="fin-label">Revenue <button class="hint-btn" title="Platform earnings: 8% commission + customer top-ups">(?)</button></span>
+              <span class="fin-n">RM {{ (fd.totalCommission + fd.totalTopUps) | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
-              <span class="fin-label">Fees <button class="hint-btn" title="Platform's commission (20%) collected from completed bookings.">(?)</button></span>
-              <span class="cf-good">RM {{ fd.totalFees | number:'1.2-2' }}</span>
+              <span class="fin-label">Commission <button class="hint-btn" title="Platform's commission (20%) collected from completed bookings.">(?)</button></span>
+              <span class="cf-good">RM {{ fd.totalCommission | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
               <span class="fin-label">Top-ups <button class="hint-btn" title="Customer wallet top-ups (deposit_topup transactions).">(?)</button></span>
@@ -248,7 +260,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
               <span class="cf-bad">RM {{ (fd.pointsCost ?? 0) | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
-              <span class="fin-label">Gateway <button class="hint-btn" title="Stripe/gateway processing fees (3.4% + RM 1.00).">(?)</button></span>
+              <span class="fin-label">Gateway <button class="hint-btn" title="Stripe/gateway processing commission (3.4% + RM 1.00).">(?)</button></span>
               <span class="cf-bad">RM {{ (fd.gatewayFee ?? 0) | number:'1.2-2' }}</span>
             </div>
           </div>
@@ -286,36 +298,9 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       }
     }
 
-    <!-- ── 3. Revenue & Fees Chart ──────────────────────────────────────── -->
+    <!-- ── 3. Revenue & Commission Chart ────────────────────────────────── -->
     @if (showSection('chart')) {
       @if (finData(); as fd) {
-        <!-- Chart filter pills + mode toggle -->
-        <div class="chart-toolbar">
-          <div class="chart-pills">
-            <button class="pill" [class.on]="chartPills()['revenue']" (click)="toggleChartPill('revenue')">
-              <span class="pill-dot rev" [class.off]="!chartPills()['revenue']"></span>Revenue
-            </button>
-            <button class="pill" [class.on]="chartPills()['fees']" (click)="toggleChartPill('fees')">
-              <span class="pill-dot fee" [class.off]="!chartPills()['fees']"></span>Fees
-            </button>
-            <button class="pill" [class.on]="chartPills()['gross']" (click)="toggleChartPill('gross')">
-              <span class="pill-dot gross" [class.off]="!chartPills()['gross']"></span>Gross
-            </button>
-            <button class="pill" [class.on]="chartPills()['cashflow']" (click)="toggleChartPill('cashflow')">
-              <span class="pill-dot cashflow" [class.off]="!chartPills()['cashflow']"></span>Cashflow
-            </button>
-            <button class="pill" [class.on]="chartPills()['discount']" (click)="toggleChartPill('discount')">
-              <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
-            </button>
-          </div>
-
-          <!-- Chart mode toggle -->
-          <div class="chart-mode-toggle">
-            <button class="range-btn" [class.on]="chartMode() === 'daily'" (click)="chartMode.set('daily')">Daily █</button>
-            <button class="range-btn" [class.on]="chartMode() === 'cumulative'" (click)="chartMode.set('cumulative')">Cumulative ∿</button>
-          </div>
-        </div>
-
         <!-- Chart -->
         <div class="card chart-card">
           <app-line-chart
@@ -324,6 +309,31 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             [chartType]="chartMode() === 'daily' ? 'bar' : 'line'"
             [loading]="finLoading()"
           />
+          <!-- Chart filter pills + mode toggle -->
+          <div class="chart-toolbar">
+            <div class="chart-pills">
+              <button class="pill" [class.on]="chartPills()['all']" [style.background]="chartPills()['all'] ? 'var(--color-primary)' : ''" (click)="toggleChartPill('all')">All</button>
+              <button class="pill" [class.on]="chartPills()['revenue']" [style.border-color]="chartPills()['revenue'] ? '#f59e0b' : ''" [style.background]="chartPills()['revenue'] ? '#f59e0b18' : ''" (click)="toggleChartPill('revenue')">
+                <span class="pill-dot rev" [class.off]="!chartPills()['revenue']"></span>Revenue
+              </button>
+              <button class="pill" [class.on]="chartPills()['commission']" [style.border-color]="chartPills()['commission'] ? '#0891b2' : ''" [style.background]="chartPills()['commission'] ? '#0891b218' : ''" (click)="toggleChartPill('commission')">
+                <span class="pill-dot commission" [class.off]="!chartPills()['commission']"></span>Commission
+              </button>
+              <button class="pill" [class.on]="chartPills()['gross']" [style.border-color]="chartPills()['gross'] ? '#16a34a' : ''" [style.background]="chartPills()['gross'] ? '#16a34a18' : ''" (click)="toggleChartPill('gross')">
+                <span class="pill-dot gross" [class.off]="!chartPills()['gross']"></span>Gross
+              </button>
+              <button class="pill" [class.on]="chartPills()['discount']" [style.border-color]="chartPills()['discount'] ? '#dc2626' : ''" [style.background]="chartPills()['discount'] ? '#dc262618' : ''" (click)="toggleChartPill('discount')">
+                <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
+              </button>
+              <button class="pill" [class.on]="chartPills()['cashflow']" [style.border-color]="chartPills()['cashflow'] ? '#8b5cf6' : ''" [style.background]="chartPills()['cashflow'] ? '#8b5cf618' : ''" (click)="toggleChartPill('cashflow')">
+                <span class="pill-dot cashflow" [class.off]="!chartPills()['cashflow']"></span>Cashflow
+              </button>
+            </div>
+            <div class="chart-mode-toggle">
+              <button class="range-btn" [class.on]="chartMode() === 'daily'" (click)="chartMode.set('daily')">Daily █</button>
+              <button class="range-btn" [class.on]="chartMode() === 'cumulative'" (click)="chartMode.set('cumulative')">Cumulative ∿</button>
+            </div>
+          </div>
         </div>
       }
     }
@@ -350,20 +360,33 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   [values]="catDonutValues()"
                   [colors]="DONUT_COLORS"
                   (sliceClick)="onCatSliceClick($event)"
+                  (centerClick)="clearDonutFilter('cat')"
                 />
               </div>
               <div class="chart-right">
                 <div class="donut-header">
                   <span class="muted small">Show by</span>
                   <select [(ngModel)]="catDonutMetric" (ngModelChange)="onCatDonutMetricChange()" class="donut-select">
-                    <option value="fees">Fees</option>
-                    <option value="count">Bookings</option>
+                    <option value="commission">Commission</option>
                     <option value="revenue">Revenue</option>
+                    <option value="count">Bookings</option>
+                    <option value="avgRevenue">Avg Revenue</option>
+                    <option value="commAvg">Comm. Avg</option>
+                    <option value="successRate">Complete Rate</option>
+                    <option value="cancelRate">Cancel Rate</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
                   </select>
+                  <span class="donut-stats">
+                    <span class="donut-stat-label">Avg</span> RM {{ catAvgTotal().avg | number:'1.2-2' }}
+                    <span class="donut-stat-sep">|</span>
+                    <span class="donut-stat-label">Total</span> RM {{ catAvgTotal().total | number:'1.2-2' }}
+                  </span>
                 </div>
                 <div class="donut-legend">
-                  @for (item of catDonutLegend(); track item.label) {
-                    <div class="donut-legend-item">
+                  @for (item of catDonutLegend(); track item.label; let i = $index) {
+                    <div class="donut-legend-item" [class.donut-top1]="i === 0 && item.label !== 'Others'" [class.donut-others]="item.label === 'Others'">
+                      <span class="donut-rank">{{ item.label === 'Others' ? '##' : '#' + (i + 1) }}</span>
                       <span class="donut-dot" [style.background]="item.color"></span>
                       <span class="donut-legend-label">{{ item.label }}</span>
                       <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
@@ -375,23 +398,37 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <table class="cb-table">
               <thead>
                 <tr>
+                  <th class="num-col">#</th>
                   <th (click)="sortState.set({key:'name',dir:sortState().key==='name'&&sortState().dir==='asc'?'desc':'asc'})">Category <span class="sort-icon">{{ sortIcon('name') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'cancelled',dir:sortState().key==='cancelled'&&sortState().dir==='asc'?'desc':'asc'})">Cancelled <span class="sort-icon">{{ sortIcon('cancelled') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'confirmed',dir:sortState().key==='confirmed'&&sortState().dir==='asc'?'desc':'asc'})">Confirmed <span class="sort-icon">{{ sortIcon('confirmed') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'completed',dir:sortState().key==='completed'&&sortState().dir==='asc'?'desc':'asc'})">Completed <span class="sort-icon">{{ sortIcon('completed') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'count',dir:sortState().key==='count'&&sortState().dir==='asc'?'desc':'asc'})">Bookings <span class="sort-icon">{{ sortIcon('count') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'catSuccessRate',dir:sortState().key==='catSuccessRate'&&sortState().dir==='asc'?'desc':'asc'})">Complete Rate <span class="sort-icon">{{ sortIcon('catSuccessRate') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'catCancelRate',dir:sortState().key==='catCancelRate'&&sortState().dir==='asc'?'desc':'asc'})">Cancel Rate <span class="sort-icon">{{ sortIcon('catCancelRate') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'revenue',dir:sortState().key==='revenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('revenue') }}</span></th>
-                  <th class="num" (click)="sortState.set({key:'fees',dir:sortState().key==='fees'&&sortState().dir==='asc'?'desc':'asc'})">Fees <span class="sort-icon">{{ sortIcon('fees') }}</span></th>
-                  <th class="num" (click)="sortState.set({key:'avgFee',dir:sortState().key==='avgFee'&&sortState().dir==='asc'?'desc':'asc'})">Avg Fee <span class="sort-icon">{{ sortIcon('avgFee') }}</span></th>
-                  <th class="num" (click)="sortState.set({key:'pct',dir:sortState().key==='pct'&&sortState().dir==='asc'?'desc':'asc'})">% of Total <span class="sort-icon">{{ sortIcon('pct') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'avgRevenue',dir:sortState().key==='avgRevenue'&&sortState().dir==='asc'?'desc':'asc'})">Avg Revenue <span class="sort-icon">{{ sortIcon('avgRevenue') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'commAvg',dir:sortState().key==='commAvg'&&sortState().dir==='asc'?'desc':'asc'})">Comm. Avg <span class="sort-icon">{{ sortIcon('commAvg') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'commission',dir:sortState().key==='commission'&&sortState().dir==='asc'?'desc':'asc'})">Commission <span class="sort-icon">{{ sortIcon('commission') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'pct',dir:sortState().key==='pct'&&sortState().dir==='asc'?'desc':'asc'})">% of Total <button class="hint-btn" title="Share of all commission earned from this category.">(?)</button> <span class="sort-icon">{{ sortIcon('pct') }}</span></th>
                 </tr>
               </thead>
               <tbody>
-                @for (row of sortedCategoryBreakdown(); track row.categoryId) {
+                @for (row of sortedCategoryBreakdown(); track row.categoryId; let i = $index) {
                   <tr>
+                    <td class="num-col">{{ i + 1 }}</td>
                     <td>{{ row.name }}</td>
+                    <td class="num">{{ row.cancelled }}</td>
+                    <td class="num">{{ row.confirmed }}</td>
+                    <td class="num">{{ row.completed }}</td>
                     <td class="num">{{ row.count }}</td>
+                    <td class="num">{{ (row.completed / (row.count || 1) * 100) | number:'1.0-0' }}%</td>
+                    <td class="num">{{ (row.cancelled / (row.count || 1) * 100) | number:'1.0-0' }}%</td>
                     <td class="num">RM {{ row.revenue | number:'1.2-2' }}</td>
-                    <td class="num">RM {{ row.fees | number:'1.2-2' }}</td>
-                    <td class="num">RM {{ (row.fees / (row.count || 1)) | number:'1.2-2' }}</td>
-                    <td class="num">{{ feesPercent(row.fees, fd.totalFees) }}%</td>
+                    <td class="num">RM {{ (row.revenue / (row.count || 1)) | number:'1.2-2' }}</td>
+                    <td class="num">RM {{ (row.commission / (row.count || 1)) | number:'1.2-2' }}</td>
+                    <td class="num">RM {{ row.commission | number:'1.2-2' }}</td>
+                    <td class="num">{{ commissionPercent(row.commission, fd.totalCommission) }}%</td>
                   </tr>
                 }
               </tbody>
@@ -425,6 +462,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   [values]="custDonutValues()"
                   [colors]="DONUT_COLORS"
                   (sliceClick)="onCustSliceClick($event)"
+                  (centerClick)="clearDonutFilter('cust')"
                 />
               </div>
               <div class="chart-right">
@@ -433,11 +471,22 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   <select [(ngModel)]="custDonutMetric" (ngModelChange)="onCustDonutMetricChange()" class="donut-select">
                     <option value="totalSpent">Total Spent</option>
                     <option value="bookingCount">Bookings</option>
+                    <option value="avgSpent">Avg Spent</option>
+                    <option value="successRate">Complete Rate</option>
+                    <option value="cancelRate">Cancel Rate</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
                   </select>
+                  <span class="donut-stats">
+                    <span class="donut-stat-label">Avg</span> RM {{ custAvgTotal().avg | number:'1.2-2' }}
+                    <span class="donut-stat-sep">|</span>
+                    <span class="donut-stat-label">Total</span> RM {{ custAvgTotal().total | number:'1.2-2' }}
+                  </span>
                 </div>
                 <div class="donut-legend">
-                  @for (item of custDonutLegend(); track item.label) {
-                    <div class="donut-legend-item">
+                  @for (item of custDonutLegend(); track item.label; let i = $index) {
+                    <div class="donut-legend-item" [class.donut-top1]="i === 0 && item.label !== 'Others'" [class.donut-others]="item.label === 'Others'">
+                      <span class="donut-rank">{{ item.label === 'Others' ? '##' : '#' + (i + 1) }}</span>
                       <span class="donut-dot" [style.background]="item.color"></span>
                       <span class="donut-legend-label">{{ item.label }}</span>
                       <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
@@ -451,9 +500,15 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                 <tr>
                   <th class="num-col">#</th>
                   <th (click)="sortState.set({key:'custName',dir:sortState().key==='custName'&&sortState().dir==='asc'?'desc':'asc'})">Customer <span class="sort-icon">{{ sortIcon('custName') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custCancelled',dir:sortState().key==='custCancelled'&&sortState().dir==='asc'?'desc':'asc'})">Cancelled <span class="sort-icon">{{ sortIcon('custCancelled') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custConfirmed',dir:sortState().key==='custConfirmed'&&sortState().dir==='asc'?'desc':'asc'})">Confirmed <span class="sort-icon">{{ sortIcon('custConfirmed') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custCompleted',dir:sortState().key==='custCompleted'&&sortState().dir==='asc'?'desc':'asc'})">Completed <span class="sort-icon">{{ sortIcon('custCompleted') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'custBookings',dir:sortState().key==='custBookings'&&sortState().dir==='asc'?'desc':'asc'})">Bookings <span class="sort-icon">{{ sortIcon('custBookings') }}</span></th>
-                  <th class="num" (click)="sortState.set({key:'custSpent',dir:sortState().key==='custSpent'&&sortState().dir==='asc'?'desc':'asc'})">Total Spent <span class="sort-icon">{{ sortIcon('custSpent') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custSR',dir:sortState().key==='custSR'&&sortState().dir==='asc'?'desc':'asc'})">Complete Rate <span class="sort-icon">{{ sortIcon('custSR') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custCR',dir:sortState().key==='custCR'&&sortState().dir==='asc'?'desc':'asc'})">Cancel Rate <span class="sort-icon">{{ sortIcon('custCR') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'custLast',dir:sortState().key==='custLast'&&sortState().dir==='asc'?'desc':'asc'})">Last Booking <span class="sort-icon">{{ sortIcon('custLast') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custAvgSpent',dir:sortState().key==='custAvgSpent'&&sortState().dir==='asc'?'desc':'asc'})">Avg Spent <span class="sort-icon">{{ sortIcon('custAvgSpent') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'custSpent',dir:sortState().key==='custSpent'&&sortState().dir==='asc'?'desc':'asc'})">Total Spent <span class="sort-icon">{{ sortIcon('custSpent') }}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -461,9 +516,15 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   <tr>
                     <td class="num-col">{{ i + 1 }}</td>
                     <td><span class="lb-name">{{ row.name }}</span></td>
+                    <td class="num">{{ row.cancelled }}</td>
+                    <td class="num">{{ row.confirmed }}</td>
+                    <td class="num">{{ row.completed }}</td>
                     <td class="num">{{ row.bookingCount }}</td>
-                    <td class="num">RM {{ row.totalSpent | number:'1.2-2' }}</td>
+                    <td class="num">{{ (row.completed / (row.bookingCount || 1) * 100) | number:'1.0-0' }}%</td>
+                    <td class="num">{{ (row.cancelled / (row.bookingCount || 1) * 100) | number:'1.0-0' }}%</td>
                     <td class="num">{{ row.lastBooking | date:'MMM d, yyyy' }}</td>
+                    <td class="num">RM {{ (row.totalSpent / (row.bookingCount || 1)) | number:'1.2-2' }}</td>
+                    <td class="num">RM {{ row.totalSpent | number:'1.2-2' }}</td>
                   </tr>
                 }
               </tbody>
@@ -497,6 +558,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   [values]="svcDonutValues()"
                   [colors]="DONUT_COLORS"
                   (sliceClick)="onSvcSliceClick($event)"
+                  (centerClick)="clearDonutFilter('svc')"
                 />
               </div>
               <div class="chart-right">
@@ -505,11 +567,24 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   <select [(ngModel)]="svcDonutMetric" (ngModelChange)="onSvcDonutMetricChange()" class="donut-select">
                     <option value="revenue">Revenue</option>
                     <option value="jobCount">Jobs</option>
+                    <option value="avgRevenue">Avg Revenue</option>
+                    <option value="successRate">Complete Rate</option>
+                    <option value="cancelRate">Cancel Rate</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="rating">Rating</option>
+                    <option value="reports">Reports</option>
                   </select>
+                  <span class="donut-stats">
+                    <span class="donut-stat-label">Avg</span> RM {{ svcAvgTotal().avg | number:'1.2-2' }}
+                    <span class="donut-stat-sep">|</span>
+                    <span class="donut-stat-label">Total</span> RM {{ svcAvgTotal().total | number:'1.2-2' }}
+                  </span>
                 </div>
                 <div class="donut-legend">
-                  @for (item of svcDonutLegend(); track item.label) {
-                    <div class="donut-legend-item">
+                  @for (item of svcDonutLegend(); track item.label; let i = $index) {
+                    <div class="donut-legend-item" [class.donut-top1]="i === 0 && item.label !== 'Others'" [class.donut-others]="item.label === 'Others'">
+                      <span class="donut-rank">{{ item.label === 'Others' ? '##' : '#' + (i + 1) }}</span>
                       <span class="donut-dot" [style.background]="item.color"></span>
                       <span class="donut-legend-label">{{ item.label }}</span>
                       <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
@@ -523,10 +598,16 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                 <tr>
                   <th class="num-col">#</th>
                   <th (click)="sortState.set({key:'svcName',dir:sortState().key==='svcName'&&sortState().dir==='asc'?'desc':'asc'})">Servicer <span class="sort-icon">{{ sortIcon('svcName') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcCancelled',dir:sortState().key==='svcCancelled'&&sortState().dir==='asc'?'desc':'asc'})">Cancelled <span class="sort-icon">{{ sortIcon('svcCancelled') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcConfirmed',dir:sortState().key==='svcConfirmed'&&sortState().dir==='asc'?'desc':'asc'})">Confirmed <span class="sort-icon">{{ sortIcon('svcConfirmed') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcCompleted',dir:sortState().key==='svcCompleted'&&sortState().dir==='asc'?'desc':'asc'})">Completed <span class="sort-icon">{{ sortIcon('svcCompleted') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'svcJobs',dir:sortState().key==='svcJobs'&&sortState().dir==='asc'?'desc':'asc'})">Jobs <span class="sort-icon">{{ sortIcon('svcJobs') }}</span></th>
-                  <th class="num" (click)="sortState.set({key:'svcRevenue',dir:sortState().key==='svcRevenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('svcRevenue') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcSR',dir:sortState().key==='svcSR'&&sortState().dir==='asc'?'desc':'asc'})">Complete Rate <span class="sort-icon">{{ sortIcon('svcSR') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcCR',dir:sortState().key==='svcCR'&&sortState().dir==='asc'?'desc':'asc'})">Cancel Rate <span class="sort-icon">{{ sortIcon('svcCR') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'svcRating',dir:sortState().key==='svcRating'&&sortState().dir==='asc'?'desc':'asc'})">Rating <span class="sort-icon">{{ sortIcon('svcRating') }}</span></th>
                   <th class="num" (click)="sortState.set({key:'svcReports',dir:sortState().key==='svcReports'&&sortState().dir==='asc'?'desc':'asc'})">Reports <span class="sort-icon">{{ sortIcon('svcReports') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcAvgRevenue',dir:sortState().key==='svcAvgRevenue'&&sortState().dir==='asc'?'desc':'asc'})">Avg Revenue <span class="sort-icon">{{ sortIcon('svcAvgRevenue') }}</span></th>
+                  <th class="num" (click)="sortState.set({key:'svcRevenue',dir:sortState().key==='svcRevenue'&&sortState().dir==='asc'?'desc':'asc'})">Revenue <span class="sort-icon">{{ sortIcon('svcRevenue') }}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -534,8 +615,12 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   <tr>
                     <td class="num-col">{{ i + 1 }}</td>
                     <td><span class="lb-name">{{ row.businessName || row.name }}</span></td>
+                    <td class="num">{{ row.cancelled }}</td>
+                    <td class="num">{{ row.confirmed }}</td>
+                    <td class="num">{{ row.completed }}</td>
                     <td class="num">{{ row.jobCount }}</td>
-                    <td class="num">RM {{ row.revenue | number:'1.2-2' }}</td>
+                    <td class="num">{{ (row.completed / (row.jobCount || 1) * 100) | number:'1.0-0' }}%</td>
+                    <td class="num">{{ (row.cancelled / (row.jobCount || 1) * 100) | number:'1.0-0' }}%</td>
                     <td class="num"><span class="rating-stars">{{ row.rating | number:'1.1-1' }} ⭐</span></td>
                     <td class="num">
                       @if (row.reportCount > 0) {
@@ -544,6 +629,8 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                         <span class="report-ok">0</span>
                       }
                     </td>
+                    <td class="num">RM {{ (row.revenue / (row.jobCount || 1)) | number:'1.2-2' }}</td>
+                    <td class="num">RM {{ row.revenue | number:'1.2-2' }}</td>
                   </tr>
                 }
               </tbody>
@@ -570,7 +657,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
   styles: [
     `
       :host { display: block; }
-      h1 { margin-bottom: 1rem; }
+      h1 { padding: 1.5rem 2rem 0 2rem; margin-bottom: 0.75rem; }
 
       /* ── Sticky top bar ────────────────────────────────────────────── */
       .dash-head {
@@ -617,7 +704,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       /* ── Financial cards grid ───────────────────────────────────────── */
       .fin-cards {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
         margin: 1.5rem 0;
       }
@@ -671,7 +758,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       /* ── Queue grid ─────────────────────────────────────────────────── */
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
         margin: 1.5rem 0 1rem;
       }
@@ -799,8 +886,8 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         justify-content: center;
         background: transparent;
         border: none;
-        padding: 0.3rem 0.7rem;
-        font-size: 0.78rem;
+        padding: 0.2rem 0.55rem;
+        font-size: 0.75rem;
         line-height: 1;
         font-weight: 600;
         color: var(--color-muted);
@@ -828,34 +915,34 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .year-input:focus { outline: none; color: var(--color-primary); }
 
       /* ── Chart filter pills ─────────────────────────────────────────── */
-      .chart-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+      .chart-toolbar { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
       .chart-pills {
-        display: flex; flex-wrap: wrap; gap: 0.5rem;
+        display: flex; flex-wrap: wrap; gap: 0.35rem;
       }
       .chart-mode-toggle {
-        display: flex; gap: 0.35rem; margin-left: auto;
+        display: flex; gap: 0.3rem; margin-left: auto;
       }
       .pill {
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
+        gap: 0.2rem;
         background: transparent;
         border: 1px solid var(--color-border);
         border-radius: 999px;
-        padding: 0.35rem 0.7rem;
-        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.75rem;
         font-family: inherit;
         cursor: pointer;
         color: var(--color-muted);
         transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-        min-height: 44px;
+        min-height: 28px;
       }
       .pill:hover { border-color: var(--color-primary); color: var(--color-text); }
       .pill.on { font-weight: 600; color: var(--color-text); }
       .pill-dot {
         display: inline-block;
-        width: 8px;
-        height: 8px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
         flex-shrink: 0;
       }
@@ -863,20 +950,20 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         background: transparent;
         border: 1px solid var(--color-border);
       }
-      .pill-dot.rev { background: var(--color-primary); }
-      .pill-dot.fee { background: var(--color-warning); }
+      .pill-dot.rev { background: #f59e0b; }
+      .pill-dot.commission { background: #0891b2; }
       .pill-dot.gross { background: #16a34a; }
       .pill-dot.cashflow {
-        background: #9333ea;
-        border: 1px dashed #9333ea;
+        background: #8b5cf6;
+        border: 1px dashed #8b5cf6;
       }
-      .pill-dot.disc { background: var(--color-muted); }
+      .pill-dot.disc { background: #dc2626; }
 
       /* ── Chart card ─────────────────────────────────────────────────── */
       .chart-card { padding: 1rem 1.25rem 0.5rem; overflow: hidden; }
 
       /* ── Category breakdown table ───────────────────────────────────── */
-            .card-title { font-size: 1rem; font-weight: 600; margin: 0 0 0.75rem 0; color: var(--color-text); }
+            .card-title { font-size: 1.15rem; font-weight: 400; margin: 0 0 0.75rem 0; color: var(--color-text); }
       .cb-table {
         width: 100%;
         border-collapse: collapse;
@@ -939,14 +1026,22 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       /* ── Bar + Donut charts ─────────────────────────────────────────── */
       .chart-row { display: flex; gap: 1rem; align-items: stretch; margin-bottom: 1rem; }
       .chart-left { flex: 2; min-width: 0; }
-      .chart-mid { flex: 1; display: flex; align-items: center; justify-content: center; }
-      .chart-right { flex: 2; display: flex; flex-direction: column; justify-content: center; }
-      .donut-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; width: 100%; }
+      .chart-mid { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+      .chart-right { flex: 2; min-width: 0; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+      .donut-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem; width: 100%; }
       .donut-legend { margin-top: 0.5rem; width: 100%; }
-      .donut-legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; margin-bottom: 0.35rem; color: var(--color-muted); }
-      .donut-legend-label { flex: 1; font-size: 0.82rem; }
-      .donut-legend-val { font-weight: 600; color: var(--color-text); font-size: 0.82rem; }
-      .donut-select { font-size: 0.82rem; padding: 0.25rem 0.4rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); color: var(--color-text); font-family: inherit; }
+      .donut-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 1.05rem; margin-bottom: 0.45rem; color: var(--color-muted); }
+      .donut-rank { font-weight: 700; color: var(--color-muted); font-size: 0.85rem; min-width: 1.2rem; }
+      .donut-legend-label { flex: 1; font-size: 1.05rem; font-weight: 500; }
+      .donut-legend-val { font-weight: 600; color: var(--color-text); font-size: 1.05rem; }
+      .donut-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+      .donut-top1 .donut-rank { color: #f59e0b; }
+      .donut-top1 .donut-legend-val { color: #f59e0b; }
+      .donut-others .donut-rank { color: var(--color-muted); font-style: italic; }
+      .donut-select { font-size: 0.85rem; padding: 0.25rem 0.4rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); color: var(--color-text); font-family: inherit; width: auto; max-width: 7rem; }
+      .donut-stats { margin-left: auto; font-size: 1.05rem; color: var(--color-text); white-space: nowrap; }
+      .donut-stat-label { font-weight: 600; color: var(--color-muted); margin-right: 0.15rem; }
+      .donut-stat-sep { margin: 0 0.4rem; color: var(--color-border); }
 
       /* ── Responsive ─────────────────────────────────────────────────── */
       @media (max-width: 760px) { .chart-row { display: none; } }
@@ -1042,20 +1137,33 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ── Chart pills ──────────────────────────────────────────────────────
-  chartPills = signal<Record<ChartLineKey, boolean>>({
-    revenue: true, fees: true, gross: true, discount: false, cashflow: false,
+  chartPills = signal<{ all: boolean } & Record<ChartLineKey, boolean>>({
+    all: true, revenue: true, commission: true, gross: true, discount: true, cashflow: true,
   });
   chartMode = signal<'daily' | 'cumulative'>('daily');
 
-  toggleChartPill(key: ChartLineKey): void {
-    this.chartPills.update((p) => ({ ...p, [key]: !p[key] }));
+  toggleChartPill(key: string): void {
+    const keys: ChartLineKey[] = ['revenue','commission','gross','discount','cashflow'];
+    this.chartPills.update((f) => {
+      if (key === 'all') return { all: true, revenue: true, commission: true, gross: true, discount: true, cashflow: true };
+      if (f['all']) {
+        const isolated: Record<string, boolean> = { all: false };
+        for (const k of (keys as string[])) (isolated as any)[k] = k === key;
+        return isolated as typeof f;
+      }
+      const updated = { ...f, [key]: !(f as any)[key] };
+      const active = keys.filter(k => (updated as any)[k]);
+      if (active.length === 0) return { all: true, revenue: true, commission: true, gross: true, discount: true, cashflow: true };
+      if (active.length === keys.length) updated['all'] = true;
+      return updated;
+    });
   }
 
   // ── Financial days ──────────────────────────────────────────────────
   financialDays = signal(30);
 
   // ── Date range ───────────────────────────────────────────────────────
-  dateFrom = signal(this.formatDate(todayMinus(30)));
+  dateFrom = signal(this.formatDate(todayMinus(29))); // 30 days inclusive with today
   dateTo = signal(this.formatDate(new Date()));
   /** Detect which quarter the current date range falls into. */
   activeQuarter = computed(() => {
@@ -1070,6 +1178,22 @@ export class AdminDashboardComponent implements OnInit {
     return 0;
   });
   activeYear = computed(() => +this.dateFrom().slice(0, 4));
+  yearDraft = signal(this.activeYear());
+
+  /** Query params for the AI financial chat, synced with current dashboard filters. */
+  chatQueryParams = computed(() => {
+    const p: Record<string, string | number> = {
+      from: this.dateFrom(),
+      to: this.dateTo(),
+    };
+    const catId = this.singleCatId;
+    if (catId) p['categoryId'] = catId;
+    return p;
+  });
+
+  commitYear(): void {
+    this.setYear(this.yearDraft());
+  }
 
   // ── Category filter ──────────────────────────────────────────────────
   selectedCatIds = signal<Set<string>>(new Set());
@@ -1161,7 +1285,7 @@ export class AdminDashboardComponent implements OnInit {
   // ── Search ───────────────────────────────────────────────────────────
   searchQuery = '';
   // ── Sort (table column headers) ──────────────────────────────────────
-  sortState = signal<{ key: string; dir: 'asc' | 'desc' }>({ key: 'fees', dir: 'desc' });
+  sortState = signal<{ key: string; dir: 'asc' | 'desc' }>({ key: 'commission', dir: 'desc' });
 
   onSearchChange(): void { /* triggers recompute via signal reads in sorted arrays */ }
 
@@ -1173,14 +1297,23 @@ export class AdminDashboardComponent implements OnInit {
   sortedCategoryBreakdown = computed(() => {
     const q = this.searchQuery.toLowerCase().trim();
     let rows = [...(this.finData()?.categoryBreakdown ?? [])];
-    if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || String(r.count).includes(q) || String(r.revenue).includes(q) || String(r.fees).includes(q));
+    if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || String(r.count).includes(q) || String(r.revenue).includes(q) || String(r.commission).includes(q));
+    const catFilter = this.catDonutFilter();
+    if (catFilter.size > 0) rows = rows.filter(r => catFilter.has(r.categoryId));
     const { key, dir } = this.sortState();
     const m = dir === 'asc' ? 1 : -1;
     if (key === 'name') rows.sort((a, b) => a.name.localeCompare(b.name) * m);
     else if (key === 'count') rows.sort((a, b) => (a.count - b.count) * m);
     else if (key === 'revenue') rows.sort((a, b) => (a.revenue - b.revenue) * m);
-    else if (key === 'fees') rows.sort((a, b) => (a.fees - b.fees) * m);
-    else if (key === 'pct') rows.sort((a, b) => ((a.fees / (this.finData()?.totalFees || 1)) - (b.fees / (this.finData()?.totalFees || 1))) * m);
+    else if (key === 'commission') rows.sort((a, b) => (a.commission - b.commission) * m);
+    else if (key === 'confirmed') rows.sort((a, b) => (a.confirmed - b.confirmed) * m);
+    else if (key === 'completed') rows.sort((a, b) => (a.completed - b.completed) * m);
+    else if (key === 'cancelled') rows.sort((a, b) => (a.cancelled - b.cancelled) * m);
+    else if (key === 'pct') rows.sort((a, b) => ((a.commission / (this.finData()?.totalCommission || 1)) - (b.commission / (this.finData()?.totalCommission || 1))) * m);
+    else if (key === 'catSuccessRate') rows.sort((a, b) => ((a.completed / (a.count || 1)) - (b.completed / (b.count || 1))) * m);
+    else if (key === 'catCancelRate') rows.sort((a, b) => ((a.cancelled / (a.count || 1)) - (b.cancelled / (b.count || 1))) * m);
+    else if (key === 'avgRevenue') rows.sort((a, b) => ((a.revenue / (a.count || 1)) - (b.revenue / (b.count || 1))) * m);
+    else if (key === 'commAvg') rows.sort((a, b) => ((a.commission / (a.count || 1)) - (b.commission / (b.count || 1))) * m);
     return rows;
   });
 
@@ -1188,12 +1321,20 @@ export class AdminDashboardComponent implements OnInit {
     const q = this.searchQuery.toLowerCase().trim();
     let rows = [...(this.finData()?.customerLeaderboard ?? [])];
     if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || String(r.bookingCount).includes(q) || String(r.totalSpent).includes(q) || (r.lastBooking ?? '').includes(q));
+    const custFilter = this.custDonutFilter();
+    if (custFilter.size > 0) rows = rows.filter(r => custFilter.has(r.userId));
     const { key, dir } = this.sortState();
     const m = dir === 'asc' ? 1 : -1;
     if (key === 'custName') rows.sort((a, b) => a.name.localeCompare(b.name) * m);
     else if (key === 'custBookings') rows.sort((a, b) => (a.bookingCount - b.bookingCount) * m);
+    else if (key === 'custConfirmed') rows.sort((a, b) => (a.confirmed - b.confirmed) * m);
+    else if (key === 'custCompleted') rows.sort((a, b) => (a.completed - b.completed) * m);
+    else if (key === 'custCancelled') rows.sort((a, b) => (a.cancelled - b.cancelled) * m);
     else if (key === 'custSpent') rows.sort((a, b) => (a.totalSpent - b.totalSpent) * m);
     else if (key === 'custLast') rows.sort((a, b) => (a.lastBooking ?? '').localeCompare(b.lastBooking ?? '') * m);
+    else if (key === 'custSR') rows.sort((a, b) => ((a.completed / (a.bookingCount || 1)) - (b.completed / (b.bookingCount || 1))) * m);
+    else if (key === 'custCR') rows.sort((a, b) => ((a.cancelled / (a.bookingCount || 1)) - (b.cancelled / (b.bookingCount || 1))) * m);
+    else if (key === 'custAvgSpent') rows.sort((a, b) => ((a.totalSpent / (a.bookingCount || 1)) - (b.totalSpent / (b.bookingCount || 1))) * m);
     return rows;
   });
 
@@ -1201,85 +1342,178 @@ export class AdminDashboardComponent implements OnInit {
     const q = this.searchQuery.toLowerCase().trim();
     let rows = [...(this.finData()?.servicerLeaderboard ?? [])];
     if (q) rows = rows.filter(r => (r.businessName || r.name).toLowerCase().includes(q) || String(r.jobCount).includes(q) || String(r.revenue).includes(q) || String(r.rating).includes(q));
+    const svcFilter = this.svcDonutFilter();
+    if (svcFilter.size > 0) rows = rows.filter(r => svcFilter.has(r.servicerId));
     const { key, dir } = this.sortState();
     const m = dir === 'asc' ? 1 : -1;
     if (key === 'svcName') rows.sort((a, b) => (a.businessName || b.name).localeCompare(b.businessName || b.name) * m);
     else if (key === 'svcJobs') rows.sort((a, b) => (a.jobCount - b.jobCount) * m);
+    else if (key === 'svcConfirmed') rows.sort((a, b) => (a.confirmed - b.confirmed) * m);
+    else if (key === 'svcCompleted') rows.sort((a, b) => (a.completed - b.completed) * m);
+    else if (key === 'svcCancelled') rows.sort((a, b) => (a.cancelled - b.cancelled) * m);
     else if (key === 'svcRevenue') rows.sort((a, b) => (a.revenue - b.revenue) * m);
     else if (key === 'svcRating') rows.sort((a, b) => (a.rating - b.rating) * m);
     else if (key === 'svcReports') rows.sort((a, b) => (a.reportCount - b.reportCount) * m);
+    else if (key === 'svcSR') rows.sort((a, b) => ((a.completed / (a.jobCount || 1)) - (b.completed / (b.jobCount || 1))) * m);
+    else if (key === 'svcCR') rows.sort((a, b) => ((a.cancelled / (a.jobCount || 1)) - (b.cancelled / (b.jobCount || 1))) * m);
+    else if (key === 'svcAvgRevenue') rows.sort((a, b) => ((a.revenue / (a.jobCount || 1)) - (b.revenue / (b.jobCount || 1))) * m);
     return rows;
   });
 
   // ── Chart computed signals ──────────────────────────────────────────
-  chartLabels = computed(() => this.finData()?.dailyRevenue?.map(d => d.date) ?? []);
+  private useMonthlyAggregation = computed(() => this.financialDays() >= 365);
+
+  /** Cached monthly aggregate so computed signals share one pass over the data. */
+  private monthlyAgg = computed(() => {
+    const fd = this.finData();
+    if (!fd || !this.useMonthlyAggregation()) return null;
+    return toMonthlyAggregate(fd.dailyRevenue, fd.dailyDiscount);
+  });
+
+  chartLabels = computed(() => {
+    const fd = this.finData();
+    if (!fd) return [];
+    if (this.useMonthlyAggregation()) return this.monthlyAgg()?.monthLabels ?? [];
+    return fd.dailyRevenue?.map(d => d.date) ?? [];
+  });
+
   chartDatasets = computed(() => {
     const fd = this.finData();
     if (!fd) return [];
     const pills = this.chartPills();
-    const rev = pills.revenue ? fd.dailyRevenue?.map(d => d.revenue) ?? [] : [];
-    const fee = pills.fees ? fd.dailyRevenue?.map(d => d.fees) ?? [] : [];
-    const disc = fd.dailyDiscount ? fd.dailyDiscount.map(d => d.amount) : [];
-    const payouts = fd.dailyPayouts ? fd.dailyPayouts.map(d => d.amount) : [];
+    const cum = this.chartMode() === 'cumulative';
+    const toCumulative = (arr: number[]) => arr.reduce((acc, v, i) => { acc.push((acc[i-1] ?? 0) + v); return acc; }, [] as number[]);
+
+    let rev: number[], fee: number[], disc: number[];
+    if (this.useMonthlyAggregation()) {
+      const ma = this.monthlyAgg()!;
+      rev = ma.revenue;
+      fee = ma.commission;
+      disc = ma.discount;
+    } else {
+      rev = fd.dailyRevenue?.map(d => d.revenue) ?? [];
+      fee = fd.dailyRevenue?.map(d => d.commission) ?? [];
+      disc = fd.dailyDiscount ? fd.dailyDiscount.map(d => d.amount) : [];
+    }
+
     const gross = rev.map((_, i) => fee[i] - (disc[i] ?? 0));
     const cf = gross.map((_, i) => gross[i]);
-    const toCumulative = (arr: number[]) => arr.reduce((acc, v, i) => { acc.push((acc[i-1] ?? 0) + v); return acc; }, [] as number[]);
-    const cum = this.chartMode() === 'cumulative';
     return [
-      { label: 'Revenue', data: cum ? toCumulative(rev) : rev, color: '#2563eb', hidden: !pills.revenue },
-      { label: 'Fees', data: cum ? toCumulative(fee) : fee, color: '#f59e0b', dashed: true, hidden: !pills.fees },
+      { label: 'Revenue', data: cum ? toCumulative(rev) : rev, color: '#f59e0b', hidden: !pills.revenue },
+      { label: 'Commission', data: cum ? toCumulative(fee) : fee, color: '#0891b2', dashed: true, hidden: !pills.commission },
       { label: 'Gross', data: cum ? toCumulative(gross) : gross, color: '#16a34a', hidden: !pills.gross },
       { label: 'Discounts', data: cum ? toCumulative(disc) : disc, color: '#dc2626', dashed: true, hidden: !pills.discount },
-      { label: 'Cashflow', data: cum ? toCumulative(cf) : cf, color: '#9333ea', dashed: true, hidden: !pills.cashflow },
+      { label: 'Cashflow', data: cum ? toCumulative(cf) : cf, color: '#8b5cf6', dashed: true, hidden: !pills.cashflow },
     ];
   });
 
   // Category breakdown charts
   catBarLabels = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.name));
   catBarValues = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.count));
-  catDonutLabels = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.name));
-  catDonutValues = computed(() => {
-    const rows = this.sortedCategoryBreakdown().slice(0, 5);
+  catDonutItems = computed(() => {
     const m = this.catDonutMetric();
-    if (m === 'fees') return rows.map(r => r.fees);
-    if (m === 'count') return rows.map(r => r.count);
-    return rows.map(r => r.revenue);
+    const rows = [...(this.finData()?.categoryBreakdown ?? [])];
+    rows.sort((a, b) => catMetricVal(b, m) - catMetricVal(a, m));
+    const top5 = rows.slice(0, 5);
+    const restSum = rows.slice(5).reduce((s, r) => s + catMetricVal(r, m), 0);
+    if (restSum > 0) top5.push({ categoryId: '__others__', name: 'Others', count: 0, revenue: 0, commission: 0, confirmed: 0, completed: 0, cancelled: 0, _dv: restSum } as any);
+    return top5; // Others always last
+  });
+  catDonutLabels = computed(() => this.catDonutItems().map(r => r.name));
+  catDonutValues = computed(() => {
+    const m = this.catDonutMetric();
+    return this.catDonutItems().map(r => (r as any).categoryId === '__others__' ? (r as any)._dv ?? 0 : catMetricVal(r, m));
   });
 
   // Customer leaderboard charts
   custBarLabels = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.name));
   custBarValues = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.totalSpent));
-  custDonutLabels = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.name));
-  custDonutValues = computed(() => {
-    const rows = this.sortedCustomerLB().slice(0, 5);
+  custDonutItems = computed(() => {
     const m = this.custDonutMetric();
-    if (m === 'bookingCount') return rows.map(r => r.bookingCount);
-    return rows.map(r => r.totalSpent);
+    const rows = [...(this.finData()?.customerLeaderboard ?? [])];
+    rows.sort((a, b) => custMetricVal(b, m) - custMetricVal(a, m));
+    const top5 = rows.slice(0, 5);
+    const restSum = rows.slice(5).reduce((s, r) => s + custMetricVal(r, m), 0);
+    if (restSum > 0) top5.push({ userId: '__others__', name: 'Others', email: '', bookingCount: 0, totalSpent: 0, lastBooking: '', confirmed: 0, completed: 0, cancelled: 0, _dv: restSum } as any);
+    return top5;
+  });
+
+  custDonutLabels = computed(() => this.custDonutItems().map(r => r.name));
+  custDonutValues = computed(() => {
+    const m = this.custDonutMetric();
+    return this.custDonutItems().map(r => r.userId === '__others__' ? r.totalSpent : custMetricVal(r, m));
   });
 
   // Servicer leaderboard charts
   svcBarLabels = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.businessName || r.name));
   svcBarValues = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.revenue));
-  svcDonutLabels = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.businessName || r.name));
-  svcDonutValues = computed(() => {
-    const rows = this.sortedServicerLB().slice(0, 5);
+  svcDonutItems = computed(() => {
     const m = this.svcDonutMetric();
-    if (m === 'jobCount') return rows.map(r => r.jobCount);
-    return rows.map(r => r.revenue);
+    const rows = [...(this.finData()?.servicerLeaderboard ?? [])];
+    rows.sort((a, b) => svcMetricVal(b, m) - svcMetricVal(a, m));
+    const top5 = rows.slice(0, 5);
+    const restSum = rows.slice(5).reduce((s, r) => s + svcMetricVal(r, m), 0);
+    if (restSum > 0) top5.push({ servicerId: '__others__', name: 'Others', businessName: 'Others', rating: 0, jobCount: 0, revenue: 0, reportCount: 0, confirmed: 0, completed: 0, cancelled: 0, _dv: restSum } as any);
+    return top5;
+  });
+  svcDonutLabels = computed(() => this.svcDonutItems().map(r => r.businessName || r.name));
+  svcDonutValues = computed(() => {
+    const m = this.svcDonutMetric();
+    return this.svcDonutItems().map(r => r.servicerId === '__others__' ? (r as any)._dv ?? 0 : svcMetricVal(r, m));
   });
 
   // ── Donut metric selectors ──────────────────────────────────────────
-  catDonutMetric = signal<'fees' | 'count' | 'revenue'>('fees');
-  custDonutMetric = signal<'totalSpent' | 'bookingCount'>('totalSpent');
-  svcDonutMetric = signal<'revenue' | 'jobCount'>('revenue');
+  catDonutMetric = signal<'commission' | 'count' | 'revenue' | 'avgRevenue' | 'commAvg' | 'successRate' | 'cancelRate' | 'completed' | 'cancelled'>('commission');
+  custDonutMetric = signal<'totalSpent' | 'bookingCount' | 'avgSpent' | 'successRate' | 'cancelRate' | 'completed' | 'cancelled'>('totalSpent');
+  svcDonutMetric = signal<'revenue' | 'jobCount' | 'avgRevenue' | 'successRate' | 'cancelRate' | 'completed' | 'cancelled' | 'rating' | 'reports'>('revenue');
+
+  // ── Donut slice filter (click slice → isolates that item in table) ──
+  catDonutFilter = signal<Set<string>>(new Set());
+  custDonutFilter = signal<Set<string>>(new Set());
+  svcDonutFilter = signal<Set<string>>(new Set());
+
+  toggleDonutFilter(section: 'cat' | 'cust' | 'svc', id: string): void {
+    const sig = section === 'cat' ? this.catDonutFilter : section === 'cust' ? this.custDonutFilter : this.svcDonutFilter;
+    sig.update(s => {
+      const next = new Set(s);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
+  }
+  clearDonutFilter(section: 'cat' | 'cust' | 'svc'): void {
+    (section === 'cat' ? this.catDonutFilter : section === 'cust' ? this.custDonutFilter : this.svcDonutFilter).set(new Set());
+  }
 
   onCatDonutMetricChange(): void { /* triggers recompute via signal reads */ }
   onCustDonutMetricChange(): void { /* triggers recompute via signal reads */ }
   onSvcDonutMetricChange(): void { /* triggers recompute via signal reads */ }
 
+  // ── Donut avg/total ─────────────────────────────────────────────────
+  catAvgTotal = computed(() => {
+    const rows = [...(this.finData()?.categoryBreakdown ?? [])];
+    const m = this.catDonutMetric();
+    const vals = rows.map(r => catMetricVal(r, m));
+    const total = vals.length ? vals.reduce((s, v) => s + v, 0) : 0;
+    return { avg: total / Math.max(rows.length, 1), total };
+  });
+  custAvgTotal = computed(() => {
+    const rows = [...(this.finData()?.customerLeaderboard ?? [])];
+    const m = this.custDonutMetric();
+    const vals = rows.map(r => custMetricVal(r, m));
+    const total = vals.length ? vals.reduce((s, v) => s + v, 0) : 0;
+    return { avg: total / Math.max(rows.length, 1), total };
+  });
+  svcAvgTotal = computed(() => {
+    const rows = [...(this.finData()?.servicerLeaderboard ?? [])];
+    const m = this.svcDonutMetric();
+    const vals = rows.map(r => svcMetricVal(r, m));
+    const total = vals.length ? vals.reduce((s, v) => s + v, 0) : 0;
+    return { avg: total / Math.max(rows.length, 1), total };
+  });
+
   // ── Donut legends ───────────────────────────────────────────────────
   catDonutLegend = computed(() => {
-    const rows = this.sortedCategoryBreakdown().slice(0, 5);
+    const rows = this.catDonutItems();
     const vals = this.catDonutValues();
     const total = vals.length ? vals.reduce((s, v) => s + v, 0) || 1 : 1;
     return rows.map((r, i) => ({
@@ -1290,7 +1524,7 @@ export class AdminDashboardComponent implements OnInit {
     }));
   });
   custDonutLegend = computed(() => {
-    const rows = this.sortedCustomerLB().slice(0, 5);
+    const rows = this.custDonutItems();
     const vals = this.custDonutValues();
     const total = vals.length ? vals.reduce((s, v) => s + v, 0) || 1 : 1;
     return rows.map((r, i) => ({
@@ -1301,7 +1535,7 @@ export class AdminDashboardComponent implements OnInit {
     }));
   });
   svcDonutLegend = computed(() => {
-    const rows = this.sortedServicerLB().slice(0, 5);
+    const rows = this.svcDonutItems();
     const vals = this.svcDonutValues();
     const total = vals.length ? vals.reduce((s, v) => s + v, 0) || 1 : 1;
     return rows.map((r, i) => ({
@@ -1314,11 +1548,26 @@ export class AdminDashboardComponent implements OnInit {
 
   // Chart interaction handlers
   onCatBarClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
-  onCatSliceClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
   onCustBarClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
-  onCustSliceClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
   onSvcBarClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
-  onSvcSliceClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
+  onCatSliceClick(idx: number): void {
+    const item = this.catDonutItems()[idx];
+    if (!item) return;
+    if (item.categoryId === '__others__') { this.clearDonutFilter('cat'); return; }
+    this.toggleDonutFilter('cat', item.categoryId);
+  }
+  onCustSliceClick(idx: number): void {
+    const item = this.custDonutItems()[idx];
+    if (!item) return;
+    if (item.userId === '__others__') { this.clearDonutFilter('cust'); return; }
+    this.toggleDonutFilter('cust', item.userId);
+  }
+  onSvcSliceClick(idx: number): void {
+    const item = this.svcDonutItems()[idx];
+    if (!item) return;
+    if (item.servicerId === '__others__') { this.clearDonutFilter('svc'); return; }
+    this.toggleDonutFilter('svc', item.servicerId);
+  }
 
   // ── Helpers ─────────────────────────────────────────────────────────
   // ── Lifecycle ────────────────────────────────────────────────────────
@@ -1332,7 +1581,7 @@ export class AdminDashboardComponent implements OnInit {
   setFinancialRange(days: number): void {
     this.financialDays.set(days);
     const to = new Date();
-    const from = todayMinus(days);
+    const from = todayMinus(days - 1); // days-1 so inclusive range = exactly N days
     this.dateFrom.set(this.formatDate(from));
     this.dateTo.set(this.formatDate(to));
     this.loadFinancial(days, this.singleCatId);
@@ -1351,7 +1600,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   setQuarter(q: number): void {
-    const y = new Date().getFullYear();
+    const y = this.activeYear();
     // Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec
     const mStart = (q - 1) * 3; // 0,3,6,9
     const mEnd = mStart + 2; // 2,5,8,11
@@ -1364,12 +1613,18 @@ export class AdminDashboardComponent implements OnInit {
     this.loadFinancial(Math.max(1, d), this.singleCatId);
   }
   setYear(y: number): void {
-    const from = new Date(y, 0, 1);
+    if (y < 2000 || y > 2100 || !Number.isFinite(y)) return;
+    // Use string dates to avoid JS Date constructor adding 1900 to years < 100
+    const fromStr = `${y}-01-01`;
+    const toStr = `${y}-12-31`;
+    this.dateFrom.set(fromStr);
+    this.dateTo.set(toStr);
     const to = new Date(y, 11, 31);
-    this.dateFrom.set(from.toISOString().slice(0, 10));
-    this.dateTo.set(to.toISOString().slice(0, 10));
+    const from = new Date(y, 0, 1);
+    if (Number.isNaN(to.getTime()) || Number.isNaN(from.getTime())) return;
     const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
     this.financialDays.set(Math.max(1, diffDays));
+    this.yearDraft.set(y);
     this.loadFinancial(Math.max(1, diffDays), this.singleCatId);
   }
 
@@ -1379,9 +1634,9 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ── Category helpers ─────────────────────────────────────────────────
-  feesPercent(fees: number, total: number): string {
+  commissionPercent(commission: number, total: number): string {
     if (!total) return '0.0';
-    return ((fees / total) * 100).toFixed(1);
+    return ((commission / total) * 100).toFixed(1);
   }
 
   // ── Format helper ────────────────────────────────────────────────────
@@ -1412,6 +1667,9 @@ export class AdminDashboardComponent implements OnInit {
     this.finLoading.set(true);
     const params: Record<string, string | number> = { days };
     if (categoryId) params['categoryId'] = categoryId;
+    // Pass actual date range so backend doesn't derive from today
+    params['from'] = this.dateFrom();
+    params['to'] = this.dateTo();
     this.api
       .get<FinancialDashboard>('/admin/dashboard/financial', params as Record<string, string>)
       .subscribe({
@@ -1429,9 +1687,97 @@ export class AdminDashboardComponent implements OnInit {
 
 }
 
+interface MonthlyAggregate {
+  monthLabels: string[];
+  revenue: number[];
+  commission: number[];
+  discount: number[];
+}
+
+/** Aggregate daily data points into monthly buckets. */
+function toMonthlyAggregate(
+  dailyRevenue: DailyRevenuePoint[],
+  dailyDiscount?: DailyValue[]
+): MonthlyAggregate {
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const revMap: Record<string, { rev: number; comm: number }> = {};
+  const discMap: Record<string, number> = {};
+  const order: string[] = [];
+
+  for (const r of dailyRevenue) {
+    const d = r.date; // "2026-06-26"
+    const [y, m] = d.split('-');
+    const key = `${monthNames[+m - 1]} ${y}`;
+    if (!revMap[key]) {
+      revMap[key] = { rev: 0, comm: 0 };
+      order.push(key);
+    }
+    revMap[key].rev += r.revenue;
+    revMap[key].comm += r.commission;
+  }
+
+  if (dailyDiscount) {
+    for (const d of dailyDiscount) {
+      const [y, m] = d.day.split('-');
+      const key = `${monthNames[+m - 1]} ${y}`;
+      discMap[key] = (discMap[key] ?? 0) + d.amount;
+    }
+  }
+
+  return {
+    monthLabels: order,
+    revenue: order.map(k => revMap[k]?.rev ?? 0),
+    commission: order.map(k => revMap[k]?.comm ?? 0),
+    discount: order.map(k => discMap[k] ?? 0),
+  };
+}
+
 /** Return a date N days before today. */
 function todayMinus(days: number): Date {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d;
+}
+
+/** Category metric value by type */
+function catMetricVal(r: CategoryBreakdown | any, m: string): number {
+  if ((r as any).categoryId === '__others__') return (r as any)._dv ?? 0;
+  if (m === 'commission') return r.commission;
+  if (m === 'revenue') return r.revenue;
+  if (m === 'count') return r.count;
+  if (m === 'avgRevenue') return r.revenue / (r.count || 1);
+  if (m === 'commAvg') return r.commission / (r.count || 1);
+  if (m === 'successRate') return (r.completed / (r.count || 1)) * 100;
+  if (m === 'cancelRate') return (r.cancelled / (r.count || 1)) * 100;
+  if (m === 'completed') return r.completed;
+  if (m === 'cancelled') return r.cancelled;
+  return 0;
+}
+
+/** Customer metric value by type */
+function custMetricVal(r: CustomerLeader | any, m: string): number {
+  if ((r as any).userId === '__others__') return (r as any)._dv ?? 0;
+  if (m === 'totalSpent') return r.totalSpent;
+  if (m === 'bookingCount') return r.bookingCount;
+  if (m === 'avgSpent') return r.totalSpent / (r.bookingCount || 1);
+  if (m === 'successRate') return (r.completed / (r.bookingCount || 1)) * 100;
+  if (m === 'cancelRate') return (r.cancelled / (r.bookingCount || 1)) * 100;
+  if (m === 'completed') return r.completed;
+  if (m === 'cancelled') return r.cancelled;
+  return 0;
+}
+
+/** Servicer metric value by type */
+function svcMetricVal(r: ServicerLeader | any, m: string): number {
+  if ((r as any).servicerId === '__others__') return (r as any)._dv ?? 0;
+  if (m === 'revenue') return r.revenue;
+  if (m === 'jobCount') return r.jobCount;
+  if (m === 'avgRevenue') return r.revenue / (r.jobCount || 1);
+  if (m === 'successRate') return (r.completed / (r.jobCount || 1)) * 100;
+  if (m === 'cancelRate') return (r.cancelled / (r.jobCount || 1)) * 100;
+  if (m === 'completed') return r.completed;
+  if (m === 'cancelled') return r.cancelled;
+  if (m === 'rating') return r.rating;
+  if (m === 'reports') return r.reportCount;
+  return 0;
 }

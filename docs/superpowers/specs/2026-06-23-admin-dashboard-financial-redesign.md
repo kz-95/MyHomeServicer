@@ -1,6 +1,6 @@
 # Admin Dashboard & Financial Redesign
 
-> 2026-06-23 Initial. 2026-06-25 Full rewrite. 2026-06-26 Sticky toolbar + charts + discount line.
+> 2026-06-23 Initial. 2026-06-25 Full rewrite. 2026-06-26 Sticky toolbar + charts + discount line + status columns + avg/total stats + header toggle.
 
 ## Dashboard layout (final 2026-06-26)
 
@@ -155,3 +155,25 @@ ORDER BY revenue DESC LIMIT 20
 ## Fintech roadmap
 
 P1 Wallet + BalanceCheckpoint. P2 Fee engine (FeeRule CRUD). P3 Saved payment methods. P4 Escrow automation. P5 Financial reporting (P&L, CSV export).
+
+## 2026-06-26: Status columns + avg/total stats + header toggle
+
+### Tables now include booking status breakdown
+
+All three breakdown tables (Category Breakdown, Customer Leaderboard, Servicer Leaderboard) now display `confirmed`/`completed`/`cancelled` columns with sort support. Backend SQL queries already included these via `FILTER (WHERE b.status = '...')` -- the frontend interfaces and template columns were the missing layer.
+
+### Donut "Show by" dropdown: single row with Avg | Total
+
+The three donut chart right-panels (category, customer, servicer) now show computed `Avg RM X | Total RM Y` stats on the same row as the "Show by" dropdown, right-aligned. Computed via new `catAvgTotal()`, `custAvgTotal()`, `svcAvgTotal()` signals that sum all rows in the current metric.
+
+### Collapse/expand header toggle
+
+A ▲/▼ toggle button added to the right of the date-controls row in the sticky toolbar (Section B). Toggles the existing `headerExpanded` signal that controls visibility of Section A (category marquee + search bar).
+
+### Card titles: bigger, not bold
+
+`card-title` CSS changed from `font-size: 1rem; font-weight: 600` to `font-size: 1.15rem; font-weight: 400`.
+
+### Chart filter pills moved below graph
+
+Pills (Revenue/Fees/Gross/Cashflow/Discounts) + Daily/Cumulative toggle now render inside the chart card, below the chart, instead of above it. CSS updated from `margin-bottom` to `margin-top`.

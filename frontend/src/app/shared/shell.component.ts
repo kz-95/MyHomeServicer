@@ -900,9 +900,10 @@ interface PromoValidationResult {
         flex: 1 0 auto;
       }
       .content-main.narrow {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        max-width: 720px;
+        margin: 1.5rem auto;
+        width: 100%;
+        padding: 0 1.5rem;
       }
 
       .ptr-spin-host {

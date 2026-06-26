@@ -236,6 +236,8 @@ const KNOWN_ACTION_TYPES = new Set([
   "form_fill",
   "category_lock",
   "retry",
+  "financial_table",
+  "financial_kpi",
 ]);
 
 const UUID_RE =
@@ -3319,4 +3321,375 @@ async function localFallback(
   }
 
   return "";
+}
+
+// ── Admin Financial Analysis Chat ───────────────────────────────────────────
+
+/** Shape of financial data injected into the admin's chat system prompt. */
+export interface FinancialSnapshot {
+  period: string;
+  categoryId?: string;
+  totals: {
+    bookingRevenue: number;
+    commission: number;
+    topUps: number;
+    payouts: number;
+    withdrawals: number;
+    escrowHeld: number;
+    pendingPayouts: number;
+    gatewayFees: number;
+    registeredDiscounts: number;
+    promoCosts: number;
+    pointsCosts: number;
+    urgentFeeRevenue: number;
+    urgentFeePlatformShare: number;
+  };
+  cashflow: {
+    totalIn: number;
+    totalOut: number;
+    gross: number;
+    netAfterWithdrawals: number;
+  };
+  categoryBreakdown: Array<{
+    name: string;
+    count: number;
+    revenue: number;
+    commission: number;
+    confirmed: number;
+    completed: number;
+    cancelled: number;
+  }>;
+  customerTop10: Array<{
+    name: string;
+    email: string;
+    bookingCount: number;
+    totalSpent: number;
+  }>;
+  servicerTop10: Array<{
+    name: string;
+    businessName: string;
+    rating: number;
+    jobCount: number;
+    revenue: number;
+    reportCount: number;
+  }>;
+  dailyTrend: {
+    highestRevenueDay: string;
+    highestRevenueAmount: number;
+    averageDailyRevenue: number;
+    totalDays: number;
+  };
+  periodLabel: string;
+}
+
+/** Format a number as RM currency with thousands separators. */
+function fmtMyr(n: number): string {
+  return `RM ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Build a compact system prompt with the admin's financial snapshot injected. */
+function buildAdminFinancialPrompt(
+  snap: FinancialSnapshot,
+): string {
+  const p = [
+    "You are the My Home Servicer Financial Analyst, an AI assistant embedded in the admin dashboard.",
+    `You are speaking to a platform ADMIN (super admin level, highest access). The admin is viewing financial data for: ${snap.periodLabel}${snap.categoryId ? " (filtered to one category)" : ""}.`,
+    "",
+    "Your role: answer questions about the platform's financial performance using ONLY the real data provided below. Never invent numbers, forecasts, or policies. If the data does not cover the question, say so honestly and suggest what filter or date range would help.",
+    "",
+    "Style: professional, concise, data-driven. Use bullet points or tables for comparisons. Format all money as RM with 2 decimal places and thousands separators (e.g. RM 1,234.56). Percentages to 1 decimal place.",
+    "",
+    "ACTION BLOCKS: When presenting structured data (rankings, tables, comparisons), emit [action:financial_table] for tables or [action:financial_kpi] for key metric cards (single KPI highlights). This makes the UI render rich data cards instead of plain text tables.",
+    "[action:financial_table] format:",
+    "  title: (string) table heading",
+    "  columns: (JSON array of column names, e.g. [\"Rank\",\"Category\",\"Revenue\",\"Bookings\"])",
+    "  rows: (JSON array of row arrays, e.g. [[\"1\",\"Renovation\",\"RM 245,000.00\",\"12\"],...])",
+    "[/action]",
+    "[action:financial_kpi] format:",
+    "  label: (string) metric name, e.g. \"Total Revenue (30d)\"",
+    "  value: (string) formatted value, e.g. \"RM 245,000.00\"",
+    "  trend: (optional string) \"up\" | \"down\" | \"flat\"",
+    "  sub: (optional string) context line, e.g. \"+12.5% vs previous period\"",
+    "[/action]",
+    "Use these blocks sparingly - only for the most relevant data the admin specifically asked about. Prefer a concise text answer with the key insight first, then the data block if helpful.",
+    "",
+    "--- FINANCIAL DATA (LIVE - do not alter these numbers) ---",
+    "",
+    "## Revenue & Income",
+    `  Total Booking Revenue: ${fmtMyr(snap.totals.bookingRevenue)}`,
+    `  Platform Commission (fees): ${fmtMyr(snap.totals.commission)}`,
+    `  Wallet Top-ups: ${fmtMyr(snap.totals.topUps)}`,
+    `  Urgent Fee Revenue: ${fmtMyr(snap.totals.urgentFeeRevenue)} (platform share: ${fmtMyr(snap.totals.urgentFeePlatformShare)})`,
+    "",
+    "## Costs & Outflows",
+    `  Servicer Payouts: ${fmtMyr(snap.totals.payouts)}`,
+    `  Servicer Withdrawals: ${fmtMyr(snap.totals.withdrawals)}`,
+    `  Gateway Fees (Stripe): ${fmtMyr(snap.totals.gatewayFees)}`,
+    `  Registered Customer Discounts: ${fmtMyr(snap.totals.registeredDiscounts)}`,
+    `  Promotion Costs: ${fmtMyr(snap.totals.promoCosts)}`,
+    `  Loyalty Points Costs: ${fmtMyr(snap.totals.pointsCosts)}`,
+    "",
+    "## Escrow",
+    `  Currently Held: ${fmtMyr(snap.totals.escrowHeld)}`,
+    `  Pending Payouts (completed, not yet paid): ${fmtMyr(snap.totals.pendingPayouts)}`,
+    "",
+    "## Cashflow Summary",
+    `  Total IN: ${fmtMyr(snap.cashflow.totalIn)}`,
+    `  Total OUT: ${fmtMyr(snap.cashflow.totalOut)}`,
+    `  GROSS: ${fmtMyr(snap.cashflow.gross)}`,
+    `  Net (after withdrawals): ${fmtMyr(snap.cashflow.netAfterWithdrawals)}`,
+    "",
+    "## Daily Trend Summary",
+    `  ${snap.dailyTrend.totalDays} days of data`,
+    `  Average daily revenue: ${fmtMyr(snap.dailyTrend.averageDailyRevenue)}`,
+    `  Highest revenue day: ${snap.dailyTrend.highestRevenueDay} at ${fmtMyr(snap.dailyTrend.highestRevenueAmount)}`,
+    "",
+    `## Category Breakdown (${snap.categoryBreakdown.length} categories)`,
+  ];
+
+  // Top 15 categories
+  for (const c of snap.categoryBreakdown.slice(0, 15)) {
+    p.push(
+      `  ${c.name}: ${c.count} bookings, ${fmtMyr(c.revenue)} revenue, ${fmtMyr(c.commission)} commission, ${c.confirmed} confirmed, ${c.completed} completed, ${c.cancelled} cancelled`,
+    );
+  }
+  if (snap.categoryBreakdown.length > 15) {
+    p.push(`  ... and ${snap.categoryBreakdown.length - 15} more categories`);
+  }
+
+  // Customer leaderboard
+  p.push("", `## Top Customers (by spending, ${snap.customerTop10.length} shown)`);
+  for (const c of snap.customerTop10) {
+    p.push(
+      `  ${c.name} (${c.email}): ${c.bookingCount} bookings, total spent ${fmtMyr(c.totalSpent)}`,
+    );
+  }
+
+  // Servicer leaderboard
+  p.push("", `## Top Servicers (by revenue, ${snap.servicerTop10.length} shown)`);
+  for (const s of snap.servicerTop10) {
+    p.push(
+      `  ${s.businessName || s.name}: ${s.jobCount} jobs, ${fmtMyr(s.revenue)} revenue, ${s.rating?.toFixed?.(1) ?? "N/A"}★ rating, ${s.reportCount} reports`,
+    );
+  }
+
+  p.push(
+    "",
+    "--- END FINANCIAL DATA ---",
+    "",
+    "Remember: analyze ONLY from the data above. If the admin asks about data outside this snapshot (different date range, missing metrics), tell them what is available and suggest adjusting the dashboard date filter. Never hallucinate numbers.",
+  );
+
+  return p.join("\n");
+}
+
+/**
+ * Entry point for the admin financial analysis chat. Loads financial data,
+ * builds a data-rich system prompt, then sends the admin's question to the
+ * LLM failover chain.
+ *
+ * @param message - the admin's question/request
+ * @param financialData - raw financial snapshot from getDashboardFinancial()
+ */
+export async function adminFinancialChat(
+  message: string,
+  financialData: FinancialSnapshot,
+): Promise<AiReply> {
+  const systemPrompt = buildAdminFinancialPrompt(financialData);
+  try {
+    return await tryAiChain(systemPrompt, message, [], "admin");
+  } catch (e) {
+    return { answer: adminLlmDiagnostic(e), tokensUsed: null };
+  }
+}
+
+// ── Financial Report Generator ──────────────────────────────────────────────
+
+/**
+ * Build a system prompt that instructs the LLM to act as a senior business
+ * analyst and produce a comprehensive advisory report from the financial snapshot.
+ */
+function buildReportPrompt(snap: FinancialSnapshot): string {
+  const p = [
+    "You are a senior business analyst and financial advisor for My Home Servicer, a platform connecting homeowners with local service providers (plumbers, cleaners, aircon technicians, caterers, renovators, etc.).",
+    "",
+    `You are analyzing the platform's financial data for: ${snap.periodLabel}${snap.categoryId ? " (filtered to a single category)" : ""}.`,
+    "",
+    "Your job: produce a comprehensive, data-driven advisory report. Be specific, direct, and actionable. Use real numbers from the data. Compare, contrast, and highlight outliers.",
+    "",
+    "TONE: Warm, encouraging, and supportive. Like a trusted coach celebrating wins and guiding through challenges. Use phrases that uplift and motivate. When numbers are good, celebrate them warmly. When numbers need work, frame it as an opportunity, not a failure. Never use cold, clinical, or judgmental language. Use words like: 'great progress', 'exciting opportunity', 'solid foundation', 'room to grow', 'let's build on this', 'you're on the right track'. End every section with a positive forward-looking note.",
+    "",
+    "Add a brief encouragement line at the end of each section (1 sentence max). Examples: 'This is a strong foundation to build on.', 'Small tweaks here will unlock big gains.', 'Your platform is gaining real momentum.'",
+    "",
+    "Use 🔥🌟📈✅💪 emoji sparingly (1-2 per section) to add warmth and celebration.",
+    "",
+    "## REPORT STRUCTURE",
+    "Produce the following sections in order. Use markdown-style headers (##) for each section. Keep each section 3-8 lines of substantive analysis.",
+    "",
+    "### 1. Executive Summary",
+    "2-3 sentences overview. Total revenue, top category, overall health verdict (healthy / mixed / concerning), and the single most important thing to focus on right now.",
+    "",
+    "### 2. Revenue & Growth",
+    `Total booking revenue was ${fmtMyr(snap.totals.bookingRevenue)} across ${snap.dailyTrend.totalDays} days. ` +
+      `Average daily revenue: ${fmtMyr(snap.dailyTrend.averageDailyRevenue)}. ` +
+      `Highest day: ${snap.dailyTrend.highestRevenueDay} at ${fmtMyr(snap.dailyTrend.highestRevenueAmount)}. ` +
+      `Commission earned: ${fmtMyr(snap.totals.commission)}. ` +
+      `Urgent fee revenue: ${fmtMyr(snap.totals.urgentFeeRevenue)} (platform share: ${fmtMyr(snap.totals.urgentFeePlatformShare)}).`,
+    "Analyze: Is revenue growing or flat? Which categories drive the most revenue? Are urgent bookings significant? What does the daily average suggest about platform velocity?",
+    "",
+    "### 3. Cost & Margin Analysis",
+    `Total payouts to servicers: ${fmtMyr(snap.totals.payouts)}. ` +
+      `Gateway fees (Stripe): ${fmtMyr(snap.totals.gatewayFees)}. ` +
+      `Registered customer discounts: ${fmtMyr(snap.totals.registeredDiscounts)}. ` +
+      `Promotion costs: ${fmtMyr(snap.totals.promoCosts)}. ` +
+      `Loyalty points costs: ${fmtMyr(snap.totals.pointsCosts)}. ` +
+      `Servicer withdrawals: ${fmtMyr(snap.totals.withdrawals)}.`,
+    "Analyze: What is the effective margin? Which cost lines are high relative to revenue? Are promos/points ROI-positive or burning money? Are gateway fees eating too much?",
+    "",
+    "### 4. Cashflow Health",
+    `Cash IN (revenue + top-ups): ${fmtMyr(snap.cashflow.totalIn)}. ` +
+      `Cash OUT (payouts + fees + discounts + promos + points): ${fmtMyr(snap.cashflow.totalOut)}. ` +
+      `Gross: ${fmtMyr(snap.cashflow.gross)}. ` +
+      `Net after withdrawals: ${fmtMyr(snap.cashflow.netAfterWithdrawals)}. ` +
+      `Escrow held: ${fmtMyr(snap.totals.escrowHeld)}. ` +
+      `Pending payouts: ${fmtMyr(snap.totals.pendingPayouts)}. ` +
+      `Wallet top-ups: ${fmtMyr(snap.totals.topUps)}.`,
+    "Analyze: Is the platform cashflow-positive? Is escrow growing (more bookings) or shrinking? Are pending payouts a liability risk? Any liquidity concerns?",
+    "",
+    "### 5. Category Performance Deep-Dive",
+  ];
+
+  // Top 3 and bottom 3 categories
+  const sorted = [...snap.categoryBreakdown].sort((a, b) => b.revenue - a.revenue);
+  const top3 = sorted.slice(0, 3);
+  const bottom3 = sorted.slice(-3).reverse();
+  p.push(`### 5. Category Performance Deep-Dive`);
+  p.push(`${snap.categoryBreakdown.length} active categories analyzed.`);
+  p.push("");
+  p.push("Top performers:");
+  for (const c of top3) {
+    const successRate = c.count > 0 ? ((c.completed / c.count) * 100).toFixed(1) : "0";
+    const cancelRate = c.count > 0 ? ((c.cancelled / c.count) * 100).toFixed(1) : "0";
+    p.push(`- ${c.name}: ${c.count} bookings, ${fmtMyr(c.revenue)} revenue, ${successRate}% success rate, ${cancelRate}% cancel rate`);
+  }
+  p.push("");
+  p.push("Bottom performers (lowest revenue):");
+  for (const c of bottom3) {
+    p.push(`- ${c.name}: ${c.count} bookings, ${fmtMyr(c.revenue)} revenue`);
+  }
+  p.push("");
+  p.push(
+    "Analyze: Which categories have the best success rates (completed / total)? Which have high cancellation rates and why might that be? Are there categories with high booking volume but low revenue (low ticket size)? Categories with high revenue but few bookings (high ticket, low volume)? Which categories should the platform invest in growing? Which are dragging performance down?",
+    "",
+    "### 6. Customer Insights",
+    `${snap.customerTop10.length} top customers shown by total spend.`,
+  );
+  for (const c of snap.customerTop10.slice(0, 5)) {
+    p.push(`- ${c.name}: ${c.bookingCount} bookings, ${fmtMyr(c.totalSpent)} spent, avg ${fmtMyr(c.totalSpent / Math.max(1, c.bookingCount))}/booking`);
+  }
+  p.push(
+    "",
+    "Analyze: Are top customers repeat-booking (healthy) or one-off? What is the average spend per customer? Is there a concentration risk (few customers = most revenue)? What acquisition or retention strategies make sense based on the data?",
+    "",
+    "### 7. Servicer Performance",
+    `${snap.servicerTop10.length} top servicers shown by revenue.`,
+  );
+  for (const s of snap.servicerTop10.slice(0, 5)) {
+    const avgRevenue = s.jobCount > 0 ? fmtMyr(s.revenue / s.jobCount) : "N/A";
+    p.push(`- ${s.businessName || s.name}: ${s.jobCount} jobs, ${fmtMyr(s.revenue)} revenue, avg ${avgRevenue}/job, ${s.rating?.toFixed?.(1) ?? "N/A"}★, ${s.reportCount} reports`);
+  }
+  p.push(
+    "",
+    "Analyze: Are top servicers carrying the platform (concentration risk)? Are high-revenue servicers also highly rated? Any servicers with high report counts (risk)? What is the average revenue per job for top vs average servicers? Should the platform recruit more servicers in high-demand categories?",
+    "",
+    "### 8. Growth Opportunities & Quick Wins",
+    "Identify 3-5 specific opportunities based on the data. Focus on what's already working well and how to amplify it. Examples: categories with high demand but room for more servicers, high-ticket categories to promote, loyal customer segments to nurture, loyalty program momentum, urgent-fee potential. Be specific with numbers. Frame every opportunity as building on existing strength.",
+    "",
+    "### 9. Areas to Watch (with Solutions)",
+    "Identify 2-4 metrics that need attention, paired with concrete solutions. Never just flag a problem without offering the fix. Frame as: 'Here's what we're seeing → Here's why it matters → Here's what we can do about it.' Examples: categories with rising cancellations (suggest servicer training), margin compression (suggest fee optimization), low repeat rate (suggest loyalty nudges). Always end with a positive path forward.",
+    "",
+    "### 10. Recommendations (Priority-Ordered)",
+    "List 5-7 concrete, actionable recommendations in priority order. Each: what to do, why (which data point supports it), expected impact. Format as:",
+    "1. **[Action]**: [What to do]. *Why*: [Data point]. *Impact*: [Expected outcome].",
+    "",
+    "## RULES",
+    "- Every section MUST reference specific numbers from the data above.",
+    "- Never say 'some categories' or 'several servicers' - name them.",
+    "- Calculate ratios explicitly: commission rate, success rate, avg per booking, margin %.",
+    "- If the data is insufficient for a conclusion, say so honestly.",
+    "- Format money as RM X,XXX.XX throughout.",
+    "- Use **bold** for key metrics and category/servicer names.",
+    "- Keep the report concise but substantive. Aim for about 800-1200 words total.",
+    "- Warm, encouraging tone throughout. Celebrate wins. Frame challenges as growth paths. End every section positively.",
+    "",
+    "--- FINANCIAL DATA ---",
+    "",
+    "## Revenue & Income",
+    `  Total Booking Revenue: ${fmtMyr(snap.totals.bookingRevenue)}`,
+    `  Platform Commission: ${fmtMyr(snap.totals.commission)}`,
+    `  Wallet Top-ups: ${fmtMyr(snap.totals.topUps)}`,
+    `  Urgent Fee Revenue: ${fmtMyr(snap.totals.urgentFeeRevenue)} (platform share: ${fmtMyr(snap.totals.urgentFeePlatformShare)})`,
+    "",
+    "## Costs & Outflows",
+    `  Servicer Payouts: ${fmtMyr(snap.totals.payouts)}`,
+    `  Servicer Withdrawals: ${fmtMyr(snap.totals.withdrawals)}`,
+    `  Gateway Fees (Stripe): ${fmtMyr(snap.totals.gatewayFees)}`,
+    `  Registered Customer Discounts: ${fmtMyr(snap.totals.registeredDiscounts)}`,
+    `  Promotion Costs: ${fmtMyr(snap.totals.promoCosts)}`,
+    `  Loyalty Points Costs: ${fmtMyr(snap.totals.pointsCosts)}`,
+    "",
+    "## Escrow",
+    `  Currently Held: ${fmtMyr(snap.totals.escrowHeld)}`,
+    `  Pending Payouts: ${fmtMyr(snap.totals.pendingPayouts)}`,
+    "",
+    "## Cashflow",
+    `  Total IN: ${fmtMyr(snap.cashflow.totalIn)}`,
+    `  Total OUT: ${fmtMyr(snap.cashflow.totalOut)}`,
+    `  GROSS: ${fmtMyr(snap.cashflow.gross)}`,
+    `  Net after withdrawals: ${fmtMyr(snap.cashflow.netAfterWithdrawals)}`,
+    "",
+    "## Daily Trend",
+    `  ${snap.dailyTrend.totalDays} days, avg daily revenue ${fmtMyr(snap.dailyTrend.averageDailyRevenue)}`,
+    `  Highest day: ${snap.dailyTrend.highestRevenueDay} at ${fmtMyr(snap.dailyTrend.highestRevenueAmount)}`,
+    "",
+    `## All Categories (${snap.categoryBreakdown.length})`,
+  );
+
+  for (const c of snap.categoryBreakdown) {
+    const succ = c.count > 0 ? ((c.completed / c.count) * 100).toFixed(1) : "0";
+    const canc = c.count > 0 ? ((c.cancelled / c.count) * 100).toFixed(1) : "0";
+    p.push(`  ${c.name}: ${c.count} bookings, ${fmtMyr(c.revenue)} revenue, ${fmtMyr(c.commission)} commission, ${c.confirmed} conf, ${c.completed} comp (${succ}%), ${c.cancelled} canc (${canc}%)`);
+  }
+
+  p.push("", `## Top Customers (${snap.customerTop10.length})`);
+  for (const c of snap.customerTop10) {
+    p.push(`  ${c.name}: ${c.bookingCount} bookings, ${fmtMyr(c.totalSpent)} total, avg ${fmtMyr(c.totalSpent / Math.max(1, c.bookingCount))}/booking`);
+  }
+
+  p.push("", `## Top Servicers (${snap.servicerTop10.length})`);
+  for (const s of snap.servicerTop10) {
+    p.push(`  ${s.businessName || s.name}: ${s.jobCount} jobs, ${fmtMyr(s.revenue)} revenue, ${s.rating?.toFixed?.(1) ?? "N/A"}★, ${s.reportCount} reports`);
+  }
+
+  p.push("", "--- END DATA ---");
+  p.push("", "Generate the full advisory report now. Follow the structure above exactly. Be specific, data-driven, and actionable.");
+
+  return p.join("\n");
+}
+
+/**
+ * Generate a comprehensive financial advisory report. Unlike the chat mode,
+ * this sends a pre-defined analysis prompt (not a user question) to the LLM
+ * with the full financial snapshot, producing a structured 10-section report.
+ */
+export async function generateFinancialReport(
+  financialData: FinancialSnapshot,
+): Promise<AiReply> {
+  const systemPrompt = buildReportPrompt(financialData);
+  const userMessage = "Generate the complete financial advisory report based on the data provided. Follow the report structure exactly. Be specific with numbers, name names, and give actionable recommendations.";
+  try {
+    return await tryAiChain(systemPrompt, userMessage, [], "admin");
+  } catch (e) {
+    return { answer: adminLlmDiagnostic(e), tokensUsed: null };
+  }
 }

@@ -4,8 +4,33 @@ import { BaseChartDirective } from 'ng2-charts';
 import { Chart, ChartConfiguration } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 
-// Register globally so donut chart can use it
 Chart.register(ChartDataLabels);
+
+// Center "All" label plugin — reads per-chart state for hover/click effects
+const centerLabelPlugin = {
+  id: 'centerLabel',
+  afterDraw(chart: any) {
+    // Only draw "All" on doughnut charts
+    if ((chart.config as any)?.type !== 'doughnut') return;
+    if (!chart.chartArea) return;
+    const ctx = chart.ctx;
+    const { top, bottom, left, right } = chart.chartArea;
+    const cx = (left + right) / 2;
+    const cy = (top + bottom) / 2;
+    const muted = getComputedStyle(document.documentElement).getPropertyValue('--color-muted').trim() || '#94a3b8';
+    const primary = '#f59e0b';
+    const hover = chart._centerHover || false;
+    const active = chart._centerActive || false;
+    ctx.save();
+    ctx.font = `600 ${active ? '13px' : hover ? '12px' : '11px'} sans-serif`;
+    ctx.fillStyle = active ? primary : hover ? primary : muted;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('All', cx, cy);
+    ctx.restore();
+  },
+};
+Chart.register(centerLabelPlugin);
 
 @Component({
   selector: 'app-donut-chart',
@@ -33,6 +58,7 @@ export class DonutChartComponent implements OnInit, OnChanges {
   @Input() values: number[] = [];
   @Input() colors: string[] = [];
   @Output() sliceClick = new EventEmitter<number>();
+  @Output() centerClick = new EventEmitter<void>();
   error = false;
 
   private getCssVar(name: string): string {
@@ -92,8 +118,17 @@ export class DonutChartComponent implements OnInit, OnChanges {
         },
       },
       cutout: '27%',
-      onClick: (e, elements) => {
-        if (elements?.length) self.sliceClick.emit(elements[0].index);
+      onHover: (e: any, elements: any[], chart: any) => {
+        chart._centerHover = !elements?.length;
+        chart.draw();
+      },
+      onClick: (e: any, elements: any[], chart: any) => {
+        if (elements?.length) { self.sliceClick.emit(elements[0].index); return; }
+        // Center click — flash highlight
+        chart._centerActive = true;
+        chart.draw();
+        setTimeout(() => { chart._centerActive = false; chart.draw(); }, 150);
+        self.centerClick.emit();
       },
     };
   }
