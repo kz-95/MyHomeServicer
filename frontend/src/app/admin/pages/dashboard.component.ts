@@ -141,7 +141,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
             <span class="fin-cf-in">RM {{ grossIn | number:'1.2-2' }}</span>
           </div>
           <div class="fin-cf-row">
-            <span class="fin-label">OUT <button class="hint-btn" title="Servicer payouts + platform fees + gateway fees + discounts + promo costs.">(?)</button></span>
+            <span class="fin-label">OUT <button class="hint-btn" title="Servicer payouts + gateway fees + discounts + promo costs + points costs.">(?)</button></span>
             <span class="fin-cf-out">RM {{ grossOut | number:'1.2-2' }}</span>
           </div>
           <div class="fin-cf-row">
@@ -149,27 +149,54 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
             <span class="fin-cf-gross" [class.neg]="gross < 0">RM {{ gross | number:'1.2-2' }}</span>
           </div>
           <div class="fin-cf-row">
-            <span class="fin-label">Cashflow <button class="hint-btn" title="GROSS − company withdrawals = actual cash available.">(?)</button></span>
+            <span class="fin-label">Cashflow <button class="hint-btn" title="GROSS &minus; company withdrawals = actual cash available.">(?)</button></span>
             <span class="fin-cf-cashflow" [class.neg]="cashflow < 0">RM {{ cashflow | number:'1.2-2' }}</span>
           </div>
         </div>
         <!-- Card 2: Revenue breakdown -->
         <div class="card fin-card">
-          <span class="fin-n">RM {{ fd.totalFees | number:'1.2-2' }}</span>
-          <span class="fin-label">Revenue <button class="hint-btn" title="Platform earnings: 8% fees + customer top-ups">(?)</button></span>
-          <span class="fin-sub">Fees RM {{ fd.totalFees | number:'1.2-2' }} · Top-ups RM {{ fd.totalTopUps | number:'1.2-2' }}</span>
+          <div class="fin-cf-row">
+            <span class="fin-label">Revenue <button class="hint-btn" title="Platform earnings: 8% fees + customer top-ups">(?)</button></span>
+            <span class="fin-n">RM {{ (fd.totalFees + fd.totalTopUps) | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-cf-row">
+            <span class="fin-label">Fees <button class="hint-btn" title="Platform's commission (20%) collected from completed bookings.">(?)</button></span>
+            <span class="fin-cf-sub">RM {{ fd.totalFees | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-cf-row">
+            <span class="fin-label">Top-ups <button class="hint-btn" title="Customer wallet top-ups (deposit_topup transactions).">(?)</button></span>
+            <span class="fin-cf-sub">RM {{ fd.totalTopUps | number:'1.2-2' }}</span>
+          </div>
         </div>
-        <!-- Card 3: Escrow + Payouts -->
+        <!-- Card 3: Escrow -->
         <div class="card fin-card">
-          <span class="fin-n">RM {{ fd.totalEscrow | number:'1.2-2' }}</span>
-          <span class="fin-label">Escrow <button class="hint-btn" title="Funds held in escrow and pending release to servicers">(?)</button></span>
-          <span class="fin-sub">Held RM {{ fd.totalEscrow | number:'1.2-2' }} · Pending RM {{ fd.pendingPayouts | number:'1.2-2' }}</span>
+          <div class="fin-cf-row">
+            <span class="fin-label">Escrow <button class="hint-btn" title="Funds held in escrow and pending release to servicers">(?)</button></span>
+            <span class="fin-n">RM {{ (fd.totalEscrow + fd.pendingPayouts) | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-cf-row">
+            <span class="fin-label">Held <button class="hint-btn" title="Customer payments currently held in escrow (funds not yet released).">(?)</button></span>
+            <span class="fin-cf-sub">RM {{ fd.totalEscrow | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-cf-row">
+            <span class="fin-label">Pending <button class="hint-btn" title="Escrow amounts ready to be released to servicers upon job completion.">(?)</button></span>
+            <span class="fin-cf-sub">RM {{ fd.pendingPayouts | number:'1.2-2' }}</span>
+          </div>
         </div>
         <!-- Card 4: Urgent -->
         <div class="card fin-card urgent-card">
-          <span class="fin-n">RM {{ fd.urgentFeeRevenue | number:'1.2-2' }}</span>
-          <span class="fin-label">Urgent <button class="hint-btn" title="RM 150 same-day surcharge; platform takes 20% (RM 30)">(?)</button></span>
-          <span class="fin-sub">Fee RM {{ fd.urgentFeeRevenue | number:'1.2-2' }} · Platform RM {{ fd.urgentFeePlatformShare | number:'1.2-2' }}</span>
+          <div class="fin-cf-row">
+            <span class="fin-label">Urgent <button class="hint-btn" title="RM 150 same-day surcharge; platform takes 20% (RM 30)">(?)</button></span>
+            <span class="fin-n">RM {{ fd.urgentFeeRevenue | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-cf-row">
+            <span class="fin-label">Fee <button class="hint-btn" title="Total urgent surcharge collected from customers (RM 150 per urgent booking).">(?)</button></span>
+            <span class="fin-cf-sub">RM {{ fd.urgentFeeRevenue | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-cf-row">
+            <span class="fin-label">Platform share <button class="hint-btn" title="Platform's 20% cut of the urgent surcharge.">(?)</button></span>
+            <span class="fin-cf-sub">RM {{ fd.urgentFeePlatformShare | number:'1.2-2' }}</span>
+          </div>
         </div>
       </div>
     }
@@ -492,7 +519,6 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       }
       .fin-card:hover {
         box-shadow: var(--shadow-md);
-        transform: translateY(-2px);
       }
       .fin-label {
         font-size: 0.8rem;
@@ -502,13 +528,13 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
         letter-spacing: 0.04em;
       }
       .fin-n {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
         font-weight: 700;
-        color: var(--color-primary);
+        color: #f59e0b;
       }
       .fin-sub {
         font-size: 0.78rem;
-        color: var(--color-muted);
+        color: var(--color-text);
       }
       .fin-cf-row { display: flex; justify-content: space-between; align-items: center; }
       .fin-cf-row .fin-label { color: var(--color-muted); font-size: 0.8rem; }
@@ -518,6 +544,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
 .fin-cf-gross.neg { color: #dc2626; }
       .fin-cf-cashflow { font-size: 1.1rem; font-weight: 600; color: inherit; }
 .fin-cf-cashflow.neg { color: #dc2626; }
+.fin-cf-sub { font-size: 1.1rem; font-weight: 600; color: var(--color-text); }
       .fin-cf-net { font-size: 0.78rem; color: var(--color-muted); }
       .urgent-card {
         border: 1px solid var(--color-border);
