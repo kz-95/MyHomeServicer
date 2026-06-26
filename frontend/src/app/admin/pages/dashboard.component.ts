@@ -302,8 +302,9 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
           <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
         </div>
 
-        <!-- Chart filter pills -->
-        <div class="chart-pills">
+        <!-- Chart filter pills + mode toggle -->
+        <div class="chart-toolbar">
+          <div class="chart-pills">
           <button class="pill" [class.on]="chartPills()['revenue']" (click)="toggleChartPill('revenue')">
             <span class="pill-dot rev" [class.off]="!chartPills()['revenue']"></span>Revenue
           </button>
@@ -321,11 +322,19 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
           </button>
         </div>
 
-        <!-- Chart -->
+        <!-- Chart mode toggle -->
+        <div class="chart-mode-toggle">
+          <button class="range-btn" [class.on]="chartMode() === 'daily'" (click)="chartMode.set('daily')">Daily █</button>
+          <button class="range-btn" [class.on]="chartMode() === 'cumulative'" (click)="chartMode.set('cumulative')">Cumulative ∿</button>
+        </div>
+      </div>
+
+      <!-- Chart -->
         <div class="card chart-card">
           <app-line-chart
             [labels]="chartLabels()"
             [datasets]="chartDatasets()"
+            [chartType]="chartMode() === 'daily' ? 'bar' : 'line'"
             [loading]="finLoading()"
           />
         </div>
@@ -757,11 +766,12 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .year-input:focus { outline: none; color: var(--color-primary); }
 
       /* ── Chart filter pills ─────────────────────────────────────────── */
+      .chart-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
       .chart-pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 0.6rem;
+        display: flex; flex-wrap: wrap; gap: 0.5rem;
+      }
+      .chart-mode-toggle {
+        display: flex; gap: 0.35rem; margin-left: auto;
       }
       .pill {
         display: inline-flex;
@@ -965,6 +975,7 @@ export class AdminDashboardComponent implements OnInit {
   chartPills = signal<Record<ChartLineKey, boolean>>({
     revenue: true, fees: true, gross: true, discount: false, cashflow: false,
   });
+  chartMode = signal<'daily' | 'cumulative'>('daily');
 
   toggleChartPill(key: ChartLineKey): void {
     this.chartPills.update((p) => ({ ...p, [key]: !p[key] }));
@@ -980,7 +991,7 @@ export class AdminDashboardComponent implements OnInit {
   activeQuarter = computed(() => {
     const from = this.dateFrom();
     const to = this.dateTo();
-    const y = new Date(from).getFullYear();
+    const y = from.slice(0, 4);  /* extract year from string — avoids timezone skew from new Date() */
     const qStarts = ['', `${y}-01-01`, `${y}-04-01`, `${y}-07-01`, `${y}-10-01`];
     const qEnds = ['', `${y}-03-31`, `${y}-06-30`, `${y}-09-30`, `${y}-12-31`];
     for (let q = 1; q <= 4; q++) {
@@ -988,7 +999,7 @@ export class AdminDashboardComponent implements OnInit {
     }
     return 0;
   });
-  activeYear = computed(() => new Date(this.dateFrom()).getFullYear());
+  activeYear = computed(() => +this.dateFrom().slice(0, 4));
 
   // ── Category filter ──────────────────────────────────────────────────
   selectedCatIds = signal<Set<string>>(new Set());
@@ -1108,12 +1119,14 @@ export class AdminDashboardComponent implements OnInit {
     const payouts = fd.dailyPayouts ? fd.dailyPayouts.map(d => d.amount) : [];
     const gross = rev.map((_, i) => fee[i] - (disc[i] ?? 0));
     const cf = gross.map((_, i) => gross[i]);
+    const toCumulative = (arr: number[]) => arr.reduce((acc, v, i) => { acc.push((acc[i-1] ?? 0) + v); return acc; }, [] as number[]);
+    const cum = this.chartMode() === 'cumulative';
     return [
-      { label: 'Revenue', data: rev, color: '#2563eb', hidden: !pills.revenue },
-      { label: 'Fees', data: fee, color: '#f59e0b', dashed: true, hidden: !pills.fees },
-      { label: 'Gross', data: gross, color: '#16a34a', hidden: !pills.gross },
-      { label: 'Discounts', data: disc, color: '#dc2626', dashed: true, hidden: !pills.discount },
-      { label: 'Cashflow', data: cf, color: '#9333ea', dashed: true, hidden: !pills.cashflow },
+      { label: 'Revenue', data: cum ? toCumulative(rev) : rev, color: '#2563eb', hidden: !pills.revenue },
+      { label: 'Fees', data: cum ? toCumulative(fee) : fee, color: '#f59e0b', dashed: true, hidden: !pills.fees },
+      { label: 'Gross', data: cum ? toCumulative(gross) : gross, color: '#16a34a', hidden: !pills.gross },
+      { label: 'Discounts', data: cum ? toCumulative(disc) : disc, color: '#dc2626', dashed: true, hidden: !pills.discount },
+      { label: 'Cashflow', data: cum ? toCumulative(cf) : cf, color: '#9333ea', dashed: true, hidden: !pills.cashflow },
     ];
   });
 
