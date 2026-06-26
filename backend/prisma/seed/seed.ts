@@ -2014,10 +2014,10 @@ async function main(): Promise<void> {
   }
   console.log(`  ✓ ${allBulkCompleted.length} bulk completed bookings across all servicers`);
 
-  // ── Duplicate passes: 2 more batches of customers, dates shifted -3d / -6d ──
-  // Pass 1 (-3d): 10% off top-15 servicers. Pass 2 (-6d, earliest): 15% off top-15.
+  // ── Duplicate passes: 2 more batches of customers, dates shifted -9d / -16d ──
+  // Pass 1 (-9d): 10% off top-15 servicers. Pass 2 (-16d, earliest): 15% off top-15.
   for (let pass = 1; pass <= 2; pass++) {
-    const dayShift = pass * 3; // -3, -6 days earlier than original
+    const dayShift = pass === 1 ? 9 : 16; // -9, -16 days earlier than original
     const discountPct = pass === 1 ? 0.10 : 0.15; // 10%, 15%
     for (const m of servicerSlugs) {
       const count = m.count;
