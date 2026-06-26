@@ -157,9 +157,13 @@ export class DialogOutletComponent {
   constructor() {
     // Open/close the native top-layer dialog in step with the request signal.
     effect(() => {
+      // Read the signal FIRST so this effect always tracks `request` as a
+      // dependency. If we bail out on a missing dlgRef before reading it, the
+      // effect never subscribes to the signal and dialogs silently never open
+      // (the ViewChild-vs-effect-first-run race that broke Sign out).
+      const hasReq = this.dialog.request() !== null;
       const dlg = this.dlgRef?.nativeElement;
       if (!dlg) return;
-      const hasReq = this.dialog.request() !== null;
       if (hasReq && !dlg.open) dlg.showModal();
       else if (!hasReq && dlg.open) dlg.close();
     });
