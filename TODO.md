@@ -32,9 +32,27 @@
 > - [x] Post-mortem: ignorethis/POSTMORTEM-2026-06-25.md (14 mistakes catalogued)
 > - [x] Git: squashed → merged to master → new feat/admin-fix branch
 >
+> ### ✅ DONE — Admin Dashboard Polish + Rewards Seed (2026-06-26)
+> - [x] Sticky toolbar: 2-tone sections (A/B), edge-to-edge with CSS variables
+> - [x] Category marquee: 2 rows (parents + children), draggable, hidden scrollbar
+> - [x] Sub-category filter: hides children when parent selected
+> - [x] Section filter pills: All/Queues/Cards/Chart/Breakdown/Customers/Servicers
+> - [x] Cashflow card: IN (orange), OUT (red), GROSS (green/neg red), Cashflow (white/neg red)
+> - [x] Revenue card: Fees/Top-ups (green), Discounts/Rewards/Gateway (red)
+> - [x] Chart: 1px lines, discount pill + SVG line, bar chart + donut pie chart
+> - [x] Chart controls: date picker, quick selects (Today/7d/30d/90d/All), Q1-Q4 highlight
+> - [x] Search: inline flex layout, filter all 3 tables, sort + reverse buttons
+> - [x] (?) tooltips: every metric label + sub-line with native title
+> - [x] Loyalty tiers list: /admin/rewards/tiers path fix
+> - [x] Rewards seed: C_LOYAL2/3 with 2800pts + 2 redemptions, C_ACTIVE2/3 with 1250pts
+> - [x] Fintech docs: ignorethis/SECURITY-CODING-STYLES.md (8 rules)
+> - [x] Admin account doc: docs/ai-context/admin-account.md
+> - [x] Post-mortem: ignorethis/POSTMORTEM-2026-06-25.md (14 mistakes)
+>
 > ### PENDING - Seed Polish
 > - [ ] sampleAnswers: update values to match new question schema optionValues
 > - [ ] sampleAnswers: add 2-3 variant answers per category
+> - [ ] Discount chart line: total computation + legend wiring (pill + SVG exist, rebuildChart needs disc arrays)
 
 ---
 

@@ -1,25 +1,42 @@
 # Admin Dashboard & Financial Redesign
 
-> 2026-06-23 Initial. 2026-06-25 Full rewrite (new layout + APIs + chart pills + leaderboards).
+> 2026-06-23 Initial. 2026-06-25 Full rewrite. 2026-06-26 Sticky toolbar + charts + discount line.
 
-## Dashboard layout (final 2026-06-25)
+## Dashboard layout (final 2026-06-26)
 
-7 sections, all collapsible. Tooltip (?) on every title. Section order:
+Sticky top bar (edge-to-edge, `position: sticky; top: 0; z-index: 10`), split into 3 sub-sections:
+
+| Section | Content |
+|---------|---------|
+| **A** (darker bg) | Category marquee: Row 1 = parent cats, Row 2 = child cats (filtered by parent selection). Draggable, hidden scrollbar. |
+| **A** (continued) | Search bar + sort buttons (cycle field + reverse toggle). Filters all 3 tables in real-time. |
+| **B** (lighter bg) | Section pills: [All] [Queues] [Cards] [Chart] [Breakdown] [Customers] [Servicers]. Multi-select — shows/hides content sections below. |
+
+Content sections (scroll below sticky bar, 2rem side padding):
 
 | # | Section | Content |
 |---|---------|---------|
-| 1 | Pending queues (?) | Withdrawals, Appeals, Category Requests, Open Reports (4 linked cards) |
-| 2 | Financial cards | 5 cards in 1 row: Revenue (+Today sub), Fees, Escrow, Payouts, Urgent Fee |
-| 3 | Toolbar | Search input + category filter chips |
-| 4 | Revenue & Fees (?) | Date controls + quick selects + chart pills + multi-line SVG + summaries |
-| 5 | Category breakdown (?) | Category | Bookings | Revenue | Fees | % of Total |
-| 6 | Customer leaderboard (?) | # | Customer | Bookings | Spent | Last Booking (top 20) |
-| 7 | Servicer leaderboard (?) | # | Servicer | Jobs | Revenue | Rating | Reports (top 20) |
+| 1 | **Pending queues** | Withdrawals, Appeals, Category Requests, Open Reports (4 linked cards) |
+| 2 | **Financial cards (4)** | [Cashflow: IN/OUT/GROSS/Cashflow] [Revenue: Fees/Tops/Discs/Rewards/GW] [Escrow: Held/Pending] [Urgent: Fee/Plat] |
+| 3 | **Revenue & Fees chart** | Date controls + quick selects (Today/7d/30d/90d/All) + Q1-Q4 (highlight on active quarter) + year input + chart filter pills + 5-line SVG chart |
+| 4 | **Category breakdown** | Bar chart (top 5) + Donut pie (top 5 + other) + sortable table with search |
+| 5 | **Customer leaderboard** | Bar chart (top 5) + Donut pie (top 5 + other) + sortable table (top 50) |
+| 6 | **Servicer leaderboard** | Bar chart (top 5) + Donut pie (top 5 + other) + sortable table (top 50) |
 
-Urgent card: solid border (not red left-border), subtle amber bg tint.
-All tooltips: native `title` attribute on label span.
+All section titles and metric labels have `(?)` tooltip (native `title` attribute).
+Bar + donut charts hidden on mobile (`max-width: 760px`).
+Charts hidden on mobile (`@media (max-width: 760px) { display: none; }`).
 
 ## Chart filter pills
+
+```
+[● Revenue] [● Fees] [○ Escrow Held] [○ Pending Payouts] [○ Discounts]
+```
+
+5 independently toggleable lines. Revenue+Fees default ON, others default OFF.
+Lines: Revenue=solid primary blue, Fees=dashed orange, Escrow=solid green, Payouts=dashed green, Discounts=dashed red.
+All lines: `stroke-width: 1`, `vector-effect: non-scaling-stroke`.
+Discount pill wired: `dailyDiscount` backend query → `discountLine` signal → SVG `<polyline>`.
 
 ```
 [? Revenue] [? Fees] [? Escrow Held] [? Pending Payouts]
