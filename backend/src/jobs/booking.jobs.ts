@@ -9,6 +9,7 @@ import { adjustCredit } from '../services/credit.service';
 import { notify } from '../services/notification.service';
 import { resolveUrgentFee, splitUrgentFee } from '../services/quote-timing.service';
 import { emitToUser } from '../socket';
+import { computeFees } from '../services/fee-engine.service';
 
 const noshowPayload = z.object({
   bookingId: z.string().uuid(),
@@ -71,7 +72,7 @@ async function handleNoshowDetect(job: Job): Promise<void> {
       // T2: escrow.amount already includes tip (from computeTotal at escrow creation).
       const refundAmount = Number(escrow.amount);
       await tx.escrow.update({
-        where: { id: escrow.id },
+        where: { id: escrow.id, status: 'held' },
         data: { status: 'refunded', refundedAt: new Date() },
       });
       await adjustCredit('user', booking.userId, refundAmount, tx);
@@ -226,7 +227,6 @@ async function handleEscrowRelease(job: Job): Promise<void> {
   const feeBase = Math.max(0, (escrow.platformFeeBase != null ? Number(escrow.platformFeeBase) : amount) - urgentFeeAmount);
 
   // Use FeeRule engine (P2) with category scope, fall back to legacy rate
-  const { computeFees } = await import('../services/fee-engine.service');
   const categoryId = booking.quoteRequest?.categoryId ?? undefined;
   const platformFee = await computeFees(feeBase, 'booking', categoryId);
 
