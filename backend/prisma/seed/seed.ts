@@ -2013,6 +2013,40 @@ async function main(): Promise<void> {
     }
   }
   console.log(`  ✓ ${allBulkCompleted.length} bulk completed bookings across all servicers`);
+
+  // ── Duplicate passes: 2 more batches of customers, dates shifted -3d / -6d ──
+  // Pass 1 (-3d): 10% off top-15 servicers. Pass 2 (-6d, earliest): 15% off top-15.
+  for (let pass = 1; pass <= 2; pass++) {
+    const dayShift = pass * 3; // -3, -6 days earlier than original
+    const discountPct = pass === 1 ? 0.10 : 0.15; // 10%, 15%
+    for (const m of servicerSlugs) {
+      const count = m.count;
+      const workingDays: number[] = [];
+      for (let d = 0; d >= -90; d--) {
+        if (Math.random() < 0.8) workingDays.push(d - dayShift);
+      }
+      const days = workingDays.length > 0 ? workingDays : [-1 - dayShift];
+      for (let i = 0; i < count; i++) {
+        const dayOffset = days[i % days.length];
+        const sched = new Date(Date.now() + dayOffset * 86_400_000);
+        let price = m.prices[i % m.prices.length];
+        // Top 15 servicers (Set A, highest volume) get tiered discount
+        if (m.ref.startsWith('M') && parseInt(m.ref.slice(1), 10) <= 15) {
+          price = Math.round(price * (1 - discountPct) * 100) / 100;
+        }
+        const pay = i % 7 === 0 ? 'cash' : 'pay_later';
+        const custIdx = (pass * 23 + i) % allCustomerRefs.length;
+        const b = await makeBooking(
+          allCustomerRefs[custIdx],
+          allCustomerAddrs[custIdx],
+          m.ref, m.slug, 'completed', pay, price,
+          { scheduledDate: sched, createdAt: sched },
+        );
+        allBulkCompleted.push({ booking: b, servicerRef: m.ref, price });
+      }
+    }
+    console.log(`  ✓ duplicate pass ${pass}: bulk bookings (dates -${dayShift}d, ${discountPct * 100}% off top-15)`);
+  }
   console.log('  ✓ in-flight bookings (pending, in-progress, cash, 3 completed)');
 
   // ── Per-servicer scenario bookings (all 105 servicers) ──
