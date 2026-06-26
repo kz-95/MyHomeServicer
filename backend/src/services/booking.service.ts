@@ -9,11 +9,12 @@ import { enqueue, JOB_NAMES } from '../lib/queue';
 import { recordTransaction } from './ledger.service';
 import { adjustCredit, computeFee } from './credit.service';
 import { computeTotal, LineItem, ServicerTaxConfig } from '../lib/money';
-import { getPlatformFeeRate, getSetting, getSstRate } from './settings.service';
+import { getSetting, getSstRate } from './settings.service';
 import { notify, notifyAdmins } from './notification.service';
 import { generateInvoice } from './invoice.service';
 import { awardPoints, awardReviewPoints, getPointsConfig, getTierBonusMultiplier } from './points.service';
 import { createBookingPaymentSession } from '../lib/stripe';
+import { computeFees } from './fee-engine.service';
 
 /**
  * Hour each time slot is considered to end, expressed in Malaysia time (MYT,
@@ -491,7 +492,7 @@ export async function doneJob(servicerId: string, bookingId: string, photoUrl: s
     // T22: award booking points inside the transaction so failure rolls back
     if (pointsEarned > 0) {
       await awardPoints(booking.userId, pointsEarned, 'earn_booking', booking.id,
-        `Earned from booking #${booking.id.slice(-8)}${bonusNote}`, tx as any);
+        `Earned from booking #${booking.id.slice(-8)}${bonusNote}`, tx);
     }
 
     return b;
@@ -950,8 +951,8 @@ async function computeSettlementAmounts(
     isUrgent?: boolean;
     urgentFee?: Prisma.Decimal | number | string | null;
   },
-): Promise<{ total: number; afterPromo: number; platformFee: number; feeRate: number }> {
-  const [sstRate, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
+): Promise<{ total: number; afterPromo: number; platformFee: number }> {
+  const sstRate = await getSstRate();
   const servicer = await tx.servicer.findUnique({ where: { id: booking.servicerId } });
   const config: ServicerTaxConfig = {
     serviceChargeRate: Number(servicer?.serviceChargeRate ?? 0),
@@ -980,9 +981,8 @@ async function computeSettlementAmounts(
   const feeBase = Math.max(0, totalResult.afterPromo - urgentFeeAmount);
 
   // T13: use FeeRule engine instead of legacy computePlatformFee
-  const { computeFees } = await import('./fee-engine.service');
   const platformFee = await computeFees(feeBase, 'booking');
-  return { total: totalResult.total, afterPromo: feeBase, platformFee, feeRate };
+  return { total: totalResult.total, afterPromo: feeBase, platformFee };
 }
 
 /**
@@ -1035,7 +1035,7 @@ export async function settleBooking(
   }
 
   return prisma.$transaction(async (tx) => {
-    const { total, platformFee, feeRate } = await computeSettlementAmounts(tx, booking);
+    const { total, platformFee } = await computeSettlementAmounts(tx, booking);
 
     switch (method) {
       case 'credit': {
@@ -1065,7 +1065,7 @@ export async function settleBooking(
               amount: platformFee,
               bookingId,
               servicerId: booking.servicerId,
-              reference: `Platform fee (pay_later credit settlement, ${(feeRate * 100).toFixed(1)}%)`,
+              reference: 'Platform fee (pay_later credit settlement)',
             },
             tx,
           );
@@ -1103,7 +1103,7 @@ export async function settleBooking(
               amount: platformFee,
               bookingId,
               servicerId: booking.servicerId,
-              reference: `Platform fee (pay_later cash settlement, ${(feeRate * 100).toFixed(1)}%)`,
+              reference: 'Platform fee (pay_later cash settlement)',
             },
             tx,
           );
@@ -1180,7 +1180,7 @@ export async function completeGatewaySettlement(params: {
   const gatewayFeeFixed = Number((await getSetting<number>('gateway_fee_fixed')) ?? 1.00);
 
   return prisma.$transaction(async (tx) => {
-    const { total, platformFee, feeRate } = await computeSettlementAmounts(tx, booking);
+    const { total, platformFee } = await computeSettlementAmounts(tx, booking);
 
     // Customer inflow via the Stripe card charge. The unique stripeSessionId is the
     // hard double-charge backstop (a retry INSERT fails → tx rolls back).
@@ -1206,7 +1206,7 @@ export async function completeGatewaySettlement(params: {
           amount: platformFee,
           bookingId,
           servicerId: booking.servicerId,
-          reference: `Platform fee (pay_later gateway settlement, ${(feeRate * 100).toFixed(1)}%)`,
+          reference: 'Platform fee (pay_later gateway settlement)',
         },
         tx,
       );

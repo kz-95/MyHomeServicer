@@ -118,7 +118,10 @@ export async function computeFees(
         continue;
     }
 
-    // Apply min/max/cap per rule
+    // Apply min/max/cap per rule.
+    // Uses floating-point `>` comparisons which are safe because the final
+    // Math.round(totalFee * 100) / 100 eliminates any sub-cent IEEE 754
+    // artifacts (e.g. 5.00000000000001 rounds back to 5.00).
     if (rule.minAmount !== null && fee < Number(rule.minAmount)) {
       fee = Number(rule.minAmount);
     }

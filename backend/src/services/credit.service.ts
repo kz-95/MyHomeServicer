@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { ApiError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
+import { computeFees } from './fee-engine.service';
 
 /**
  * Credit wallet helpers - simple add/deduct on a user's or servicer's
@@ -21,7 +22,6 @@ import { prisma } from '../lib/prisma';
  * @param categoryId - optional category for per-category fee rules
  */
 export async function computeFee(amount: number, categoryId?: string): Promise<number> {
-  const { computeFees } = await import('./fee-engine.service');
   return computeFees(amount, 'booking', categoryId);
 }
 

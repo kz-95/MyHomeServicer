@@ -10,6 +10,7 @@ import { getSetting, getSstRate } from './settings.service';
 import { adjustCredit } from './credit.service';
 import { recordTransaction } from './ledger.service';
 import { resolveListingAccept } from './listing-accept.service';
+import { computeFees } from './fee-engine.service';
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
@@ -276,7 +277,6 @@ export async function handleDispatchAccept(
       const escrowTotal = totalResult.total;
       const afterPromo = totalResult.afterPromo;
       // T13: use FeeRule engine instead of legacy computePlatformFee
-      const { computeFees } = await import('./fee-engine.service');
       const platformFee = await computeFees(afterPromo, 'booking');
 
       const escrow = await tx.escrow.create({
@@ -284,6 +284,10 @@ export async function handleDispatchAccept(
           bookingId: created.id,
           amount: escrowTotal,
           platformFeeBase: afterPromo,
+          // NOTE: tipAmount is hardcoded to 0 for dispatch-created escrows.
+          // If tips are ever enabled for dispatch accept, escrow.amount must include tip
+          // (mirroring the selectProposal pattern at booking.service.ts:222-230).
+          // Otherwise handleEscrowRelease and refundEscrowIfHeld will under-pay/under-refund.
           tipAmount: 0,
         },
       });

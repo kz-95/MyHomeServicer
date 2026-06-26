@@ -46,7 +46,7 @@ export async function getDispute(id: string) {
     where: { id },
     include: {
       booking: {
-        select: { id: true, price: true, status: true, userId: true, servicerId: true },
+        select: { id: true, price: true, status: true, userId: true, servicerId: true, arrivedAt: true, travelFee: true, isInspection: true, inspectionFee: true, doneAt: true },
       },
       escrow: {
         select: { id: true, amount: true, status: true },
@@ -131,9 +131,8 @@ export async function resolveDispute(disputeId: string, input: ResolveDisputeInp
       dispute.bookingId,
       dispute.booking.servicerId,
       dispute.booking.userId,
-      // booking details not available from dispute query, pass undefined
-      // so nonRefundable = 0 (full refund)
-      undefined,
+      // Pass full booking so travel/inspection fees are correctly deducted
+      dispute.booking,
     );
     // F6: verify escrow was actually refunded (may have been already released)
     const escrow = await prisma.escrow.findUnique({ where: { bookingId: dispute.bookingId } });

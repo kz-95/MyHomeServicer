@@ -1,6 +1,8 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { badRequest, businessRule, notFound } from '../lib/errors';
 import { getSetting } from './settings.service';
+import { recordTransaction } from './ledger.service';
 import type { LoyaltyTier, CustomerPoints, PointsTransaction, Redemption } from '@prisma/client';
 
 export interface TierInfo {
@@ -112,7 +114,7 @@ export async function awardPoints(
   type: string,
   reference?: string,
   note?: string,
-  tx?: Omit<typeof prisma, 'symbol' | 'frozen'>,
+  tx?: Prisma.TransactionClient,
 ): Promise<CustomerPoints> {
   const client = tx ?? prisma;
   const prev = await client.customerPoints.findUnique({ where: { userId } });
@@ -142,6 +144,22 @@ export async function awardPoints(
       note,
     },
   });
+
+  // Record points_liability in the transaction ledger for financial reporting.
+  // Each point awarded creates a liability equal to points / redemptionRate RM.
+  // Uses the same tx client so it is atomic with the points upsert/insert.
+  const config = await getPointsConfig();
+  const liabilityAmount = Math.round((amount * (1 / config.redemptionRate)) * 100) / 100;
+  await recordTransaction(
+    {
+      type: 'points_liability',
+      amount: liabilityAmount,
+      userId,
+      reference: `Points liability: ${amount} pts awarded (${type})`,
+      status: 'completed',
+    },
+    tx,
+  );
 
   return points;
 }

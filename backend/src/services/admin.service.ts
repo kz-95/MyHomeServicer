@@ -125,7 +125,10 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   );
   const gatewayFee = Number(gatewayFeeRow?.total ?? 0);
 
-  // registeredDiscount: SUM of registered_customer_discount transactions
+  // registeredDiscount: SUM of registered_customer_discount transactions.
+  // NOTE: This query does NOT filter by categoryId because registered_customer_discount
+  // transactions are created at quote time (before a booking/category is assigned),
+  // so they cannot be meaningfully scoped to a category. The total is always platform-wide.
   const [regDiscountRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions
      WHERE type = 'registered_customer_discount' AND status = 'completed' AND created_at >= $1`,
@@ -145,7 +148,10 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   );
   const promoCost = Number(promoCostRow?.total ?? 0);
 
-  // pointsCost: SUM of points_liability transactions
+  // pointsCost: SUM of points_liability transactions.
+  // NOTE: This query does NOT filter by categoryId because points_liability
+  // transactions are not always linked to a booking (e.g. welcome points, review
+  // bonuses), so they cannot be meaningfully scoped to a category.
   const [pointsCostRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions
      WHERE type = 'points_liability' AND status = 'completed' AND created_at >= $1`,
