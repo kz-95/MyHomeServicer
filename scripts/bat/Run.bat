@@ -8,9 +8,11 @@ REM ==========================================================
 REM === Dispatch =============================================
 REM ==========================================================
 if "%~1"=="" goto :main
+if /i "%~1"=="reset"         goto :main
 if /i "%~1"=="backend_only"  goto :backend_only
 if /i "%~1"=="frontend_only" goto :frontend_only
 echo Unknown argument: %~1
+echo Usage: Run.bat [reset^|backend_only^|frontend_only]
 exit /b 1
 
 REM ==========================================================
@@ -78,20 +80,25 @@ echo.
 echo ============================================
 echo  MyHomeService — Full-stack Launcher
 echo ============================================
+set "RESETARG="
+if /i "%~1"=="reset" (
+    set "RESETARG=reset"
+    echo [MODE] Forced DB reset requested - will wipe + reseed.
+)
 call :ensure_infra
 if errorlevel 1 exit /b 1
 
 echo.
 echo Launching Frontend + Backend in separate terminals...
 echo.
-start "Backend"  cmd /k call "%~f0" backend_only
+start "Backend"  cmd /k call "%~f0" backend_only %RESETARG%
 timeout /t 3 >nul
 start "Frontend" cmd /k call "%~f0" frontend_only
 echo.
 echo Waiting for frontend to build, then opening browser...
 echo.
 powershell -NoProfile -Command ^
-  "$u='http://localhost:4200'; ^
+  "$u='http://localhost:4200'; $n=0; ^
    do { ^
      try { ^
        $r = Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 3; ^
@@ -101,6 +108,12 @@ powershell -NoProfile -Command ^
          break ^
        } ^
      } catch {} ^
+     $n++; ^
+     if ($n -ge 90) { ^
+       Write-Host ''; ^
+       Write-Host 'Frontend did not respond after ~3 min - open http://localhost:4200 manually once it builds.'; ^
+       break ^
+     } ^
      Write-Host '.' -NoNewline; ^
      Start-Sleep -Seconds 2 ^
    } while ($true)"
@@ -113,6 +126,9 @@ REM === BACKEND ==============================================
 REM ==========================================================
 :backend_only
 cd /d "%~dp0..\..\backend"
+
+set "DO_RESET="
+if /i "%~2"=="reset" set "DO_RESET=1"
 
 REM --- .env check ---
 if exist ".env" (
@@ -193,15 +209,27 @@ if errorlevel 1 (
     echo [OK] Backend dependencies present.
 )
 
-REM --- Force-kill any stale node processes (frees Prisma DLL lock) ---
-echo [CLEAN] Stopping any stale node processes...
-taskkill /F /IM node.exe >nul 2>&1
-timeout /t 1 >nul
+REM --- Free Prisma engine lock: kill ONLY the process on backend port 3000 ---
+REM    (a running backend holds query_engine-windows.dll.node; nuking all node
+REM     would also kill unrelated terminals/automation and corrupt a live seed)
+echo [CLEAN] Releasing port 3000 if a previous backend is still running...
+call :kill_port 3000
+REM Give Windows a moment to release the query-engine DLL file handle
+timeout /t 2 >nul
 
-REM --- Stale Prisma client cleanup (prevents Windows DLL lock error) ---
-if exist "node_modules\.prisma\client" (
-    echo [CLEAN] Removing stale Prisma client...
-    rmdir /s /q "node_modules\.prisma\client" 2>nul
+REM --- Ensure Prisma client exists / is current (idempotent; fixes "Cannot find
+REM     module .prisma/client/default"). Retry once if the DLL was still locked. ---
+echo [PRISMA] Generating Prisma client...
+call npx prisma generate
+if errorlevel 1 (
+    echo [WARN] prisma generate failed once ^(DLL may still be locked^). Retrying...
+    timeout /t 3 >nul
+    call npx prisma generate
+    if errorlevel 1 (
+        echo [ERROR] prisma generate failed. Close any node/backend holding the engine, then re-run.
+        pause
+        exit /b 1
+    )
 )
 
 REM --- Guard: fail fast if any tracked JSON/TS has a UTF-8 BOM (crashes Node JSON.parse) ---
@@ -214,19 +242,43 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM --- Apply database schema + seed ---
+REM --- Database: full reset only when forced (Run.bat reset) or when DB is empty.
+REM     Otherwise apply pending migrations non-destructively and keep existing data. ---
 echo.
 echo ============================================
-echo  Applying database schema + seeding data...
+echo  Preparing database...
 echo ============================================
-call npm run db:reset
-if errorlevel 1 (
-    echo.
-    echo [ERROR] Database setup failed. Make sure Docker is running and Postgres is ready.
-    pause
-    exit /b 1
+
+if defined DO_RESET (
+    echo [DB] Forced reset - wiping + reseeding...
+    call npm run db:reset
+    if errorlevel 1 goto :db_fail
+    goto :db_done
 )
-echo [OK] Database schema applied and seeded (includes modules + settings).
+
+REM Apply migrations without dropping data (also creates tables on a fresh DB) + regen client
+call npm run db:deploy
+if errorlevel 1 goto :db_fail
+
+REM Probe whether the DB has been seeded (row count in the users table)
+set "USERCOUNT="
+for /f "usebackq delims=" %%C in (`docker compose -f "%~dp0..\..\docker-compose.yml" exec -T postgres psql -U postgres -d homeservices -tAc "SELECT COUNT(*) FROM users;" 2^>nul`) do set "USERCOUNT=%%C"
+if defined USERCOUNT set "USERCOUNT=%USERCOUNT: =%"
+
+if not defined USERCOUNT (
+    echo [DB] Could not read users table - seeding fresh...
+    call npm run db:reset
+    if errorlevel 1 goto :db_fail
+) else if "%USERCOUNT%"=="0" (
+    echo [DB] Database empty - seeding...
+    call npm run seed
+    if errorlevel 1 goto :db_fail
+) else (
+    echo [OK] Database already seeded ^(%USERCOUNT% users^) - keeping data. Use "Run.bat reset" to wipe.
+)
+
+:db_done
+echo [OK] Database ready.
 
 echo.
 echo ============================================
@@ -237,6 +289,12 @@ echo.
 call npx ts-node-dev --respawn --transpile-only src/index.ts
 pause
 exit /b 0
+
+:db_fail
+echo.
+echo [ERROR] Database setup failed. Make sure Docker is running and Postgres is ready.
+pause
+exit /b 1
 
 REM ==========================================================
 REM === FRONTEND =============================================
@@ -286,3 +344,21 @@ echo.
 choice /c RQ /n /m "Press R to retry, Q to quit: "
 if errorlevel 2 exit /b 1
 goto :check_env_retry
+
+REM ==========================================================
+REM === Kill the LISTENING process on a given port ===========
+REM ==========================================================
+:kill_port
+setlocal enabledelayedexpansion
+set "_KP=%~1"
+set "_HIT="
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":%_KP% " ^| findstr "LISTENING"') do (
+    if not "%%P"=="0" (
+        echo   Killing PID %%P on port %_KP% ...
+        taskkill /F /PID %%P >nul 2>&1
+        set "_HIT=1"
+    )
+)
+if not defined _HIT echo   Nothing listening on port %_KP%.
+endlocal
+exit /b 0
