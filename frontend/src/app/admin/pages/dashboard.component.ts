@@ -105,15 +105,16 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       <div class="dash-head-a">
         <!-- Row 1: Parent categories -->
         <div class="cat-marquee" (mousedown)="onMarqueeMouseDown($event, marqueeEl)" #marqueeEl>
-          <button class="chip" [class.active]="!dashCategoryId()">All</button>
+          <button class="chip" [class.active]="!dashCategoryId()" (click)="dashCategoryId.set(''); reloadDashboard()">All</button>
           @for (cat of parentCategories(); track cat.id) {
-            <button class="chip" [class.active]="dashCategoryId() === cat.id">{{ cat.name }}</button>
+            <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
           }
         </div>
         <!-- Row 2: Child categories -->
         <div class="cat-marquee sub" (mousedown)="onMarqueeMouseDown($event, childMarqueeEl)" #childMarqueeEl>
+          <button class="chip" [class.active]="!dashCategoryId()" (click)="dashCategoryId.set(''); reloadDashboard()">All</button>
           @for (cat of filteredChildCategories(); track cat.id) {
-            <button class="chip" [class.active]="dashCategoryId() === cat.id">{{ cat.name }}</button>
+            <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
           }
         </div>
 
@@ -1123,14 +1124,19 @@ export class AdminDashboardComponent implements OnInit {
   sectionFilters = signal<Record<string, boolean>>({ all: true, queues: true, cards: true, chart: true, breakdown: true, customers: true, servicers: true });
   toggleSectionFilter(key: string): void {
     this.sectionFilters.update(f => {
-      const next = !f[key];
-      if (key === 'all') {
-        return { all: next, queues: next, cards: next, chart: next, breakdown: next, customers: next, servicers: next };
+      const sections = ['queues','cards','chart','breakdown','customers','servicers'];
+      if (key === 'all') return { all: true, queues: true, cards: true, chart: true, breakdown: true, customers: true, servicers: true };
+      // If All is currently active, isolate this one pill
+      if (f['all']) {
+        const isolated: Record<string, boolean> = { all: false };
+        for (const s of sections) isolated[s] = s === key;
+        return isolated;
       }
-      const updated = { ...f, [key]: next };
-      const active = ['queues','cards','chart','breakdown','customers','servicers'].every(k => updated[k]);
-      updated['all'] = active;
-      if (!next && !Object.values(updated).some(v => v)) updated['all'] = true; // at least one on
+      // Toggle this one pill
+      const updated = { ...f, [key]: !f[key] };
+      const active = sections.filter(s => updated[s]);
+      if (active.length === 0) return { all: true, queues: true, cards: true, chart: true, breakdown: true, customers: true, servicers: true };
+      if (active.length === sections.length) updated['all'] = true;
       return updated;
     });
   }
