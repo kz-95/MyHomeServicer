@@ -339,7 +339,8 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   <span class="legend-item"><span class="legend-dot disc"></span>Discounts</span>
                 }
               </div>
-              <svg class="chart-svg" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none">
+              <svg class="chart-svg" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none"
+                   (mousemove)="onChartHover($event)" (mouseleave)="chartTooltip.set(null)">
                 <!-- Grid lines -->
                 @for (line of gridLines(); track line.y) {
                   <line [attr.x1]="padL" [attr.y1]="line.y" [attr.x2]="chartW - padR" [attr.y2]="line.y" class="grid-line" />
@@ -370,6 +371,16 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   <text [attr.x]="xl.x" [attr.y]="chartH - 4" class="axis-label x-label" text-anchor="middle">{{ xl.label | date:'M/d' }}</text>
                 }
               </svg>
+              @if (chartTooltip(); as tip) {
+                <div class="chart-tooltip" [style.left.px]="tip.x" [style.top.px]="tip.y">
+                  <div class="tip-date">{{ tip.date }}</div>
+                  @if (tip.rev != null) { <div class="tip-row rev">Revenue: RM {{ tip.rev | number:'1.2-2' }}</div> }
+                  @if (tip.fee != null) { <div class="tip-row fee">Fees: RM {{ tip.fee | number:'1.2-2' }}</div> }
+                  @if (tip.esc != null) { <div class="tip-row esc">Escrow: RM {{ tip.esc | number:'1.2-2' }}</div> }
+                  @if (tip.pay != null) { <div class="tip-row pay">Payouts: RM {{ tip.pay | number:'1.2-2' }}</div> }
+                  @if (tip.disc != null) { <div class="tip-row disc">Discounts: RM {{ tip.disc | number:'1.2-2' }}</div> }
+                </div>
+              }
             </div>
             <!-- Summary row -->
             <div class="chart-summary">
@@ -857,12 +868,13 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         background: transparent;
         border: 1px solid var(--color-border);
         border-radius: 999px;
-        padding: 0.35rem 0.85rem;
+        padding: 0.35rem 0.7rem;
         font-size: 0.8rem;
         font-family: inherit;
         cursor: pointer;
         color: var(--color-muted);
         transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+        min-height: 44px;
       }
       .pill:hover { border-color: var(--color-primary); color: var(--color-text); }
       .pill.on { font-weight: 600; color: var(--color-text); }
@@ -888,7 +900,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 
       /* ── Chart card ─────────────────────────────────────────────────── */
       .chart-card { padding: 1rem 1.25rem 0.5rem; overflow: hidden; }
-      .chart-wrap { width: 100%; overflow: hidden; }
+      .chart-wrap { width: 100%; overflow: hidden; position: relative; }
       .chart-svg { width: 100%; display: block; }
 
       /* Chart legend */
@@ -1011,6 +1023,16 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .summary-item.payout strong { color: var(--color-success); }
       .summary-item.disc strong { color: #dc2626; }
 
+      /* Chart tooltip */
+      .chart-tooltip { position: absolute; pointer-events: none; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.5rem 0.75rem; font-size: 0.78rem; z-index: 5; box-shadow: var(--shadow-md); min-width: 140px; }
+      .tip-date { font-weight: 600; margin-bottom: 0.25rem; color: var(--color-text); }
+      .tip-row { padding: 0.1rem 0; }
+      .tip-row.rev { color: var(--color-primary); }
+      .tip-row.fee { color: #f59e0b; }
+      .tip-row.esc { color: #16a34a; }
+      .tip-row.pay { color: #16a34a; }
+      .tip-row.disc { color: #dc2626; }
+
       /* ── Category breakdown table ───────────────────────────────────── */
       .cat-breakdown { padding: 0.75rem 1rem; margin-top: 1.5rem; }
       .cb-table {
@@ -1079,17 +1101,18 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 
       /* Bar chart */
       .h-bar-chart { width: 100%; }
-      .h-bar-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
-      .h-bar-label { width: 80px; font-size: 0.75rem; text-align: right; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text); }
-      .h-bar-track { flex: 1; height: 14px; background: var(--color-bg); border-radius: 4px; overflow: hidden; }
-      .h-bar-fill { height: 100%; background: var(--color-primary); border-radius: 4px; transition: width 0.4s ease; }
-      .h-bar-val { width: 50px; font-size: 0.75rem; text-align: right; flex-shrink: 0; color: var(--color-text); }
+      .h-bar-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; padding: 0.15rem 0; }
+      .h-bar-row:hover { background: var(--color-bg); border-radius: 4px; }
+      .h-bar-label { width: 90px; font-size: 0.78rem; text-align: right; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-muted); }
+      .h-bar-track { flex: 1; height: 16px; background: var(--color-bg); border-radius: 4px; overflow: hidden; }
+      .h-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); min-width: 2px; }
+      .h-bar-val { width: 55px; font-size: 0.78rem; text-align: right; flex-shrink: 0; font-weight: 600; color: var(--color-text); }
 
       /* Donut */
-      .donut { width: 120px; height: 120px; border-radius: 50%; mask: radial-gradient(circle, transparent 55%, black 56%); -webkit-mask: radial-gradient(circle, transparent 55%, black 56%); }
-      .donut-legend { font-size: 0.7rem; margin-top: 0.5rem; }
-      .donut-legend span { display: inline-flex; align-items: center; gap: 0.2rem; margin-right: 0.5rem; }
-      .donut-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+      .donut { width: 130px; height: 130px; border-radius: 50%; mask: radial-gradient(circle, transparent 55%, black 56%); -webkit-mask: radial-gradient(circle, transparent 55%, black 56%); }
+      .donut-legend { font-size: 0.72rem; margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; }
+      .donut-legend span { display: inline-flex; align-items: center; gap: 0.25rem; }
+      .donut-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
       /* ── Responsive ─────────────────────────────────────────────────── */
       @media (max-width: 760px) { .chart-row { display: none; } }
@@ -1209,6 +1232,35 @@ export class AdminDashboardComponent implements OnInit {
   discountLine = signal('');
   gridLines = signal<{ y: number; label: string }[]>([]);
   xLabels = signal<{ x: number; label: string }[]>([]);
+
+  chartTooltip = signal<{ x: number; y: number; date: string; rev?: number; fee?: number; esc?: number; pay?: number; disc?: number } | null>(null);
+
+  onChartHover(e: MouseEvent): void {
+    const fd = this.finData();
+    if (!fd) return;
+    const svg = (e.currentTarget as SVGElement).getBoundingClientRect();
+    const x = e.clientX - svg.left;
+    const w = svg.width - this.padL - this.padR;
+    const days = this.financialDays();
+    const step = w / Math.max(days - 1, 1);
+    const idx = Math.round((x - this.padL) / step);
+    if (idx < 0 || idx >= days) { this.chartTooltip.set(null); return; }
+
+    const dr = fd.dailyRevenue[idx];
+    const de = fd.dailyEscrow?.[idx];
+    const dp = fd.dailyPayouts?.[idx];
+    const dd = fd.dailyDiscount?.[idx];
+    this.chartTooltip.set({
+      x: e.clientX - svg.left + 12,
+      y: e.clientY - svg.top - 60,
+      date: dr?.date ?? '',
+      rev: dr?.revenue,
+      fee: dr?.fees,
+      esc: de?.amount,
+      pay: dp?.amount,
+      disc: dd?.amount,
+    });
+  }
 
   // ── Totals ───────────────────────────────────────────────────────────
   financialDays = signal(30);
