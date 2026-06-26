@@ -22,6 +22,7 @@ import { ChartConfiguration, ChartData } from 'chart.js';
     }
   `,
   styles: [`
+    :host { display: block; }
     .chart-state { padding: 1rem; text-align: center; font-size: 0.85rem; color: var(--color-muted); }
     .chart-state.error { color: #dc2626; }
     .chart-state.error button { margin-left: 0.5rem; cursor: pointer; }

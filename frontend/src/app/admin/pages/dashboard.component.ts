@@ -146,6 +146,57 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <button class="btn-ghost btn-sm" title="Reverse order" (click)="toggleSortDir()"><app-icon [name]="sortState().dir === 'asc' ? 'chevron-up' : 'chevron-down'" sizeToken="sm" /></button>
           </div>
         </div>
+
+        <!-- Chart date controls + filter pills + mode toggle -->
+        @if (showSection('chart')) {
+          <div class="chart-controls">
+            <div class="date-range">
+              <input type="date" [ngModel]="dateFrom()" (ngModelChange)="setDateRange($event, dateTo())" />
+              <span class="date-sep">to</span>
+              <input type="date" [ngModel]="dateTo()" (ngModelChange)="setDateRange(dateFrom(), $event)" />
+            </div>
+            <div class="range-toggle">
+              <button class="range-btn" [class.on]="financialDays() === 1" (click)="setFinancialRange(1)">Today</button>
+              <button class="range-btn" [class.on]="financialDays() === 7" (click)="setFinancialRange(7)">7d</button>
+              <button class="range-btn" [class.on]="financialDays() === 30" (click)="setFinancialRange(30)">30d</button>
+              <button class="range-btn" [class.on]="financialDays() === 90" (click)="setFinancialRange(90)">90d</button>
+              <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">All</button>
+            </div>
+            <div class="quarter-toggle">
+              <button class="range-btn" [class.on]="activeQuarter() === 1" (click)="setQuarter(1)">Q1</button>
+              <button class="range-btn" [class.on]="activeQuarter() === 2" (click)="setQuarter(2)">Q2</button>
+              <button class="range-btn" [class.on]="activeQuarter() === 3" (click)="setQuarter(3)">Q3</button>
+              <button class="range-btn" [class.on]="activeQuarter() === 4" (click)="setQuarter(4)">Q4</button>
+            </div>
+            <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
+          </div>
+
+          <div class="chart-toolbar">
+            <div class="chart-pills">
+              <button class="pill" [class.on]="chartPills()['revenue']" (click)="toggleChartPill('revenue')">
+                <span class="pill-dot rev" [class.off]="!chartPills()['revenue']"></span>Revenue
+              </button>
+              <button class="pill" [class.on]="chartPills()['fees']" (click)="toggleChartPill('fees')">
+                <span class="pill-dot fee" [class.off]="!chartPills()['fees']"></span>Fees
+              </button>
+              <button class="pill" [class.on]="chartPills()['gross']" (click)="toggleChartPill('gross')">
+                <span class="pill-dot gross" [class.off]="!chartPills()['gross']"></span>Gross
+              </button>
+              <button class="pill" [class.on]="chartPills()['cashflow']" (click)="toggleChartPill('cashflow')">
+                <span class="pill-dot cashflow" [class.off]="!chartPills()['cashflow']"></span>Cashflow
+              </button>
+              <button class="pill" [class.on]="chartPills()['discount']" (click)="toggleChartPill('discount')">
+                <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
+              </button>
+            </div>
+
+            <!-- Chart mode toggle -->
+            <div class="chart-mode-toggle">
+              <button class="range-btn" [class.on]="chartMode() === 'daily'" (click)="chartMode.set('daily')">Daily █</button>
+              <button class="range-btn" [class.on]="chartMode() === 'cumulative'" (click)="chartMode.set('cumulative')">Cumulative ∿</button>
+            </div>
+          </div>
+        }
       </div>
 
       <!-- Divider -->
@@ -279,57 +330,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
     <!-- ── 3. Revenue & Fees Chart ──────────────────────────────────────── -->
     @if (showSection('chart')) {
       @if (finData(); as fd) {
-        <!-- Date range + quick selects -->
-        <div class="chart-controls page-child">
-          <div class="date-range">
-            <input type="date" [ngModel]="dateFrom()" (ngModelChange)="setDateRange($event, dateTo())" />
-            <span class="date-sep">to</span>
-            <input type="date" [ngModel]="dateTo()" (ngModelChange)="setDateRange(dateFrom(), $event)" />
-          </div>
-          <div class="range-toggle">
-            <button class="range-btn" [class.on]="financialDays() === 1" (click)="setFinancialRange(1)">Today</button>
-            <button class="range-btn" [class.on]="financialDays() === 7" (click)="setFinancialRange(7)">7d</button>
-            <button class="range-btn" [class.on]="financialDays() === 30" (click)="setFinancialRange(30)">30d</button>
-            <button class="range-btn" [class.on]="financialDays() === 90" (click)="setFinancialRange(90)">90d</button>
-            <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">All</button>
-          </div>
-          <div class="quarter-toggle">
-            <button class="range-btn" [class.on]="activeQuarter() === 1" (click)="setQuarter(1)">Q1</button>
-            <button class="range-btn" [class.on]="activeQuarter() === 2" (click)="setQuarter(2)">Q2</button>
-            <button class="range-btn" [class.on]="activeQuarter() === 3" (click)="setQuarter(3)">Q3</button>
-            <button class="range-btn" [class.on]="activeQuarter() === 4" (click)="setQuarter(4)">Q4</button>
-          </div>
-          <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
-        </div>
-
-        <!-- Chart filter pills + mode toggle -->
-        <div class="chart-toolbar">
-          <div class="chart-pills">
-          <button class="pill" [class.on]="chartPills()['revenue']" (click)="toggleChartPill('revenue')">
-            <span class="pill-dot rev" [class.off]="!chartPills()['revenue']"></span>Revenue
-          </button>
-          <button class="pill" [class.on]="chartPills()['fees']" (click)="toggleChartPill('fees')">
-            <span class="pill-dot fee" [class.off]="!chartPills()['fees']"></span>Fees
-          </button>
-          <button class="pill" [class.on]="chartPills()['gross']" (click)="toggleChartPill('gross')">
-            <span class="pill-dot gross" [class.off]="!chartPills()['gross']"></span>Gross
-          </button>
-          <button class="pill" [class.on]="chartPills()['cashflow']" (click)="toggleChartPill('cashflow')">
-            <span class="pill-dot cashflow" [class.off]="!chartPills()['cashflow']"></span>Cashflow
-          </button>
-          <button class="pill" [class.on]="chartPills()['discount']" (click)="toggleChartPill('discount')">
-            <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
-          </button>
-        </div>
-
-        <!-- Chart mode toggle -->
-        <div class="chart-mode-toggle">
-          <button class="range-btn" [class.on]="chartMode() === 'daily'" (click)="chartMode.set('daily')">Daily █</button>
-          <button class="range-btn" [class.on]="chartMode() === 'cumulative'" (click)="chartMode.set('cumulative')">Cumulative ∿</button>
-        </div>
-      </div>
-
-      <!-- Chart -->
+        <!-- Chart -->
         <div class="card chart-card">
           <app-line-chart
             [labels]="chartLabels()"
@@ -345,6 +346,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
     @if (showSection('breakdown')) {
       @if (finData(); as fd) {
         <div class="card cat-breakdown page-child">
+          <h3 class="card-title">Category Breakdown</h3>
           @if (fd.categoryBreakdown.length) {
             <!-- Bar + Donut charts -->
             <div class="chart-row">
@@ -417,6 +419,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
     @if (showSection('customers')) {
       @if (finData(); as fd) {
         <div class="card lb-table-wrap page-child">
+          <h3 class="card-title">Customer Leaderboard</h3>
           @if (fd.customerLeaderboard && fd.customerLeaderboard.length) {
             <!-- Bar + Donut charts -->
             <div class="chart-row">
@@ -488,6 +491,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
     @if (showSection('servicers')) {
       @if (finData(); as fd) {
         <div class="card lb-table-wrap page-child">
+          <h3 class="card-title">Servicer Leaderboard</h3>
           @if (fd.servicerLeaderboard && fd.servicerLeaderboard.length) {
             <!-- Bar + Donut charts -->
             <div class="chart-row">
@@ -873,7 +877,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .chart-card { padding: 1rem 1.25rem 0.5rem; overflow: hidden; }
 
       /* ── Category breakdown table ───────────────────────────────────── */
-      .cat-breakdown { padding: 0.75rem 1rem; margin-top: 1.5rem; }
+            .card-title { font-size: 1rem; font-weight: 600; margin: 0 0 0.75rem 0; color: var(--color-text); }
       .cb-table {
         width: 100%;
         border-collapse: collapse;
