@@ -107,7 +107,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 
     <!-- ── STICKY TOP BAR ──────────────────────────────────────────────── -->
     <div class="dash-head" style="position:sticky;top:0;z-index:10;">
-      <!-- Section A (darker bg): Categories + Search + Calendar -->
+      <!-- Section A (darker bg): Categories + Search -->
       @if (headerExpanded()) {
       <div class="dash-head-a">
         <!-- Row 1: Parent categories -->
@@ -133,6 +133,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
           </div>
       </div>
     </div>
+    }
 
     <!-- Divider -->
       <div class="dash-divider"></div>
@@ -576,7 +577,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         border-bottom: 1px solid var(--color-border);
       }
       .dash-head-a { padding: 0.75rem 2rem; background: var(--color-bg); }
-      .dash-head-b { display: flex; align-items: center; gap: 1rem; padding: 0.5rem 2rem; background: var(--color-surface); flex-wrap: wrap; }
+      .dash-head-b { display: flex; align-items: center; gap: 1rem; padding: 0.5rem 2rem; background: var(--color-surface); flex-wrap: nowrap; overflow-x: auto; }
       .section-pills { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
       .date-controls { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; flex-wrap: wrap; }
       .header-toggle {
@@ -756,14 +757,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         border-color: var(--color-primary);
       }
 
-      /* ── Chart controls ─────────────────────────────────────────────── */
-      .chart-controls {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        align-items: center;
-        margin-top: 0.5rem;
-      }
+      /* ── Date controls ─────────────────────────────────────────────── */
       .date-range {
         display: flex;
         align-items: center;
@@ -960,7 +954,6 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       @media (max-width: 600px) {
         .fin-cards { grid-template-columns: 1fr 1fr; }
         .grid { grid-template-columns: 1fr 1fr; }
-        .chart-controls { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
       }
       @media (max-width: 400px) {
         .fin-cards { grid-template-columns: 1fr; }
@@ -1357,14 +1350,16 @@ export class AdminDashboardComponent implements OnInit {
 
   setQuarter(q: number): void {
     const y = new Date().getFullYear();
-    const starts = [0, 0, 3, 6, 9]; // months (0-indexed): Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct
-    const from = new Date(y, starts[q], 1);
-    const to = new Date(y, starts[q] + 3, 0); // last day of quarter-end month
-    this.dateFrom.set(from.toISOString().slice(0, 10));
-    this.dateTo.set(to.toISOString().slice(0, 10));
-    const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
-    this.financialDays.set(Math.max(1, diffDays));
-    this.loadFinancial(Math.max(1, diffDays), this.singleCatId);
+    // Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec
+    const mStart = (q - 1) * 3; // 0,3,6,9
+    const mEnd = mStart + 2; // 2,5,8,11
+    const from = `${y}-${String(mStart + 1).padStart(2, '0')}-01`;
+    const to = `${y}-${String(mEnd + 1).padStart(2, '0')}-${String(new Date(y, mEnd + 1, 0).getDate()).padStart(2, '0')}`;
+    this.dateFrom.set(from);
+    this.dateTo.set(to);
+    const d = [0, 90, 91, 92, 92][q]; // days per quarter (non-leap)
+    this.financialDays.set(Math.max(1, d));
+    this.loadFinancial(Math.max(1, d), this.singleCatId);
   }
   setYear(y: number): void {
     const from = new Date(y, 0, 1);
