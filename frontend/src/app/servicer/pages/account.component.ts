@@ -167,6 +167,18 @@ interface Penalty {
               </button>
             </div>
           </div>
+          <hr />
+          <div class="form">
+            <p class="muted small">Control whether customers can see your email and phone after a booking is confirmed.</p>
+            <label class="check-label">
+              <input type="checkbox" [(ngModel)]="f.showPhonePublic" name="showPhone" (change)="saveContactVisibility()" />
+              <span>Show phone number to customers</span>
+            </label>
+            <label class="check-label">
+              <input type="checkbox" [(ngModel)]="f.showEmailPublic" name="showEmail" (change)="saveContactVisibility()" />
+              <span>Show email address to customers</span>
+            </label>
+          </div>
         </section>
 
         <!-- ── Business Contacts CRUD ──────────────────────────────────────── -->
@@ -875,6 +887,8 @@ export class ServicerAccountComponent implements OnInit {
   f = {
     businessName: "",
     bio: "",
+    showPhonePublic: false,
+    showEmailPublic: false,
     serviceAreaList: [] as string[],
     serviceRadiusKm: 10,
     invoicePrefix: "INV",
@@ -1069,6 +1083,8 @@ export class ServicerAccountComponent implements OnInit {
         this.profile.set(p);
         this.f.businessName = p.businessName ?? "";
         this.f.bio = p.bio ?? "";
+        this.f.showPhonePublic = p.showPhonePublic ?? false;
+        this.f.showEmailPublic = p.showEmailPublic ?? false;
         this.f.serviceAreaList = p.serviceAreas ?? [];
         this.f.serviceRadiusKm = p.serviceRadiusKm ?? 10;
         this.f.invoicePrefix = p.invoicePrefix ?? "INV";
@@ -1384,6 +1400,16 @@ export class ServicerAccountComponent implements OnInit {
         this.savingProfile.set(false);
         this.profileError.set(e.message ?? "Could not save profile");
       },
+    });
+  }
+
+  saveContactVisibility(): void {
+    this.api.patch("/servicer/me", {
+      showPhonePublic: this.f.showPhonePublic ?? false,
+      showEmailPublic: this.f.showEmailPublic ?? false,
+    }).subscribe({
+      next: () => this.toast.success("Contact visibility updated."),
+      error: (e) => this.toast.error(e.message ?? "Could not update visibility"),
     });
   }
 

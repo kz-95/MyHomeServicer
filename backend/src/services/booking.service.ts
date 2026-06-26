@@ -771,7 +771,7 @@ export async function listBookings(userId: string, status?: string) {
     where: { userId, ...(filter ? { status: filter } : {}) },
     orderBy: { createdAt: 'desc' },
     include: {
-      servicer: { select: { id: true, businessName: true, logoUrl: true, rating: true } },
+      servicer: { select: { id: true, businessName: true, logoUrl: true, rating: true, email: true, phone: true, showPhonePublic: true, showEmailPublic: true } },
       quoteRequest: { select: { category: { select: { name: true, icon: true } }, address: true } },
       invoice: { select: { invoiceNumber: true } },
     },
@@ -790,6 +790,10 @@ export async function listBookings(userId: string, status?: string) {
       address: addr.address ?? null,
       lat: addr.lat ?? null,
       lng: addr.lng ?? null,
+      servicerEmail: b.servicer?.showEmailPublic ? b.servicer.email : null,
+      servicerPhone: b.servicer?.showPhonePublic ? b.servicer.phone : null,
+      showEmailPublic: b.servicer?.showEmailPublic ?? false,
+      showPhonePublic: b.servicer?.showPhonePublic ?? false,
     };
   });
 }
@@ -800,7 +804,7 @@ export async function getBooking(userId: string, bookingId: string) {
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, userId },
     include: {
-      servicer: { select: { id: true, businessName: true, logoUrl: true, rating: true, phone: true } },
+      servicer: { select: { id: true, businessName: true, logoUrl: true, rating: true, phone: true, email: true, showPhonePublic: true, showEmailPublic: true } },
       proposal: true,
       quoteRequest: { include: { category: true, address: true } },
       escrow: true,

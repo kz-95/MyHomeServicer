@@ -2405,14 +2405,18 @@ export const platformSettings: { key: string; value: unknown }[] = [
   {
     key: "platform_fee_rate",
     value: {
-      current_rate: 0.05,
-      scheduled_changes: [
-        {
-          starts_at: "2026-12-01T00:00:00Z",
-          ends_at: "2027-12-31T23:59:59Z",
-          new_rate: 0.07,
-          advertised_discount: "8% off normal rate",
-        },
+      current_rate: 0.20,
+      scheduled_changes: [] as { starts_at: string; ends_at: string; new_rate: number; advertised_discount?: string }[],
+    },
+  },
+  {
+    key: "platform_fee_breakdown",
+    value: {
+      categories: [
+        { label: "Marketing & acquisition", pct: 5 },
+        { label: "Rewards & promotions", pct: 8 },
+        { label: "Platform operations", pct: 4 },
+        { label: "Platform margin", pct: 3 },
       ],
     },
   },

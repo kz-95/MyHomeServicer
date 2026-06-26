@@ -1874,7 +1874,7 @@ async function main(): Promise<void> {
         taxRate: 0,
         taxAmount: 0,
         tipAmount: 0,
-        platformFee: Math.round(total * 0.08 * 100) / 100,
+        platformFee: Math.round(total * 0.20 * 100) / 100,
         total,
         serviceChargeRate: 0,
         serviceChargeAmount: 0,
