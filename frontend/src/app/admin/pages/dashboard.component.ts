@@ -611,11 +611,15 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         margin: 1.5rem 0;
       }
       .fin-card {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
         display: flex;
         flex-direction: column;
-        gap: 0.3rem;
-        padding: 1rem 1.25rem 1.25rem;
+        gap: 0.5rem;
+        padding: 1.25rem 1.25rem 1.5rem;
         transition: box-shadow var(--transition), transform var(--transition);
+        min-width: 0;
       }
       .fin-card:hover {
         box-shadow: var(--shadow-md);
@@ -636,14 +640,14 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         font-size: 0.78rem;
         color: var(--color-text);
       }
-      .fin-cf-row { display: flex; justify-content: space-between; align-items: center; }
+      .fin-cf-row { display: flex; justify-content: space-between; align-items: center; padding: 0.1rem 0; }
       .fin-cf-row .fin-label { color: var(--color-muted); font-size: 0.8rem; }
       .fin-cf-in { font-size: 1.6rem; font-weight: 700; color: #f59e0b; }
-      .fin-cf-out { font-size: 1.1rem; font-weight: 600; color: #dc2626; }
-      .fin-cf-gross { font-size: 1.1rem; font-weight: 600; color: #16a34a; }
-.fin-cf-gross.neg { color: #dc2626; }
-      .fin-cf-cashflow { font-size: 1.1rem; font-weight: 600; color: inherit; }
-.fin-cf-cashflow.neg { color: #dc2626; }
+      .fin-cf-out { font-size: 1rem; font-weight: 600; color: #dc2626; }
+      .fin-cf-gross { font-size: 1rem; font-weight: 600; color: #16a34a; }
+      .fin-cf-gross.neg { color: #dc2626; }
+      .fin-cf-cashflow { font-size: 1rem; font-weight: 600; color: inherit; }
+      .fin-cf-cashflow.neg { color: #dc2626; }
 .fin-cf-sub { font-size: 1.1rem; font-weight: 600; color: var(--color-text); }
 .cf-good { font-size: 1.1rem; font-weight: 600; color: #16a34a; }
 .cf-bad { font-size: 1.1rem; font-weight: 600; color: #dc2626; }
@@ -942,7 +946,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .donut-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
       .donut-legend-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .donut-legend-val { font-weight: 600; color: var(--color-text); }
-      .donut-row { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+      .donut-row { display: flex; align-items: center; gap: 0.75rem; }
 
       /* ── Responsive ─────────────────────────────────────────────────── */
       @media (max-width: 760px) { .chart-row { display: none; } }
