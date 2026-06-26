@@ -16,9 +16,9 @@ export async function clearAll(prisma: PrismaClient): Promise<void> {
   await prisma.penaltyAppeal.deleteMany();
   await prisma.penaltyLog.deleteMany();
   await prisma.invoice.deleteMany();
-  await prisma.escrow.deleteMany();
   await prisma.report.deleteMany();
   await prisma.dispute.deleteMany();
+  await prisma.escrow.deleteMany();
   await prisma.customerPoints.deleteMany();
   await prisma.pointsTransaction.deleteMany();
   await prisma.redemption.deleteMany();

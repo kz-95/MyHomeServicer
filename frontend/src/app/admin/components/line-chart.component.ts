@@ -54,7 +54,7 @@ export class LineChartComponent implements OnChanges {
           data: d.data,
           borderColor: d.color,
           backgroundColor: isBar ? d.color + 'CC' : d.color + '33',
-          borderWidth: isBar ? 1 : 1.5,
+          borderWidth: isBar ? 1 : 1,
           borderRadius: isBar ? 3 : 0,
           pointRadius: isBar ? 0 : 0,
           pointHoverRadius: 4,
@@ -63,6 +63,8 @@ export class LineChartComponent implements OnChanges {
           hidden: d.hidden ?? false,
           tension: isBar ? 0 : 0.1,
           fill: false,
+          barPercentage: isBar ? 0.4 : undefined,
+          categoryPercentage: isBar ? 0.6 : undefined,
         })),
       };
     }

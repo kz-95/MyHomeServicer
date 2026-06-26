@@ -1480,44 +1480,189 @@ async function main(): Promise<void> {
   console.log(`  ✓ guest customer accounts: ${guestRefs.length}`);
 
   // ── Demo quote helpers ──────────────────────────────────────────────────
+  /**
+   * Generate sample serviceDetails for each category using the EXACT
+   * option values from static.ts question schemas.  2-3 variants per
+   * category so not every seeded booking looks identical.
+   */
   function sampleAnswers(categorySlug: string): Record<string, unknown> {
-    const map: Record<string, Record<string, unknown>> = {
-      plumber: { action: 'repair', area: 'kitchen', problem: ['leaking_pipe'] },
-      'aircond-servicer': { aircon_service: ['wall_chemical', 'wall_general'] },
-      'electrical-wiring': { action: 'repair', item: 'socket' },
-      'home-cleaning': { cleaning_option: '2h_2c', pets: ['cat'] },
-      'sofa-mattress-cleaning': { clean_for: 'queen_mattress' },
-      'carpet-cleaning': { cleaning_type: 'carpet_medium' },
-      'curtain-cleaning': { curtain_sizes: { full_height_60: 2, half_height_40: 1 }, cleaning_type: 'normal' },
-      'event-planner': { planning_services: ['full', 'catering'], attendees: 100 },
-      catering: { pax: { person: 30 }, cuisine: ['malay', 'western'] },
-      'professional-organizer': { home_size: '2br', space: ['bedroom', 'kitchen'] },
-      'aircond-installer': { units: { wall_1hp: 1 } },
-      carpenter: { action: 'custom_build', item: 'cabinet', material: 'solid_wood' },
-      'interior-design': { service_level: 'concept', rooms: ['living', 'bedroom'] },
-      'door-gate': { action: 'install', gate_type: 'sliding' },
-      roof: { action: 'repair', roof_type: 'pitched' },
-      renovation: { project_type: 'kitchen_only', scope: ['tiling', 'plumbing'] },
-      painting: { paint_scope: 'room_only', room_count: 2 },
-      moving: { move_type: 'house', home_size: '1_2br' },
-      gardening: { garden_work: ['lawn', 'hedge'] },
-      'alarm-cctv': { action: 'install', system_type: 'cctv_4ch', cameras: 2 },
-      'washing-machine-repair': { appliance: 'front_load', problem: ['leaking', 'noisy'] },
-      'refrigerator-repair': { fridge_type: 'double_door', problem: ['not_cooling'] },
-      'tv-repair': { tv_type: 'smart', problem: ['no_power'] },
-      'oven-repair': { oven_type: 'built_in', problem: ['not_heating'] },
-      'water-heater-repair': { heater_type: 'instant', problem: ['no_hot_water'] },
-      'ceiling-fan-repair': { fan_type: 'remote', problem: ['wobbling'] },
-      'aircond-repair': { aircon_type: 'wall', problem: ['not_cooling'] },
-      'art-class': { format: 'offline', level: 'beginner' },
-      'language-class': { format: 'online', language: ['mandarin'] },
-      'music-class': { format: 'offline', instrument: ['piano'] },
-      'home-tutoring': { format: 'online', subjects: ['math', 'science'] },
-      'cooking-class': { format: 'offline', cuisine: ['thai'] },
-      'gym-trainer': { format: 'home', goal: ['weight_loss'] },
-      '3d-modeling-class': { format: 'online', field: ['product_design'] },
-    };
-    return (map as any)[categorySlug] ?? {};
+    const variants: Record<string, unknown>[] = (() => {
+      switch (categorySlug) {
+        case 'plumber': return [
+          { action: 'repair', area: ['pipe_drain', 'tap_faucet_sink'], problem: ['leak_drip'] },
+          { action: 'install', area: ['bathtub'], problem: ['no_problem'] },
+          { action: 'replace', area: ['toilet_wc'], problem: ['clogged_stuck'] },
+        ];
+        case 'aircond-servicer': return [
+          { aircon_service: ['wall_chemical', 'wall_general'] },
+          { aircon_service: ['cassette_chemical', 'faulty_check'] },
+          { aircon_service: ['wall_overhaul'] },
+        ];
+        case 'electrical-wiring': return [
+          { action: 'repair', item: ['power_socket_switch'], problem: ['no_power'] },
+          { action: 'install', item: ['lighting_downlight', 'ceiling_fan'] },
+          { action: 'inspection_testing', item: ['distribution_board'], problem: ['not_sure'] },
+        ];
+        case 'home-cleaning': return [
+          { cleaning_option: '2h_2c', cleaning_supplies: 'single_session', pets: ['no_pets'] },
+          { cleaning_option: '3h_2c', cleaning_supplies: 'no_i_provide', pets: ['cat'] },
+          { cleaning_option: '4h_2c', cleaning_supplies: 'single_session', pets: ['dog', 'others'] },
+        ];
+        case 'sofa-mattress-cleaning': return [
+          { clean_for: ['leather_sofa'], sofa_size: '2_seater' },
+          { clean_for: ['fabric_sofa', 'single_mattress'], sofa_size: '3_seater' },
+          { clean_for: ['queen_mattress', 'king_mattress'] },
+        ];
+        case 'carpet-cleaning': return [
+          { cleaning_type: 'carpet_medium' },
+          { cleaning_type: 'rug_2' },
+          { cleaning_type: 'carpet_large' },
+        ];
+        case 'curtain-cleaning': return [
+          { curtain_sizes: { full_height_60: 2, half_height_40: 1 }, cleaning_type: 'normal_cleaning' },
+          { curtain_sizes: { full_height_100: 1 }, cleaning_type: 'dry_cleaning' },
+          { curtain_sizes: { full_height_40: 3, half_height_60: 2 }, cleaning_type: 'normal_cleaning' },
+        ];
+        case 'event-planner': return [
+          { event_for: ['marriage_ceremony', 'wedding_reception'], venue: 'hotel_ballroom', planning_services: ['style_theme', 'budget_planning', 'vendor_selection'], attendees: 150 },
+          { event_for: ['private_event'], venue: 'home', planning_services: ['floor_activity', 'invite_rsvp'], attendees: 40 },
+          { event_for: ['corporate_event'], venue: 'office', planning_services: ['vendor_coordination', 'vendor_selection'], attendees: 200 },
+        ];
+        case 'catering': return [
+          { halal: 'halal', event_for: ['wedding_reception'], cuisine: ['malay', 'western'], service_mode: 'on_site', pax: { person: 50 } },
+          { halal: 'halal', event_for: ['private_event'], cuisine: ['chinese', 'thai'], service_mode: 'delivery', pax: { person: 20 } },
+          { halal: 'non_halal', event_for: ['corporate_event'], cuisine: ['western'], service_mode: 'on_site', pax: { person: 80 } },
+        ];
+        case 'professional-organizer': return [
+          { home_size: '2br', space: ['bedroom', 'wardrobe_closet'], service_type: ['decluttering', 'folding_categorizing'], supplies: 'no_i_provide' },
+          { home_size: '3br', space: ['kitchen_pantry', 'living_room'], service_type: ['space_planning', 'storage_setup'], supplies: 'yes_provide' },
+          { home_size: 'studio_1br', space: ['study_office'], service_type: ['labeling', 'maintenance'], supplies: 'no_i_provide' },
+        ];
+        case 'aircond-installer': return [
+          { units: { wall_1hp: 1 } },
+          { units: { wall_1_5hp: 2 } },
+          { units: { cassette_2hp: 1, dismantle_only: 1 } },
+        ];
+        case 'carpenter': return [
+          { action: 'custom_build', item: ['cabinet_kitchen', 'wardrobe_closet'], material: 'solid_wood', supply: 'yes_supply_build' },
+          { action: 'repair', item: ['door'], material: 'not_sure', supply: 'no_i_have_materials' },
+          { action: 'install', item: ['shelves_storage', 'table_desk'], material: 'plywood', supply: 'yes_supply_build' },
+        ];
+        case 'interior-design': return [
+          { service_level: 'concept_3d', scope: 'single_room', rooms: ['living', 'dining'], style: ['modern_contemporary'] },
+          { service_level: 'design_pm', scope: 'whole_home', rooms: ['master_bedroom', 'bedroom', 'kitchen'], style: ['minimalist', 'scandinavian'] },
+          { service_level: 'consultation_only', scope: 'commercial_office', rooms: ['study_office'], style: ['not_sure'] },
+        ];
+        case 'door-gate': return [
+          { action: 'new_install', gate_type: ['autogate_swing'], component: [], problem: [] },
+          { action: 'repair', gate_type: ['autogate_sliding'], component: ['motor_engine'], problem: ['not_moving'] },
+          { action: 'replace', gate_type: ['grille_gate', 'roller_shutter'], component: [], problem: ['rust_damaged'] },
+        ];
+        case 'roof': return [
+          { action: 'leak_repair', roof_type: 'clay_concrete_tile', problem: ['active_leak', 'water_stain'] },
+          { action: 'gutter_clean_repair', roof_type: 'metal_zinc', problem: ['clogged_gutter'] },
+          { action: 'waterproofing', roof_type: 'concrete_flat', problem: ['moss_algae'] },
+        ];
+        case 'renovation': return [
+          { project_type: 'kitchen', scope: ['tiling_flooring', 'plumbing', 'built_in_carpentry'], property_status: 'currently_occupied' },
+          { project_type: 'full_home', scope: ['hacking_demolition', 'plastering_painting', 'electrical_wiring', 'ceiling'], property_status: 'old_renovating' },
+          { project_type: 'bathroom_toilet', scope: ['tiling_flooring', 'waterproofing'], property_status: 'new_empty' },
+        ];
+        case 'painting': return [
+          { paint_scope: 'one_room', paint_surfaces: ['walls'], paint_supply: 'painter_supplies' },
+          { paint_scope: 'whole_house', paint_surfaces: ['walls', 'ceiling', 'doors_frames'], paint_supply: 'painter_supplies', wall_condition: 'good' },
+          { paint_scope: 'feature_wall', paint_surfaces: ['walls'], paint_supply: 'i_provide' },
+        ];
+        case 'moving': return [
+          { move_type: 'whole_home', home_size: '2_3_rooms', lift_access: 'lift', heavy_items: ['sofa', 'wardrobe'], packing_help: 'i_pack' },
+          { move_type: 'few_big_items', home_size: 'items_only', lift_access: 'ground_floor', heavy_items: ['fridge', 'washing_machine'], packing_help: 'pack_for_me' },
+          { move_type: 'office', home_size: '4_plus', lift_access: 'lift', heavy_items: ['none'], packing_help: 'partial' },
+        ];
+        case 'gardening': return [
+          { garden_work: ['lawn_mowing', 'hedge'], garden_size: 'medium' },
+          { garden_work: ['tree_pruning', 'landscaping'], garden_size: 'large' },
+          { garden_work: ['weeding'], garden_size: 'small' },
+        ];
+        case 'alarm-cctv': return [
+          { action: 'new_install', system_type: ['cctv_cameras', 'alarm_system'], cameras: 4, location: ['indoor', 'outdoor'], supply: 'yes_supply_install' },
+          { action: 'repair', system_type: ['smart_doorbell'], supply: 'no_i_have_equipment' },
+          { action: 'add_expand', system_type: ['motion_sensors'], cameras: 2, location: ['entrance_gate'], supply: 'yes_supply_install' },
+        ];
+        case 'washing-machine-repair': return [
+          { appliance: 'washing_machine_front', problem: ['leaking_water', 'noisy_vibrating'] },
+          { appliance: 'washing_machine_top', problem: ['not_spinning'] },
+          { appliance: 'dryer', problem: ['not_heating'] },
+        ];
+        case 'refrigerator-repair': return [
+          { fridge_type: 'double_door', problem: ['not_cooling'] },
+          { fridge_type: 'side_by_side', problem: ['leaking_water', 'noisy'] },
+          { fridge_type: 'chest_freezer', problem: ['frost_build_up'] },
+        ];
+        case 'tv-repair': return [
+          { tv_type: 'led_lcd', problem: ['no_power'] },
+          { tv_type: 'smart_tv', problem: ['no_signal'] },
+          { tv_type: 'oled', problem: ['lines_spots'] },
+        ];
+        case 'oven-repair': return [
+          { oven_type: 'built_in_oven', problem: ['not_heating'] },
+          { oven_type: 'freestanding', problem: ['door_fault'] },
+          { oven_type: 'gas_oven', problem: ['sparking'] },
+        ];
+        case 'water-heater-repair': return [
+          { heater_type: 'instant_single', problem: ['no_hot_water', 'low_pressure'] },
+          { heater_type: 'storage_tank', problem: ['leaking'] },
+          { heater_type: 'solar', problem: ['not_powering_on'] },
+        ];
+        case 'ceiling-fan-repair': return [
+          { fan_type: 'remote_controlled', problem: ['wobbling', 'noisy'] },
+          { fan_type: 'standard', problem: ['not_spinning'] },
+          { fan_type: 'decorative_dc', problem: ['remote_control_fault'] },
+        ];
+        case 'aircond-repair': return [
+          { aircon_type: 'wall_mounted_split', problem: ['not_cold'] },
+          { aircon_type: 'cassette_ceiling', problem: ['water_leaking', 'bad_smell'] },
+          { aircon_type: 'inverter', problem: ['needs_gas_top_up'] },
+        ];
+        case 'art-class': return [
+          { format: 'in_person_tutor', level: 'beginner', art_type: ['painting'], frequency: 'one_off_trial', learner: 'adult' },
+          { format: 'online', level: 'intermediate', art_type: ['digital_art'], frequency: 'weekly', learner: 'teen' },
+          { format: 'in_person_home', level: 'kids', art_type: ['drawing_sketching', 'craft_diy'], frequency: 'one_off_trial', learner: 'child' },
+        ];
+        case 'language-class': return [
+          { format: 'online', level: 'beginner', language: ['mandarin'], goal: 'conversational', frequency: 'weekly' },
+          { format: 'in_person_tutor', level: 'intermediate', language: ['japanese'], goal: 'exam_cert', frequency: 'intensive' },
+          { format: 'online', level: 'advanced', language: ['english'], goal: 'business', frequency: 'one_off_trial' },
+        ];
+        case 'music-class': return [
+          { instrument: ['piano'], level: 'beginner', format: 'in_person_tutor', frequency: 'weekly', learner: 'child' },
+          { instrument: ['guitar', 'vocal_singing'], level: 'intermediate', format: 'online', frequency: 'one_off_trial', learner: 'teen' },
+          { instrument: ['drums'], level: 'advanced', format: 'in_person_home', frequency: 'intensive', learner: 'adult' },
+        ];
+        case 'home-tutoring': return [
+          { level: 'spm', subjects: ['math', 'science'], format: 'online', frequency: 'weekly', students: 1 },
+          { level: 'primary', subjects: ['bm', 'english', 'mandarin'], format: 'at_my_home', frequency: 'intensive', students: 2 },
+          { level: 'university', subjects: ['physics', 'chemistry'], format: 'at_tutor', frequency: 'one_off_trial', students: 1 },
+        ];
+        case 'cooking-class': return [
+          { format: 'in_person_venue', setup: 'small_group', cuisine: ['malay', 'baking_pastry'], ingredients: 'yes_provide', level: 'beginner' },
+          { format: 'online', setup: 'private_1on1', cuisine: ['western', 'healthy_diet'], ingredients: 'no_i_provide', level: 'intermediate' },
+          { format: 'in_person_home', setup: 'workshop_event', cuisine: ['desserts'], ingredients: 'yes_provide', level: 'advanced' },
+        ];
+        case 'gym-trainer': return [
+          { format: 'at_gym', trainee: 'individual', goal: ['weight_loss', 'general_fitness'], frequency: '2_3x_week', gender_pref: 'no_preference' },
+          { format: 'outdoor_park', trainee: 'couple', goal: ['muscle_gain', 'strength'], frequency: '1x_week', gender_pref: 'female' },
+          { format: 'at_my_home', trainee: 'small_group', goal: ['rehab_recovery'], frequency: 'daily', gender_pref: 'male' },
+        ];
+        case '3d-modeling-class': return [
+          { format: 'online', field: ['product'], level: 'beginner', software: ['blender'], frequency: 'weekly' },
+          { format: 'in_person_tutor', field: ['animation_cinematic', 'character'], level: 'intermediate', software: ['maya', 'zbrush'], frequency: 'intensive' },
+          { format: 'online', field: ['environment_prop', 'sculpting'], level: 'advanced', software: ['blender', '3ds_max'], frequency: 'one_off_trial' },
+        ];
+        default: return [{}];
+      }
+    })();
+    const idx = Math.floor(Math.random() * variants.length);
+    return (variants[idx] ?? {}) as Record<string, unknown>;
   }
 
   function sampleNotes(payment: string): string {
