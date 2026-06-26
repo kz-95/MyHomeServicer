@@ -17,7 +17,7 @@ import { ChartConfiguration, ChartData } from 'chart.js';
         [type]="'bar'"
         [data]="chartData"
         [options]="chartOptions"
-        [height]="180"
+        [height]="280"
       ></canvas>
     }
   `,
@@ -63,6 +63,7 @@ export class BarChartComponent implements OnInit, OnChanges {
       animation: { duration: 400, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
+        datalabels: { display: false },
         tooltip: { backgroundColor: surfaceColor, titleColor: textColor, bodyColor: textColor, borderColor: borderColor, borderWidth: 1 },
       },
       scales: {

@@ -21,8 +21,8 @@ Chart.register(ChartDataLabels);
         [type]="'doughnut'"
         [data]="chartData"
         [options]="chartOptions"
-        [height]="180"
-        [width]="180"
+         [height]="280"
+        [width]="280"
       ></canvas>
     }
   `,
