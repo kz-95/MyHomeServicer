@@ -45,14 +45,19 @@ describe('listing pricing (§8)', () => {
     const listing: ListingForPricing = {
       basePrice: 50,
       estimatedDurationMinutes: 60,
-      modifiers: {
-        type: { wall: { price: 20, notOffered: false }, cassette: { price: 40, notOffered: false } },
-        units: { unit: { price: 15, durationMin: 30, notOffered: false } },
-      },
+      moduleRefs: [
+        { moduleId: 'mod-cassette', kind: 'included' as const },
+        { moduleId: 'mod-units', kind: 'included' as const },
+      ],
     };
-    const r = computeListingPrice(listing, modules([]), { type: 'cassette', units: { unit: 3 } }, NO_TAX);
-    // 50 base + 40 cassette + 15*3 units = 135
-    expect(r.subtotal).toBe(135);
+    const mods = modules([
+      { id: 'mod-cassette', name: 'Cassette', price: 40, questionKey: 'type', optionValue: 'cassette' },
+      { id: 'mod-units', name: 'Units', price: 15, questionKey: 'units', optionValue: 'unit' },
+    ]);
+    const r = computeListingPrice(listing, mods, { type: 'cassette', units: { unit: 3 } }, NO_TAX);
+    // 50 base + 40 cassette (included) + 15 units (included)
+    //   + 40 cassette (matched) + 15*3 units (matched) = 190
+    expect(r.subtotal).toBe(190);
   });
 
   it('add-on excluded by default, included when ticked', () => {
@@ -96,7 +101,7 @@ describe('listing pricing (§8)', () => {
 });
 
 describe('duration scaling (§9)', () => {
-  it('base + option per-unit×count + module delta', () => {
+  it('base + included module delta + optional addon', () => {
     const listing: ListingForPricing = {
       basePrice: 0,
       estimatedDurationMinutes: 60,
@@ -104,12 +109,12 @@ describe('duration scaling (§9)', () => {
         { moduleId: 'm1', kind: 'included', durationDeltaMin: 20 },
         { moduleId: 'a1', kind: 'addon', durationDeltaMin: 15 },
       ],
-      modifiers: { units: { unit: { price: 0, durationMin: 30, notOffered: false } } },
     };
-    // base 60 + included module 20 + units 30*2 = 140 (add-on not ticked)
-    expect(computeListingDurationMin(listing, { units: { unit: 2 } })).toBe(140);
-    // + add-on 15 when ticked = 155
-    expect(computeListingDurationMin(listing, { units: { unit: 2 } }, ['a1'])).toBe(155);
+    const modulesById = new Map<string, ModuleLite>();
+    // base 60 + included module 20 = 80 (add-on not ticked)
+    expect(computeListingDurationMin(listing, modulesById, {})).toBe(80);
+    // + add-on 15 when ticked = 95
+    expect(computeListingDurationMin(listing, modulesById, {}, ['a1'])).toBe(95);
   });
 });
 
@@ -134,46 +139,53 @@ describe('auto-accept gates (§11)', () => {
   const baseListing = {
     basePrice: 100,
     estimatedDurationMinutes: 60,
-    modifiers: { type: { wall: { price: 20, notOffered: false }, cassette: { price: 40, notOffered: true } } },
-    moduleRefs: [],
+    moduleRefs: [
+      { moduleId: 'mod-wall', kind: 'included' as const },
+      { moduleId: 'mod-cassette', kind: 'included' as const },
+    ],
     autoAccept: true,
-    priceType: 'fixed',
+    priceType: 'fixed' as const,
   };
+  const gateMods = modules([
+    { id: 'mod-wall', name: 'Wall', price: 20, questionKey: 'type', optionValue: 'wall' },
+    { id: 'mod-cassette', name: 'Cassette', price: 40, questionKey: 'type', optionValue: 'cassette' },
+  ]);
   const sched = [{ weekday: weekdayOf(date), timeSlot: 'morning', isAvailable: true }];
 
   it('all gates pass', () => {
-    const r = evaluateAutoAcceptGates(baseQuote, baseListing, baseServicer, modules([]), 0.06, sched);
+    const r = evaluateAutoAcceptGates(baseQuote, baseListing, baseServicer, gateMods, 0.06, sched);
     expect(r.pass).toBe(true);
-    expect(r.total).toBe(120); // 100 + 20 wall
+    // 100 base + 20 wall (included) + 40 cassette (included) + 20 wall (matched) = 180
+    expect(r.total).toBe(180);
   });
 
   it('budget fail when total exceeds budgetMax', () => {
-    const r = evaluateAutoAcceptGates({ ...baseQuote, budgetMax: 100 }, baseListing, baseServicer, modules([]), 0.06, sched);
+    const r = evaluateAutoAcceptGates({ ...baseQuote, budgetMax: 100 }, baseListing, baseServicer, gateMods, 0.06, sched);
     expect(r.pass).toBe(false);
     expect(r.reasons.join()).toMatch(/exceeds budget/);
   });
 
   it('hourly price type never auto-accepts', () => {
-    const r = evaluateAutoAcceptGates(baseQuote, { ...baseListing, priceType: 'hourly' }, baseServicer, modules([]), 0.06, sched);
+    const r = evaluateAutoAcceptGates(baseQuote, { ...baseListing, priceType: 'hourly' }, baseServicer, gateMods, 0.06, sched);
     expect(r.pass).toBe(false);
   });
 
   it('availability: offline fails; empty schedule passes; unavailable slot fails', () => {
-    expect(evaluateAutoAcceptGates(baseQuote, baseListing, { ...baseServicer, isOnline: false }, modules([]), 0.06, sched).pass).toBe(false);
-    expect(evaluateAutoAcceptGates(baseQuote, baseListing, baseServicer, modules([]), 0.06, []).pass).toBe(true);
+    expect(evaluateAutoAcceptGates(baseQuote, baseListing, { ...baseServicer, isOnline: false }, gateMods, 0.06, sched).pass).toBe(false);
+    expect(evaluateAutoAcceptGates(baseQuote, baseListing, baseServicer, gateMods, 0.06, []).pass).toBe(true);
     const off = [{ weekday: weekdayOf(date), timeSlot: 'morning', isAvailable: false }];
-    expect(evaluateAutoAcceptGates(baseQuote, baseListing, baseServicer, modules([]), 0.06, off).pass).toBe(false);
+    expect(evaluateAutoAcceptGates(baseQuote, baseListing, baseServicer, gateMods, 0.06, off).pass).toBe(false);
   });
 
   it('coverage: outside radius fails; no quote coords passes', () => {
     const far = { ...baseServicer, serviceAreas: ['1.0,103.0'], serviceRadiusKm: 5 };
-    expect(evaluateAutoAcceptGates(baseQuote, baseListing, far, modules([]), 0.06, sched).pass).toBe(false);
+    expect(evaluateAutoAcceptGates(baseQuote, baseListing, far, gateMods, 0.06, sched).pass).toBe(false);
     const noCoords = { ...baseQuote, lat: null, lng: null };
-    expect(evaluateAutoAcceptGates(noCoords, baseListing, far, modules([]), 0.06, sched).pass).toBe(true);
+    expect(evaluateAutoAcceptGates(noCoords, baseListing, far, gateMods, 0.06, sched).pass).toBe(true);
   });
 
   it('q-match: requesting a not-offered option fails', () => {
-    const r = evaluateAutoAcceptGates({ ...baseQuote, answers: { type: 'cassette' } }, baseListing, baseServicer, modules([]), 0.06, sched);
+    const r = evaluateAutoAcceptGates({ ...baseQuote, answers: { type: 'ceiling' } }, baseListing, baseServicer, gateMods, 0.06, sched);
     expect(r.pass).toBe(false);
     expect(r.reasons.join()).toMatch(/not offered/);
   });

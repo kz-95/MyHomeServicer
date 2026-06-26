@@ -23,6 +23,8 @@ jest.mock('../../src/lib/prisma', () => ({
     report: { create: jest.fn() },
     customerPoints: { findUnique: jest.fn(), upsert: jest.fn() },
     pointsTransaction: { create: jest.fn() },
+    loyaltyTier: { findMany: jest.fn().mockResolvedValue([]) },
+    feeRule: { findMany: jest.fn().mockResolvedValue([]) },
     $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb({
       booking: { create: jest.fn().mockResolvedValue({ price: 200 }), update: jest.fn().mockResolvedValue({ price: 200 }) },
       user: { update: jest.fn().mockResolvedValue({ creditBalance: 500 }) },
@@ -30,6 +32,8 @@ jest.mock('../../src/lib/prisma', () => ({
       quoteRequest: { update: jest.fn() },
       quoteProposal: { update: jest.fn(), updateMany: jest.fn() },
       escrow: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+      customerPoints: { findUnique: jest.fn().mockResolvedValue({ balance: 100, lifetimeEarned: 200 }), upsert: jest.fn().mockResolvedValue({ balance: 110, lifetimeEarned: 210 }) },
+      pointsTransaction: { create: jest.fn() },
     })),
   },
 }));
@@ -58,6 +62,16 @@ jest.mock('../../src/services/notification.service', () => ({
 jest.mock('../../src/services/settings.service', () => ({
   getPlatformFeeRate: jest.fn().mockResolvedValue(0.05),
   getSstRate: jest.fn().mockResolvedValue(0.06),
+  getSetting: jest.fn().mockImplementation((key: string) => {
+    const defaults: Record<string, number> = {
+      points_per_rm: 1,
+      points_per_review: 50,
+      points_per_referral: 100,
+      welcome_points: 200,
+      redemption_rate: 100,
+    };
+    return Promise.resolve(defaults[key] ?? null);
+  }),
 }));
 
 jest.mock('../../src/services/ledger.service', () => ({

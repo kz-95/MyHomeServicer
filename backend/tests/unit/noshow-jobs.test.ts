@@ -40,6 +40,12 @@ const mockPrisma = {
   report: {
     findFirst: jest.fn(),
   },
+  dispute: {
+    findFirst: jest.fn(),
+  },
+  feeRule: {
+    findMany: jest.fn().mockResolvedValue([]),
+  },
   $transaction: jest.fn(),
 };
 
@@ -70,6 +76,14 @@ jest.mock('../../src/services/ledger.service', () => ({
 }));
 jest.mock('../../src/services/settings.service', () => ({
   getPlatformFeeRate: jest.fn().mockResolvedValue(0.05),
+  getSetting: jest.fn().mockImplementation((key: string) => {
+    const defaults: Record<string, number> = {
+      points_per_rm: 1,
+      points_per_review: 50,
+      redemption_rate: 100,
+    };
+    return Promise.resolve(defaults[key] ?? null);
+  }),
 }));
 
 // ── Job registry + handler retrieval ─────────────────────────────────────────
@@ -424,13 +438,14 @@ describe('escrow.release handler', () => {
   });
 
   it('includes tip in the merchant payout', async () => {
-    mockPrisma.escrow.findUnique.mockResolvedValue(makeEscrow({ amount: 100, tipAmount: 20 }));
+    // amount includes tip; platformFeeBase is the pre-tip base for fee calc
+    mockPrisma.escrow.findUnique.mockResolvedValue(makeEscrow({ amount: 120, tipAmount: 20, platformFeeBase: 100 }));
     (getPlatformFeeRate as jest.Mock).mockResolvedValue(0.05);
 
     const handler = getHandler('escrow.release');
     await handler(makeJob(JOB));
 
-    // fee = 5; payout = 100 - 5 + 20 = 115
+    // fee = 100 * 0.05 = 5; payout = 120 - 5 = 115
     const { recordTransaction } = require('../../src/services/ledger.service');
     const releaseCalls = (recordTransaction as jest.Mock).mock.calls.filter(
       (args: unknown[]) => (args[0] as { type: string }).type === 'escrow_release',

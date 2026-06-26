@@ -43,6 +43,7 @@ jest.mock('../../src/lib/prisma', () => ({
       updateMany: jest.fn(),
     },
     category: { findFirst: jest.fn() },
+    bannedEmail: { findUnique: jest.fn().mockResolvedValue(null) },
     servicerDeposit: {
       findUnique: jest.fn().mockResolvedValue({ currentBalance: 500 }),
     },
