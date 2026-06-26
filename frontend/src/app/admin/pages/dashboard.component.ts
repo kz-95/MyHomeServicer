@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -104,16 +104,16 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       <!-- Section A (darker bg): Categories + Search -->
       <div class="dash-head-a">
         <!-- Row 1: Parent categories -->
-        <div class="cat-marquee">
-          <button class="chip" [class.active]="!dashCategoryId()" (click)="dashCategoryId.set(''); reloadDashboard()">All</button>
+        <div class="cat-marquee" (mousedown)="onMarqueeMouseDown($event, marqueeEl)" #marqueeEl>
+          <button class="chip" [class.active]="!dashCategoryId()">All</button>
           @for (cat of parentCategories(); track cat.id) {
-            <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
+            <button class="chip" [class.active]="dashCategoryId() === cat.id">{{ cat.name }}</button>
           }
         </div>
         <!-- Row 2: Child categories -->
-        <div class="cat-marquee sub">
+        <div class="cat-marquee sub" (mousedown)="onMarqueeMouseDown($event, childMarqueeEl)" #childMarqueeEl>
           @for (cat of filteredChildCategories(); track cat.id) {
-            <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
+            <button class="chip" [class.active]="dashCategoryId() === cat.id">{{ cat.name }}</button>
           }
         </div>
 
@@ -124,8 +124,19 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <input type="search" class="toolbar-search" placeholder="Search bookings, customers, servicers..." [(ngModel)]="searchQuery" (input)="onSearchChange()" />
           </div>
           <div class="sort-controls">
-            <button class="btn-ghost btn-sm sort-btn" (click)="cycleSortField()">Sort: {{ sortFieldLabel() }} <app-icon name="chevron-down" sizeToken="sm" /></button>
-            <button class="btn-ghost btn-sm" title="Reverse order" (click)="toggleSortDir()"><app-icon [name]="sortState().dir === 'asc' ? 'arrow-up' : 'arrow-down'" sizeToken="sm" /></button>
+            <div class="sort-dropdown" (click)="$event.stopPropagation()">
+              <button class="btn-ghost btn-sm sort-btn" (click)="sortDropdownOpen.set(!sortDropdownOpen())">
+                Sort: {{ sortFieldLabel() }} <app-icon name="chevron-down" sizeToken="sm" />
+              </button>
+              @if (sortDropdownOpen()) {
+                <div class="sort-menu">
+                  @for (f of sortFields; track f.key) {
+                    <button class="sort-menu-item" [class.active]="sortState().key === f.key" (click)="selectSortField(f.key)">{{ f.label }}</button>
+                  }
+                </div>
+              }
+            </div>
+            <button class="btn-ghost btn-sm" title="Reverse order" (click)="toggleSortDir()"><app-icon [name]="sortState().dir === 'asc' ? 'chevron-up' : 'chevron-down'" sizeToken="sm" /></button>
           </div>
         </div>
       </div>
@@ -720,6 +731,11 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       }
       .sort-controls { display: flex; gap: 0.4rem; flex-shrink: 0; }
       .sort-btn { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
+      .sort-dropdown { position: relative; }
+      .sort-menu { position: absolute; top: 100%; right: 0; z-index: 20; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.3rem 0; min-width: 140px; box-shadow: var(--shadow-md); margin-top: 0.25rem; }
+      .sort-menu-item { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.4rem 0.8rem; font-size: 0.82rem; color: var(--color-text); cursor: pointer; font-family: inherit; }
+      .sort-menu-item:hover { background: var(--color-bg); }
+      .sort-menu-item.active { color: var(--color-primary); font-weight: 600; }
       .search-icon-inline {
         margin: 0 0.5rem 0 0.85rem;
         flex-shrink: 0;
@@ -1111,6 +1127,35 @@ export class AdminDashboardComponent implements OnInit {
     return f === 'all' || f === s;
   }
 
+  // ── Drag-to-scroll ───────────────────────────────────────────────────
+  private _dragActive = false;
+  private _dragStartX = 0;
+  private _dragScrollLeft = 0;
+  private _dragTarget: HTMLElement | null = null;
+
+  onMarqueeMouseDown(e: MouseEvent, el: HTMLElement): void {
+    this._dragActive = true;
+    this._dragStartX = e.pageX - el.offsetLeft;
+    this._dragScrollLeft = el.scrollLeft;
+    this._dragTarget = el;
+    el.style.cursor = 'grabbing';
+    e.preventDefault();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onMarqueeMouseMove(e: MouseEvent): void {
+    if (!this._dragActive || !this._dragTarget) return;
+    const x = e.pageX - this._dragTarget.offsetLeft;
+    this._dragTarget.scrollLeft = this._dragScrollLeft - (x - this._dragStartX);
+  }
+
+  @HostListener('document:mouseup')
+  onMarqueeMouseUp(): void {
+    this._dragActive = false;
+    if (this._dragTarget) this._dragTarget.style.cursor = 'grab';
+    this._dragTarget = null;
+  }
+
   // ── Chart pills ──────────────────────────────────────────────────────
   chartPills = signal<Record<ChartLineKey, boolean>>({
     revenue: true,
@@ -1192,6 +1237,7 @@ export class AdminDashboardComponent implements OnInit {
   ];
   // ── Sort ─────────────────────────────────────────────────────────────
   sortState = signal<{ key: string; dir: 'asc' | 'desc' }>({ key: 'fees', dir: 'desc' });
+  sortDropdownOpen = signal(false);
 
   toggleSortDir(): void {
     const s = this.sortState();
@@ -1337,6 +1383,10 @@ export class AdminDashboardComponent implements OnInit {
   }
   sortFieldLabel(): string {
     return this.sortFields.find(f => f.key === this.sortState().key)?.label ?? 'Fees';
+  }
+  selectSortField(key: string): void {
+    this.sortState.set({ key, dir: this.sortState().dir });
+    this.sortDropdownOpen.set(false);
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────

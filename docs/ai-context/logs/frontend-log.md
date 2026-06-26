@@ -2,6 +2,68 @@
 
 > Single-writer log - only the **Frontend** agent writes here.
 
+## Session 2026-06-26 - 3 Bug Fixes in Admin Dashboard
+
+### Scope
+`frontend/src/app/admin/pages/dashboard.component.ts` - Fix marquee drag, sort icon names, sort dropdown.
+
+### Changes
+
+1. **Bug 1 (Marquee drag-to-scroll)**:
+   - Added `HostListener` to Angular core imports
+   - Added drag state vars (`_dragActive`, `_dragStartX`, `_dragScrollLeft`, `_dragTarget`)
+   - Added `onMarqueeMouseDown`, `onMarqueeMouseMove` (`@HostListener('document:mousemove')`), `onMarqueeMouseUp` (`@HostListener('document:mouseup')`)
+   - Template: added `(mousedown)="onMarqueeMouseDown($event, marqueeEl)" #marqueeEl` to both `.cat-marquee` divs
+   - Removed `(click)` handlers from category chips
+
+2. **Bug 2 (Sort reverse icon)**:
+   - Changed icon names from `arrow-up`/`arrow-down` to `chevron-up`/`chevron-down` (consistent with sort button, all valid Lucide names)
+
+3. **Bug 3 (Sort type dropdown)**:
+   - Replaced `cycleSortField()` click-cycle button with a dropdown menu
+   - Added `sortDropdownOpen = signal(false)` signal
+   - Added `selectSortField(key)` method
+   - Template: replaced sort button with `.sort-dropdown` wrapper containing dropdown toggle + menu
+   - Added CSS: `.sort-dropdown`, `.sort-menu`, `.sort-menu-item` + hover/active states
+   - Kept reverse direction button alongside dropdown
+
+### Gates
+- `npx tsc --noEmit` -> 0 errors
+- `npx ng build --configuration development` -> exit 0 (green)
+
+## Session 2026-06-26 - Admin Dashboard Toolbar Redesign
+
+### Scope
+`frontend/src/app/admin/pages/dashboard.component.ts` - Replace old toolbar + collapsible section headers with sticky top bar, category marquee, and section filter pills.
+
+### Changes
+
+1. **Sticky top bar** - Wrapped toolbar in `<div class="dash-head" style="position:sticky;top:0;z-index:10;">` containing:
+   - **Section A** (`dash-head-a`, darker `var(--color-bg)`): 2-row category marquee (parents + children) + search bar + sort controls
+   - **Divider** (`dash-divider`)
+   - **Section B** (`dash-head-b`, lighter `var(--color-surface)`): 7 section filter pills (All, Queues, Cards, Chart, Breakdown, Customers, Servicers)
+
+2. **Category marquee** - Replaced old `cat-chips` single row with two horizontally scrollable rows:
+   - Row 1: Parent categories (no `parentCategoryId`)
+   - Row 2: Child categories (has `parentCategoryId`)
+   - Both rows use `.chip` buttons with `overflow-x: auto` + thin scrollbar
+
+3. **Section visibility** - Replaced old `showSections` signal + `toggleSection()` + collapsible `section-header`/`section-body` wrappers with `sectionFilter` signal + `showSection()` method. Each of 6 content sections wrapped in `@if (showSection(...))`:
+   - Queues, Cards, Chart, Breakdown, Customers, Servicers
+
+4. **Removed code:**
+   - `showSections` signal + `toggleSection()` method
+   - `topCategories` computed (replaced by `parentCategories` + `childCategories`)
+   - All `section-header`, `section-body`, `section-toggle`, `section-spacer` template blocks (5 instances)
+   - Old `.toolbar` wrapper div
+   - CSS: `.toolbar`, `.cat-chips`, `.section-header`, `.section-spacer`, `.section-toggle`, `.section-body`
+
+5. **CSS** - Added `.dash-head`, `.dash-head-a`, `.dash-head-b`, `.dash-divider`, `.cat-marquee`, `.cat-marquee.sub`, `.cat-marquee::-webkit-scrollbar`. Added `padding-top: 0.5rem` to `.search-row`. Added `margin-top` to section content blocks (chart-controls, cat-breakdown, lb-table-wrap). Kept `.hint-btn` (still used on card labels).
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx ng build --configuration development` → exit 0 (green)
+
 ## Session 2026-06-26 - Pending Quote Card: Inline Proposal Action Row Redesign
 
 ### Scope
@@ -2394,3 +2456,75 @@ Three insertion points, all gated behind `if (!environment.production)`:
 | File | Action |
 |---|---|
 | `frontend/src/app/customer/pages/my-bookings.component.ts` | Interface + template + CSS (6 lines added) |
+
+## Session 2026-06-26 - Discount Chart Line Wiring (Dashboard)
+
+**Branch:** `frontend`
+
+### Scope
+`frontend/src/app/admin/pages/dashboard.component.ts` - Complete the discount chart line wiring that was partially scaffolded.
+
+### Changes
+
+1. **CSS** - Added `.line-disc` to both style blocks (first set: `stroke: #dc2626`, `stroke-dasharray: 4 4`, `stroke-width: 1`, `vector-effect: non-scaling-stroke`; second set: `stroke-width: 2`, `stroke-linecap/linejoin: round`). Added `.legend-dot.disc` and `.summary-item.disc` CSS rules.
+
+2. **Template** - Added `@if` block for discount legend item (`.legend-item` with `.legend-dot.disc`). Added `@if` block for discount summary (`.summary-item.disc` with `discountTotal` signal).
+
+3. **`discountTotal` signal** - Added `discountTotal = signal(0)` near other total signals.
+
+4. **`rebuildChart()`** - Added `discArr` to array declarations. Added `discTotal` variable. Push `vals.disc` into `discArr` and accumulate `discTotal` in loop. Set `discountTotal` signal. Added `discArr` to `maxVal` computation. Added `this.discountLine.set(buildLine(discArr, pills.discount))`.
+
+5. **`clearChart()`** - Added `this.discountLine.set('')` and `this.discountTotal.set(0)`.
+
+### Verification
+
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | 0 errors |
+
+### Files changed
+
+| File | Action |
+|---|---|
+| `frontend/src/app/admin/pages/dashboard.component.ts` | ~30 lines added (CSS + template + TS logic) |
+
+## Session 2026-06-26 - Bar + Donut Charts for Bottom 3 Dashboard Sections
+
+### Scope
+`frontend/src/app/admin/pages/dashboard.component.ts` - Add CSS-only bar chart + donut pie chart above each of the 3 bottom dashboard tables: Category Breakdown, Customer Leaderboard, Servicer Leaderboard.
+
+### Changes
+
+1. **DONUT_COLORS constant** - Added after `ChartLineKey` type: `['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6b7280']`
+
+2. **Computed chart signals** (9 new signals):
+   - `catBarTop5` - top 5 categories by `count`, with `{label, value, pct}` for bar rows
+   - `catDonutGradient` - `conic-gradient()` string from top 5 + other by `fees`
+   - `catDonutLegend` - legend items with `{name, color}` for donut
+   - `custBarTop5` - top 5 customers by `totalSpent`
+   - `custDonutGradient` - conic-gradient by `totalSpent`
+   - `custDonutLegend` - legend by `totalSpent`
+   - `svcBarTop5` - top 5 servicers by `revenue`
+   - `svcDonutGradient` - conic-gradient by `revenue`
+   - `svcDonutLegend` - legend by `revenue`
+
+3. **Helper methods** - `buildDonutGradient<T>()` and `buildDonutLegend<T>()` generic methods to compute conic-gradient stops and legend items from any data source.
+
+4. **Template** - Added `chart-row` (bar left, donut right) above each table in the 3 sections:
+   - Category Breakdown: bar = bookingCount, donut = fees slice
+   - Customer Leaderboard: bar = totalSpent (formatted as RM), donut = totalSpent
+   - Servicer Leaderboard: bar = revenue (formatted as RM), donut = revenue
+
+5. **CSS** - Added `.chart-row`, `.chart-left`, `.chart-right` for flex layout. Added `.h-bar-chart`, `.h-bar-row`, `.h-bar-label`, `.h-bar-track`, `.h-bar-fill`, `.h-bar-val` for bar chart. Added `.donut`, `.donut-legend`, `.donut-dot` for donut using `mask: radial-gradient(circle, transparent 55%, black 56%)`. Added `@media (max-width: 760px) { .chart-row { display: none; } }` to hide charts on mobile.
+
+### Verification
+
+| Gate | Result |
+|------|--------|
+| `npx tsc --noEmit` (frontend/) | 0 errors |
+
+### Files changed
+
+| File | Action |
+|---|---|
+| `frontend/src/app/admin/pages/dashboard.component.ts` | ~180 lines added (TS signals + template + CSS) |
