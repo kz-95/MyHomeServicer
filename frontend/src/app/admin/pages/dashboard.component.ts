@@ -107,7 +107,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         <div class="cat-marquee" (mousedown)="onMarqueeMouseDown($event, marqueeEl)" #marqueeEl>
           <button class="chip" [class.active]="!dashCategoryId()" (click)="dashCategoryId.set(''); reloadDashboard()">All</button>
           @for (cat of parentCategories(); track cat.id) {
-            <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
+            <button class="chip" [class.active]="dashCategoryId() === cat.id || isChildOfParent(cat.id)" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
           }
         </div>
         <!-- Row 2: Child categories -->
@@ -1141,6 +1141,14 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
   showSection(s: string): boolean { return this.sectionFilters()[s] || this.sectionFilters()['all']; }
+
+  /** Whether the currently selected category is a child of the given parent ID. */
+  isChildOfParent(parentId: string): boolean {
+    const sel = this.dashCategoryId();
+    if (!sel) return false;
+    const selCat = this.dashCategories().find(c => c.id === sel);
+    return selCat?.parentCategoryId === parentId;
+  }
 
   // ── Drag-to-scroll ───────────────────────────────────────────────────
   private _dragActive = false;
