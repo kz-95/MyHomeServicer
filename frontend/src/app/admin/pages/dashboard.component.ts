@@ -203,23 +203,23 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
             </div>
             <div class="fin-cf-row">
               <span class="fin-label">Fees <button class="hint-btn" title="Platform's commission (20%) collected from completed bookings.">(?)</button></span>
-              <span class="fin-cf-sub">RM {{ fd.totalFees | number:'1.2-2' }}</span>
+              <span class="cf-good">RM {{ fd.totalFees | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
               <span class="fin-label">Top-ups <button class="hint-btn" title="Customer wallet top-ups (deposit_topup transactions).">(?)</button></span>
-              <span class="fin-cf-sub">RM {{ fd.totalTopUps | number:'1.2-2' }}</span>
+              <span class="cf-good">RM {{ fd.totalTopUps | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
               <span class="fin-label">Discounts <button class="hint-btn" title="Registered customer discounts + promotion redemptions.">(?)</button></span>
-              <span class="fin-cf-sub">RM {{ ((fd.registeredDiscount ?? 0) + (fd.promoCost ?? 0)) | number:'1.2-2' }}</span>
+              <span class="cf-bad">RM {{ ((fd.registeredDiscount ?? 0) + (fd.promoCost ?? 0)) | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
               <span class="fin-label">Rewards <button class="hint-btn" title="Loyalty points redeemed by customers.">(?)</button></span>
-              <span class="fin-cf-sub">RM {{ (fd.pointsCost ?? 0) | number:'1.2-2' }}</span>
+              <span class="cf-bad">RM {{ (fd.pointsCost ?? 0) | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
               <span class="fin-label">Gateway <button class="hint-btn" title="Stripe/gateway processing fees (3.4% + RM 1.00).">(?)</button></span>
-              <span class="fin-cf-sub">RM {{ (fd.gatewayFee ?? 0) | number:'1.2-2' }}</span>
+              <span class="cf-bad">RM {{ (fd.gatewayFee ?? 0) | number:'1.2-2' }}</span>
             </div>
           </div>
           <!-- Card 3: Escrow -->
@@ -343,6 +343,10 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
                 <!-- Payouts line -->
                 @if (chartPills()['payouts'] && payoutsLine()) {
                   <polyline [attr.points]="payoutsLine()" class="line-payout" />
+                }
+                <!-- Discount line -->
+                @if (chartPills()['discount'] && discountLine()) {
+                  <polyline [attr.points]="discountLine()" class="line-disc" />
                 }
                 <!-- X-axis labels -->
                 @for (xl of xLabels(); track xl.x) {
@@ -564,6 +568,8 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       .fin-cf-cashflow { font-size: 1.1rem; font-weight: 600; color: inherit; }
 .fin-cf-cashflow.neg { color: #dc2626; }
 .fin-cf-sub { font-size: 1.1rem; font-weight: 600; color: var(--color-text); }
+.cf-good { font-size: 1.1rem; font-weight: 600; color: #16a34a; }
+.cf-bad { font-size: 1.1rem; font-weight: 600; color: #dc2626; }
       .fin-cf-net { font-size: 0.78rem; color: var(--color-muted); }
       .urgent-card {
         border: 1px solid var(--color-border);
@@ -996,6 +1002,7 @@ export class AdminDashboardComponent implements OnInit {
   feesLine = signal('');
   escrowLine = signal('');
   payoutsLine = signal('');
+  discountLine = signal('');
   gridLines = signal<{ y: number; label: string }[]>([]);
   xLabels = signal<{ x: number; label: string }[]>([]);
 
@@ -1227,10 +1234,10 @@ export class AdminDashboardComponent implements OnInit {
     const pills = this.chartPills();
 
     // Gather all unique dates from all series
-    const allDays = new Map<string, { rev: number; fee: number; esc: number; pay: number }>();
+    const allDays = new Map<string, { rev: number; fee: number; esc: number; pay: number; disc: number }>();
 
     for (const d of fd.dailyRevenue) {
-      if (!allDays.has(d.date)) allDays.set(d.date, { rev: 0, fee: 0, esc: 0, pay: 0 });
+      if (!allDays.has(d.date)) allDays.set(d.date, { rev: 0, fee: 0, esc: 0, pay: 0, disc: 0 });
       const pt = allDays.get(d.date)!;
       pt.rev = d.revenue;
       pt.fee = d.fees;
@@ -1238,15 +1245,22 @@ export class AdminDashboardComponent implements OnInit {
 
     if (fd.dailyEscrow) {
       for (const d of fd.dailyEscrow) {
-        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, esc: 0, pay: 0 });
+        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, esc: 0, pay: 0, disc: 0 });
         allDays.get(d.day)!.esc = d.amount;
       }
     }
 
     if (fd.dailyPayouts) {
       for (const d of fd.dailyPayouts) {
-        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, esc: 0, pay: 0 });
+        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, esc: 0, pay: 0, disc: 0 });
         allDays.get(d.day)!.pay = d.amount;
+      }
+    }
+
+    if (fd.dailyDiscount) {
+      for (const d of fd.dailyDiscount) {
+        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, esc: 0, pay: 0, disc: 0 });
+        allDays.get(d.day)!.disc = d.amount;
       }
     }
 
