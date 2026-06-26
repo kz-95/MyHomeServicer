@@ -111,14 +111,14 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       <div class="dash-head-a">
         <!-- Row 1: Parent categories -->
         <div class="cat-marquee" (mousedown)="onMarqueeMouseDown($event, marqueeEl)" #marqueeEl>
-          <button class="chip" [class.active]="selectedCatIds().size === 0" (click)="clearCats()">All</button>
+          <button class="chip" [class.active]="selectedCatIds().size === 0 || allParentsSelected()" (click)="toggleAllParents()">All</button>
           @for (cat of parentCategories(); track cat.id) {
             <button class="chip" [class.active]="isCatSelected(cat.id) || isChildOfParent(cat.id)" (click)="toggleCat(cat.id)">{{ cat.name }}</button>
           }
         </div>
         <!-- Row 2: Child categories -->
         <div class="cat-marquee sub" (mousedown)="onMarqueeMouseDown($event, childMarqueeEl)" #childMarqueeEl>
-          <button class="chip" [class.active]="selectedCatIds().size === 0" (click)="clearCats()">All</button>
+          <button class="chip" [class.active]="selectedCatIds().size === 0 || allChildrenSelected()" (click)="toggleAllChildren()">All</button>
           @for (cat of filteredChildCategories(); track cat.id) {
             <button class="chip" [class.active]="isCatSelected(cat.id)" (click)="toggleCat(cat.id)">{{ cat.name }}</button>
           }
@@ -357,12 +357,29 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                 />
               </div>
               <div class="chart-right">
+                <div class="donut-header">
+                  <span class="muted small">Show by</span>
+                  <select [(ngModel)]="catDonutMetric" (ngModelChange)="onCatDonutMetricChange()" class="donut-select">
+                    <option value="fees">Fees</option>
+                    <option value="count">Bookings</option>
+                    <option value="revenue">Revenue</option>
+                  </select>
+                </div>
                 <app-donut-chart
                   [labels]="catDonutLabels()"
                   [values]="catDonutValues()"
                   [colors]="DONUT_COLORS"
                   (sliceClick)="onCatSliceClick($event)"
                 />
+                <div class="donut-legend">
+                  @for (item of catDonutLegend(); track item.label) {
+                    <div class="donut-legend-item">
+                      <span class="donut-dot" [style.background]="item.color"></span>
+                      <span class="donut-legend-label">{{ item.label }}</span>
+                      <span class="donut-legend-val">{{ item.value | number:'1.2-2' }}</span>
+                    </div>
+                  }
+                </div>
               </div>
             </div>
             <table class="cb-table">
@@ -410,12 +427,28 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                 />
               </div>
               <div class="chart-right">
+                <div class="donut-header">
+                  <span class="muted small">Show by</span>
+                  <select [(ngModel)]="custDonutMetric" (ngModelChange)="onCustDonutMetricChange()" class="donut-select">
+                    <option value="totalSpent">Total Spent</option>
+                    <option value="bookingCount">Bookings</option>
+                  </select>
+                </div>
                 <app-donut-chart
                   [labels]="custDonutLabels()"
                   [values]="custDonutValues()"
                   [colors]="DONUT_COLORS"
                   (sliceClick)="onCustSliceClick($event)"
                 />
+                <div class="donut-legend">
+                  @for (item of custDonutLegend(); track item.label) {
+                    <div class="donut-legend-item">
+                      <span class="donut-dot" [style.background]="item.color"></span>
+                      <span class="donut-legend-label">{{ item.label }}</span>
+                      <span class="donut-legend-val">{{ item.value | number:'1.2-2' }}</span>
+                    </div>
+                  }
+                </div>
               </div>
             </div>
             <table class="lb-table">
@@ -463,12 +496,28 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                 />
               </div>
               <div class="chart-right">
+                <div class="donut-header">
+                  <span class="muted small">Show by</span>
+                  <select [(ngModel)]="svcDonutMetric" (ngModelChange)="onSvcDonutMetricChange()" class="donut-select">
+                    <option value="revenue">Revenue</option>
+                    <option value="jobCount">Jobs</option>
+                  </select>
+                </div>
                 <app-donut-chart
                   [labels]="svcDonutLabels()"
                   [values]="svcDonutValues()"
                   [colors]="DONUT_COLORS"
                   (sliceClick)="onSvcSliceClick($event)"
                 />
+                <div class="donut-legend">
+                  @for (item of svcDonutLegend(); track item.label) {
+                    <div class="donut-legend-item">
+                      <span class="donut-dot" [style.background]="item.color"></span>
+                      <span class="donut-legend-label">{{ item.label }}</span>
+                      <span class="donut-legend-val">{{ item.value | number:'1.2-2' }}</span>
+                    </div>
+                  }
+                </div>
               </div>
             </div>
             <table class="lb-table">
@@ -879,6 +928,15 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .chart-left { flex: 1; min-width: 0; }
       .chart-right { flex: 0 0 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
+      /* ── Donut header + legend ─────────────────────────────────────── */
+      .donut-header { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; }
+      .donut-select { font-size: 0.78rem; padding: 0.2rem 0.4rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); color: var(--color-text); font-family: inherit; }
+      .donut-legend { margin-top: 0.5rem; width: 100%; }
+      .donut-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; margin-bottom: 0.2rem; color: var(--color-muted); }
+      .donut-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+      .donut-legend-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .donut-legend-val { font-weight: 600; color: var(--color-text); }
+
       /* ── Responsive ─────────────────────────────────────────────────── */
       @media (max-width: 760px) { .chart-row { display: none; } }
       @media (max-width: 900px) {
@@ -1018,6 +1076,53 @@ export class AdminDashboardComponent implements OnInit {
     this.selectedCatIds.set(new Set());
     this.loadFinancial(this.financialDays(), '');
   }
+  /** Whether every parent category is currently selected. */
+  allParentsSelected = computed(() => {
+    const parents = this.parentCategories();
+    if (parents.length === 0) return false;
+    return parents.every(c => this.selectedCatIds().has(c.id));
+  });
+  /** Whether every visible child category is currently selected. */
+  allChildrenSelected = computed(() => {
+    const children = this.filteredChildCategories();
+    if (children.length === 0) return false;
+    return children.every(c => this.selectedCatIds().has(c.id));
+  });
+  /** Select or deselect all parent categories; does not affect children. */
+  toggleAllParents(): void {
+    if (this.allParentsSelected()) {
+      this.selectedCatIds.update(s => {
+        const next = new Set(s);
+        for (const c of this.parentCategories()) next.delete(c.id);
+        return next;
+      });
+    } else {
+      this.selectedCatIds.update(s => {
+        const next = new Set(s);
+        for (const c of this.parentCategories()) next.add(c.id);
+        return next;
+      });
+    }
+    this.loadFinancial(this.financialDays(), this.singleCatId);
+  }
+  /** Select or deselect all visible child categories; does not affect parents. */
+  toggleAllChildren(): void {
+    const children = this.filteredChildCategories();
+    if (this.allChildrenSelected()) {
+      this.selectedCatIds.update(s => {
+        const next = new Set(s);
+        for (const c of children) next.delete(c.id);
+        return next;
+      });
+    } else {
+      this.selectedCatIds.update(s => {
+        const next = new Set(s);
+        for (const c of children) next.add(c.id);
+        return next;
+      });
+    }
+    this.loadFinancial(this.financialDays(), this.singleCatId);
+  }
   /** Extract single category ID helper. */
   private get singleCatId(): string {
     const ids = this.selectedCatIds();
@@ -1134,19 +1239,70 @@ export class AdminDashboardComponent implements OnInit {
   catBarLabels = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.name));
   catBarValues = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.count));
   catDonutLabels = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.name));
-  catDonutValues = computed(() => this.sortedCategoryBreakdown().slice(0, 5).map(r => r.fees));
+  catDonutValues = computed(() => {
+    const rows = this.sortedCategoryBreakdown().slice(0, 5);
+    const m = this.catDonutMetric();
+    if (m === 'fees') return rows.map(r => r.fees);
+    if (m === 'count') return rows.map(r => r.count);
+    return rows.map(r => r.revenue);
+  });
 
   // Customer leaderboard charts
   custBarLabels = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.name));
   custBarValues = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.totalSpent));
   custDonutLabels = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.name));
-  custDonutValues = computed(() => this.sortedCustomerLB().slice(0, 5).map(r => r.totalSpent));
+  custDonutValues = computed(() => {
+    const rows = this.sortedCustomerLB().slice(0, 5);
+    const m = this.custDonutMetric();
+    if (m === 'bookingCount') return rows.map(r => r.bookingCount);
+    return rows.map(r => r.totalSpent);
+  });
 
   // Servicer leaderboard charts
   svcBarLabels = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.businessName || r.name));
   svcBarValues = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.revenue));
   svcDonutLabels = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.businessName || r.name));
-  svcDonutValues = computed(() => this.sortedServicerLB().slice(0, 5).map(r => r.revenue));
+  svcDonutValues = computed(() => {
+    const rows = this.sortedServicerLB().slice(0, 5);
+    const m = this.svcDonutMetric();
+    if (m === 'jobCount') return rows.map(r => r.jobCount);
+    return rows.map(r => r.revenue);
+  });
+
+  // ── Donut metric selectors ──────────────────────────────────────────
+  catDonutMetric = signal<'fees' | 'count' | 'revenue'>('fees');
+  custDonutMetric = signal<'totalSpent' | 'bookingCount'>('totalSpent');
+  svcDonutMetric = signal<'revenue' | 'jobCount'>('revenue');
+
+  onCatDonutMetricChange(): void { /* triggers recompute via signal reads */ }
+  onCustDonutMetricChange(): void { /* triggers recompute via signal reads */ }
+  onSvcDonutMetricChange(): void { /* triggers recompute via signal reads */ }
+
+  // ── Donut legends ───────────────────────────────────────────────────
+  catDonutLegend = computed(() => {
+    const rows = this.sortedCategoryBreakdown().slice(0, 5);
+    return rows.map((r, i) => ({
+      label: r.name,
+      value: this.catDonutValues()[i],
+      color: DONUT_COLORS[i % DONUT_COLORS.length],
+    }));
+  });
+  custDonutLegend = computed(() => {
+    const rows = this.sortedCustomerLB().slice(0, 5);
+    return rows.map((r, i) => ({
+      label: r.name,
+      value: this.custDonutValues()[i],
+      color: DONUT_COLORS[i % DONUT_COLORS.length],
+    }));
+  });
+  svcDonutLegend = computed(() => {
+    const rows = this.sortedServicerLB().slice(0, 5);
+    return rows.map((r, i) => ({
+      label: r.businessName || r.name,
+      value: this.svcDonutValues()[i],
+      color: DONUT_COLORS[i % DONUT_COLORS.length],
+    }));
+  });
 
   // Chart interaction handlers
   onCatBarClick(idx: number): void { /* handled by Chart.js built-in interactions */ }

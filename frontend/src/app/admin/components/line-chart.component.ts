@@ -31,6 +31,7 @@ export class LineChartComponent implements OnChanges {
   @Input() labels: string[] = [];
   @Input() datasets: { label: string; data: number[]; color: string; dashed?: boolean; hidden?: boolean }[] = [];
   @Input() loading = false;
+  @Input() error = false;
   @Input() chartType: 'line' | 'bar' = 'line';
   @Output() retry = new EventEmitter<void>();
 

@@ -755,6 +755,8 @@ interface Penalty {
       .preview { padding: 0.5rem 0.7rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius); }
       .checkbox-row { flex-direction: row; align-items: center; gap: 0.5rem; font-weight: 400; }
       .checkbox-row input { width: auto; }
+      .check-label { flex-direction: row; align-items: center; gap: 0.5rem; font-weight: 400; }
+      .check-label input { width: auto; flex-shrink: 0; }
       .err { color: var(--color-danger); font-size: 0.88rem; }
       .success-msg { color: var(--color-success); font-size: 0.85rem; font-weight: 500; }
       .small { font-size: 0.82rem; }
