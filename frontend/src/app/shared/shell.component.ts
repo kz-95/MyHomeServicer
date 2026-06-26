@@ -96,7 +96,7 @@ interface PromoValidationResult {
     DemoBarComponent,
   ],
     template: `
-    <div class="shell">
+    <div class="shell" [class.admin-portal]="portalTitle === 'Admin'">
       <app-demo-bar />
       <header class="topbar">
         <!-- Logo title - clicking it returns to the public home page. -->
@@ -886,6 +886,7 @@ interface PromoValidationResult {
         flex: 1;
         overflow: hidden;
       }
+.admin-portal .content { --content-pt: 0; }
       .content {
         flex: 1;
         min-height: 0;
