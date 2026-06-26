@@ -886,7 +886,7 @@ interface PromoValidationResult {
         flex: 1;
         overflow: hidden;
       }
-.admin-portal .content { --content-pt: 0; }
+.admin-portal .content { --content-pt: 0; --content-pl: 0; --content-pr: 0; }
       .content {
         flex: 1;
         min-height: 0;

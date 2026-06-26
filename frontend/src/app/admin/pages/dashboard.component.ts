@@ -110,7 +110,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
         </div>
         <!-- Row 2: Child categories -->
         <div class="cat-marquee sub">
-          @for (cat of childCategories(); track cat.id) {
+          @for (cat of filteredChildCategories(); track cat.id) {
             <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
           }
         </div>
@@ -143,6 +143,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       </div>
     </div>
 
+    <div class="dash-content">
     <!-- ── 1. PENDING QUEUES ────────────────────────────────────────────── -->
     @if (showSection('queues')) {
       @if (data(); as d) {
@@ -491,6 +492,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
     @if (loadFailed()) {
       <p class="err">Could not load dashboard queues. Please refresh the page.</p>
     }
+    </div>
   `,
   styles: [
     `
@@ -499,19 +501,17 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
 
       /* ── Sticky top bar ────────────────────────────────────────────── */
       .dash-head {
-        margin-left: -2rem;
-        margin-right: -2rem;
-        padding: 0.4rem 2rem 0 2rem;
+        padding: 0.4rem 0 0 0;
         background: var(--color-surface);
         border-bottom: 1px solid var(--color-border);
       }
-      .dash-head-a { padding: 0.6rem 1rem; background: var(--color-bg); }
-      .dash-head-b { padding: 0.4rem 1rem; background: var(--color-surface); }
+      .dash-head-a { padding: 0.6rem 2rem; background: var(--color-bg); }
+      .dash-head-b { padding: 0.4rem 2rem; background: var(--color-surface); }
+      .dash-content { padding: 0 2rem; }
       .dash-divider { border: none; border-top: 1px solid var(--color-border); margin: 0; }
-      .cat-marquee { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; scrollbar-width: none; }
-.cat-marquee::-webkit-scrollbar { display: none; }
+      .cat-marquee { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; scrollbar-width: none; cursor: grab; user-select: none; }
+      .cat-marquee::-webkit-scrollbar { display: none; }
       .cat-marquee.sub { padding-top: 0.3rem; }
-      .cat-marquee::-webkit-scrollbar { height: 4px; }
 
       /* ── Hint tooltip (?) ──────────────────────────────────────────── */
       .hint-btn {
@@ -1028,6 +1028,13 @@ export class AdminDashboardComponent implements OnInit {
   dashCategories = signal<{ id: string; name: string; parentCategoryId: string | null }[]>([]);
   parentCategories = computed(() => this.dashCategories().filter((c) => !c.parentCategoryId));
   childCategories = computed(() => this.dashCategories().filter((c) => c.parentCategoryId));
+  filteredChildCategories = computed(() => {
+    const sel = this.dashCategoryId();
+    if (!sel) return this.childCategories();
+    const selCat = this.dashCategories().find((c) => c.id === sel);
+    if (selCat?.parentCategoryId) return this.childCategories();
+    return this.childCategories().filter((c) => c.parentCategoryId === sel);
+  });
   labelInterval = computed(() => (this.financialDays() > 20 ? 5 : 1));
 
   // ── Search ───────────────────────────────────────────────────────────
