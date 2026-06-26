@@ -893,7 +893,7 @@ interface PromoValidationResult {
         display: flex;
         flex-direction: column;
         overflow-y: auto;
-        padding: var(--content-pt, 1.5rem) 2rem 1.5rem 2rem;
+        padding: var(--content-pt, 1.5rem) var(--content-pr, 2rem) 1.5rem var(--content-pl, 2rem);
         overscroll-behavior-y: contain;
       }
       .content-main {
@@ -942,7 +942,7 @@ interface PromoValidationResult {
       app-site-footer { margin-top: 300px; }
 
       @media (max-width: 1024px) and (min-width: 761px) {
-        .content { padding: var(--content-pt, 1.25rem) 1.5rem 1.25rem 1.5rem; }
+        .content { padding: var(--content-pt, 1.25rem) var(--content-pr, 1.5rem) 1.25rem var(--content-pl, 1.5rem); }
       }
 
       @media (max-width: 760px) {
@@ -952,7 +952,7 @@ interface PromoValidationResult {
         .account { align-items: flex-start; }
         .spacer { display: none; }
         .body { flex-direction: column; overflow: hidden; }
-        .content { padding: var(--content-pt, 1rem) 1rem 1rem 1rem; overflow-y: auto; }
+        .content { padding: var(--content-pt, 1rem) var(--content-pr, 1rem) 1rem var(--content-pl, 1rem); overflow-y: auto; }
       }
 
       /* DISP-11/§5.6: phone - keep the account name, swap the "Sign out" text button

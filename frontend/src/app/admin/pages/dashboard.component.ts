@@ -499,6 +499,8 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
 
       /* ── Sticky top bar ────────────────────────────────────────────── */
       .dash-head {
+        margin-left: -2rem;
+        margin-right: -2rem;
         padding: 0.4rem 2rem 0 2rem;
         background: var(--color-surface);
         border-bottom: 1px solid var(--color-border);
