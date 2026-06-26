@@ -105,16 +105,16 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       <div class="dash-head-a">
         <!-- Row 1: Parent categories -->
         <div class="cat-marquee" (mousedown)="onMarqueeMouseDown($event, marqueeEl)" #marqueeEl>
-          <button class="chip" [class.active]="!dashCategoryId()" (click)="dashCategoryId.set(''); reloadDashboard()">All</button>
+          <button class="chip" [class.active]="selectedCatIds().size === 0" (click)="clearCats()">All</button>
           @for (cat of parentCategories(); track cat.id) {
-            <button class="chip" [class.active]="dashCategoryId() === cat.id || isChildOfParent(cat.id)" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
+            <button class="chip" [class.active]="isCatSelected(cat.id) || isChildOfParent(cat.id)" (click)="toggleCat(cat.id)">{{ cat.name }}</button>
           }
         </div>
         <!-- Row 2: Child categories -->
         <div class="cat-marquee sub" (mousedown)="onMarqueeMouseDown($event, childMarqueeEl)" #childMarqueeEl>
-          <button class="chip" [class.active]="!dashCategoryId()" (click)="dashCategoryId.set(''); reloadDashboard()">All</button>
+          <button class="chip" [class.active]="selectedCatIds().size === 0" (click)="clearCats()">All</button>
           @for (cat of filteredChildCategories(); track cat.id) {
-            <button class="chip" [class.active]="dashCategoryId() === cat.id" (click)="dashCategoryId.set(cat.id); reloadDashboard()">{{ cat.name }}</button>
+            <button class="chip" [class.active]="isCatSelected(cat.id)" (click)="toggleCat(cat.id)">{{ cat.name }}</button>
           }
         </div>
 
@@ -1165,12 +1165,15 @@ export class AdminDashboardComponent implements OnInit {
   }
   showSection(s: string): boolean { return this.sectionFilters()[s] || this.sectionFilters()['all']; }
 
-  /** Whether the currently selected category is a child of the given parent ID. */
+  /** Whether any selected category is a child of the given parent ID. */
   isChildOfParent(parentId: string): boolean {
-    const sel = this.dashCategoryId();
-    if (!sel) return false;
-    const selCat = this.dashCategories().find(c => c.id === sel);
-    return selCat?.parentCategoryId === parentId;
+    const sel = this.selectedCatIds();
+    if (sel.size === 0) return false;
+    for (const id of sel) {
+      const c = this.dashCategories().find(x => x.id === id);
+      if (c?.parentCategoryId === parentId) return true;
+    }
+    return false;
   }
 
   // ── Drag-to-scroll ───────────────────────────────────────────────────
@@ -1288,16 +1291,43 @@ export class AdminDashboardComponent implements OnInit {
   activeYear = computed(() => new Date(this.dateFrom()).getFullYear());
 
   // ── Category filter ──────────────────────────────────────────────────
-  dashCategoryId = signal('');
+  selectedCatIds = signal<Set<string>>(new Set());
+  isCatSelected(id: string): boolean { return this.selectedCatIds().has(id); }
+  toggleCat(id: string): void {
+    this.selectedCatIds.update(s => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    const ids = this.selectedCatIds();
+    const singleId = ids.size === 1 ? [...ids][0] : '';
+    this.loadFinancial(this.financialDays(), singleId);
+  }
+  clearCats(): void {
+    this.selectedCatIds.set(new Set());
+    this.loadFinancial(this.financialDays(), '');
+  }
+  /** Extract single category ID helper. */
+  private get singleCatId(): string {
+    const ids = this.selectedCatIds();
+    return ids.size === 1 ? [...ids][0] : '';
+  }
   dashCategories = signal<{ id: string; name: string; parentCategoryId: string | null }[]>([]);
   parentCategories = computed(() => this.dashCategories().filter((c) => !c.parentCategoryId));
   childCategories = computed(() => this.dashCategories().filter((c) => c.parentCategoryId));
   filteredChildCategories = computed(() => {
-    const sel = this.dashCategoryId();
-    if (!sel) return this.childCategories();
-    const selCat = this.dashCategories().find((c) => c.id === sel);
-    if (selCat?.parentCategoryId) return this.childCategories();
-    return this.childCategories().filter((c) => c.parentCategoryId === sel);
+    const sel = this.selectedCatIds();
+    if (sel.size === 0) return this.childCategories();
+    // Show children of ALL selected parent categories
+    const filtered = this.childCategories().filter(c => sel.has(c.parentCategoryId!));
+    // Also include children that are directly selected
+    for (const id of sel) {
+      const cat = this.dashCategories().find(c => c.id === id);
+      if (cat?.parentCategoryId && !filtered.some(c => c.id === id)) {
+        filtered.push(cat);
+      }
+    }
+    return filtered;
   });
   labelInterval = computed(() => (this.financialDays() > 20 ? 5 : 1));
 
@@ -1478,7 +1508,7 @@ export class AdminDashboardComponent implements OnInit {
     const from = todayMinus(days);
     this.dateFrom.set(this.formatDate(from));
     this.dateTo.set(this.formatDate(to));
-    this.loadFinancial(days, this.dashCategoryId());
+    this.loadFinancial(days, this.singleCatId);
   }
 
   setDateRange(from: string, to: string): void {
@@ -1489,7 +1519,7 @@ export class AdminDashboardComponent implements OnInit {
       const t = new Date(to);
       const diffDays = Math.ceil((t.getTime() - f.getTime()) / (1000 * 60 * 60 * 24));
       this.financialDays.set(Math.max(1, diffDays));
-      this.loadFinancial(Math.max(1, diffDays), this.dashCategoryId());
+      this.loadFinancial(Math.max(1, diffDays), this.singleCatId);
     }
   }
 
@@ -1502,7 +1532,7 @@ export class AdminDashboardComponent implements OnInit {
     this.dateTo.set(to.toISOString().slice(0, 10));
     const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
     this.financialDays.set(Math.max(1, diffDays));
-    this.loadFinancial(Math.max(1, diffDays), this.dashCategoryId());
+    this.loadFinancial(Math.max(1, diffDays), this.singleCatId);
   }
   setYear(y: number): void {
     const from = new Date(y, 0, 1);
@@ -1511,12 +1541,12 @@ export class AdminDashboardComponent implements OnInit {
     this.dateTo.set(to.toISOString().slice(0, 10));
     const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
     this.financialDays.set(Math.max(1, diffDays));
-    this.loadFinancial(Math.max(1, diffDays), this.dashCategoryId());
+    this.loadFinancial(Math.max(1, diffDays), this.singleCatId);
   }
 
   reloadDashboard(): void {
     this.loadDashboard();
-    this.loadFinancial(this.financialDays(), this.dashCategoryId());
+    this.loadFinancial(this.financialDays(), this.singleCatId);
   }
 
   // ── Category helpers ─────────────────────────────────────────────────
@@ -1542,7 +1572,7 @@ export class AdminDashboardComponent implements OnInit {
 
   private loadDashboard(): void {
     const p: Record<string, string> = {};
-    if (this.dashCategoryId()) p['categoryId'] = this.dashCategoryId();
+    if (this.singleCatId) p['categoryId'] = this.singleCatId;
     this.api.get<Dashboard>('/admin/dashboard', p).subscribe({
       next: (d) => this.data.set(d),
       error: () => this.loadFailed.set(true),
