@@ -359,7 +359,28 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     dailyPayouts.push({ day: key, amount: payoutsMap.get(key) ?? 0 });
   }
 
-  // ── customerLeaderboard - top 20 customers by total spent ──
+  // ── dailyDiscount - registered_customer_discount per day ──
+  const discountDailyRows = await prisma.$queryRawUnsafe<DailyValueRow[]>(
+    `SELECT t.created_at::date::text AS day,
+            COALESCE(SUM(t.amount), 0)::numeric AS amount
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'registered_customer_discount' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}
+     GROUP BY t.created_at::date ORDER BY day`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const discMap = new Map<string, number>();
+  for (const r of discountDailyRows) { discMap.set(r.day, Number(r.amount)); }
+  const dailyDiscount: { day: string; amount: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    dailyDiscount.push({ day: key, amount: discMap.get(key) ?? 0 });
+  }
+
+  // ── customerLeaderboard - top 50 customers by total spent ──
   const customerRows = await prisma.$queryRawUnsafe<CustomerLeaderboardRow[]>(
     `SELECT u.id, u.name, u.email,
             COUNT(DISTINCT b.id)::bigint AS booking_count,
@@ -372,7 +393,7 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
        ${categoryId ? 'AND qr.category_id = $2::uuid' : ''}
      GROUP BY u.id, u.name, u.email
      ORDER BY total_spent DESC
-     LIMIT 20`,
+      LIMIT 50`,
     ...(categoryId ? [start, categoryId] : [start]),
   );
   const customerLeaderboard = customerRows.map((r) => ({
@@ -397,7 +418,7 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
      ${categoryId ? "WHERE qr.category_id = $2::uuid OR b.id IS NULL" : ''}
      GROUP BY s.id, s.name, s.business_name, s.rating
      ORDER BY revenue DESC
-     LIMIT 20`,
+      LIMIT 50`,
     ...(categoryId ? [start, categoryId] : [start]),
   );
 
@@ -438,6 +459,7 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     dailyRevenue,
     dailyEscrow,
     dailyPayouts,
+    dailyDiscount,
     customerLeaderboard,
     servicerLeaderboard,
   };

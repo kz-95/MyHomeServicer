@@ -81,11 +81,12 @@ interface FinancialDashboard {
   dailyRevenue: DailyRevenuePoint[];
   dailyEscrow?: DailyValue[];
   dailyPayouts?: DailyValue[];
+  dailyDiscount?: DailyValue[];
   customerLeaderboard?: CustomerLeader[];
   servicerLeaderboard?: ServicerLeader[];
 }
 
-type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
+type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -211,22 +212,12 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       </div>
       <div class="search-row">
         <div class="search-wrap">
-          <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16"
-               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-            <input
-              type="search"
-              class="toolbar-search"
-              placeholder="Search bookings, customers, servicers..."
-              [(ngModel)]="searchQuery"
-              (input)="onSearchChange()"
-            />
+          <app-icon name="search" sizeToken="sm" class="search-icon-inline" />
+          <input type="search" class="toolbar-search" placeholder="Search bookings, customers, servicers..." [(ngModel)]="searchQuery" (input)="onSearchChange()" />
         </div>
         <div class="sort-controls">
           <button class="btn-ghost btn-sm sort-btn" (click)="cycleSortField()">Sort: {{ sortFieldLabel() }} <app-icon name="chevron-down" sizeToken="sm" /></button>
-          <button class="btn-ghost btn-sm" title="Reverse order" (click)="toggleSortDir()"><app-icon [name]="sortDir() === 'asc' ? 'arrow-up' : 'arrow-down'" sizeToken="sm" /></button>
+          <button class="btn-ghost btn-sm" title="Reverse order" (click)="toggleSortDir()"><app-icon [name]="sortState().dir === 'asc' ? 'arrow-up' : 'arrow-down'" sizeToken="sm" /></button>
         </div>
       </div>
     </div>
@@ -257,11 +248,11 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
               <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">All</button>
             </div>
             <div class="quarter-toggle">
-              <button class="range-btn" (click)="setQuarter(1)">Q1</button>
-              <button class="range-btn" (click)="setQuarter(2)">Q2</button>
-              <button class="range-btn" (click)="setQuarter(3)">Q3</button>
-              <button class="range-btn" (click)="setQuarter(4)">Q4</button>
-              <button class="range-btn" (click)="setYear(2026)">2026</button>
+              <button class="range-btn" [class.on]="activeQuarter() === 1" (click)="setQuarter(1)">Q1</button>
+              <button class="range-btn" [class.on]="activeQuarter() === 2" (click)="setQuarter(2)">Q2</button>
+              <button class="range-btn" [class.on]="activeQuarter() === 3" (click)="setQuarter(3)">Q3</button>
+              <button class="range-btn" [class.on]="activeQuarter() === 4" (click)="setQuarter(4)">Q4</button>
+              <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
             </div>
           </div>
 
@@ -278,6 +269,9 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
             </button>
             <button class="pill" [class.on]="chartPills()['payouts']" (click)="toggleChartPill('payouts')">
               <span class="pill-dot payout" [class.off]="!chartPills()['payouts']"></span>Pending Payouts
+            </button>
+            <button class="pill" [class.on]="chartPills()['discount']" (click)="toggleChartPill('discount')">
+              <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
             </button>
           </div>
 
@@ -607,39 +601,34 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       }
       .search-wrap {
         flex: 1;
-        position: relative;
         display: flex;
         align-items: center;
-      }
-      .sort-controls {
-        display: flex; gap: 0.4rem; flex-shrink: 0;
-      }
-      .sort-btn { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
-      .search-icon {
-        position: absolute;
-        left: 0.75rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--color-muted);
-        pointer-events: none;
-        z-index: 1;
-      }
-      .toolbar-search {
-        width: 100%;
-        padding: 0.55rem 0.85rem 0.55rem 2.5rem;
+        background: var(--color-surface);
         border: 1px solid var(--color-border);
         border-radius: var(--radius-input);
-        font-family: inherit;
-        font-size: 0.88rem;
-        color: var(--color-text);
-        background: var(--color-surface);
         transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
       }
-      .toolbar-search:focus {
-        outline: none;
+      .search-wrap:focus-within {
         border-color: var(--color-primary);
         box-shadow: var(--focus-ring);
       }
+      .sort-controls { display: flex; gap: 0.4rem; flex-shrink: 0; }
+      .sort-btn { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
+      .search-icon-inline {
+        margin: 0 0.5rem 0 0.85rem;
+        flex-shrink: 0;
+        color: var(--color-muted);
+      }
+      .toolbar-search {
+        flex: 1;
+        border: none;
+        padding: 0.55rem 0.5rem 0.55rem 0;
+        background: transparent;
+        font-family: inherit;
+        font-size: 0.88rem;
+        color: var(--color-text);
+      }
+      .toolbar-search:focus { outline: none; }
       .toolbar-search::placeholder { color: var(--color-muted); }
 
       /* ── Category chips ─────────────────────────────────────────────── */
@@ -718,12 +707,21 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
         transition: background 0.12s ease, color 0.12s ease;
       }
       .range-btn:hover { background: var(--color-bg); }
-      .range-btn.on { background: var(--color-primary); color: #fff; }
-      .year-label {
-        cursor: default;
-        opacity: 0.5;
-        padding: 0.3rem 0.7rem;
+      .range-btn.on { background: #f59e0b; color: #fff; }
+      .year-input {
+        background: transparent;
+        border: none;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--color-muted);
+        font-family: inherit;
+        width: 4ch;
+        text-align: center;
+        line-height: 1.4;
+        box-sizing: border-box;
       }
+      .year-input:focus { outline: none; color: var(--color-primary); }
 
       /* ── Chart filter pills ─────────────────────────────────────────── */
       .chart-pills {
@@ -960,6 +958,7 @@ export class AdminDashboardComponent implements OnInit {
     fees: true,
     escrow: false,
     payouts: false,
+    discount: false,
   });
 
   toggleChartPill(key: ChartLineKey): void {
@@ -993,6 +992,19 @@ export class AdminDashboardComponent implements OnInit {
   // ── Date range ───────────────────────────────────────────────────────
   dateFrom = signal(this.formatDate(todayMinus(30)));
   dateTo = signal(this.formatDate(new Date()));
+  /** Detect which quarter the current date range falls into. */
+  activeQuarter = computed(() => {
+    const from = this.dateFrom();
+    const to = this.dateTo();
+    const y = new Date(from).getFullYear();
+    const qStarts = ['', `${y}-01-01`, `${y}-04-01`, `${y}-07-01`, `${y}-10-01`];
+    const qEnds = ['', `${y}-03-31`, `${y}-06-30`, `${y}-09-30`, `${y}-12-31`];
+    for (let q = 1; q <= 4; q++) {
+      if (from === qStarts[q] && to === qEnds[q]) return q;
+    }
+    return 0;
+  });
+  activeYear = computed(() => new Date(this.dateFrom()).getFullYear());
 
   // ── Category filter ──────────────────────────────────────────────────
   dashCategoryId = signal('');
@@ -1009,20 +1021,15 @@ export class AdminDashboardComponent implements OnInit {
     { key: 'count', label: 'Bookings' },
     { key: 'name', label: 'Category' },
   ];
-  sortDir = signal<'asc' | 'desc'>('desc');
+  // ── Sort ─────────────────────────────────────────────────────────────
+  sortState = signal<{ key: string; dir: 'asc' | 'desc' }>({ key: 'fees', dir: 'desc' });
 
-  onSearchChange(): void { /* triggers recompute via signal reads in sorted arrays */ }
-
-  setSortField(key: string): void {
-    this.sortState.set({ key, dir: this.sortState().dir });
-  }
   toggleSortDir(): void {
     const s = this.sortState();
     this.sortState.set({ key: s.key, dir: s.dir === 'asc' ? 'desc' : 'asc' });
   }
 
-  // ── Sort ─────────────────────────────────────────────────────────────
-  sortState = signal<{ key: string; dir: 'asc' | 'desc' }>({ key: 'fees', dir: 'desc' });
+  onSearchChange(): void { /* triggers recompute via signal reads in sorted arrays */ }
 
   sortIcon(key: string): string {
     if (this.sortState().key !== key) return '↕';
@@ -1110,7 +1117,7 @@ export class AdminDashboardComponent implements OnInit {
 
   setQuarter(q: number): void {
     const y = new Date().getFullYear();
-    const starts = [0, 1, 4, 7, 10]; // months (0-indexed): Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct
+    const starts = [0, 0, 3, 6, 9]; // months (0-indexed): Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct
     const from = new Date(y, starts[q], 1);
     const to = new Date(y, starts[q] + 3, 0); // last day of quarter-end month
     this.dateFrom.set(from.toISOString().slice(0, 10));
