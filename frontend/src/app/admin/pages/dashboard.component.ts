@@ -947,12 +947,12 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       /* ── Bar + Donut charts ─────────────────────────────────────────── */
       .chart-row { display: flex; gap: 1rem; align-items: stretch; margin-bottom: 1rem; }
       .chart-left { flex: 1; min-width: 0; }
-      .chart-right { flex: 0 0 220px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
-      .donut-row { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
-      .donut-legend { width: 100%; }
-      .donut-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; margin-bottom: 0.15rem; color: var(--color-muted); }
-      .donut-legend-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.7rem; }
-      .donut-legend-val { font-weight: 600; color: var(--color-text); font-size: 0.7rem; white-space: nowrap; }
+      .chart-right { flex: 0 0 450px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      .donut-row { display: flex; align-items: center; gap: 0.75rem; }
+      .donut-legend { margin-top: 0.5rem; width: 100%; }
+      .donut-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; margin-bottom: 0.2rem; color: var(--color-muted); }
+      .donut-legend-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .donut-legend-val { font-weight: 600; color: var(--color-text); }
       .donut-row { display: flex; align-items: center; gap: 0.75rem; }
 
       /* ── Responsive ─────────────────────────────────────────────────── */
