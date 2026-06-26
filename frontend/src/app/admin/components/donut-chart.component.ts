@@ -90,7 +90,7 @@ export class DonutChartComponent implements OnInit, OnChanges {
           },
         },
       },
-      cutout: '55%',
+      cutout: '27%',
       onClick: (e, elements) => {
         if (elements?.length) self.sliceClick.emit(elements[0].index);
       },
