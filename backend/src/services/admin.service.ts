@@ -93,6 +93,37 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
   });
   const pendingPayouts = Number(escrowAgg._sum.amount ?? 0);
 
+  // ── totalBookingRevenue - ALL completed booking value ──
+  const [bRevRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(b.price), 0)::numeric AS total
+     FROM bookings b
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE b.status = 'completed' AND b.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const totalBookingRevenue = Number(bRevRow?.total ?? 0);
+
+  // ── totalPayouts - escrow_release (money paid to servicers) ──
+  const [payoutRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(t.amount), 0)::numeric AS total
+     FROM transactions t
+     INNER JOIN bookings b ON t.booking_id = b.id
+     INNER JOIN quote_requests qr ON b.quote_request_id = qr.id
+     WHERE t.type = 'escrow_release' AND t.status = 'completed' AND t.created_at >= $1
+       ${categoryId ? `AND qr.category_id = $2::uuid` : ''}`,
+    ...(categoryId ? [start, categoryId] : [start]),
+  );
+  const totalPayouts = Number(payoutRow?.total ?? 0);
+
+  // ── totalWithdrawals - SUM(servicer withdrawals, marked as paid) ──
+  const [wdrRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
+    `SELECT COALESCE(SUM(amount), 0)::numeric AS total
+     FROM servicer_withdrawals WHERE status = 'paid' AND created_at >= $1`,
+    start,
+  );
+  const totalWithdrawals = Number(wdrRow?.total ?? 0);
+
   // ── todayTopUps - deposit_topup today ──
   const [todayTopUpRow] = await prisma.$queryRawUnsafe<RawSumRow[]>(
     `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM transactions WHERE type = 'deposit_topup' AND status = 'completed' AND created_at >= $1`,
@@ -391,6 +422,9 @@ export async function getDashboardFinancial(days: number, categoryId?: string) {
     totalFees,
     totalEscrow,
     pendingPayouts,
+    totalBookingRevenue,
+    totalPayouts,
+    totalWithdrawals,
     todayTopUps,
     todayFees,
     urgentFeeRevenue,

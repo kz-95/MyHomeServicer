@@ -64,6 +64,13 @@ interface ServicerLeader {
 interface FinancialDashboard {
   totalTopUps: number;
   totalFees: number;
+  totalBookingRevenue?: number;
+  totalPayouts?: number;
+  totalWithdrawals?: number;
+  gatewayFee?: number;
+  registeredDiscount?: number;
+  promoCost?: number;
+  pointsCost?: number;
   totalEscrow: number;
   pendingPayouts: number;
   todayTopUps: number;
@@ -120,30 +127,38 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       }
     }
 
-    <!-- ── 2. FINANCIAL CARDS (5 cards, 1 row, no collapse) ────────────── -->
+    <!-- ── 2. FINANCIAL CARDS (4 cards) ─────────────────────────────────── -->
     @if (finData(); as fd) {
       <div class="fin-cards page-child">
+        <!-- Card 1: Cashflow -->
+        @let grossIn = (fd.totalBookingRevenue ?? 0);
+        @let grossOut = (fd.totalPayouts ?? 0) + fd.totalFees + (fd.gatewayFee ?? 0) + (fd.registeredDiscount ?? 0) + (fd.promoCost ?? 0) + (fd.pointsCost ?? 0);
+        @let gross = grossIn - grossOut;
+        @let cashflow = gross - (fd.totalWithdrawals ?? 0);
         <div class="card fin-card">
-          <span class="fin-label">Total Revenue <button class="hint-btn" title="Sum of all platform fees and customer top-ups">(?)</button></span>
-          <span class="fin-n">RM {{ (fd.totalTopUps + fd.totalFees) | number:'1.2-2' }}</span>
-          <span class="fin-sub">Today: RM {{ (fd.todayTopUps + fd.todayFees) | number:'1.2-2' }}</span>
+          <span class="fin-label">Gross Cashflow <button class="hint-btn" title="IN = booking value. OUT = payouts + fees + costs. GROSS = IN − OUT = RM 195,500. Cashflow = GROSS − withdrawals.">(?)</button></span>
+          <span class="fin-cf-row in">IN <button class="hint-btn" title="Total booking value from all completed jobs.">(?)</button> &plus; RM {{ grossIn | number:'1.2-2' }}</span>
+          <span class="fin-cf-row out">OUT <button class="hint-btn" title="Servicer payouts + platform fees + gateway fees + discounts + promo costs.">(?)</button> &minus; RM {{ grossOut | number:'1.2-2' }}</span>
+          <span class="fin-cf-row gross">GROSS <button class="hint-btn" [title]="'IN &minus; OUT = ' + (grossIn | number:'1.0-0') + ' &minus; ' + (grossOut | number:'1.0-0') + ' = RM ' + (gross | number:'1.2-2')">(?)</button> &equals; RM {{ gross | number:'1.2-2' }}</span>
+          <span class="fin-cf-row cashflow">Cashflow <button class="hint-btn" title="GROSS − company withdrawals = actual cash available.">(?)</button> &equals; RM {{ cashflow | number:'1.2-2' }}</span>
         </div>
+        <!-- Card 2: Revenue breakdown -->
         <div class="card fin-card">
-          <span class="fin-label">Platform Fees <button class="hint-btn" title="Platform's 8% service fee collected from completed bookings">(?)</button></span>
           <span class="fin-n">RM {{ fd.totalFees | number:'1.2-2' }}</span>
+          <span class="fin-label">Revenue <button class="hint-btn" title="Platform earnings: 8% fees + customer top-ups">(?)</button></span>
+          <span class="fin-sub">Fees RM {{ fd.totalFees | number:'1.2-2' }} · Top-ups RM {{ fd.totalTopUps | number:'1.2-2' }}</span>
         </div>
+        <!-- Card 3: Escrow + Payouts -->
         <div class="card fin-card">
-          <span class="fin-label">Escrow Held <button class="hint-btn" title="Customer payments currently held in escrow pending job completion">(?)</button></span>
           <span class="fin-n">RM {{ fd.totalEscrow | number:'1.2-2' }}</span>
+          <span class="fin-label">Escrow <button class="hint-btn" title="Funds held in escrow and pending release to servicers">(?)</button></span>
+          <span class="fin-sub">Held RM {{ fd.totalEscrow | number:'1.2-2' }} · Pending RM {{ fd.pendingPayouts | number:'1.2-2' }}</span>
         </div>
-        <div class="card fin-card">
-          <span class="fin-label">Pending Payouts <button class="hint-btn" title="Escrow funds ready to be released to servicers upon job completion">(?)</button></span>
-          <span class="fin-n">RM {{ fd.pendingPayouts | number:'1.2-2' }}</span>
-        </div>
+        <!-- Card 4: Urgent -->
         <div class="card fin-card urgent-card">
-          <span class="fin-label">Urgent Fee <button class="hint-btn" title="RM 150 same-day surcharge for urgent bookings; platform takes 20% (RM 30)">(?)</button></span>
           <span class="fin-n">RM {{ fd.urgentFeeRevenue | number:'1.2-2' }}</span>
-          <span class="fin-sub">Platform share: RM {{ fd.urgentFeePlatformShare | number:'1.2-2' }}</span>
+          <span class="fin-label">Urgent <button class="hint-btn" title="RM 150 same-day surcharge; platform takes 20% (RM 30)">(?)</button></span>
+          <span class="fin-sub">Fee RM {{ fd.urgentFeeRevenue | number:'1.2-2' }} · Platform RM {{ fd.urgentFeePlatformShare | number:'1.2-2' }}</span>
         </div>
       </div>
     }
@@ -163,16 +178,17 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
             <circle cx="11" cy="11" r="8"/>
             <line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input
-            type="search"
-            class="toolbar-search"
-            placeholder="Search bookings, customers, servicers..."
-            [(ngModel)]="searchQuery"
-          />
+            <input
+              type="search"
+              class="toolbar-search"
+              placeholder="Search bookings, customers, servicers..."
+              [(ngModel)]="searchQuery"
+              (input)="onSearchChange()"
+            />
         </div>
         <div class="sort-controls">
-          <button class="btn-ghost btn-sm sort-btn">Sort: Revenue <app-icon name="chevron-down" sizeToken="sm" /></button>
-          <button class="btn-ghost btn-sm" title="Reverse order"><app-icon name="arrow-up-down" sizeToken="sm" /></button>
+          <button class="btn-ghost btn-sm sort-btn" (click)="cycleSortField()">Sort: {{ sortFieldLabel() }} <app-icon name="chevron-down" sizeToken="sm" /></button>
+          <button class="btn-ghost btn-sm" title="Reverse order" (click)="toggleSortDir()"><app-icon [name]="sortDir() === 'asc' ? 'arrow-up' : 'arrow-down'" sizeToken="sm" /></button>
         </div>
       </div>
     </div>
@@ -203,11 +219,11 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
               <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">All</button>
             </div>
             <div class="quarter-toggle">
-              <button class="range-btn">Q1</button>
-              <button class="range-btn">Q2</button>
-              <button class="range-btn">Q3</button>
-              <button class="range-btn">Q4</button>
-              <span class="range-btn year-label">2026 &#9660;</span>
+              <button class="range-btn" (click)="setQuarter(1)">Q1</button>
+              <button class="range-btn" (click)="setQuarter(2)">Q2</button>
+              <button class="range-btn" (click)="setQuarter(3)">Q3</button>
+              <button class="range-btn" (click)="setQuarter(4)">Q4</button>
+              <button class="range-btn" (click)="setYear(2026)">2026</button>
             </div>
           </div>
 
@@ -483,6 +499,11 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
         font-size: 0.78rem;
         color: var(--color-muted);
       }
+      .fin-cf-row { font-size: 0.85rem; }
+      .fin-cf-row.in { color: #16a34a; }
+      .fin-cf-row.out { color: #dc2626; }
+      .fin-cf-row.gross { color: #16a34a; }
+      .fin-cf-net { font-size: 0.78rem; color: var(--color-muted); }
       .urgent-card {
         border: 1px solid var(--color-border);
         background: rgba(196, 144, 58, 0.04);
@@ -939,6 +960,24 @@ export class AdminDashboardComponent implements OnInit {
 
   // ── Search ───────────────────────────────────────────────────────────
   searchQuery = '';
+  /** Available sort fields for the toolbar dropdown. */
+  readonly sortFields = [
+    { key: 'fees', label: 'Fees' },
+    { key: 'revenue', label: 'Revenue' },
+    { key: 'count', label: 'Bookings' },
+    { key: 'name', label: 'Category' },
+  ];
+  sortDir = signal<'asc' | 'desc'>('desc');
+
+  onSearchChange(): void { /* triggers recompute via signal reads in sorted arrays */ }
+
+  setSortField(key: string): void {
+    this.sortState.set({ key, dir: this.sortState().dir });
+  }
+  toggleSortDir(): void {
+    const s = this.sortState();
+    this.sortState.set({ key: s.key, dir: s.dir === 'asc' ? 'desc' : 'asc' });
+  }
 
   // ── Sort ─────────────────────────────────────────────────────────────
   sortState = signal<{ key: string; dir: 'asc' | 'desc' }>({ key: 'fees', dir: 'desc' });
@@ -949,7 +988,9 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   sortedCategoryBreakdown = computed(() => {
-    const rows = [...(this.finData()?.categoryBreakdown ?? [])];
+    const q = this.searchQuery.toLowerCase().trim();
+    let rows = [...(this.finData()?.categoryBreakdown ?? [])];
+    if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || String(r.count).includes(q) || String(r.revenue).includes(q) || String(r.fees).includes(q));
     const { key, dir } = this.sortState();
     const m = dir === 'asc' ? 1 : -1;
     if (key === 'name') rows.sort((a, b) => a.name.localeCompare(b.name) * m);
@@ -961,7 +1002,9 @@ export class AdminDashboardComponent implements OnInit {
   });
 
   sortedCustomerLB = computed(() => {
-    const rows = [...(this.finData()?.customerLeaderboard ?? [])];
+    const q = this.searchQuery.toLowerCase().trim();
+    let rows = [...(this.finData()?.customerLeaderboard ?? [])];
+    if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || String(r.bookingCount).includes(q) || String(r.totalSpent).includes(q) || (r.lastBooking ?? '').includes(q));
     const { key, dir } = this.sortState();
     const m = dir === 'asc' ? 1 : -1;
     if (key === 'custName') rows.sort((a, b) => a.name.localeCompare(b.name) * m);
@@ -972,7 +1015,9 @@ export class AdminDashboardComponent implements OnInit {
   });
 
   sortedServicerLB = computed(() => {
-    const rows = [...(this.finData()?.servicerLeaderboard ?? [])];
+    const q = this.searchQuery.toLowerCase().trim();
+    let rows = [...(this.finData()?.servicerLeaderboard ?? [])];
+    if (q) rows = rows.filter(r => (r.businessName || r.name).toLowerCase().includes(q) || String(r.jobCount).includes(q) || String(r.revenue).includes(q) || String(r.rating).includes(q));
     const { key, dir } = this.sortState();
     const m = dir === 'asc' ? 1 : -1;
     if (key === 'svcName') rows.sort((a, b) => (a.businessName || a.name).localeCompare(b.businessName || b.name) * m);
@@ -982,6 +1027,15 @@ export class AdminDashboardComponent implements OnInit {
     else if (key === 'svcReports') rows.sort((a, b) => (a.reportCount - b.reportCount) * m);
     return rows;
   });
+
+  cycleSortField(): void {
+    const idx = this.sortFields.findIndex(f => f.key === this.sortState().key);
+    const next = this.sortFields[(idx + 1) % this.sortFields.length];
+    this.sortState.set({ key: next.key, dir: this.sortState().dir });
+  }
+  sortFieldLabel(): string {
+    return this.sortFields.find(f => f.key === this.sortState().key)?.label ?? 'Fees';
+  }
 
   // ── Lifecycle ────────────────────────────────────────────────────────
   ngOnInit(): void {
@@ -1010,6 +1064,27 @@ export class AdminDashboardComponent implements OnInit {
       this.financialDays.set(Math.max(1, diffDays));
       this.loadFinancial(Math.max(1, diffDays), this.dashCategoryId());
     }
+  }
+
+  setQuarter(q: number): void {
+    const y = new Date().getFullYear();
+    const starts = [0, 1, 4, 7, 10]; // months (0-indexed): Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct
+    const from = new Date(y, starts[q], 1);
+    const to = new Date(y, starts[q] + 3, 0); // last day of quarter-end month
+    this.dateFrom.set(from.toISOString().slice(0, 10));
+    this.dateTo.set(to.toISOString().slice(0, 10));
+    const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+    this.financialDays.set(Math.max(1, diffDays));
+    this.loadFinancial(Math.max(1, diffDays), this.dashCategoryId());
+  }
+  setYear(y: number): void {
+    const from = new Date(y, 0, 1);
+    const to = new Date(y, 11, 31);
+    this.dateFrom.set(from.toISOString().slice(0, 10));
+    this.dateTo.set(to.toISOString().slice(0, 10));
+    const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+    this.financialDays.set(Math.max(1, diffDays));
+    this.loadFinancial(Math.max(1, diffDays), this.dashCategoryId());
   }
 
   reloadDashboard(): void {

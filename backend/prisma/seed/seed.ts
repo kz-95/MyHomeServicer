@@ -1803,8 +1803,9 @@ async function main(): Promise<void> {
   for (const m of servicerSlugs) {
     const count = m.count;
     // Build a set of working days: ~80% chance per day (takes 1-2 days off per week).
+    // Include today (day 0) so the admin dashboard shows activity for the current day.
     const workingDays: number[] = [];
-    for (let d = -1; d >= -90; d--) {
+    for (let d = 0; d >= -90; d--) {
       if (Math.random() < 0.8) workingDays.push(d);
     }
     // If for some reason we have fewer working days than bookings, pad with the last available day.
@@ -1837,6 +1838,11 @@ async function main(): Promise<void> {
     await makeBooking(custRef, addrKey, m.ref, m.slug, 'in_progress', 'pay_now', m.prices[1 % m.prices.length], { scheduledDate: new Date() });
     // cancelled
     await makeBooking(custRef, addrKey, m.ref, m.slug, 'cancelled', 'pay_later', m.prices[2 % m.prices.length], { scheduledDate: days(-1) });
+    // future confirmed booking (every 3rd servicer, 1-14 days ahead)
+    if (scenarioIdx % 3 === 0) {
+      const futureDay = 1 + Math.floor(Math.random() * 14);
+      await makeBooking(custRef, addrKey, m.ref, m.slug, 'confirmed', 'pay_now', m.prices[3 % m.prices.length], { scheduledDate: days(futureDay) });
+    }
     scenarioIdx++;
   }
   console.log(`  ✓ per-servicer scenario bookings (in-progress, cancelled) for all ${servicerSlugs.length} servicers`);
