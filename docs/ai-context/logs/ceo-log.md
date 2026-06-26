@@ -3,6 +3,54 @@
 > Single-writer log - only the **CEO/Orchestrator** agent writes here.
 > This agent is READ-ONLY on code. It tracks, dispatches, and coordinates.
 
+## Session 2026-06-26 21:40 — Seed Expansion + Dashboard Polish + Gateway Fees
+
+### Context
+Branch: `feat/admin-financial-report`. User wanted wider seed data to populate admin dashboard charts with more spending customers and real gateway fee data.
+
+### Changes delivered (all committed to `feat/admin-financial-report`)
+
+| # | Area | Change | Commit |
+|---|------|--------|--------|
+| 1 | Seed | 3-batch booking duplication (-9d/-16d shifts, 10%/15% top-15 discounts) | `2b4c090` |
+| 2 | Seed | Gateway fee txs for ~33% of pay_later bookings (3.4% + RM 1.00) | `ba0b25d` |
+| 3 | Seed | Category breakdown: exclude parent categories | `4ac7be7` |
+| 4 | Charts | Y-axis formatting: 1M instead of 1000k | `5d8f42a` |
+| 5 | Settings | Gateway fee editable in Admin Settings (rate % + fixed RM) | `ba0b25d` |
+| 6 | Dashboard | Tooltip accuracy fixes (Revenue 8%→20%, Gateway, Discounts, OUT) | `ba0b25d` |
+| 7 | Cleanup | Ghost migration folder deleted | manual |
+| 8 | Squash | All 7 commits squashed into 1 for clean history | `e5be98a` |
+
+### Seed architecture decision
+
+Instead of creating ~300 new customer accounts (complex), we use the existing 124-customer pool but assign each duplicate pass to a different offset in the array (pass 1 starts at customer index 23, pass 2 at 46). Result: ~69 unique spending customers (was ~23), ~3,309 completed bookings (was ~1,103).
+
+Tiered discount model: older bookings are cheaper (pass 2 at -16 days gets 15% off, pass 1 at -9 days gets 10%, pass 0 full price). This creates a natural revenue growth curve over time.
+
+### Financial cards (tooltips corrected)
+
+| Card | Before | After |
+|------|--------|-------|
+| Revenue | "8% commission + top-ups" | "20% platform commission (configurable) + top-ups" |
+| Commission | "20% from completed bookings" | Added "Configurable in Admin Settings" |
+| Gateway | "3.4% + RM 1.00" | "Configurable % + fixed RM. Default: 3.4% + RM 1.00" |
+| Discounts | "Registered discounts + promotions" | "Registered (15% first booking) + promo paybacks" |
+| OUT | "Payouts + commission + discounts" | "Total money out: payouts + gateway + discounts + promo + points" |
+
+### Docs updated
+- `TODO.md` — branch + new DONE items
+- `seed-plan.md` — booking counts, tiers, gateway seeding
+- `ceo-log.md` — this session log
+
+### Verification
+- Backend tsc: 0 new errors (1 pre-existing from unused `runClearFinance`)
+- Frontend tsc: 0 errors
+- All pushed to `feat/admin-financial-report`
+
+### Outstanding
+- User needs to run `npm run db:reset` to apply new seed
+- Chart log-scale for category breakdown (RM 80 vs RM 120k dwarfing) — discussed but not implemented
+
 ## Session 2026-06-26 18:55 — Admin Financial Analysis AI Chat
 
 ### Task: Admin AI chat for financial dashboard analysis

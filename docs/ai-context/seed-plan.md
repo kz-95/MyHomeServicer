@@ -223,6 +223,23 @@ These replace the original 4-chip row on the login page.
 
 This is the most important seeding for the servicer experience. The dashboard 7-day / 30-day bar chart and history 30-day mini bar chart both query `escrow_release` transactions grouped by day.
 
+### Bulk booking tiers (3 passes × 105 servicers)
+
+As of 2026-06-26, bulk completed bookings are created in **3 passes** to populate ~69 unique spending customers:
+
+| Pass | Date shift | Discount (top-15 servicers) | ~Customers | ~Bookings |
+|------|-----------|---------------------------|-----------|-----------|
+| 0 (original) | 0 to -90 days | none | 23 | 1,103 |
+| 1 | -9 to -99 days | 10% off M1-M15 | 23 new | 1,103 |
+| 2 (earliest) | -16 to -106 days | 15% off M1-M15 | 23 new | 1,103 |
+| **Total** | | | **~69** | **~3,309** |
+
+Discount is applied to the top-15 Set A servicers (M1-M15, highest booking volumes). Older bookings are cheaper (earliest pass gets 15% off), simulating growth over time.
+
+### Gateway fee seeding
+
+~33% of `pay_later` bulk bookings also receive a `gateway_fee` transaction (Stripe processing: 3.4% of total + RM 1.00). This populates the admin dashboard Gateway card. The rate is configurable in Admin Settings → General → Gateway processing fee.
+
 ### Data source
 
 The chart endpoints (`/servicer/me/earnings/daily`) query:
@@ -232,46 +249,19 @@ The chart endpoints (`/servicer/me/earnings/daily`) query:
 
 ### What gets seeded
 
-1. **Bulk completed bookings for Set A servicers** - 194 completed jobs spread across the last 30 days (Sets B/C and new categories have no historical data yet):
+1. **Bulk completed bookings for all 105 servicers** - ~3,309 completed jobs spread across the last 106 days across 3 passes (69 unique spending customers). Each servicer's count from the seed definitions (8-50 per servicer) is replicated across all 3 passes:
 
-| Servicer | Jobs seeded | Price range |
+| Servicer | Jobs × 3 passes | Price range |
 |---|---|---|
-| M1 (Ahmad Plumbing) | 8 | RM 80–250 |
-| M2 (CoolBreeze AC Service) | 8 | RM 60–140 |
-| M3 (Volt Masters Electrical) | 8 | RM 150–300 |
-| M4 (Sparkle Home Cleaning) | 8 | RM 60–200 |
-| M5 (FreshCare Sofa & Mattress) | 8 | RM 80–200 |
-| M6 (PureClean Carpet Care) | 8 | RM 55–130 |
-| M7 (DrapeFresh Curtain Care) | 8 | RM 80–180 |
-| M8 (Bliss Wedding & Events) | 8 | RM 100–250 |
-| M9 (Auntie Mei Catering) | 50 | RM 65–200 |
-| M10 (Space Harmony Organizer) | 8 | RM 80–250 |
-| M11 (AC Pro Installers) | 8 | RM 150–250 |
-| M12 (Precision Woodworks) | 8 | RM 90–220 |
-| M13 (BuildRight Renovation) | 8 | RM 60–200 |
-| M14 (Studio Aria Interior Design) | 8 | RM 80–180 |
-| M15 (AutoGate Solutions) | 8 | RM 100–350 |
-| M16 (TopGuard Roofing) | 8 | RM 200–600 |
-| M17 (WasherDoc Repair) | 8 | RM 300–800 |
-| M18 (ChillFix Refrigeration) | 8 | RM 200–1000 |
-| M19 (ScreenFix TV Repair) | 8 | RM 50–120 |
-| M20 (HeatWave Oven Repair) | - | - |
-| M21 (HydroHeat Services) | - | - |
-| M22 (FanFix Services) | - | - |
-| M23 (AC Medic) | - | - |
-| M24 (Creative Canvas Studio) | - | - |
-| M25 (Polyglot Language Academy) | - | - |
-| M26 (Melody Music Studio) | - | - |
-| M27 (BrightMinds Tutoring) | - | - |
-| M28 (Chef's Table Cooking Studio) | - | - |
-| M29 (FitForge Personal Training) | - | - |
-| M30 (FusionCraft Studio) | - | - |
-| M31 (SketchBuild Studio) | - | - |
-| M32 (BlendForge Studio) | **50 bulk** | - |
-| M33 (MayaMotion Studio) | - | - |
-| M34 (MaxDesign Studio) | - | - |
-| M35 (ZBrushArt Studio) | - | - |
-| M36 (SecureView CCTV & Alarm) | - | - |
+| M1 (Ahmad Plumbing) | 45 | RM 80–250 |
+| M2 (CoolBreeze AC Service) | 45 | RM 80–180 |
+| M3 (Volt Masters Electrical) | 45 | RM 60–300 |
+| M4 (Sparkle Home Cleaning) | 45 | RM 60–200 |
+| M9 (Auntie Mei Catering) | 45 | RM 65–200 |
+| M32 (BlendForge Studio) | **150** | RM 100–300 |
+| ...(all 105 servicers) | 8-50 × 3 | varies by category |
+
+Top-15 Set A servicers (M1-M15): 10% discount in pass 1, 15% in pass 2. M16+ get full price in all passes.
 
 2. **Invoice + escrow_release for every completed booking** - each booking gets an `Invoice` row with:
    - `subtotal` = booking price
@@ -310,7 +300,7 @@ All six are fixed in the consolidated seed flow. Additionally, the "Revenue" col
 
 ## Invoices
 
-Every completed booking gets an `Invoice` row. Currently **194 invoices** are created in a single batch, covering all bulk bookings across Set A servicers (M1-M19 bulk + M32 bulk):
+Every completed booking gets an `Invoice` row. Currently **~3,309 invoices** are created in a single batch, covering all bulk bookings across all 3 passes:
 
 Invoice fields: `lineItems` (snapshot `[{ label, amount, taxable, serviceChargeable }]`), `subtotal` (Σ lineItems), `promoDiscount` (10% off every 5th booking), `serviceChargeRate` / `serviceChargeAmount`, `sstApplies` (bool), `taxInclusive` (bool), `taxRate` (Decimal(5,4)), `taxAmount`, `tipAmount`, `total` (canonical total), `platformFee` (8% of afterPromo, unified fee), `dueDate` (now+14d), `paidAt`, `issuedAt`.
 

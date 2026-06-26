@@ -1,10 +1,24 @@
 ﻿# TODO - Current Project State
 
 > **State: DEMO-FOCUSED - SP-3 REDESIGN + ADMIN DASHBOARD + UX POLISH** - 2026-06-26
-> Branch: feat/admin-fix (from master, which contains feat/ux-polish merge)
+> Branch: feat/admin-financial-report (financial report + dashboard polish)
 > Demo script + slides: `ignorethis/demo-presentation-flow.md` (7-beat single-thread story)
 >
 > Rule this phase: only work items on the demo thread. Everything else is deferred.
+>
+> ### ✅ DONE — Admin Onboarding Wizard + Clear Finance + Scrollbar Theming (2026-06-26)
+> - [x] Shared `[appLerpNumber]` directive — lerps 0→target via `requestAnimationFrame` with easeOutCubic easing; CSS classes `.lerping` (glow) / `.complete` (green blink) / `.skipped` (amber); click-to-skip; `lerpTick` per-frame output for milestone detection; dual trigger (auto via `[lerpActive]` for inline, manual `run()` via `viewChild` for wrapped)
+> - [x] `StatCardComponent` — card fade-in, number count-up with glow+blink, sequential reveal orchestration
+> - [x] `MoneyCounterComponent` — RM currency lerp with scale(1.05)+rotate(3deg) "topping up" bumps on each tick; milestone highlight pulses at 1k/5k/10k/50k/100k/500k boundaries
+> - [x] `LerpBarComponent` — horizontal bar grows 0→target% via CSS transition, percentage lerps alongside
+> - [x] `OnboardingWizardComponent` — 5-step wizard at `/admin/onboarding`: Page 1 (4 stat cards from `/admin/dashboard`), Page 2 (3 money counters + category revenue bars from `/admin/dashboard/financial`), Page 3 (top 3 customers + servicers side-by-side, fits viewport), Page 4 (4 queue stat cards), Page 5 (completion screen with dashboard link)
+> - [x] Step dots (1-5) evenly spaced via `justify-content: space-between`; disabled until all 5 steps complete; "Next" button gated until all animations on current step finish; after all steps done — free navigation with fade transitions
+> - [x] Backend: `POST /dev/clear-finance` — clears financial tables (transactions, escrow, invoices, bookings, quotes, etc.) while preserving accounts/services/categories/settings; implemented via `runClearFinance()` in `admin.service.ts`
+> - [x] Frontend: "Clear Finance" button in demo-bar (admin-only, brick-red, positioned left of Reseed), calls `/dev/clear-finance` then reloads page
+> - [x] Route: `/admin/onboarding` + `admin.onboarding` route key added
+> - [x] Global scrollbar theming in `styles.css` — Firefox (`scrollbar-color`/`scrollbar-width`) + WebKit (`::-webkit-scrollbar`) using `--color-muted`/`--color-primary` tokens that auto-track warm/cool theme toggle
+> - [x] All docs synced: TODO, frontend-log, backend-log, api-doc, STYLE-RULES
+> - [x] Frontend + backend typecheck pass
 >
 > ### ✅ DONE — Admin Financial Report Generator — Dota-style Report UI (2026-06-26)
 > - [x] Backend: `POST /admin/chat/financial-report` returns `{ report, financialData, tokensUsed }` with structured snapshot for rich rendering
@@ -68,6 +82,18 @@
 > - [x] Fix: `makeBooking()` accepts `createdAt` in opts; bulk completed bookings pass `createdAt: sched` spread across 90 days
 > - [x] Commit `ef6d503` — after reseed, `categoryBreakdown`, `customerLeaderboard`, `totalBookingRevenue` show real non-zero data
 >
+> ### ✅ DONE — Seed Expansion: 3-Batch Booking Duplication + Gateway Fees (2026-06-26)
+> - [x] 2 duplicate booking passes (9-day and 16-day shifts) — ~69 spending customers (was ~23)
+> - [x] Tiered discounts: pass 0 no discount, pass 1 10% off top-15 servicers, pass 2 15% off
+> - [x] Gateway fee transactions seeded for ~33% of pay_later bookings (3.4% + RM 1.00)
+> - [x] Gateway fee rate editable in Admin Settings → General tab
+>
+> ### ✅ DONE — Dashboard Polish (2026-06-26)
+> - [x] Category breakdown: excluded parent categories (only children with bookings shown)
+> - [x] Chart Y-axis formatting: 1M instead of 1000k (line + bar charts)
+> - [x] Tooltip accuracy: Revenue 8%→20%, Gateway configurable, Discounts breakdown, OUT context
+> - [x] Ghost migration folders cleaned up (duplicate due_date ALTER migrations)
+
 > ### PENDING - Discount/Graph
 > - [ ] Per-category discount/promo/points/gateway data in backend (GROUP BY category_id)
 > - [ ] Wire to donut "Show by" dropdown + chart discount line
