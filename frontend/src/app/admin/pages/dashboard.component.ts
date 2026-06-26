@@ -132,15 +132,26 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
       <div class="fin-cards page-child">
         <!-- Card 1: Cashflow -->
         @let grossIn = (fd.totalBookingRevenue ?? 0);
-        @let grossOut = (fd.totalPayouts ?? 0) + fd.totalFees + (fd.gatewayFee ?? 0) + (fd.registeredDiscount ?? 0) + (fd.promoCost ?? 0) + (fd.pointsCost ?? 0);
+        @let grossOut = (fd.totalPayouts ?? 0) + (fd.gatewayFee ?? 0) + (fd.registeredDiscount ?? 0) + (fd.promoCost ?? 0) + (fd.pointsCost ?? 0);
         @let gross = grossIn - grossOut;
         @let cashflow = gross - (fd.totalWithdrawals ?? 0);
         <div class="card fin-card">
-          <span class="fin-label">Gross Cashflow <button class="hint-btn" title="IN = booking value. OUT = payouts + fees + costs. GROSS = IN − OUT = RM 195,500. Cashflow = GROSS − withdrawals.">(?)</button></span>
-          <span class="fin-cf-row in">IN <button class="hint-btn" title="Total booking value from all completed jobs.">(?)</button> &plus; RM {{ grossIn | number:'1.2-2' }}</span>
-          <span class="fin-cf-row out">OUT <button class="hint-btn" title="Servicer payouts + platform fees + gateway fees + discounts + promo costs.">(?)</button> &minus; RM {{ grossOut | number:'1.2-2' }}</span>
-          <span class="fin-cf-row gross">GROSS <button class="hint-btn" [title]="'IN &minus; OUT = ' + (grossIn | number:'1.0-0') + ' &minus; ' + (grossOut | number:'1.0-0') + ' = RM ' + (gross | number:'1.2-2')">(?)</button> &equals; RM {{ gross | number:'1.2-2' }}</span>
-          <span class="fin-cf-row cashflow">Cashflow <button class="hint-btn" title="GROSS − company withdrawals = actual cash available.">(?)</button> &equals; RM {{ cashflow | number:'1.2-2' }}</span>
+          <div class="fin-cf-row">
+            <span class="fin-label">IN <button class="hint-btn" title="Total booking value from all completed jobs.">(?)</button></span>
+            <span class="fin-cf-in">RM {{ grossIn | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-cf-row">
+            <span class="fin-label">OUT <button class="hint-btn" title="Servicer payouts + platform fees + gateway fees + discounts + promo costs.">(?)</button></span>
+            <span class="fin-cf-out">RM {{ grossOut | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-cf-row">
+            <span class="fin-label">GROSS <button class="hint-btn" [title]="'IN &minus; OUT = ' + (grossIn | number:'1.0-0') + ' &minus; ' + (grossOut | number:'1.0-0') + ' = RM ' + (gross | number:'1.2-2')">(?)</button></span>
+            <span class="fin-cf-gross" [class.neg]="gross < 0">RM {{ gross | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-cf-row">
+            <span class="fin-label">Cashflow <button class="hint-btn" title="GROSS − company withdrawals = actual cash available.">(?)</button></span>
+            <span class="fin-cf-cashflow" [class.neg]="cashflow < 0">RM {{ cashflow | number:'1.2-2' }}</span>
+          </div>
         </div>
         <!-- Card 2: Revenue breakdown -->
         <div class="card fin-card">
@@ -499,10 +510,14 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts';
         font-size: 0.78rem;
         color: var(--color-muted);
       }
-      .fin-cf-row { font-size: 0.85rem; }
-      .fin-cf-row.in { color: #16a34a; }
-      .fin-cf-row.out { color: #dc2626; }
-      .fin-cf-row.gross { color: #16a34a; }
+      .fin-cf-row { display: flex; justify-content: space-between; align-items: center; }
+      .fin-cf-row .fin-label { color: var(--color-muted); font-size: 0.8rem; }
+      .fin-cf-in { font-size: 1.6rem; font-weight: 700; color: #f59e0b; }
+      .fin-cf-out { font-size: 1.1rem; font-weight: 600; color: #dc2626; }
+      .fin-cf-gross { font-size: 1.1rem; font-weight: 600; color: #16a34a; }
+.fin-cf-gross.neg { color: #dc2626; }
+      .fin-cf-cashflow { font-size: 1.1rem; font-weight: 600; color: inherit; }
+.fin-cf-cashflow.neg { color: #dc2626; }
       .fin-cf-net { font-size: 0.78rem; color: var(--color-muted); }
       .urgent-card {
         border: 1px solid var(--color-border);
