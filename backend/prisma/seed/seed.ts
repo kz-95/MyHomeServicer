@@ -2035,6 +2035,8 @@ async function main(): Promise<void> {
 
   // ── Invoices + escrow_release for completed bookings ──
   // So that servicer dashboards show actual earnings on first boot.
+  const feeRateCfg = await prisma.platformSettings.findUnique({ where: { key: 'platform_fee_rate' } });
+  const feeRate = (feeRateCfg?.value as any)?.current_rate ?? 0.20;
   const completedBookings: { booking: typeof compM1; servicerRef: string; price: number }[] = [
     ...allBulkCompleted,
   ];
@@ -2060,7 +2062,7 @@ async function main(): Promise<void> {
         taxRate: 0,
         taxAmount: 0,
         tipAmount: 0,
-        platformFee: Math.round(total * 0.20 * 100) / 100,
+        platformFee: Math.round(total * feeRate * 100) / 100,
         total,
         serviceChargeRate: 0,
         serviceChargeAmount: 0,
@@ -2382,12 +2384,9 @@ async function main(): Promise<void> {
   // ── Historical platform revenue (last 30 days, for the admin revenue chart) ──
   // Simulate realistic daily platform-fee income so the chart is populated on
   // first boot. Amounts vary with a weekday/weekend pattern + some noise.
-  // ── Platform fee transactions: 20% of actual booking prices, spread over 30 days ──
-  // Each completed booking gets one platform_fee transaction on its doneAt date.
-  let feeCount = 0;
   for (const cb of allBulkCompleted) {
     if (!cb.booking.id) continue;
-    const fee = Math.round(cb.price * 0.20 * 100) / 100;
+    const fee = Math.round(cb.price * feeRate * 100) / 100;
     await prisma.transaction.create({
       data: {
         type: 'platform_fee',
@@ -2399,7 +2398,7 @@ async function main(): Promise<void> {
     });
     feeCount++;
   }
-  console.log(`  ✓ platform fee transactions: ${feeCount} (computed at 20% of booking price)`);
+  console.log(`  ✓ platform fee transactions: ${feeCount} (computed at ${(feeRate * 100).toFixed(0)}% of booking price)`);
 
   // ── Self-check: fail loudly if core history is empty ──
   // Catches silent partial seeds (e.g. a mid-run ReferenceError that aborts before
