@@ -450,7 +450,6 @@ export async function getDashboardFinancial(daysOrFrom: number | string, toOrCat
      WHERE u.role = 'customer' AND b.created_at >= $1
        ${categoryId ? 'AND qr.category_id = $2::uuid' : ''}
       GROUP BY u.id, u.name, u.email
-      HAVING COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'completed') > 0
       ORDER BY total_spent DESC
       LIMIT 50`,
     ...(categoryId ? [start, categoryId] : [start]),
