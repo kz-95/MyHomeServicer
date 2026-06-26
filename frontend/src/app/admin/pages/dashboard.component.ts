@@ -107,7 +107,8 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 
     <!-- ── STICKY TOP BAR ──────────────────────────────────────────────── -->
     <div class="dash-head" style="position:sticky;top:0;z-index:10;">
-      <!-- Section A (darker bg): Categories + Search -->
+      <!-- Section A (darker bg): Categories + Search + Calendar -->
+      @if (headerExpanded()) {
       <div class="dash-head-a">
         <!-- Row 1: Parent categories -->
         <div class="cat-marquee" (mousedown)="onMarqueeMouseDown($event, marqueeEl)" #marqueeEl>
@@ -130,24 +131,9 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <app-icon name="search" sizeToken="sm" class="search-icon-inline" />
             <input type="search" class="toolbar-search" placeholder="Search bookings, customers, servicers..." [(ngModel)]="searchQuery" (input)="onSearchChange()" />
           </div>
-          <div class="sort-controls">
-            <div class="sort-dropdown" (click)="$event.stopPropagation()">
-              <button class="btn-ghost btn-sm sort-btn" (click)="sortDropdownOpen.set(!sortDropdownOpen())">
-                Sort: {{ sortFieldLabel() }} <app-icon name="chevron-down" sizeToken="sm" />
-              </button>
-              @if (sortDropdownOpen()) {
-                <div class="sort-menu">
-                  @for (f of sortFields; track f.key) {
-                    <button class="sort-menu-item" [class.active]="sortState().key === f.key" (click)="selectSortField(f.key)">{{ f.label }}</button>
-                  }
-                </div>
-              }
-            </div>
-            <button class="btn-ghost btn-sm" title="Reverse order" (click)="toggleSortDir()"><app-icon [name]="sortState().dir === 'asc' ? 'chevron-up' : 'chevron-down'" sizeToken="sm" /></button>
-          </div>
         </div>
 
-        <!-- Chart date controls + filter pills + mode toggle -->
+        <!-- Calendar date filter + quick selects -->
         @if (showSection('chart')) {
           <div class="chart-controls">
             <div class="date-range">
@@ -170,39 +156,14 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             </div>
             <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
           </div>
-
-          <div class="chart-toolbar">
-            <div class="chart-pills">
-              <button class="pill" [class.on]="chartPills()['revenue']" (click)="toggleChartPill('revenue')">
-                <span class="pill-dot rev" [class.off]="!chartPills()['revenue']"></span>Revenue
-              </button>
-              <button class="pill" [class.on]="chartPills()['fees']" (click)="toggleChartPill('fees')">
-                <span class="pill-dot fee" [class.off]="!chartPills()['fees']"></span>Fees
-              </button>
-              <button class="pill" [class.on]="chartPills()['gross']" (click)="toggleChartPill('gross')">
-                <span class="pill-dot gross" [class.off]="!chartPills()['gross']"></span>Gross
-              </button>
-              <button class="pill" [class.on]="chartPills()['cashflow']" (click)="toggleChartPill('cashflow')">
-                <span class="pill-dot cashflow" [class.off]="!chartPills()['cashflow']"></span>Cashflow
-              </button>
-              <button class="pill" [class.on]="chartPills()['discount']" (click)="toggleChartPill('discount')">
-                <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
-              </button>
-            </div>
-
-            <!-- Chart mode toggle -->
-            <div class="chart-mode-toggle">
-              <button class="range-btn" [class.on]="chartMode() === 'daily'" (click)="chartMode.set('daily')">Daily █</button>
-              <button class="range-btn" [class.on]="chartMode() === 'cumulative'" (click)="chartMode.set('cumulative')">Cumulative ∿</button>
-            </div>
-          </div>
         }
       </div>
+      }
 
       <!-- Divider -->
       <div class="dash-divider"></div>
 
-      <!-- Section B (lighter bg): Section filter pills -->
+      <!-- Section B (lighter bg): Section filter pills + expand/collapse -->
       <div class="dash-head-b">
         <button class="chip" [class.active]="sectionFilters()['all']" (click)="toggleSectionFilter('all')">All</button>
         <button class="chip" [class.active]="sectionFilters()['queues']" (click)="toggleSectionFilter('queues')">Queues</button>
@@ -211,6 +172,9 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         <button class="chip" [class.active]="sectionFilters()['breakdown']" (click)="toggleSectionFilter('breakdown')">Breakdown</button>
         <button class="chip" [class.active]="sectionFilters()['customers']" (click)="toggleSectionFilter('customers')">Customers</button>
         <button class="chip" [class.active]="sectionFilters()['servicers']" (click)="toggleSectionFilter('servicers')">Servicers</button>
+        <button class="header-toggle" (click)="toggleHeader()" [attr.title]="headerExpanded() ? 'Collapse filters' : 'Expand filters'" [attr.aria-label]="headerExpanded() ? 'Collapse filters' : 'Expand filters'">
+          <app-icon [name]="headerExpanded() ? 'chevron-up' : 'chevron-down'" sizeToken="sm" />
+        </button>
       </div>
     </div>
 
@@ -330,6 +294,33 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
     <!-- ── 3. Revenue & Fees Chart ──────────────────────────────────────── -->
     @if (showSection('chart')) {
       @if (finData(); as fd) {
+        <!-- Chart filter pills + mode toggle -->
+        <div class="chart-toolbar">
+          <div class="chart-pills">
+            <button class="pill" [class.on]="chartPills()['revenue']" (click)="toggleChartPill('revenue')">
+              <span class="pill-dot rev" [class.off]="!chartPills()['revenue']"></span>Revenue
+            </button>
+            <button class="pill" [class.on]="chartPills()['fees']" (click)="toggleChartPill('fees')">
+              <span class="pill-dot fee" [class.off]="!chartPills()['fees']"></span>Fees
+            </button>
+            <button class="pill" [class.on]="chartPills()['gross']" (click)="toggleChartPill('gross')">
+              <span class="pill-dot gross" [class.off]="!chartPills()['gross']"></span>Gross
+            </button>
+            <button class="pill" [class.on]="chartPills()['cashflow']" (click)="toggleChartPill('cashflow')">
+              <span class="pill-dot cashflow" [class.off]="!chartPills()['cashflow']"></span>Cashflow
+            </button>
+            <button class="pill" [class.on]="chartPills()['discount']" (click)="toggleChartPill('discount')">
+              <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
+            </button>
+          </div>
+
+          <!-- Chart mode toggle -->
+          <div class="chart-mode-toggle">
+            <button class="range-btn" [class.on]="chartMode() === 'daily'" (click)="chartMode.set('daily')">Daily █</button>
+            <button class="range-btn" [class.on]="chartMode() === 'cumulative'" (click)="chartMode.set('cumulative')">Cumulative ∿</button>
+          </div>
+        </div>
+
         <!-- Chart -->
         <div class="card chart-card">
           <app-line-chart
@@ -591,7 +582,24 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         border-bottom: 1px solid var(--color-border);
       }
       .dash-head-a { padding: 0.75rem 2rem; background: var(--color-bg); }
-      .dash-head-b { padding: 0.5rem 2rem; background: var(--color-surface); }
+      .dash-head-b { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 2rem; background: var(--color-surface); }
+      .header-toggle {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        padding: 0;
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--color-muted);
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: color 0.15s ease, background 0.15s ease;
+      }
+      .header-toggle:hover { color: var(--color-text); background: var(--color-bg); }
       .dash-content { padding: 1.25rem 2rem 2rem 2rem; }
       .dash-divider { border: none; border-top: 1px solid var(--color-border); margin: 0; }
       .cat-marquee { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; scrollbar-width: none; cursor: grab; user-select: none; }
@@ -758,8 +766,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         flex-wrap: wrap;
         gap: 1rem;
         align-items: center;
-        margin-bottom: 0.6rem;
-        margin-top: 1rem;
+        margin-top: 0.5rem;
       }
       .date-range {
         display: flex;
@@ -940,16 +947,12 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       /* ── Bar + Donut charts ─────────────────────────────────────────── */
       .chart-row { display: flex; gap: 1rem; align-items: stretch; margin-bottom: 1rem; }
       .chart-left { flex: 1; min-width: 0; }
-      .chart-right { flex: 0 0 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-
-      /* ── Donut header + legend ─────────────────────────────────────── */
-      .donut-header { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; }
-      .donut-select { font-size: 0.78rem; padding: 0.2rem 0.4rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); color: var(--color-text); font-family: inherit; }
-      .donut-legend { margin-top: 0.5rem; width: 100%; }
-      .donut-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; margin-bottom: 0.2rem; color: var(--color-muted); }
-      .donut-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-      .donut-legend-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .donut-legend-val { font-weight: 600; color: var(--color-text); }
+      .chart-right { flex: 0 0 220px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+      .donut-row { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+      .donut-legend { width: 100%; }
+      .donut-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; margin-bottom: 0.15rem; color: var(--color-muted); }
+      .donut-legend-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.7rem; }
+      .donut-legend-val { font-weight: 600; color: var(--color-text); font-size: 0.7rem; white-space: nowrap; }
       .donut-row { display: flex; align-items: center; gap: 0.75rem; }
 
       /* ── Responsive ─────────────────────────────────────────────────── */
@@ -984,6 +987,8 @@ export class AdminDashboardComponent implements OnInit {
 
   // ── Section filter ───────────────────────────────────────────────────
   sectionFilters = signal<Record<string, boolean>>({ all: true, queues: true, cards: true, chart: true, breakdown: true, customers: true, servicers: true });
+  headerExpanded = signal(true);
+  toggleHeader(): void { this.headerExpanded.update(v => !v); }
   toggleSectionFilter(key: string): void {
     this.sectionFilters.update(f => {
       const sections = ['queues','cards','chart','breakdown','customers','servicers'];
@@ -1163,21 +1168,8 @@ export class AdminDashboardComponent implements OnInit {
 
   // ── Search ───────────────────────────────────────────────────────────
   searchQuery = '';
-  /** Available sort fields for the toolbar dropdown. */
-  readonly sortFields = [
-    { key: 'fees', label: 'Fees' },
-    { key: 'revenue', label: 'Revenue' },
-    { key: 'count', label: 'Bookings' },
-    { key: 'name', label: 'Category' },
-  ];
-  // ── Sort ─────────────────────────────────────────────────────────────
+  // ── Sort (table column headers) ──────────────────────────────────────
   sortState = signal<{ key: string; dir: 'asc' | 'desc' }>({ key: 'fees', dir: 'desc' });
-  sortDropdownOpen = signal(false);
-
-  toggleSortDir(): void {
-    const s = this.sortState();
-    this.sortState.set({ key: s.key, dir: s.dir === 'asc' ? 'desc' : 'asc' });
-  }
 
   onSearchChange(): void { /* triggers recompute via signal reads in sorted arrays */ }
 
@@ -1337,19 +1329,6 @@ export class AdminDashboardComponent implements OnInit {
   onSvcSliceClick(idx: number): void { /* handled by Chart.js built-in interactions */ }
 
   // ── Helpers ─────────────────────────────────────────────────────────
-  cycleSortField(): void {
-    const idx = this.sortFields.findIndex(f => f.key === this.sortState().key);
-    const next = this.sortFields[(idx + 1) % this.sortFields.length];
-    this.sortState.set({ key: next.key, dir: this.sortState().dir });
-  }
-  sortFieldLabel(): string {
-    return this.sortFields.find(f => f.key === this.sortState().key)?.label ?? 'Fees';
-  }
-  selectSortField(key: string): void {
-    this.sortState.set({ key, dir: this.sortState().dir });
-    this.sortDropdownOpen.set(false);
-  }
-
   // ── Lifecycle ────────────────────────────────────────────────────────
   ngOnInit(): void {
     this.loadDashboard();
