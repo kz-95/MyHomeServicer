@@ -276,9 +276,11 @@ type FinancialTab = 'pricing' | 'rewards' | 'servicer_rules';
 
         @if (showCard('tiers')) {
         <section class="card page-child">
-          <h2>Tiers</h2>
+          <div class="section-head">
+            <h2>Tiers</h2>
+            <button class="btn-primary btn-sm" (click)="openTierModal()">+ Add tier</button>
+          </div>
           <p class="muted small">Tiers compute from lifetime earned points. Sorted by min points ascending.</p>
-          <button class="btn-primary btn-sm" (click)="openTierModal()">+ Add tier</button>
           @if (tiers().length === 0) {
             <p class="muted">No tiers configured.</p>
           } @else {
@@ -304,9 +306,11 @@ type FinancialTab = 'pricing' | 'rewards' | 'servicer_rules';
 
         @if (showCard('rewards_catalog')) {
         <section class="card page-child">
-          <h2>Reward Catalog</h2>
+          <div class="section-head">
+            <h2>Reward Catalog</h2>
+            <button class="btn-primary btn-sm" (click)="openRewardModal()">+ Add reward</button>
+          </div>
           <p class="muted small">Redeemable items in the customer rewards page.</p>
-          <button class="btn-primary btn-sm" (click)="openRewardModal()">+ Add reward</button>
           @if (rewards().length === 0) {
             <p class="muted">No rewards configured.</p>
           } @else {
@@ -449,6 +453,8 @@ type FinancialTab = 'pricing' | 'rewards' | 'servicer_rules';
       .breakdown-row input { width: 80px; }
       .breakdown-total { font-size: 0.85rem; font-weight: 600; margin-top: 0.3rem; display: flex; gap: 0.5rem; align-items: center; }
       /* Rewards */
+      .section-head { display: flex; align-items: center; justify-content: space-between; }
+      .section-head h2 { margin: 0; }
       .rewards-config { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
       .rewards-config label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; font-weight: 500; }
       .rewards-config input { width: 100%; }
