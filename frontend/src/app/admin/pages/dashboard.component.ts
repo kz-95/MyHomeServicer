@@ -86,7 +86,7 @@ interface FinancialDashboard {
   servicerLeaderboard?: ServicerLeader[];
 }
 
-type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
+type ChartLineKey = 'revenue' | 'fees' | 'gross' | 'discount' | 'cashflow';
 
 const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6b7280'];
 
@@ -304,11 +304,11 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
           <button class="pill" [class.on]="chartPills()['fees']" (click)="toggleChartPill('fees')">
             <span class="pill-dot fee" [class.off]="!chartPills()['fees']"></span>Fees
           </button>
-          <button class="pill" [class.on]="chartPills()['escrow']" (click)="toggleChartPill('escrow')">
-            <span class="pill-dot escrow" [class.off]="!chartPills()['escrow']"></span>Escrow Held
+          <button class="pill" [class.on]="chartPills()['gross']" (click)="toggleChartPill('gross')">
+            <span class="pill-dot gross" [class.off]="!chartPills()['gross']"></span>Gross
           </button>
-          <button class="pill" [class.on]="chartPills()['payouts']" (click)="toggleChartPill('payouts')">
-            <span class="pill-dot payout" [class.off]="!chartPills()['payouts']"></span>Pending Payouts
+          <button class="pill" [class.on]="chartPills()['cashflow']" (click)="toggleChartPill('cashflow')">
+            <span class="pill-dot cashflow" [class.off]="!chartPills()['cashflow']"></span>Cashflow
           </button>
           <button class="pill" [class.on]="chartPills()['discount']" (click)="toggleChartPill('discount')">
             <span class="pill-dot disc" [class.off]="!chartPills()['discount']"></span>Discounts
@@ -329,11 +329,11 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                 @if (chartPills()['fees']) {
                   <span class="legend-item"><span class="legend-dot fee"></span>Fees</span>
                 }
-                @if (chartPills()['escrow']) {
-                  <span class="legend-item"><span class="legend-dot escrow"></span>Escrow Held</span>
+                @if (chartPills()['gross']) {
+                  <span class="legend-item"><span class="legend-dot gross"></span>Gross</span>
                 }
-                @if (chartPills()['payouts']) {
-                  <span class="legend-item"><span class="legend-dot payout"></span>Pending Payouts</span>
+                @if (chartPills()['cashflow']) {
+                  <span class="legend-item"><span class="legend-dot cashflow"></span>Cashflow</span>
                 }
                 @if (chartPills()['discount']) {
                   <span class="legend-item"><span class="legend-dot disc"></span>Discounts</span>
@@ -354,13 +354,13 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                 @if (chartPills()['fees'] && feesLine()) {
                   <polyline [attr.points]="feesLine()" class="line-fee" />
                 }
-                <!-- Escrow line -->
-                @if (chartPills()['escrow'] && escrowLine()) {
-                  <polyline [attr.points]="escrowLine()" class="line-escrow" />
+                <!-- Gross line -->
+                @if (chartPills()['gross'] && grossLine()) {
+                  <polyline [attr.points]="grossLine()" class="line-gross" />
                 }
-                <!-- Payouts line -->
-                @if (chartPills()['payouts'] && payoutsLine()) {
-                  <polyline [attr.points]="payoutsLine()" class="line-payout" />
+                <!-- Cashflow line -->
+                @if (chartPills()['cashflow'] && cashflowLine()) {
+                  <polyline [attr.points]="cashflowLine()" class="line-cashflow" />
                 }
                 <!-- Discount line -->
                 @if (chartPills()['discount'] && discountLine()) {
@@ -376,8 +376,8 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   <div class="tip-date">{{ tip.date }}</div>
                   @if (tip.rev != null) { <div class="tip-row rev">Revenue: RM {{ tip.rev | number:'1.2-2' }}</div> }
                   @if (tip.fee != null) { <div class="tip-row fee">Fees: RM {{ tip.fee | number:'1.2-2' }}</div> }
-                  @if (tip.esc != null) { <div class="tip-row esc">Escrow: RM {{ tip.esc | number:'1.2-2' }}</div> }
-                  @if (tip.pay != null) { <div class="tip-row pay">Payouts: RM {{ tip.pay | number:'1.2-2' }}</div> }
+                  @if (tip.gross != null) { <div class="tip-row gross">Gross: RM {{ tip.gross | number:'1.2-2' }}</div> }
+                  @if (tip.cf != null) { <div class="tip-row cf">Cashflow: RM {{ tip.cf | number:'1.2-2' }}</div> }
                   @if (tip.disc != null) { <div class="tip-row disc">Discounts: RM {{ tip.disc | number:'1.2-2' }}</div> }
                 </div>
               }
@@ -390,11 +390,11 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
               @if (chartPills()['fees']) {
                 <span class="summary-item fee">Fees: <strong>RM {{ feesTotal() | number:'1.2-2' }}</strong></span>
               }
-              @if (chartPills()['escrow']) {
-                <span class="summary-item escrow">Escrow Held: <strong>RM {{ escrowTotal() | number:'1.2-2' }}</strong></span>
+              @if (chartPills()['gross']) {
+                <span class="summary-item gross">Gross: <strong>RM {{ grossTotal() | number:'1.2-2' }}</strong></span>
               }
-              @if (chartPills()['payouts']) {
-                <span class="summary-item payout">Pending Payouts: <strong>RM {{ payoutsTotal() | number:'1.2-2' }}</strong></span>
+              @if (chartPills()['cashflow']) {
+                <span class="summary-item cashflow">Cashflow: <strong>RM {{ cashflowTotal() | number:'1.2-2' }}</strong></span>
               }
               @if (chartPills()['discount']) {
                 <span class="summary-item disc">Discounts: <strong>RM {{ discountTotal() | number:'1.2-2' }}</strong></span>
@@ -432,12 +432,12 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
               </div>
               <div class="chart-right">
                 @if (catDonutGradient()) {
-                  <div class="donut" [style.background]="catDonutGradient()"></div>
                   <div class="donut-legend">
                     @for (item of catDonutLegend(); track item.name) {
                       <span><span class="donut-dot" [style.background]="item.color"></span>{{ item.name }}</span>
                     }
                   </div>
+                  <div class="donut" [style.background]="catDonutGradient()"></div>
                 }
               </div>
             </div>
@@ -495,12 +495,12 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
               </div>
               <div class="chart-right">
                 @if (custDonutGradient()) {
-                  <div class="donut" [style.background]="custDonutGradient()"></div>
                   <div class="donut-legend">
                     @for (item of custDonutLegend(); track item.name) {
                       <span><span class="donut-dot" [style.background]="item.color"></span>{{ item.name }}</span>
                     }
                   </div>
+                  <div class="donut" [style.background]="custDonutGradient()"></div>
                 }
               </div>
             </div>
@@ -891,10 +891,10 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       }
       .pill-dot.rev { background: var(--color-primary); }
       .pill-dot.fee { background: var(--color-warning); }
-      .pill-dot.escrow { background: var(--color-success); }
-      .pill-dot.payout {
-        background: var(--color-success);
-        border: 1px dashed var(--color-success);
+      .pill-dot.gross { background: #16a34a; }
+      .pill-dot.cashflow {
+        background: #9333ea;
+        border: 1px dashed #9333ea;
       }
       .pill-dot.disc { background: var(--color-muted); }
 
@@ -921,10 +921,10 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       }
       .legend-dot.rev { background: var(--color-primary); }
       .legend-dot.fee { background: var(--color-warning); }
-      .legend-dot.escrow { background: var(--color-success); }
-      .legend-dot.payout {
-        background: var(--color-success);
-        outline: 1px dashed var(--color-success);
+      .legend-dot.gross { background: #16a34a; }
+      .legend-dot.cashflow {
+        background: #9333ea;
+        outline: 1px dashed #9333ea;
         outline-offset: 1px;
       }
       .legend-dot.disc {
@@ -947,16 +947,16 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
       }
-      .line-escrow {
+      .line-gross {
         fill: none;
         stroke: #16a34a;
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
       }
-      .line-payout {
+      .line-cashflow {
         fill: none;
-        stroke: #16a34a;
-        stroke-dasharray: 6 3;
+        stroke: #9333ea;
+        stroke-dasharray: 2 6;
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
       }
@@ -975,18 +975,18 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         stroke-linecap: round;
         stroke-linejoin: round;
       }
-      .line-escrow {
+      .line-gross {
         fill: none;
-        stroke: var(--color-success);
+        stroke: #16a34a;
         stroke-width: 2;
         stroke-linecap: round;
         stroke-linejoin: round;
       }
-      .line-payout {
+      .line-cashflow {
         fill: none;
-        stroke: var(--color-success);
+        stroke: #9333ea;
         stroke-width: 2;
-        stroke-dasharray: 6 3;
+        stroke-dasharray: 2 6;
         stroke-linecap: round;
         stroke-linejoin: round;
       }
@@ -1019,8 +1019,8 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .summary-item { color: var(--color-muted); }
       .summary-item.rev strong { color: var(--color-primary); }
       .summary-item.fee strong { color: var(--color-warning); }
-      .summary-item.escrow strong { color: var(--color-success); }
-      .summary-item.payout strong { color: var(--color-success); }
+      .summary-item.gross strong { color: #16a34a; }
+      .summary-item.cashflow strong { color: #9333ea; }
       .summary-item.disc strong { color: #dc2626; }
 
       /* Chart tooltip */
@@ -1029,8 +1029,8 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .tip-row { padding: 0.1rem 0; }
       .tip-row.rev { color: var(--color-primary); }
       .tip-row.fee { color: #f59e0b; }
-      .tip-row.esc { color: #16a34a; }
-      .tip-row.pay { color: #16a34a; }
+      .tip-row.gross { color: #16a34a; }
+      .tip-row.cf { color: #9333ea; }
       .tip-row.disc { color: #dc2626; }
 
       /* ── Category breakdown table ───────────────────────────────────── */
@@ -1207,11 +1207,7 @@ export class AdminDashboardComponent implements OnInit {
 
   // ── Chart pills ──────────────────────────────────────────────────────
   chartPills = signal<Record<ChartLineKey, boolean>>({
-    revenue: true,
-    fees: true,
-    escrow: false,
-    payouts: false,
-    discount: false,
+    revenue: true, fees: true, gross: true, discount: false, cashflow: false,
   });
 
   toggleChartPill(key: ChartLineKey): void {
@@ -1230,13 +1226,13 @@ export class AdminDashboardComponent implements OnInit {
   // ── Chart line signals ───────────────────────────────────────────────
   revenueLine = signal('');
   feesLine = signal('');
-  escrowLine = signal('');
-  payoutsLine = signal('');
+  grossLine = signal('');
+  cashflowLine = signal('');
   discountLine = signal('');
   gridLines = signal<{ y: number; label: string }[]>([]);
   xLabels = signal<{ x: number; label: string }[]>([]);
 
-  chartTooltip = signal<{ x: number; y: number; date: string; rev?: number; fee?: number; esc?: number; pay?: number; disc?: number } | null>(null);
+  chartTooltip = signal<{ x: number; y: number; date: string; rev?: number; fee?: number; gross?: number; cf?: number; disc?: number } | null>(null);
 
   onChartHover(e: MouseEvent): void {
     const fd = this.finData();
@@ -1250,17 +1246,21 @@ export class AdminDashboardComponent implements OnInit {
     if (idx < 0 || idx >= days) { this.chartTooltip.set(null); return; }
 
     const dr = fd.dailyRevenue[idx];
-    const de = fd.dailyEscrow?.[idx];
     const dp = fd.dailyPayouts?.[idx];
     const dd = fd.dailyDiscount?.[idx];
+    const rev = dr?.revenue ?? 0;
+    const payout = dp?.amount ?? 0;
+    const disc = dd?.amount ?? 0;
+    const gross = rev - payout - disc;
+    const cf = gross; // approximate (withdrawals are total, not daily)
     this.chartTooltip.set({
       x: e.clientX - svg.left + 12,
       y: e.clientY - svg.top - 60,
       date: dr?.date ?? '',
       rev: dr?.revenue,
       fee: dr?.fees,
-      esc: de?.amount,
-      pay: dp?.amount,
+      gross: gross || undefined,
+      cf: cf || undefined,
       disc: dd?.amount,
     });
   }
@@ -1269,8 +1269,8 @@ export class AdminDashboardComponent implements OnInit {
   financialDays = signal(30);
   revenueTotal = signal(0);
   feesTotal = signal(0);
-  escrowTotal = signal(0);
-  payoutsTotal = signal(0);
+  grossTotal = signal(0);
+  cashflowTotal = signal(0);
   discountTotal = signal(0);
 
   // ── Date range ───────────────────────────────────────────────────────
@@ -1610,32 +1610,25 @@ export class AdminDashboardComponent implements OnInit {
     const pills = this.chartPills();
 
     // Gather all unique dates from all series
-    const allDays = new Map<string, { rev: number; fee: number; esc: number; pay: number; disc: number }>();
+    const allDays = new Map<string, { rev: number; fee: number; pay: number; disc: number }>();
 
     for (const d of fd.dailyRevenue) {
-      if (!allDays.has(d.date)) allDays.set(d.date, { rev: 0, fee: 0, esc: 0, pay: 0, disc: 0 });
+      if (!allDays.has(d.date)) allDays.set(d.date, { rev: 0, fee: 0, pay: 0, disc: 0 });
       const pt = allDays.get(d.date)!;
       pt.rev = d.revenue;
       pt.fee = d.fees;
     }
 
-    if (fd.dailyEscrow) {
-      for (const d of fd.dailyEscrow) {
-        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, esc: 0, pay: 0, disc: 0 });
-        allDays.get(d.day)!.esc = d.amount;
-      }
-    }
-
     if (fd.dailyPayouts) {
       for (const d of fd.dailyPayouts) {
-        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, esc: 0, pay: 0, disc: 0 });
+        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, pay: 0, disc: 0 });
         allDays.get(d.day)!.pay = d.amount;
       }
     }
 
     if (fd.dailyDiscount) {
       for (const d of fd.dailyDiscount) {
-        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, esc: 0, pay: 0, disc: 0 });
+        if (!allDays.has(d.day)) allDays.set(d.day, { rev: 0, fee: 0, pay: 0, disc: 0 });
         allDays.get(d.day)!.disc = d.amount;
       }
     }
@@ -1650,36 +1643,46 @@ export class AdminDashboardComponent implements OnInit {
     const n = sorted.length;
 
     // Compute totals
-    let revTotal = 0, feeTotal = 0, escTotal = 0, payTotal = 0, discTotal = 0;
-    const revArr: number[] = [], feeArr: number[] = [], escArr: number[] = [], payArr: number[] = [], discArr: number[] = [];
+    let revTotal = 0, feeTotal = 0, grossTotal = 0, cashflowTotal = 0, discTotal = 0;
+    const revArr: number[] = [], feeArr: number[] = [], payArr: number[] = [], discArr: number[] = [];
     const dateArr: string[] = [];
 
     for (const [date, vals] of sorted) {
       dateArr.push(date);
       revArr.push(vals.rev);
       feeArr.push(vals.fee);
-      escArr.push(vals.esc);
       payArr.push(vals.pay);
+      discArr.push(vals.disc);
       if (pills.revenue) revTotal += vals.rev;
       if (pills.fees) feeTotal += vals.fee;
-      if (pills.escrow) escTotal += vals.esc;
-      if (pills.payouts) payTotal += vals.pay;
-      discArr.push(vals.disc);
       if (pills.discount) discTotal += vals.disc;
+    }
+
+    // Compute gross and cashflow arrays (gross = rev - payout - disc)
+    const grossArr: number[] = [];
+    const cashflowArr: number[] = [];
+    for (let i = 0; i < revArr.length; i++) {
+      const payout = payArr[i] ?? 0;
+      const disc = discArr[i] ?? 0;
+      const g = revArr[i] - payout - disc;
+      grossArr.push(g);
+      cashflowArr.push(g); // approx (withdrawals are total, not daily)
+      if (pills.gross) grossTotal += g;
+      if (pills.cashflow) cashflowTotal += g;
     }
 
     this.revenueTotal.set(revTotal);
     this.feesTotal.set(feeTotal);
-    this.escrowTotal.set(escTotal);
-    this.payoutsTotal.set(payTotal);
+    this.grossTotal.set(grossTotal);
+    this.cashflowTotal.set(cashflowTotal);
     this.discountTotal.set(discTotal);
 
     // Compute max value across active series
     let maxVal = 1;
     if (pills.revenue) maxVal = Math.max(maxVal, ...revArr);
     if (pills.fees) maxVal = Math.max(maxVal, ...feeArr);
-    if (pills.escrow) maxVal = Math.max(maxVal, ...escArr);
-    if (pills.payouts) maxVal = Math.max(maxVal, ...payArr);
+    if (pills.gross) maxVal = Math.max(maxVal, ...grossArr.map(v => Math.abs(v)));
+    if (pills.cashflow) maxVal = Math.max(maxVal, ...cashflowArr.map(v => Math.abs(v)));
     if (pills.discount) maxVal = Math.max(maxVal, ...discArr);
 
     const innerW = this.chartW - this.padL - this.padR;
@@ -1703,8 +1706,8 @@ export class AdminDashboardComponent implements OnInit {
 
     this.revenueLine.set(buildLine(revArr, pills.revenue));
     this.feesLine.set(buildLine(feeArr, pills.fees));
-    this.escrowLine.set(buildLine(escArr, pills.escrow));
-    this.payoutsLine.set(buildLine(payArr, pills.payouts));
+    this.grossLine.set(buildLine(grossArr, pills.gross));
+    this.cashflowLine.set(buildLine(cashflowArr, pills.cashflow));
     this.discountLine.set(buildLine(discArr, pills.discount));
 
     // Grid lines
@@ -1727,15 +1730,15 @@ export class AdminDashboardComponent implements OnInit {
   private clearChart(): void {
     this.revenueLine.set('');
     this.feesLine.set('');
-    this.escrowLine.set('');
-    this.payoutsLine.set('');
+    this.grossLine.set('');
+    this.cashflowLine.set('');
     this.discountLine.set('');
     this.gridLines.set([]);
     this.xLabels.set([]);
     this.revenueTotal.set(0);
     this.feesTotal.set(0);
-    this.escrowTotal.set(0);
-    this.payoutsTotal.set(0);
+    this.grossTotal.set(0);
+    this.cashflowTotal.set(0);
     this.discountTotal.set(0);
   }
 
