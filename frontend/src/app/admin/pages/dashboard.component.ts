@@ -146,13 +146,13 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 
       <!-- Section B (lighter bg): Section filter pills -->
       <div class="dash-head-b">
-        <button class="chip" [class.active]="sectionFilter() === 'all'" (click)="sectionFilter.set('all')">All</button>
-        <button class="chip" [class.active]="sectionFilter() === 'queues'" (click)="sectionFilter.set('queues')">Queues</button>
-        <button class="chip" [class.active]="sectionFilter() === 'cards'" (click)="sectionFilter.set('cards')">Cards</button>
-        <button class="chip" [class.active]="sectionFilter() === 'chart'" (click)="sectionFilter.set('chart')">Chart</button>
-        <button class="chip" [class.active]="sectionFilter() === 'breakdown'" (click)="sectionFilter.set('breakdown')">Breakdown</button>
-        <button class="chip" [class.active]="sectionFilter() === 'customers'" (click)="sectionFilter.set('customers')">Customers</button>
-        <button class="chip" [class.active]="sectionFilter() === 'servicers'" (click)="sectionFilter.set('servicers')">Servicers</button>
+        <button class="chip" [class.active]="sectionFilters()['all']" (click)="toggleSectionFilter('all')">All</button>
+        <button class="chip" [class.active]="sectionFilters()['queues']" (click)="toggleSectionFilter('queues')">Queues</button>
+        <button class="chip" [class.active]="sectionFilters()['cards']" (click)="toggleSectionFilter('cards')">Cards</button>
+        <button class="chip" [class.active]="sectionFilters()['chart']" (click)="toggleSectionFilter('chart')">Chart</button>
+        <button class="chip" [class.active]="sectionFilters()['breakdown']" (click)="toggleSectionFilter('breakdown')">Breakdown</button>
+        <button class="chip" [class.active]="sectionFilters()['customers']" (click)="toggleSectionFilter('customers')">Customers</button>
+        <button class="chip" [class.active]="sectionFilters()['servicers']" (click)="toggleSectionFilter('servicers')">Servicers</button>
       </div>
     </div>
 
@@ -1120,12 +1120,21 @@ export class AdminDashboardComponent implements OnInit {
   finFailed = signal(false);
 
   // ── Section filter ───────────────────────────────────────────────────
-  sectionFilter = signal<'all' | 'queues' | 'cards' | 'chart' | 'breakdown' | 'customers' | 'servicers'>('all');
-
-  showSection(s: string): boolean {
-    const f = this.sectionFilter();
-    return f === 'all' || f === s;
+  sectionFilters = signal<Record<string, boolean>>({ all: true, queues: true, cards: true, chart: true, breakdown: true, customers: true, servicers: true });
+  toggleSectionFilter(key: string): void {
+    this.sectionFilters.update(f => {
+      const next = !f[key];
+      if (key === 'all') {
+        return { all: next, queues: next, cards: next, chart: next, breakdown: next, customers: next, servicers: next };
+      }
+      const updated = { ...f, [key]: next };
+      const active = ['queues','cards','chart','breakdown','customers','servicers'].every(k => updated[k]);
+      updated['all'] = active;
+      if (!next && !Object.values(updated).some(v => v)) updated['all'] = true; // at least one on
+      return updated;
+    });
   }
+  showSection(s: string): boolean { return this.sectionFilters()[s] || this.sectionFilters()['all']; }
 
   // ── Drag-to-scroll ───────────────────────────────────────────────────
   private _dragActive = false;
