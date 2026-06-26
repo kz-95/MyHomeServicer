@@ -2118,8 +2118,22 @@ async function main(): Promise<void> {
         createdAt: doneAt,
       },
     });
+    // Seed gateway_fee for ~33% of pay_later bookings (3.4% + RM 1.00)
+    if (cb.booking.paymentMode === 'pay_later' && seqCounter % 3 === 0) {
+      const gwFee = Math.round((0.034 * total + 1.00) * 100) / 100;
+      await prisma.transaction.create({
+        data: {
+          type: 'gateway_fee',
+          amount: gwFee,
+          bookingId: cb.booking.id,
+          servicerId,
+          reference: 'Seed - Stripe processing fee',
+          createdAt: doneAt,
+        },
+      });
+    }
   }
-  console.log('  ✓ invoices + escrow_release for completed bookings');
+  console.log('  ✓ invoices + escrow_release + gateway_fee for completed bookings');
 
   // ── Escrow rows for dashboard (D1) ──
   const escrowCandidates = allBulkCompleted.slice(0, 20);

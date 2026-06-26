@@ -225,7 +225,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
               <span class="fin-cf-in">RM {{ grossIn | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
-              <span class="fin-label">OUT <button class="hint-btn" title="Servicer payouts + gateway commission + discounts + promo costs + points costs.">(?)</button></span>
+              <span class="fin-label">OUT <button class="hint-btn" title="Total money flowing out: servicer payouts + gateway fees + registered discounts + promo costs + loyalty points.">(?)</button></span>
               <span class="fin-cf-out">RM {{ grossOut | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
@@ -240,11 +240,11 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
           <!-- Card 2: Revenue breakdown -->
           <div class="card fin-card">
             <div class="fin-cf-row">
-              <span class="fin-label">Revenue <button class="hint-btn" title="Platform earnings: 8% commission + customer top-ups">(?)</button></span>
+              <span class="fin-label">Revenue <button class="hint-btn" title="Platform commission (20% of completed bookings) + customer wallet top-ups. The actual commission rate is configurable in Admin Settings.">(?)</button></span>
               <span class="fin-n">RM {{ (fd.totalCommission + fd.totalTopUps) | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
-              <span class="fin-label">Commission <button class="hint-btn" title="Platform's commission (20%) collected from completed bookings.">(?)</button></span>
+              <span class="fin-label">Commission <button class="hint-btn" title="Platform fee (20%) collected from completed bookings. Configurable in Admin Settings.">(?)</button></span>
               <span class="cf-good">RM {{ fd.totalCommission | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
@@ -252,7 +252,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
               <span class="cf-good">RM {{ fd.totalTopUps | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
-              <span class="fin-label">Discounts <button class="hint-btn" title="Registered customer discounts + promotion redemptions.">(?)</button></span>
+              <span class="fin-label">Discounts <button class="hint-btn" title="Registered customer discounts (15% off first booking) + servicer promotion paybacks.">(?)</button></span>
               <span class="cf-bad">RM {{ ((fd.registeredDiscount ?? 0) + (fd.promoCost ?? 0)) | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
@@ -260,7 +260,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
               <span class="cf-bad">RM {{ (fd.pointsCost ?? 0) | number:'1.2-2' }}</span>
             </div>
             <div class="fin-cf-row">
-              <span class="fin-label">Gateway <button class="hint-btn" title="Stripe/gateway processing commission (3.4% + RM 1.00).">(?)</button></span>
+              <span class="fin-label">Gateway <button class="hint-btn" title="Stripe/gateway processing fee (configurable % + fixed RM). Default: 3.4% + RM 1.00 per card payment.">(?)</button></span>
               <span class="cf-bad">RM {{ (fd.gatewayFee ?? 0) | number:'1.2-2' }}</span>
             </div>
           </div>

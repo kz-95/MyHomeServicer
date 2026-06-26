@@ -146,6 +146,25 @@ const POSTCODES_PER_PAGE = 20;
         </section>
 
         <section class="card page-child">
+          <h2>Gateway processing fee</h2>
+          <p class="muted">
+            Stripe/gateway processing charge applied when customers pay via card.
+            Calculated as <code>({{ gwFeePct ?? '3.4' }}% × total) + RM {{ gwFeeFixed ?? '1.00' }}</code>.
+          </p>
+          <div class="charge-row">
+            <input type="number" min="0" step="0.1" [(ngModel)]="gwFeePct" name="gwfeepct" />
+            <span class="affix">% + RM</span>
+            <input type="number" min="0" step="0.50" [(ngModel)]="gwFeeFixed" name="gwfeefixed" />
+          </div>
+          <div class="actions">
+            <button class="btn-primary" (click)="saveGatewayFee()" [disabled]="savingKey() === 'gateway_fee'">
+              {{ savingKey() === 'gateway_fee' ? 'Saving…' : 'Save gateway fee' }}
+            </button>
+          </div>
+          @if (msg(); as m) { @if (m.key === 'gateway_fee') { <p [class.err]="m.error" class="row-msg">{{ m.text }}</p> } }
+        </section>
+
+        <section class="card page-child">
           <h2>Notifications</h2>
           <div class="set-row">
             <div class="set-info">
@@ -1296,6 +1315,8 @@ export class AdminSettingsComponent implements OnInit {
 
   private feeRateRaw: Record<string, unknown> = {};
   feeRatePct: number | null = null;
+  gwFeePct: number | null = null;
+  gwFeeFixed: number | null = null;
 
   notifSoundEnabled = signal(true);
   chatSoundEnabled = signal(true);
@@ -1345,6 +1366,11 @@ export class AdminSettingsComponent implements OnInit {
           this.feeRateRaw = fr;
           this.feeRatePct = typeof fr['current_rate'] === 'number' ? round2((fr['current_rate'] as number) * 100) : null;
         }
+
+        const gwPct = byKey.get('gateway_fee_pct');
+        if (typeof gwPct === 'number') this.gwFeePct = round2(gwPct * 100);
+        const gwFixed = byKey.get('gateway_fee_fixed');
+        if (typeof gwFixed === 'number') this.gwFeeFixed = gwFixed;
 
         const ns = byKey.get('notification_sound_enabled');
         if (ns != null) this.notifSoundEnabled.set(ns === true);
@@ -1461,6 +1487,40 @@ export class AdminSettingsComponent implements OnInit {
       return;
     }
     this.persist('platform_fee_rate', { ...this.feeRateRaw, current_rate: Number(this.feeRatePct) / 100 });
+  }
+
+  saveGatewayFee(): void {
+    if (this.gwFeePct == null || !Number.isFinite(Number(this.gwFeePct)) || Number(this.gwFeePct) < 0) {
+      this.msg.set({ key: 'gateway_fee', text: 'Enter a valid gateway percentage.', error: true });
+      return;
+    }
+    if (this.gwFeeFixed == null || !Number.isFinite(Number(this.gwFeeFixed)) || Number(this.gwFeeFixed) < 0) {
+      this.msg.set({ key: 'gateway_fee', text: 'Enter a valid fixed amount.', error: true });
+      return;
+    }
+    this.msg.set(null);
+    this.pin.requirePin().subscribe((pin) => {
+      if (!pin) return;
+      this.savingKey.set('gateway_fee');
+      this.api.patch('/admin/settings', { key: 'gateway_fee_pct', value: Number(this.gwFeePct) / 100 }, { 'x-action-pin': pin }).subscribe({
+        next: () => {
+          this.api.patch('/admin/settings', { key: 'gateway_fee_fixed', value: Number(this.gwFeeFixed) }, { 'x-action-pin': pin }).subscribe({
+            next: () => {
+              this.savingKey.set(null);
+              this.msg.set({ key: 'gateway_fee', text: 'Gateway fee saved.', error: false });
+            },
+            error: (e) => {
+              this.savingKey.set(null);
+              this.msg.set({ key: 'gateway_fee', text: e.message ?? 'Save failed', error: true });
+            },
+          });
+        },
+        error: (e) => {
+          this.savingKey.set(null);
+          this.msg.set({ key: 'gateway_fee', text: e.message ?? 'Save failed', error: true });
+        },
+      });
+    });
   }
 
   saveNotifSound(): void {
