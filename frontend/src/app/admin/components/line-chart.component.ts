@@ -191,7 +191,7 @@ export class LineChartComponent implements OnChanges {
             return `${months[+m-1]} ${+d}`;
           });
         }, autoSkip: false, maxRotation: 0 }, grid: { color: 'transparent' } },
-        y: { display: true, ticks: { font: { size: 10 }, color: mutedColor, callback: (v: any) => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v }, grid: { color: mutedColor + '22' }, border: { display: false } },
+        y: { display: true, ticks: { font: { size: 10 }, color: mutedColor, callback: (v: any) => v >= 1e6 ? (v/1e6).toFixed(1) + 'M' : v >= 1000 ? (v/1000).toFixed(0) + 'k' : v }, grid: { color: mutedColor + '22' }, border: { display: false } },
       },
       interaction: { intersect: false, mode: 'index' },
     };

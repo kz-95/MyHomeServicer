@@ -76,7 +76,7 @@ export class BarChartComponent implements OnInit, OnChanges {
         tooltip: { backgroundColor: surfaceColor, titleColor: textColor, bodyColor: textColor, borderColor: borderColor, borderWidth: 1 },
       },
       scales: {
-        x: { display: true, ticks: { font: { size: 10 }, color: mutedColor }, grid: { color: mutedColor + '22' }, border: { display: false } },
+        x: { display: true, ticks: { font: { size: 10 }, color: mutedColor, callback: (v: any) => v >= 1e6 ? (v/1e6).toFixed(1) + 'M' : v >= 1000 ? (v/1000).toFixed(0) + 'k' : v }, grid: { color: mutedColor + '22' }, border: { display: false } },
         y: { display: true, ticks: { font: { size: 11 }, color: textColor }, grid: { display: false }, border: { display: false } },
       },
       onClick: (e, elements) => {
