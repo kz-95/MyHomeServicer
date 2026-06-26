@@ -365,20 +365,22 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                     <option value="revenue">Revenue</option>
                   </select>
                 </div>
-                <app-donut-chart
-                  [labels]="catDonutLabels()"
-                  [values]="catDonutValues()"
-                  [colors]="DONUT_COLORS"
-                  (sliceClick)="onCatSliceClick($event)"
-                />
-                <div class="donut-legend">
-                  @for (item of catDonutLegend(); track item.label) {
-                    <div class="donut-legend-item">
-                      <span class="donut-dot" [style.background]="item.color"></span>
-                      <span class="donut-legend-label">{{ item.label }}</span>
-                      <span class="donut-legend-val">{{ item.value | number:'1.2-2' }}</span>
-                    </div>
-                  }
+                <div class="donut-row">
+                  <div class="donut-legend">
+                    @for (item of catDonutLegend(); track item.label) {
+                      <div class="donut-legend-item">
+                        <span class="donut-dot" [style.background]="item.color"></span>
+                        <span class="donut-legend-label">{{ item.label }}</span>
+                        <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
+                      </div>
+                    }
+                  </div>
+                  <app-donut-chart
+                    [labels]="catDonutLabels()"
+                    [values]="catDonutValues()"
+                    [colors]="DONUT_COLORS"
+                    (sliceClick)="onCatSliceClick($event)"
+                  />
                 </div>
               </div>
             </div>
@@ -434,20 +436,22 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                     <option value="bookingCount">Bookings</option>
                   </select>
                 </div>
-                <app-donut-chart
-                  [labels]="custDonutLabels()"
-                  [values]="custDonutValues()"
-                  [colors]="DONUT_COLORS"
-                  (sliceClick)="onCustSliceClick($event)"
-                />
-                <div class="donut-legend">
-                  @for (item of custDonutLegend(); track item.label) {
-                    <div class="donut-legend-item">
-                      <span class="donut-dot" [style.background]="item.color"></span>
-                      <span class="donut-legend-label">{{ item.label }}</span>
-                      <span class="donut-legend-val">{{ item.value | number:'1.2-2' }}</span>
-                    </div>
-                  }
+                <div class="donut-row">
+                  <div class="donut-legend">
+                    @for (item of custDonutLegend(); track item.label) {
+                      <div class="donut-legend-item">
+                        <span class="donut-dot" [style.background]="item.color"></span>
+                        <span class="donut-legend-label">{{ item.label }}</span>
+                        <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
+                      </div>
+                    }
+                  </div>
+                  <app-donut-chart
+                    [labels]="custDonutLabels()"
+                    [values]="custDonutValues()"
+                    [colors]="DONUT_COLORS"
+                    (sliceClick)="onCustSliceClick($event)"
+                  />
                 </div>
               </div>
             </div>
@@ -503,20 +507,22 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                     <option value="jobCount">Jobs</option>
                   </select>
                 </div>
-                <app-donut-chart
-                  [labels]="svcDonutLabels()"
-                  [values]="svcDonutValues()"
-                  [colors]="DONUT_COLORS"
-                  (sliceClick)="onSvcSliceClick($event)"
-                />
-                <div class="donut-legend">
-                  @for (item of svcDonutLegend(); track item.label) {
-                    <div class="donut-legend-item">
-                      <span class="donut-dot" [style.background]="item.color"></span>
-                      <span class="donut-legend-label">{{ item.label }}</span>
-                      <span class="donut-legend-val">{{ item.value | number:'1.2-2' }}</span>
-                    </div>
-                  }
+                <div class="donut-row">
+                  <div class="donut-legend">
+                    @for (item of svcDonutLegend(); track item.label) {
+                      <div class="donut-legend-item">
+                        <span class="donut-dot" [style.background]="item.color"></span>
+                        <span class="donut-legend-label">{{ item.label }}</span>
+                        <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
+                      </div>
+                    }
+                  </div>
+                  <app-donut-chart
+                    [labels]="svcDonutLabels()"
+                    [values]="svcDonutValues()"
+                    [colors]="DONUT_COLORS"
+                    (sliceClick)="onSvcSliceClick($event)"
+                  />
                 </div>
               </div>
             </div>
@@ -936,6 +942,7 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
       .donut-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
       .donut-legend-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .donut-legend-val { font-weight: 600; color: var(--color-text); }
+      .donut-row { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 
       /* ── Responsive ─────────────────────────────────────────────────── */
       @media (max-width: 760px) { .chart-row { display: none; } }
@@ -1281,25 +1288,34 @@ export class AdminDashboardComponent implements OnInit {
   // ── Donut legends ───────────────────────────────────────────────────
   catDonutLegend = computed(() => {
     const rows = this.sortedCategoryBreakdown().slice(0, 5);
+    const vals = this.catDonutValues();
+    const total = vals.length ? vals.reduce((s, v) => s + v, 0) || 1 : 1;
     return rows.map((r, i) => ({
       label: r.name,
-      value: this.catDonutValues()[i],
+      value: vals[i],
+      pct: ((vals[i] / total) * 100).toFixed(1) + '%',
       color: DONUT_COLORS[i % DONUT_COLORS.length],
     }));
   });
   custDonutLegend = computed(() => {
     const rows = this.sortedCustomerLB().slice(0, 5);
+    const vals = this.custDonutValues();
+    const total = vals.length ? vals.reduce((s, v) => s + v, 0) || 1 : 1;
     return rows.map((r, i) => ({
       label: r.name,
-      value: this.custDonutValues()[i],
+      value: vals[i],
+      pct: ((vals[i] / total) * 100).toFixed(1) + '%',
       color: DONUT_COLORS[i % DONUT_COLORS.length],
     }));
   });
   svcDonutLegend = computed(() => {
     const rows = this.sortedServicerLB().slice(0, 5);
+    const vals = this.svcDonutValues();
+    const total = vals.length ? vals.reduce((s, v) => s + v, 0) || 1 : 1;
     return rows.map((r, i) => ({
       label: r.businessName || r.name,
-      value: this.svcDonutValues()[i],
+      value: vals[i],
+      pct: ((vals[i] / total) * 100).toFixed(1) + '%',
       color: DONUT_COLORS[i % DONUT_COLORS.length],
     }));
   });

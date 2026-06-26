@@ -1,7 +1,10 @@
 import { Component, Input, OnInit, OnChanges, SimpleChanges, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration } from 'chart.js';
+import { Chart, ChartConfiguration } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+
+Chart.register(ChartDataLabels);
 
 @Component({
   selector: 'app-donut-chart',
@@ -62,7 +65,29 @@ export class DonutChartComponent implements OnInit, OnChanges {
       animation: { duration: 500 },
       plugins: {
         legend: { display: false },
-        tooltip: { backgroundColor: surfaceColor, titleColor: textColor, bodyColor: textColor, borderColor: borderColor, borderWidth: 1 },
+        tooltip: {
+          backgroundColor: surfaceColor, titleColor: textColor, bodyColor: textColor, borderColor: borderColor, borderWidth: 1,
+          callbacks: {
+            label: (ctx: any) => {
+              const total = (ctx.dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
+              const pct = total ? ((ctx.raw / total) * 100).toFixed(1) : '0';
+              return `${ctx.label}: RM ${Number(ctx.raw).toFixed(2)} (${pct}%)`;
+            },
+          },
+        },
+        datalabels: {
+          color: '#fff',
+          font: { size: 11, weight: 'bold' as const },
+          formatter: (value: number, ctx: any) => {
+            const total = (ctx.dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
+            const pct = total ? ((value / total) * 100).toFixed(1) : '0';
+            return pct + '%';
+          },
+          display: (ctx: any) => {
+            const total = (ctx.dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
+            return total > 0 && ctx.dataset.data[ctx.dataIndex] / total > 0.05;
+          },
+        },
       },
       cutout: '55%',
       onClick: (e, elements) => {
