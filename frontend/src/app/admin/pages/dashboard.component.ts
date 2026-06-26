@@ -88,6 +88,8 @@ interface FinancialDashboard {
 
 type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
 
+const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6b7280'];
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 @Component({
@@ -321,6 +323,9 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
                 @if (chartPills()['payouts']) {
                   <span class="legend-item"><span class="legend-dot payout"></span>Pending Payouts</span>
                 }
+                @if (chartPills()['discount']) {
+                  <span class="legend-item"><span class="legend-dot disc"></span>Discounts</span>
+                }
               </div>
               <svg class="chart-svg" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none">
                 <!-- Grid lines -->
@@ -368,6 +373,9 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
               @if (chartPills()['payouts']) {
                 <span class="summary-item payout">Pending Payouts: <strong>RM {{ payoutsTotal() | number:'1.2-2' }}</strong></span>
               }
+              @if (chartPills()['discount']) {
+                <span class="summary-item disc">Discounts: <strong>RM {{ discountTotal() | number:'1.2-2' }}</strong></span>
+              }
             </div>
           } @else {
             <p class="muted">No revenue data yet - bookings will populate this chart.</p>
@@ -381,6 +389,35 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       @if (finData(); as fd) {
         <div class="card cat-breakdown page-child">
           @if (fd.categoryBreakdown.length) {
+            <!-- Bar + Donut charts -->
+            <div class="chart-row">
+              <div class="chart-left">
+                <div class="h-bar-chart">
+                  @for (row of catBarTop5(); track row.label) {
+                    <div class="h-bar-row">
+                      <span class="h-bar-label" [title]="row.label">{{ row.label }}</span>
+                      <div class="h-bar-track">
+                        <div class="h-bar-fill" [style.width.%]="row.pct"></div>
+                      </div>
+                      <span class="h-bar-val">{{ row.value }}</span>
+                    </div>
+                  }
+                  @if (!catBarTop5().length) {
+                    <span class="muted">No data</span>
+                  }
+                </div>
+              </div>
+              <div class="chart-right">
+                @if (catDonutGradient()) {
+                  <div class="donut" [style.background]="catDonutGradient()"></div>
+                  <div class="donut-legend">
+                    @for (item of catDonutLegend(); track item.name) {
+                      <span><span class="donut-dot" [style.background]="item.color"></span>{{ item.name }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
             <table class="cb-table">
               <thead>
                 <tr>
@@ -415,6 +452,35 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       @if (finData(); as fd) {
         <div class="card lb-table-wrap page-child">
           @if (fd.customerLeaderboard && fd.customerLeaderboard.length) {
+            <!-- Bar + Donut charts -->
+            <div class="chart-row">
+              <div class="chart-left">
+                <div class="h-bar-chart">
+                  @for (row of custBarTop5(); track row.label) {
+                    <div class="h-bar-row">
+                      <span class="h-bar-label" [title]="row.label">{{ row.label }}</span>
+                      <div class="h-bar-track">
+                        <div class="h-bar-fill" [style.width.%]="row.pct"></div>
+                      </div>
+                      <span class="h-bar-val">RM {{ row.value | number:'1.0-0' }}</span>
+                    </div>
+                  }
+                  @if (!custBarTop5().length) {
+                    <span class="muted">No data</span>
+                  }
+                </div>
+              </div>
+              <div class="chart-right">
+                @if (custDonutGradient()) {
+                  <div class="donut" [style.background]="custDonutGradient()"></div>
+                  <div class="donut-legend">
+                    @for (item of custDonutLegend(); track item.name) {
+                      <span><span class="donut-dot" [style.background]="item.color"></span>{{ item.name }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
             <table class="lb-table">
               <thead>
                 <tr>
@@ -449,6 +515,35 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       @if (finData(); as fd) {
         <div class="card lb-table-wrap page-child">
           @if (fd.servicerLeaderboard && fd.servicerLeaderboard.length) {
+            <!-- Bar + Donut charts -->
+            <div class="chart-row">
+              <div class="chart-left">
+                <div class="h-bar-chart">
+                  @for (row of svcBarTop5(); track row.label) {
+                    <div class="h-bar-row">
+                      <span class="h-bar-label" [title]="row.label">{{ row.label }}</span>
+                      <div class="h-bar-track">
+                        <div class="h-bar-fill" [style.width.%]="row.pct"></div>
+                      </div>
+                      <span class="h-bar-val">RM {{ row.value | number:'1.0-0' }}</span>
+                    </div>
+                  }
+                  @if (!svcBarTop5().length) {
+                    <span class="muted">No data</span>
+                  }
+                </div>
+              </div>
+              <div class="chart-right">
+                @if (svcDonutGradient()) {
+                  <div class="donut" [style.background]="svcDonutGradient()"></div>
+                  <div class="donut-legend">
+                    @for (item of svcDonutLegend(); track item.name) {
+                      <span><span class="donut-dot" [style.background]="item.color"></span>{{ item.name }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
             <table class="lb-table">
               <thead>
                 <tr>
@@ -803,6 +898,11 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
         outline: 1px dashed var(--color-success);
         outline-offset: 1px;
       }
+      .legend-dot.disc {
+        background: #dc2626;
+        outline: 1px dashed #dc2626;
+        outline-offset: 1px;
+      }
 
       /* Line chart polylines */
       .line-rev {
@@ -831,6 +931,13 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
       }
+      .line-disc {
+        fill: none;
+        stroke: #dc2626;
+        stroke-dasharray: 4 4;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
       .line-fee {
         fill: none;
         stroke: var(--color-warning);
@@ -851,6 +958,14 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
         stroke: var(--color-success);
         stroke-width: 2;
         stroke-dasharray: 6 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .line-disc {
+        fill: none;
+        stroke: #dc2626;
+        stroke-width: 2;
+        stroke-dasharray: 4 4;
         stroke-linecap: round;
         stroke-linejoin: round;
       }
@@ -877,6 +992,7 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       .summary-item.fee strong { color: var(--color-warning); }
       .summary-item.escrow strong { color: var(--color-success); }
       .summary-item.payout strong { color: var(--color-success); }
+      .summary-item.disc strong { color: #dc2626; }
 
       /* ── Category breakdown table ───────────────────────────────────── */
       .cat-breakdown { padding: 0.75rem 1rem; margin-top: 1.5rem; }
@@ -939,7 +1055,27 @@ type ChartLineKey = 'revenue' | 'fees' | 'escrow' | 'payouts' | 'discount';
       .report-warn { color: var(--color-danger); font-weight: 600; }
       .report-ok { color: var(--color-muted); }
 
+      /* ── Bar + Donut charts ─────────────────────────────────────────── */
+      .chart-row { display: flex; gap: 1.5rem; align-items: center; margin-bottom: 1rem; }
+      .chart-left { flex: 1; min-width: 0; }
+      .chart-right { flex-shrink: 0; min-width: 140px; }
+
+      /* Bar chart */
+      .h-bar-chart { width: 100%; }
+      .h-bar-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+      .h-bar-label { width: 80px; font-size: 0.75rem; text-align: right; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text); }
+      .h-bar-track { flex: 1; height: 14px; background: var(--color-bg); border-radius: 4px; overflow: hidden; }
+      .h-bar-fill { height: 100%; background: var(--color-primary); border-radius: 4px; transition: width 0.4s ease; }
+      .h-bar-val { width: 50px; font-size: 0.75rem; text-align: right; flex-shrink: 0; color: var(--color-text); }
+
+      /* Donut */
+      .donut { width: 120px; height: 120px; border-radius: 50%; mask: radial-gradient(circle, transparent 55%, black 56%); -webkit-mask: radial-gradient(circle, transparent 55%, black 56%); }
+      .donut-legend { font-size: 0.7rem; margin-top: 0.5rem; }
+      .donut-legend span { display: inline-flex; align-items: center; gap: 0.2rem; margin-right: 0.5rem; }
+      .donut-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
       /* ── Responsive ─────────────────────────────────────────────────── */
+      @media (max-width: 760px) { .chart-row { display: none; } }
       @media (max-width: 900px) {
         .fin-cards { grid-template-columns: repeat(3, 1fr); }
       }
@@ -1012,6 +1148,7 @@ export class AdminDashboardComponent implements OnInit {
   feesTotal = signal(0);
   escrowTotal = signal(0);
   payoutsTotal = signal(0);
+  discountTotal = signal(0);
 
   // ── Date range ───────────────────────────────────────────────────────
   dateFrom = signal(this.formatDate(todayMinus(30)));
@@ -1109,6 +1246,90 @@ export class AdminDashboardComponent implements OnInit {
     return rows;
   });
 
+  // ── Bar + Donut charts for bottom 3 sections ──────────────────────────
+  catBarTop5 = computed(() => {
+    const rows = [...(this.finData()?.categoryBreakdown ?? [])];
+    const sorted = rows.sort((a, b) => b.count - a.count).slice(0, 5);
+    if (!sorted.length) return [];
+    const maxVal = sorted[0].count || 1;
+    return sorted.map((r) => ({ label: r.name, value: r.count, pct: (r.count / maxVal) * 100 }));
+  });
+
+  catDonutGradient = computed(() => {
+    const rows = [...(this.finData()?.categoryBreakdown ?? [])].sort((a, b) => b.fees - a.fees);
+    return this.buildDonutGradient(rows, (r) => r.fees);
+  });
+
+  catDonutLegend = computed(() => {
+    const rows = [...(this.finData()?.categoryBreakdown ?? [])].sort((a, b) => b.fees - a.fees);
+    return this.buildDonutLegend(rows, (r) => r.fees, (r) => r.name);
+  });
+
+  custBarTop5 = computed(() => {
+    const rows = [...(this.finData()?.customerLeaderboard ?? [])]
+      .sort((a, b) => b.totalSpent - a.totalSpent)
+      .slice(0, 5);
+    if (!rows.length) return [];
+    const maxVal = rows[0].totalSpent || 1;
+    return rows.map((r) => ({ label: r.name, value: r.totalSpent, pct: (r.totalSpent / maxVal) * 100 }));
+  });
+
+  custDonutGradient = computed(() => {
+    const rows = [...(this.finData()?.customerLeaderboard ?? [])].sort((a, b) => b.totalSpent - a.totalSpent);
+    return this.buildDonutGradient(rows, (r) => r.totalSpent);
+  });
+
+  custDonutLegend = computed(() => {
+    const rows = [...(this.finData()?.customerLeaderboard ?? [])].sort((a, b) => b.totalSpent - a.totalSpent);
+    return this.buildDonutLegend(rows, (r) => r.totalSpent, (r) => r.name);
+  });
+
+  svcBarTop5 = computed(() => {
+    const rows = [...(this.finData()?.servicerLeaderboard ?? [])]
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+    if (!rows.length) return [];
+    const maxVal = rows[0].revenue || 1;
+    return rows.map((r) => ({ label: r.businessName || r.name, value: r.revenue, pct: (r.revenue / maxVal) * 100 }));
+  });
+
+  svcDonutGradient = computed(() => {
+    const rows = [...(this.finData()?.servicerLeaderboard ?? [])].sort((a, b) => b.revenue - a.revenue);
+    return this.buildDonutGradient(rows, (r) => r.revenue);
+  });
+
+  svcDonutLegend = computed(() => {
+    const rows = [...(this.finData()?.servicerLeaderboard ?? [])].sort((a, b) => b.revenue - a.revenue);
+    return this.buildDonutLegend(rows, (r) => r.revenue, (r) => r.businessName || r.name);
+  });
+
+  private buildDonutGradient<T>(rows: T[], valFn: (r: T) => number): string {
+    const top5 = rows.slice(0, 5);
+    const otherSum = rows.slice(5).reduce((s, r) => s + valFn(r), 0);
+    const total = top5.reduce((s, r) => s + valFn(r), 0) + otherSum || 1;
+    const stops: string[] = [];
+    let acc = 0;
+    for (let i = 0; i < top5.length; i++) {
+      const pct = (valFn(top5[i]) / total) * 100;
+      if (pct <= 0) continue;
+      stops.push(`${DONUT_COLORS[i]} ${acc}% ${acc + pct}%`);
+      acc += pct;
+    }
+    if (otherSum > 0 && acc < 100) {
+      stops.push(`${DONUT_COLORS[5]} ${acc}% 100%`);
+    }
+    return stops.length ? `conic-gradient(${stops.join(',')})` : '';
+  }
+
+  private buildDonutLegend<T>(rows: T[], valFn: (r: T) => number, nameFn: (r: T) => string): { name: string; color: string }[] {
+    const top5 = rows.slice(0, 5);
+    const otherSum = rows.slice(5).reduce((s, r) => s + valFn(r), 0);
+    const legend = top5.map((r, i) => ({ name: nameFn(r), color: DONUT_COLORS[i] }));
+    if (otherSum > 0) legend.push({ name: 'Other', color: DONUT_COLORS[5] });
+    return legend;
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────
   cycleSortField(): void {
     const idx = this.sortFields.findIndex(f => f.key === this.sortState().key);
     const next = this.sortFields[(idx + 1) % this.sortFields.length];
@@ -1274,8 +1495,8 @@ export class AdminDashboardComponent implements OnInit {
     const n = sorted.length;
 
     // Compute totals
-    let revTotal = 0, feeTotal = 0, escTotal = 0, payTotal = 0;
-    const revArr: number[] = [], feeArr: number[] = [], escArr: number[] = [], payArr: number[] = [];
+    let revTotal = 0, feeTotal = 0, escTotal = 0, payTotal = 0, discTotal = 0;
+    const revArr: number[] = [], feeArr: number[] = [], escArr: number[] = [], payArr: number[] = [], discArr: number[] = [];
     const dateArr: string[] = [];
 
     for (const [date, vals] of sorted) {
@@ -1288,12 +1509,15 @@ export class AdminDashboardComponent implements OnInit {
       if (pills.fees) feeTotal += vals.fee;
       if (pills.escrow) escTotal += vals.esc;
       if (pills.payouts) payTotal += vals.pay;
+      discArr.push(vals.disc);
+      if (pills.discount) discTotal += vals.disc;
     }
 
     this.revenueTotal.set(revTotal);
     this.feesTotal.set(feeTotal);
     this.escrowTotal.set(escTotal);
     this.payoutsTotal.set(payTotal);
+    this.discountTotal.set(discTotal);
 
     // Compute max value across active series
     let maxVal = 1;
@@ -1301,6 +1525,7 @@ export class AdminDashboardComponent implements OnInit {
     if (pills.fees) maxVal = Math.max(maxVal, ...feeArr);
     if (pills.escrow) maxVal = Math.max(maxVal, ...escArr);
     if (pills.payouts) maxVal = Math.max(maxVal, ...payArr);
+    if (pills.discount) maxVal = Math.max(maxVal, ...discArr);
 
     const innerW = this.chartW - this.padL - this.padR;
     const innerH = this.chartH - this.padT - this.padB;
@@ -1325,6 +1550,7 @@ export class AdminDashboardComponent implements OnInit {
     this.feesLine.set(buildLine(feeArr, pills.fees));
     this.escrowLine.set(buildLine(escArr, pills.escrow));
     this.payoutsLine.set(buildLine(payArr, pills.payouts));
+    this.discountLine.set(buildLine(discArr, pills.discount));
 
     // Grid lines
     this.gridLines.set(
@@ -1348,12 +1574,14 @@ export class AdminDashboardComponent implements OnInit {
     this.feesLine.set('');
     this.escrowLine.set('');
     this.payoutsLine.set('');
+    this.discountLine.set('');
     this.gridLines.set([]);
     this.xLabels.set([]);
     this.revenueTotal.set(0);
     this.feesTotal.set(0);
     this.escrowTotal.set(0);
     this.payoutsTotal.set(0);
+    this.discountTotal.set(0);
   }
 
   private formatK(n: number): string {

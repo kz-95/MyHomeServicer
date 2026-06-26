@@ -1132,14 +1132,55 @@ async function main(): Promise<void> {
   }
   console.log('  ✓ customer points profiles (Fresh: 500, Active: 950, Loyal: 2100)');
 
-  // New customers - minimal welcome points (500 each)
-  for (const ref of ['C_FRESH2', 'C_FRESH3', 'C_ACTIVE2', 'C_ACTIVE3', 'C_LOYAL2', 'C_LOYAL3']) {
+  // Active customers (C_ACTIVE2, C_ACTIVE3) — earned points from bookings
+  for (const ref of ['C_ACTIVE2', 'C_ACTIVE3']) {
+    const uid = customerByRef[ref];
+    if (!uid) continue;
+    await prisma.customerPoints.create({ data: { userId: uid, balance: 1250, lifetimeEarned: 1250 } });
+    await prisma.pointsTransaction.create({ data: { userId: uid, type: 'earn_welcome', amount: 500, balance: 500, note: '🎉 Welcome! Here are 500 free points to get started.' } });
+    for (const [amount, note] of [[200, 'Aircond servicing'], [50, 'Review'], [300, 'Full house cleaning'], [50, 'Review'], [150, 'Plumbing repair']] as [number, string][]) {
+      await prisma.pointsTransaction.create({ data: { userId: uid, type: amount <= 100 ? 'earn_review' : 'earn_booking', amount, balance: 0, note, createdAt: new Date(Date.now() - Math.random() * 60 * 86_400_000) } });
+    }
+  }
+
+  // Loyal customers (C_LOYAL2, C_LOYAL3) — high points + multiple redemptions
+  for (const ref of ['C_LOYAL2', 'C_LOYAL3']) {
+    const uid = customerByRef[ref];
+    if (!uid) continue;
+    await prisma.customerPoints.create({ data: { userId: uid, balance: 1800, lifetimeEarned: 2800, lifetimeSpent: 1000 } });
+    const bal: { type: string; amount: number; note: string }[] = [
+      { type: 'earn_welcome', amount: 500, note: '🎉 Welcome! Here are 500 free points to get started.' },
+      { type: 'earn_booking', amount: 250, note: 'Earned from booking #AC001' },
+      { type: 'earn_review', amount: 50, note: 'Review for aircon servicing' },
+      { type: 'earn_booking', amount: 300, note: 'Earned from booking #FULLCLN' },
+      { type: 'earn_review', amount: 50, note: 'Review for cleaning' },
+      { type: 'earn_booking', amount: 200, note: 'Earned from booking #PLUMB02' },
+      { type: 'earn_review', amount: 50, note: 'Review for plumbing' },
+      { type: 'earn_referral', amount: 200, note: 'Referred a friend' },
+      { type: 'earn_booking', amount: 180, note: 'Earned from booking #ELEC02' },
+      { type: 'earn_review', amount: 50, note: 'Review for electrical' },
+      { type: 'earn_booking', amount: 220, note: 'Earned from booking #PAINT01' },
+    ];
+    let rb = 0;
+    for (let i = 0; i < bal.length; i++) {
+      const t = bal[i]; rb += t.amount;
+      await prisma.pointsTransaction.create({ data: { userId: uid, type: t.type as any, amount: t.amount, balance: rb, note: t.note, createdAt: new Date(Date.now() - (bal.length - i) * 86_400_000) } });
+    }
+    // 2 redemptions per loyal customer
+    for (let r = 0; r < 2; r++) {
+      const pts = r === 0 ? 500 : 500;
+      await prisma.pointsTransaction.create({ data: { userId: uid, type: 'redeem', amount: -pts, balance: rb - pts, reference: `seed-redeem-${ref}-${r}`, note: r === 0 ? 'Redeemed "RM 25 top-up discount"' : 'Redeemed "RM 10 bonus credit"', createdAt: new Date(Date.now() - (2 - r) * 86_400_000) } });
+      rb -= pts;
+      await prisma.redemption.create({ data: { userId: uid, rewardId: (await prisma.reward.findFirst({ where: { pointCost: pts } }))?.id ?? '', voucherCode: `RWD-${ref}-${r}`, status: r === 0 ? 'used' : 'active', usedAt: r === 0 ? new Date(Date.now() - 1 * 86_400_000) : null, expiresAt: new Date(Date.now() + 28 * 86_400_000) } });
+    }
+  }
+
+  // Fresh new customers (C_FRESH2, C_FRESH3) - minimal welcome points only
+  for (const ref of ['C_FRESH2', 'C_FRESH3']) {
     const uid = customerByRef[ref];
     if (!uid) continue;
     await prisma.customerPoints.create({ data: { userId: uid, balance: 500, lifetimeEarned: 500 } });
-    await prisma.pointsTransaction.create({
-      data: { userId: uid, type: 'earn_welcome', amount: 500, balance: 500, note: '🎉 Welcome! Here are 500 free points to get started.' },
-    });
+    await prisma.pointsTransaction.create({ data: { userId: uid, type: 'earn_welcome', amount: 500, balance: 500, note: '🎉 Welcome! Here are 500 free points to get started.' } });
   }
 
   // ── Servicers, deposits, services, presets ──
