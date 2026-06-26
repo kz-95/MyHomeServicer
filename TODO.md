@@ -1,36 +1,40 @@
 ﻿# TODO - Current Project State
 
-> **State: DEMO-FOCUSED - SP-3 REDESIGN + UX POLISH + ADMIN DASHBOARD** - 2026-06-25
-> Branch: feat/ux-polish
+> **State: DEMO-FOCUSED - SP-3 REDESIGN + ADMIN DASHBOARD + UX POLISH** - 2026-06-26
+> Branch: feat/admin-fix (from master, which contains feat/ux-polish merge)
 > Demo script + slides: `ignorethis/demo-presentation-flow.md` (7-beat single-thread story)
 >
 > Rule this phase: only work items on the demo thread. Everything else is deferred.
 >
-> ### ✅ DONE — Seed Consolidation + Dashboard Wiring
+> ### ✅ DONE — Seed Consolidation + Dashboard Wiring + UX Polish (2026-06-25/26)
 > - [x] SP-3 modules merged into seed.ts (single `npm run seed`, all 34 categories)
-> - [x] OptionValue mismatches fixed (modules match static.ts question schemas)
-> - [x] Missing priced-question ModuleDefs added (14 questions)
-> - [x] Field gaps: lineItems, operatingHours, avatars, coords, labels, descriptions, notes, radius, settlementMethod, paymentTiming
-> - [x] Escrow rows seeded (20 total, 3 held)
-> - [x] escrow_hold bookingId fix + platform_fee distributed across 28 categories
-> - [x] 3 urgent bookings + urgent_fee transactions
+> - [x] OptionValue mismatches fixed + missing priced-question ModuleDefs added
+> - [x] All field gaps filled (lineItems, operatingHours, avatars, coords, labels, notes, radius, payment)
+> - [x] Escrow rows + escrow_hold bookingId + platform_fee distributed + urgent bookings
 > - [x] Revenue query: SUM(urgent_fee) → SUM(booking.price)
-> - [x] Customer address coords via areaCoords(district), quotes inherit from address
-> - [x] Tamarind Square → Tamarind Suites, Cyberjaya coords fixed
-> - [x] Google Maps + Waze official brand SVGs (simple-icons), emoji→app-icon
-> - [x] Dashboard section reorder (queues→today+urgent→chips→financial→chart→breakdown)
-> - [x] Docs: README, seed-plan, schema-notes, INSTRUCTIONS, PRODUCTION-GO-LIVE, spec ✅
-> - [x] Git: 25 commits squashed - 1, pushed to feat/ux-polish ✅
-> - [x] Dashboard full rewrite: 7 collapsible sections, 5-card row, chart pills, leaderboards, tooltips ✅
-> - [x] Backend APIs: dailyEscrow, dailyPayouts, customerLeaderboard, servicerLeaderboard ✅
+> - [x] Customer address coords via areaCoords, quotes inherit from address
+> - [x] Tamarind Square → Tamarind Suites
+> - [x] Dashboard full rewrite: 7 collapsible sections → 4-card financial row (Cashflow IN/OUT/GROSS) → sortable headers → search filter → Q1-Q4 buttons → chart filter pills → leaderboards → (?) tooltips
+> - [x] Backend APIs: dailyEscrow, dailyPayouts, customerLeaderboard, servicerLeaderboard, totalBookingRevenue, totalPayouts, totalWithdrawals
+> - [x] 90-day seed data with today (day 0) completions + future confirmed bookings
+> - [x] 124 customer accounts (9 demo + 105 servicer-paired + 10 guest)
+> - [x] High-ticket pricing (renovation 30k-120k, event 1.2k-25k, ID 4k-20k, catering 500-4k)
+> - [x] Google Maps + Waze brand SVGs (simple-icons), emoji→app-icon
+> - [x] Platform fee: 20% with breakdown (Marketing 5%, Rewards 8%, Ops 4%, Margin 3%)
+> - [x] Servicer contact visibility: checkboxes in account page → customer sees in booking card
+> - [x] Payment: settlementMethod always explicit (no skipCreditCheck anti-pattern)
+> - [x] Admin dashboard: sortable tables + search filter + Q1-Q4 + cashflow cards
+> - [x] Money settings: +Add buttons on right side of tier/reward titles
+> - [x] Helmet CSP: maps.googleapis.com allowed
+> - [x] Prisma seed config: && fix on Windows
+> - [x] All docs synced: README, seed-plan, schema-notes, INSTRUCTIONS, PRODUCTION-GO-LIVE, spec, admin-account.md
+> - [x] Security coding styles doc: ignorethis/SECURITY-CODING-STYLES.md (8 anti-pattern rules)
+> - [x] Post-mortem: ignorethis/POSTMORTEM-2026-06-25.md (14 mistakes catalogued)
+> - [x] Git: squashed → merged to master → new feat/admin-fix branch
 >
 > ### PENDING - Seed Polish
-> - [ ] sampleAnswers: update values to match new question schema optionValues (28 categories)
-> - [ ] sampleAnswers: add 2-3 variant answers per category for variety (not just 1 per category)
-> - [x] Em-dash replaced with hyphen project-wide
-> - [x] All docs updated (frontend-log, TODO, spec)
-> - [ ] History tab polish
-> - [ ] Remaining emoji→SVG replacements (calendar, dashboard, invoices)
+> - [ ] sampleAnswers: update values to match new question schema optionValues
+> - [ ] sampleAnswers: add 2-3 variant answers per category
 
 ---
 
