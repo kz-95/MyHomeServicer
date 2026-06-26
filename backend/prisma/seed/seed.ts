@@ -1805,7 +1805,7 @@ async function main(): Promise<void> {
     status: 'pending_confirm' | 'in_progress' | 'completed' | 'cancelled',
     payment: 'pay_now' | 'pay_later' | 'cash',
     price: number,
-    opts?: { scheduledDate?: Date; notes?: string },
+    opts?: { scheduledDate?: Date; notes?: string; createdAt?: Date },
   ) {
     const answers = sampleAnswers(categorySlug);
     const q = await makeQuote(customerRef, addressKey, categorySlug, {
@@ -1856,6 +1856,7 @@ async function main(): Promise<void> {
         cashConfirmed: false,
         cancelledBy: status === 'cancelled' ? 'servicer' : null,
         cancelReason: status === 'cancelled' ? 'No-show - servicer did not arrive' : null,
+        createdAt: opts?.createdAt,
       },
     });
     return booking;
@@ -2006,7 +2007,7 @@ async function main(): Promise<void> {
         allCustomerRefs[custIdx],
         allCustomerAddrs[custIdx],
         m.ref, m.slug, 'completed', pay, price,
-        { scheduledDate: sched },
+        { scheduledDate: sched, createdAt: sched },
       );
       allBulkCompleted.push({ booking: b, servicerRef: m.ref, price });
     }
@@ -2384,6 +2385,7 @@ async function main(): Promise<void> {
   // ── Historical platform revenue (last 30 days, for the admin revenue chart) ──
   // Simulate realistic daily platform-fee income so the chart is populated on
   // first boot. Amounts vary with a weekday/weekend pattern + some noise.
+  let feeCount = 0;
   for (const cb of allBulkCompleted) {
     if (!cb.booking.id) continue;
     const fee = Math.round(cb.price * feeRate * 100) / 100;
