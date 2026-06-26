@@ -360,7 +360,7 @@ export async function handleDispatchAccept(
           bookingId: created.id,
           servicerId,
           escrowId: escrow.id,
-          reference: `Platform fee reserve (pay_now, ${(feeRate * 100).toFixed(1)}%)`,
+          reference: `Platform fee reserve (pay_now dispatch accept)`,
         },
         tx,
       );

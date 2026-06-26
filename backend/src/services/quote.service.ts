@@ -293,16 +293,6 @@ export async function createQuote(
       registeredDiscount = Math.round(input.budgetMax * discountCfg.rate * 100) / 100;
     }
   }
-  // T18: record the discount as a transaction for dashboard tracking
-  if (registeredDiscount > 0) {
-    await recordTransaction({
-      type: 'registered_customer_discount',
-      amount: registeredDiscount,
-      userId,
-      reference: 'Registered customer discount (15%)',
-      status: 'completed',
-    });
-  }
   const discountApplied = promoDiscount + registeredDiscount;
 
   // Pay-now: deduct budgetMax (or budgetMin if open-ended) + tip from customer
@@ -341,39 +331,54 @@ export async function createQuote(
   // settleAndBroadcastGuestQuote(). Payment gate before broadcast (BE).
   const defer = options?.deferBroadcastUntilPayment === true;
 
-  const quote = await prisma.quoteRequest.create({
-    data: {
-      userId,
-      ...(defer ? { status: 'pending_payment' as QuoteStatus } : {}),
-      categoryId: input.categoryId,
-      addressId: address.id,
-      contactName: input.contactName,
-      contactNumber: input.contactNumber,
-      timeSlot: input.timeSlot,
-      preferredDate: new Date(input.preferredDate),
-      propertyType: input.propertyType ?? address.propertyType,
-      budgetMin: input.budgetMin ?? null,
-      budgetMax: input.budgetMax ?? null,
-      paymentMode: input.paymentMode,
-      // Persist the pay_later settlement choice so proposal-select can reuse it
-      // without re-asking the customer. pay_now settles at the pay step.
-      settlementMethod:
-        input.paymentMode === 'pay_now' ? null : (input.settlementMethod ?? null),
-      tipAmount: input.tipAmount ?? null,
-      deadlineMode: input.deadlineMode,
-      proposalDeadline,
-      servicerDeadline,
-      isUrgent,
-      urgentFee,
-      notes: input.notes ?? null,
-      images: input.images ?? [],
-      promoCode: input.promoCode ?? null,
-      ...(input.serviceDetails
-        ? { serviceDetails: input.serviceDetails as Prisma.InputJsonValue }
-        : {}),
-      lat: address.lat,
-      lng: address.lng,
-    },
+  const quote = await prisma.$transaction(async (tx) => {
+    const q = await tx.quoteRequest.create({
+      data: {
+        userId,
+        ...(defer ? { status: 'pending_payment' as QuoteStatus } : {}),
+        categoryId: input.categoryId,
+        addressId: address.id,
+        contactName: input.contactName,
+        contactNumber: input.contactNumber,
+        timeSlot: input.timeSlot,
+        preferredDate: new Date(input.preferredDate),
+        propertyType: input.propertyType ?? address.propertyType,
+        budgetMin: input.budgetMin ?? null,
+        budgetMax: input.budgetMax ?? null,
+        paymentMode: input.paymentMode,
+        // Persist the pay_later settlement choice so proposal-select can reuse it
+        // without re-asking the customer. pay_now settles at the pay step.
+        settlementMethod:
+          input.paymentMode === 'pay_now' ? null : (input.settlementMethod ?? null),
+        tipAmount: input.tipAmount ?? null,
+        deadlineMode: input.deadlineMode,
+        proposalDeadline,
+        servicerDeadline,
+        isUrgent,
+        urgentFee,
+        notes: input.notes ?? null,
+        images: input.images ?? [],
+        promoCode: input.promoCode ?? null,
+        ...(input.serviceDetails
+          ? { serviceDetails: input.serviceDetails as Prisma.InputJsonValue }
+          : {}),
+        lat: address.lat,
+        lng: address.lng,
+      },
+    });
+
+    // F5: record discount inside the same tx so it rolls back if quote creation fails
+    if (registeredDiscount > 0) {
+      await recordTransaction({
+        type: 'registered_customer_discount',
+        amount: registeredDiscount,
+        userId,
+        reference: 'Registered customer discount (15%)',
+        status: 'completed',
+      }, tx);
+    }
+
+    return q;
   });
 
   // ── PAYMENT GATE (must pass BEFORE any broadcast / dispatch / notify) ────────

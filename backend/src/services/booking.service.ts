@@ -947,6 +947,8 @@ async function computeSettlementAmounts(
     lineItems: Prisma.JsonValue;
     price: Prisma.Decimal | number | string;
     tipAmount: Prisma.Decimal | number | string | null;
+    isUrgent?: boolean;
+    urgentFee?: Prisma.Decimal | number | string | null;
   },
 ): Promise<{ total: number; afterPromo: number; platformFee: number; feeRate: number }> {
   const [sstRate, feeRate] = await Promise.all([getSstRate(), getPlatformFeeRate()]);
@@ -972,10 +974,15 @@ async function computeSettlementAmounts(
   const promoDiscount = 0; // promo was already applied at booking
   const tip = booking.tipAmount ? Number(booking.tipAmount) : 0;
   const totalResult = computeTotal(lineItems, promoDiscount, config, tip);
+
+  // F2: subtract urgent fee from afterPromo so platform fee is not charged on it
+  const urgentFeeAmount = (booking.isUrgent && booking.urgentFee) ? Number(booking.urgentFee) : 0;
+  const feeBase = Math.max(0, totalResult.afterPromo - urgentFeeAmount);
+
   // T13: use FeeRule engine instead of legacy computePlatformFee
   const { computeFees } = await import('./fee-engine.service');
-  const platformFee = await computeFees(totalResult.afterPromo, 'booking');
-  return { total: totalResult.total, afterPromo: totalResult.afterPromo, platformFee, feeRate };
+  const platformFee = await computeFees(feeBase, 'booking');
+  return { total: totalResult.total, afterPromo: feeBase, platformFee, feeRate };
 }
 
 /**
@@ -1082,8 +1089,9 @@ export async function settleBooking(
       }
 
       case 'cash': {
-        // T21: prevent double platform_fee on cash bookings
-        if (booking.cashConfirmed) throw conflict('Cash payment already confirmed');
+        // F3: re-read cashConfirmed inside tx to prevent TOCTOU double-fee
+        const fresh = await tx.booking.findUnique({ where: { id: bookingId }, select: { cashConfirmed: true } });
+        if (fresh?.cashConfirmed) throw conflict('Cash payment already confirmed');
 
         // Cash settlement: servicer already collected cash.
         // Deduct platform fee from servicer deposit/credit.
@@ -1468,9 +1476,10 @@ async function resolveProposalPromo(code: string | null, _subtotal: number): Pro
  * computeTotal to extract afterPromo.
  */
 async function computeAfterPromo(servicerId: string, bookingId: string, price: number, lineItems: any): Promise<number> {
-  const [servicer, sstRate] = await Promise.all([
+  const [servicer, sstRate, booking] = await Promise.all([
     prisma.servicer.findUnique({ where: { id: servicerId } }),
     getSstRate(),
+    prisma.booking.findUnique({ where: { id: bookingId }, select: { isUrgent: true, urgentFee: true } }),
   ]);
 
   const config: ServicerTaxConfig = {
@@ -1499,7 +1508,11 @@ async function computeAfterPromo(servicerId: string, bookingId: string, price: n
   const promoDiscount = 0;
 
   const result = computeTotal(items, promoDiscount, config, 0);
-  return result.afterPromo;
+
+  // F2: subtract urgent fee from afterPromo so platform fee is not charged on it
+  const urgentFeeAmount = (booking?.isUrgent && booking?.urgentFee) ? Number(booking.urgentFee) : 0;
+  const feeBase = Math.max(0, result.afterPromo - urgentFeeAmount);
+  return feeBase;
 }
 
 /** Guard helper for routes that must reject non-owning callers. */

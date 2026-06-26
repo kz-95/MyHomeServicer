@@ -135,6 +135,15 @@ export async function resolveDispute(disputeId: string, input: ResolveDisputeInp
       // so nonRefundable = 0 (full refund)
       undefined,
     );
+    // F6: verify escrow was actually refunded (may have been already released)
+    const escrow = await prisma.escrow.findUnique({ where: { bookingId: dispute.bookingId } });
+    if (escrow?.status !== 'refunded') {
+      logger.warn('Dispute resolved as refund_customer but escrow not refunded (may have been already released)', {
+        disputeId,
+        bookingId: dispute.bookingId,
+        escrowStatus: escrow?.status,
+      });
+    }
   }
 
   return prisma.dispute.update({

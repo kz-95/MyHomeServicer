@@ -54,7 +54,7 @@ async function handlePromoCreditPayback(job: Job): Promise<void> {
 
   await prisma.$transaction(async (tx) => {
     await tx.promotionRedemption.update({
-      where: { id: redemption.id },
+      where: { id: redemption.id, paidToServicerViaCredit: false },
       data: { paidToServicerViaCredit: true, paidAt: new Date() },
     });
     await tx.promotion.update({
