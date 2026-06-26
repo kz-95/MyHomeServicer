@@ -4,6 +4,7 @@ import { BaseChartDirective } from 'ng2-charts';
 import { Chart, ChartConfiguration } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 
+// Register globally so donut chart can use it
 Chart.register(ChartDataLabels);
 
 @Component({
