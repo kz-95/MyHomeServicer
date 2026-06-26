@@ -349,33 +349,31 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   (barClick)="onCatBarClick($event)"
                 />
               </div>
+              <div class="chart-mid">
+                <app-donut-chart
+                  [labels]="catDonutLabels()"
+                  [values]="catDonutValues()"
+                  [colors]="DONUT_COLORS"
+                  (sliceClick)="onCatSliceClick($event)"
+                />
+              </div>
               <div class="chart-right">
-                <div class="donut-row">
-                  <div class="donut-col">
-                    <div class="donut-header">
-                      <span class="muted small">Show by</span>
-                      <select [(ngModel)]="catDonutMetric" (ngModelChange)="onCatDonutMetricChange()" class="donut-select">
-                        <option value="fees">Fees</option>
-                        <option value="count">Bookings</option>
-                        <option value="revenue">Revenue</option>
-                      </select>
+                <div class="donut-header">
+                  <span class="muted small">Show by</span>
+                  <select [(ngModel)]="catDonutMetric" (ngModelChange)="onCatDonutMetricChange()" class="donut-select">
+                    <option value="fees">Fees</option>
+                    <option value="count">Bookings</option>
+                    <option value="revenue">Revenue</option>
+                  </select>
+                </div>
+                <div class="donut-legend">
+                  @for (item of catDonutLegend(); track item.label) {
+                    <div class="donut-legend-item">
+                      <span class="donut-dot" [style.background]="item.color"></span>
+                      <span class="donut-legend-label">{{ item.label }}</span>
+                      <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
                     </div>
-                    <div class="donut-legend">
-                      @for (item of catDonutLegend(); track item.label) {
-                        <div class="donut-legend-item">
-                          <span class="donut-dot" [style.background]="item.color"></span>
-                          <span class="donut-legend-label">{{ item.label }}</span>
-                          <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                  <app-donut-chart
-                    [labels]="catDonutLabels()"
-                    [values]="catDonutValues()"
-                    [colors]="DONUT_COLORS"
-                    (sliceClick)="onCatSliceClick($event)"
-                  />
+                  }
                 </div>
               </div>
             </div>
@@ -424,32 +422,30 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   (barClick)="onCustBarClick($event)"
                 />
               </div>
+              <div class="chart-mid">
+                <app-donut-chart
+                  [labels]="custDonutLabels()"
+                  [values]="custDonutValues()"
+                  [colors]="DONUT_COLORS"
+                  (sliceClick)="onCustSliceClick($event)"
+                />
+              </div>
               <div class="chart-right">
-                <div class="donut-row">
-                  <div class="donut-col">
-                    <div class="donut-header">
-                      <span class="muted small">Show by</span>
-                      <select [(ngModel)]="custDonutMetric" (ngModelChange)="onCustDonutMetricChange()" class="donut-select">
-                        <option value="totalSpent">Total Spent</option>
-                        <option value="bookingCount">Bookings</option>
-                      </select>
+                <div class="donut-header">
+                  <span class="muted small">Show by</span>
+                  <select [(ngModel)]="custDonutMetric" (ngModelChange)="onCustDonutMetricChange()" class="donut-select">
+                    <option value="totalSpent">Total Spent</option>
+                    <option value="bookingCount">Bookings</option>
+                  </select>
+                </div>
+                <div class="donut-legend">
+                  @for (item of custDonutLegend(); track item.label) {
+                    <div class="donut-legend-item">
+                      <span class="donut-dot" [style.background]="item.color"></span>
+                      <span class="donut-legend-label">{{ item.label }}</span>
+                      <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
                     </div>
-                    <div class="donut-legend">
-                      @for (item of custDonutLegend(); track item.label) {
-                        <div class="donut-legend-item">
-                          <span class="donut-dot" [style.background]="item.color"></span>
-                          <span class="donut-legend-label">{{ item.label }}</span>
-                          <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                  <app-donut-chart
-                    [labels]="custDonutLabels()"
-                    [values]="custDonutValues()"
-                    [colors]="DONUT_COLORS"
-                    (sliceClick)="onCustSliceClick($event)"
-                  />
+                  }
                 </div>
               </div>
             </div>
@@ -498,32 +494,30 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
                   (barClick)="onSvcBarClick($event)"
                 />
               </div>
+              <div class="chart-mid">
+                <app-donut-chart
+                  [labels]="svcDonutLabels()"
+                  [values]="svcDonutValues()"
+                  [colors]="DONUT_COLORS"
+                  (sliceClick)="onSvcSliceClick($event)"
+                />
+              </div>
               <div class="chart-right">
-                <div class="donut-row">
-                  <div class="donut-col">
-                    <div class="donut-header">
-                      <span class="muted small">Show by</span>
-                      <select [(ngModel)]="svcDonutMetric" (ngModelChange)="onSvcDonutMetricChange()" class="donut-select">
-                        <option value="revenue">Revenue</option>
-                        <option value="jobCount">Jobs</option>
-                      </select>
+                <div class="donut-header">
+                  <span class="muted small">Show by</span>
+                  <select [(ngModel)]="svcDonutMetric" (ngModelChange)="onSvcDonutMetricChange()" class="donut-select">
+                    <option value="revenue">Revenue</option>
+                    <option value="jobCount">Jobs</option>
+                  </select>
+                </div>
+                <div class="donut-legend">
+                  @for (item of svcDonutLegend(); track item.label) {
+                    <div class="donut-legend-item">
+                      <span class="donut-dot" [style.background]="item.color"></span>
+                      <span class="donut-legend-label">{{ item.label }}</span>
+                      <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
                     </div>
-                    <div class="donut-legend">
-                      @for (item of svcDonutLegend(); track item.label) {
-                        <div class="donut-legend-item">
-                          <span class="donut-dot" [style.background]="item.color"></span>
-                          <span class="donut-legend-label">{{ item.label }}</span>
-                          <span class="donut-legend-val">{{ item.value | number:'1.2-2' }} · {{ item.pct }}</span>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                  <app-donut-chart
-                    [labels]="svcDonutLabels()"
-                    [values]="svcDonutValues()"
-                    [colors]="DONUT_COLORS"
-                    (sliceClick)="onSvcSliceClick($event)"
-                  />
+                  }
                 </div>
               </div>
             </div>
@@ -952,16 +946,15 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
 
       /* ── Bar + Donut charts ─────────────────────────────────────────── */
       .chart-row { display: flex; gap: 1rem; align-items: stretch; margin-bottom: 1rem; }
-      .chart-left { flex: 1; min-width: 0; }
-      .chart-right { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-      .donut-col { width: 100%; }
-      .donut-row { display: flex; align-items: center; gap: 0.75rem; }
-      .donut-header { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; width: 100%; }
+      .chart-left { flex: 2; min-width: 0; }
+      .chart-mid { flex: 1; display: flex; align-items: center; justify-content: center; }
+      .chart-right { flex: 2; display: flex; flex-direction: column; justify-content: center; }
+      .donut-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; width: 100%; }
       .donut-legend { margin-top: 0.5rem; width: 100%; }
-      .donut-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; margin-bottom: 0.2rem; color: var(--color-muted); }
-      .donut-legend-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .donut-legend-val { font-weight: 600; color: var(--color-text); }
-      .donut-row { display: flex; align-items: center; gap: 0.75rem; }
+      .donut-legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; margin-bottom: 0.35rem; color: var(--color-muted); }
+      .donut-legend-label { flex: 1; font-size: 0.82rem; }
+      .donut-legend-val { font-weight: 600; color: var(--color-text); font-size: 0.82rem; }
+      .donut-select { font-size: 0.82rem; padding: 0.25rem 0.4rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); color: var(--color-text); font-family: inherit; }
 
       /* ── Responsive ─────────────────────────────────────────────────── */
       @media (max-width: 760px) { .chart-row { display: none; } }
