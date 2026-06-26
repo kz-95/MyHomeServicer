@@ -131,50 +131,44 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
             <app-icon name="search" sizeToken="sm" class="search-icon-inline" />
             <input type="search" class="toolbar-search" placeholder="Search bookings, customers, servicers..." [(ngModel)]="searchQuery" (input)="onSearchChange()" />
           </div>
-        </div>
-
-        <!-- Calendar date filter + quick selects -->
-        @if (showSection('chart')) {
-          <div class="chart-controls">
-            <div class="date-range">
-              <input type="date" [ngModel]="dateFrom()" (ngModelChange)="setDateRange($event, dateTo())" />
-              <span class="date-sep">to</span>
-              <input type="date" [ngModel]="dateTo()" (ngModelChange)="setDateRange(dateFrom(), $event)" />
-            </div>
-            <div class="range-toggle">
-              <button class="range-btn" [class.on]="financialDays() === 1" (click)="setFinancialRange(1)">Today</button>
-              <button class="range-btn" [class.on]="financialDays() === 7" (click)="setFinancialRange(7)">7d</button>
-              <button class="range-btn" [class.on]="financialDays() === 30" (click)="setFinancialRange(30)">30d</button>
-              <button class="range-btn" [class.on]="financialDays() === 90" (click)="setFinancialRange(90)">90d</button>
-              <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">All</button>
-            </div>
-            <div class="quarter-toggle">
-              <button class="range-btn" [class.on]="activeQuarter() === 1" (click)="setQuarter(1)">Q1</button>
-              <button class="range-btn" [class.on]="activeQuarter() === 2" (click)="setQuarter(2)">Q2</button>
-              <button class="range-btn" [class.on]="activeQuarter() === 3" (click)="setQuarter(3)">Q3</button>
-              <button class="range-btn" [class.on]="activeQuarter() === 4" (click)="setQuarter(4)">Q4</button>
-            </div>
-            <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
-          </div>
-        }
       </div>
-      }
+    </div>
 
-      <!-- Divider -->
+    <!-- Divider -->
       <div class="dash-divider"></div>
 
-      <!-- Section B (lighter bg): Section filter pills + expand/collapse -->
+      <!-- Section B (lighter bg): Section pills + date controls -->
       <div class="dash-head-b">
-        <button class="chip" [class.active]="sectionFilters()['all']" (click)="toggleSectionFilter('all')">All</button>
-        <button class="chip" [class.active]="sectionFilters()['queues']" (click)="toggleSectionFilter('queues')">Queues</button>
-        <button class="chip" [class.active]="sectionFilters()['cards']" (click)="toggleSectionFilter('cards')">Cards</button>
-        <button class="chip" [class.active]="sectionFilters()['chart']" (click)="toggleSectionFilter('chart')">Chart</button>
-        <button class="chip" [class.active]="sectionFilters()['breakdown']" (click)="toggleSectionFilter('breakdown')">Breakdown</button>
-        <button class="chip" [class.active]="sectionFilters()['customers']" (click)="toggleSectionFilter('customers')">Customers</button>
-        <button class="chip" [class.active]="sectionFilters()['servicers']" (click)="toggleSectionFilter('servicers')">Servicers</button>
-        <button class="header-toggle" (click)="toggleHeader()" [attr.title]="headerExpanded() ? 'Collapse filters' : 'Expand filters'" [attr.aria-label]="headerExpanded() ? 'Collapse filters' : 'Expand filters'">
-          <app-icon [name]="headerExpanded() ? 'chevron-up' : 'chevron-down'" sizeToken="sm" />
-        </button>
+        <div class="section-pills">
+          <button class="chip" [class.active]="sectionFilters()['all']" (click)="toggleSectionFilter('all')">All</button>
+          <button class="chip" [class.active]="sectionFilters()['queues']" (click)="toggleSectionFilter('queues')">Queues</button>
+          <button class="chip" [class.active]="sectionFilters()['cards']" (click)="toggleSectionFilter('cards')">Cards</button>
+          <button class="chip" [class.active]="sectionFilters()['chart']" (click)="toggleSectionFilter('chart')">Chart</button>
+          <button class="chip" [class.active]="sectionFilters()['breakdown']" (click)="toggleSectionFilter('breakdown')">Breakdown</button>
+          <button class="chip" [class.active]="sectionFilters()['customers']" (click)="toggleSectionFilter('customers')">Customers</button>
+          <button class="chip" [class.active]="sectionFilters()['servicers']" (click)="toggleSectionFilter('servicers')">Servicers</button>
+        </div>
+        <div class="date-controls">
+          <div class="date-range">
+            <input type="date" [ngModel]="dateFrom()" (ngModelChange)="setDateRange($event, dateTo())" />
+            <span class="date-sep">to</span>
+            <input type="date" [ngModel]="dateTo()" (ngModelChange)="setDateRange(dateFrom(), $event)" />
+          </div>
+          <div class="range-toggle">
+            <button class="range-btn" [class.on]="financialDays() === 1" (click)="setFinancialRange(1)">Today</button>
+            <button class="range-btn" [class.on]="financialDays() === 7" (click)="setFinancialRange(7)">7d</button>
+            <button class="range-btn" [class.on]="financialDays() === 30" (click)="setFinancialRange(30)">30d</button>
+            <button class="range-btn" [class.on]="financialDays() === 90" (click)="setFinancialRange(90)">90d</button>
+            <button class="range-btn" [class.on]="financialDays() === 365" (click)="setFinancialRange(365)">All</button>
+          </div>
+          <div class="quarter-toggle">
+            <button class="range-btn" [class.on]="activeQuarter() === 1" (click)="setQuarter(1)">Q1</button>
+            <button class="range-btn" [class.on]="activeQuarter() === 2" (click)="setQuarter(2)">Q2</button>
+            <button class="range-btn" [class.on]="activeQuarter() === 3" (click)="setQuarter(3)">Q3</button>
+            <button class="range-btn" [class.on]="activeQuarter() === 4" (click)="setQuarter(4)">Q4</button>
+          </div>
+          <input type="number" class="year-input" [ngModel]="activeYear()" (ngModelChange)="setYear(+$event)" min="2020" max="2030" />
+        </div>
       </div>
     </div>
 
@@ -582,7 +576,9 @@ const DONUT_COLORS = ['#f59e0b', '#16a34a', '#2563eb', '#dc2626', '#9333ea', '#6
         border-bottom: 1px solid var(--color-border);
       }
       .dash-head-a { padding: 0.75rem 2rem; background: var(--color-bg); }
-      .dash-head-b { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 2rem; background: var(--color-surface); }
+      .dash-head-b { display: flex; align-items: center; gap: 1rem; padding: 0.5rem 2rem; background: var(--color-surface); flex-wrap: wrap; }
+      .section-pills { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
+      .date-controls { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; flex-wrap: wrap; }
       .header-toggle {
         margin-left: auto;
         display: flex;
